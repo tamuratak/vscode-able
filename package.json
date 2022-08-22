@@ -1,0 +1,57 @@
+{
+  "name": "able",
+  "displayName": "Able",
+  "version": "0.1.0",
+  "publisher": "tamuratak",
+  "license": "MIT",
+  "description": "A extension able to do things",
+  "homepage": "https://github.com/tamuratak/vscode-able",
+  "main": "./out/src/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tamuratak/vscode-able.git"
+  },
+  "engines": {
+    "vscode": "^1.69.0"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "able.toggleTerminalAndSideBar",
+        "title": "Toggle Terminal and Side Bar"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "able.toggleTerminalAndSideBar",
+        "key": "Shift+Ctrl+t"
+      }
+    ]
+  },
+  "activationEvents": [
+    "onCommand:able.toggleTerminalAndSideBar"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^16",
+    "@types/vscode": "1.69.1",
+    "@typescript-eslint/eslint-plugin": "5.33.0",
+    "@typescript-eslint/parser": "5.33.0",
+    "eslint": "8.21.0",
+    "typescript": "4.7.4",
+    "vsce": "2.10.0"
+  },
+  "files": [
+    "out/**/*",
+    "src/**/*"
+  ],
+  "scripts": {
+    "build": "npm run compile",
+    "compile": "tsc -p ./",
+    "clean": "rm -rf out/src/* out/test/*",
+    "lint": "eslint --cache --ext .ts .",
+    "lint:fix": "eslint --fix --ext .ts .",
+    "release": "npm run clean && npm run lint && npm run compile && vsce package",
+    "watch": "tsc -w -p ./"
+  }
+}
