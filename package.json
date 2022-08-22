@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "publisher": "tamuratak",
   "license": "MIT",
-  "description": "A extension able to do things",
+  "description": "An extension able to do things",
   "homepage": "https://github.com/tamuratak/vscode-able",
   "main": "./out/src/main.js",
   "repository": {
