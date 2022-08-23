@@ -10,7 +10,7 @@ export function activate() {
         await vscode.commands.executeCommand('workbench.action.toggleSidebarVisibility')
         if (terminalIsVisible) {
             vscode.window.activeTerminal?.show()
-            await sleep(10)
+            await sleep(100)
             await vscode.commands.executeCommand('workbench.action.terminal.toggleTerminal')
             terminalIsVisible = false
         } else {
