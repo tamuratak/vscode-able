@@ -17,19 +17,30 @@
   "contributes": {
     "commands": [
       {
-        "command": "able.toggleTerminalAndSideBar",
-        "title": "Toggle Terminal and Side Bar"
+        "command": "able.closeTerminalAndOpenSideBar",
+        "title": "Close Terminal and Open Side Bar"
+      },
+      {
+        "command": "able.openTerminalAndCloseSideBar",
+        "title": "Open Terminal and Close Side Bar"
       }
     ],
     "keybindings": [
       {
-        "command": "able.toggleTerminalAndSideBar",
-        "key": "Shift+Ctrl+t"
+        "command": "able.closeTerminalAndOpenSideBar",
+        "key": "Shift+Ctrl+t",
+        "when": "!sideBarVisible"
+      },
+      {
+        "command": "able.openTerminalAndCloseSideBar",
+        "key": "Shift+Ctrl+t",
+        "when": "sideBarVisible"
       }
     ]
   },
   "activationEvents": [
-    "onCommand:able.toggleTerminalAndSideBar"
+    "onCommand:able.closeTerminalAndOpenSideBar",
+    "onCommand:able.openTerminalAndCloseSideBar"
   ],
   "dependencies": {},
   "devDependencies": {
