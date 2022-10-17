@@ -17,4 +17,27 @@ export function activate() {
         await vscode.commands.executeCommand('terminal.focus')
         vscode.window.activeTerminal?.show()
     })
+
+    const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100.45)
+    vscode.window.onDidChangeTextEditorSelection((event) => {
+        const document = event.textEditor.document
+        const cursor = event.selections?.[0].start
+        if (cursor) {
+            const offset = document.offsetAt(cursor)
+            statusBarItem.text = `offset: ${offset}`
+        }
+    })
+    vscode.window.onDidChangeActiveTextEditor((event) => {
+        if (event?.document.uri.scheme !== 'file') {
+            statusBarItem.hide()
+        } else {
+            statusBarItem.show()
+        }
+    })
+    const cursor = vscode.window.activeTextEditor?.selection.start
+    if (cursor) {
+        const offset = vscode.window.activeTextEditor?.document.offsetAt(cursor)
+        statusBarItem.text = `offset: ${offset}`
+    }
+    statusBarItem.show()
 }

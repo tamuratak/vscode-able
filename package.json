@@ -39,6 +39,7 @@
     ]
   },
   "activationEvents": [
+    "onFileSystem:file",
     "onCommand:able.closeTerminalAndOpenSideBar",
     "onCommand:able.openTerminalAndCloseSideBar"
   ],
