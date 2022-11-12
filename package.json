@@ -18,11 +18,23 @@
     "commands": [
       {
         "command": "able.closeTerminalAndOpenSideBar",
-        "title": "Close Terminal and Open Side Bar"
+        "title": "Able: Close Terminal and Open Side Bar"
       },
       {
         "command": "able.openTerminalAndCloseSideBar",
-        "title": "Open Terminal and Close Side Bar"
+        "title": "Able: Open Terminal and Close Side Bar"
+      },
+      {
+        "command": "able.terminalNew",
+        "title": "Able: Create New Terminal"
+      },
+      {
+        "command": "able.focusTerminal",
+        "title": "Able: Focus Terminal"
+      },
+      {
+        "command": "able.focusActiveDocument",
+        "title": "Able: Focus Active Document"
       }
     ],
     "keybindings": [
@@ -35,6 +47,26 @@
         "command": "able.openTerminalAndCloseSideBar",
         "key": "Shift+Ctrl+t",
         "when": "sideBarVisible"
+      },
+      {
+        "key": "ctrl+t",
+        "command": "able.terminalNew",
+        "when": "terminalProcessSupported && !terminalIsOpen"
+      },
+      {
+        "key": "ctrl+t",
+        "command": "able.focusTerminal",
+        "when": "!terminalFocus && !terminalEditorFocus && terminalIsOpen"
+      },
+      {
+        "key": "ctrl+t",
+        "command": "workbench.action.terminal.toggleTerminal",
+        "when": "terminalFocus && !terminalEditorFocus"
+      },
+      {
+        "key": "ctrl+t",
+        "command": "able.focusActiveDocument",
+        "when": "terminalEditorFocus"
       }
     ]
   },
