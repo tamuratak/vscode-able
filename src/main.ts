@@ -17,6 +17,40 @@ export function activate() {
         await vscode.commands.executeCommand('terminal.focus')
         vscode.window.activeTerminal?.show()
     })
+    vscode.commands.registerCommand('able.focusTerminal', () => {
+        vscode.window.activeTerminal?.show()
+    })
+
+    vscode.commands.registerCommand('able.terminalNew', () => {
+        setActiveDocument(vscode.window.activeTextEditor?.document)
+        if (vscode.window.tabGroups.all.length > 1) {
+            vscode.window.createTerminal({location: { viewColumn: vscode.ViewColumn.One }})
+        } else {
+            vscode.commands.executeCommand('workbench.action.terminal.new')
+        }
+    })
+
+    let activeDocument: vscode.TextDocument | undefined
+    const setActiveDocument = (doc: vscode.TextDocument | undefined) => {
+        if (doc?.uri.scheme !== 'file') {
+            return
+        }
+        activeDocument = doc
+    }
+
+    vscode.commands.registerCommand('able.focusActiveDocument', () => {
+        if (activeDocument) {
+            vscode.window.showTextDocument(activeDocument)
+        }
+    })
+
+    vscode.workspace.onDidOpenTextDocument((doc) => {
+        setActiveDocument(doc)
+    })
+
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+        setActiveDocument(editor?.document)
+    })
 
     const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100.45)
     vscode.window.onDidChangeTextEditorSelection((event) => {
