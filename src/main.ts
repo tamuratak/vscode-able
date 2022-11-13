@@ -51,7 +51,15 @@ export function activate() {
 
     vscode.commands.registerCommand('able.focusActiveDocument', () => {
         if (activeDocument) {
-            vscode.window.showTextDocument(activeDocument)
+            const tabGroup = vscode.window.tabGroups.all.find((group) => group.tabs.find((tab) => {
+                if (tab.input instanceof vscode.TabInputText) {
+                    if (tab.input.uri.toString() === activeDocument?.uri.toString()) {
+                        return tab
+                    }
+                }
+                return
+            }))
+            vscode.window.showTextDocument(activeDocument, tabGroup?.viewColumn)
         }
     })
 
