@@ -18,8 +18,8 @@ export function activate() {
         vscode.window.activeTerminal?.show()
     })
     vscode.commands.registerCommand('able.focusTerminal', () => {
-        const terminal = vscode.window.terminals.find((terminal) => {
-            return terminal.name === 'zsh (able)' && terminal.exitStatus === undefined
+        const terminal = vscode.window.terminals.find((term) => {
+            return term.name === 'zsh (able)' && term.exitStatus === undefined
         })
         if (terminal) {
             terminal.show()
