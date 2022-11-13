@@ -18,13 +18,24 @@ export function activate() {
         vscode.window.activeTerminal?.show()
     })
     vscode.commands.registerCommand('able.focusTerminal', () => {
-        vscode.window.activeTerminal?.show()
+        const terminal = vscode.window.terminals.find((terminal) => {
+            return terminal.name === 'zsh (able)' && terminal.exitStatus === undefined
+        })
+        if (terminal) {
+            terminal.show()
+        } else {
+            if (vscode.window.tabGroups.all.length === 1) {
+                vscode.window.terminals[0]?.show()
+            } else {
+                vscode.commands.executeCommand('able.terminalNew')
+            }
+        }
     })
 
     vscode.commands.registerCommand('able.terminalNew', () => {
         setActiveDocument(vscode.window.activeTextEditor?.document)
         if (vscode.window.tabGroups.all.length > 1) {
-            vscode.window.createTerminal({location: { viewColumn: vscode.ViewColumn.One }})
+            vscode.window.createTerminal({name: 'zsh (able)', location: { viewColumn: vscode.ViewColumn.One }})
         } else {
             vscode.commands.executeCommand('workbench.action.terminal.new')
         }
