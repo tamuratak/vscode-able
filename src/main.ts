@@ -17,13 +17,13 @@ export function activate() {
         await vscode.commands.executeCommand('terminal.focus')
         vscode.window.activeTerminal?.show()
     })
+
+    let ableTerminal: vscode.Terminal | undefined
     vscode.commands.registerCommand('able.focusTerminal', () => {
-        const terminal = vscode.window.terminals.find((term) => {
-            return term.name === 'zsh (able)' && term.exitStatus === undefined
-        })
-        if (terminal) {
-            terminal.show()
+        if (ableTerminal && ableTerminal.exitStatus === undefined) {
+            ableTerminal.show()
         } else {
+            ableTerminal = undefined
             if (vscode.window.tabGroups.all.length === 1) {
                 vscode.window.terminals[0]?.show()
             } else {
@@ -35,7 +35,7 @@ export function activate() {
     vscode.commands.registerCommand('able.terminalNew', () => {
         setActiveDocument(vscode.window.activeTextEditor?.document)
         if (vscode.window.tabGroups.all.length > 1) {
-            vscode.window.createTerminal({name: 'zsh (able)', location: { viewColumn: vscode.ViewColumn.One }})
+            ableTerminal = vscode.window.createTerminal({location: { viewColumn: vscode.ViewColumn.One }})
         } else {
             vscode.commands.executeCommand('workbench.action.terminal.new')
         }
