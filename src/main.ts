@@ -25,7 +25,7 @@ export function activate() {
         } else {
             ableTerminal = undefined
             if (vscode.window.tabGroups.all.length === 1) {
-                vscode.window.terminals[0]?.show()
+                vscode.commands.executeCommand('workbench.action.terminal.toggleTerminal')
             } else {
                 vscode.commands.executeCommand('able.terminalNew')
             }
