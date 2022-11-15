@@ -35,6 +35,10 @@
       {
         "command": "able.focusActiveDocument",
         "title": "Able: Focus Active Document"
+      },
+      {
+        "command": "able.recenter",
+        "title": "Able: Recenter"
       }
     ],
     "keybindings": [
@@ -67,6 +71,11 @@
         "key": "ctrl+t",
         "command": "able.focusActiveDocument",
         "when": "terminalEditorFocus"
+      },
+      {
+        "key": "ctrl+l ctrl+l",
+        "command": "able.recenter",
+        "when": "textInputFocus"
       }
     ]
   },

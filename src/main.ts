@@ -10,7 +10,8 @@ class Extension {
         this.registerTerminalAndSideBarCommand()
         this.registerFocusTerminalCommand()
         this.registerShowingOffset()
-        this.registerHighlightCursor()
+        this.registerRecenterCommand()
+        // this.registerHighlightCursor()
     }
 
     registerTerminalAndSideBarCommand() {
@@ -106,6 +107,17 @@ class Extension {
             statusBarItem.text = `offset: ${offset}`
         }
         statusBarItem.show()
+    }
+
+    registerRecenterCommand() {
+        vscode.commands.registerCommand('able.recenter', () => {
+            const editor = vscode.window.activeTextEditor
+            const cursor = editor?.selection.active
+            if (editor && cursor) {
+                editor.revealRange(new vscode.Range(cursor, cursor), vscode.TextEditorRevealType.InCenter)
+                this.highlightCursor(editor)
+            }
+        })
     }
 
     highlightCursor(editor: vscode.TextEditor) {
