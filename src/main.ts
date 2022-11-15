@@ -95,6 +95,7 @@ class Extension {
         }
         statusBarItem.show()
         return [
+            statusBarItem,
             vscode.window.onDidChangeTextEditorSelection((event) => {
                 const document = event.textEditor.document
                 const activeCursor = event.selections?.[0].start
