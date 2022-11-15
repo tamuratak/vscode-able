@@ -141,8 +141,7 @@ class Extension {
         }
         const deco = vscode.window.createTextEditorDecorationType(decoConfig)
         editor.setDecorations(deco, [new vscode.Range(cursor, cursor)])
-        setTimeout(() => { deco.dispose() }, 1000)
-
+        setTimeout(() => deco.dispose(), 500)
     }
 
     private registerCtrlk() {
