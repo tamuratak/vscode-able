@@ -6,53 +6,35 @@ function sleep(ms: number) {
 
 class Extension {
 
-    constructor() {
-        this.registerTerminalAndSideBarCommand()
-        this.registerFocusTerminalCommand()
-        this.registerShowingOffset()
-        this.registerRecenterCommand()
-        // this.registerHighlightCursor()
+    registerCommands() {
+        return [
+            ...this.registerTerminalAndSideBarCommand(),
+            ...this.registerFocusTerminalCommand(),
+            ...this.registerShowingOffset(),
+            ...this.registerRecenterCommand(),
+            ...this.registerCtrlk()
+        ]
     }
 
-    registerTerminalAndSideBarCommand() {
-        vscode.commands.registerCommand('able.closeTerminalAndOpenSideBar', async () => {
-            await vscode.commands.executeCommand('workbench.action.focusSideBar')
-            await sleep(10)
-            await vscode.commands.executeCommand('workbench.action.closeAuxiliaryBar')
-            await vscode.commands.executeCommand('workbench.action.closePanel')
-        })
-        vscode.commands.registerCommand('able.openTerminalAndCloseSideBar', async () => {
-            await vscode.commands.executeCommand('workbench.action.closeSidebar')
-            await sleep(10)
-            await vscode.commands.executeCommand('terminal.focus')
-            vscode.window.activeTerminal?.show()
-        })
+    private registerTerminalAndSideBarCommand() {
+        return [
+            vscode.commands.registerCommand('able.closeTerminalAndOpenSideBar', async () => {
+                await vscode.commands.executeCommand('workbench.action.focusSideBar')
+                await sleep(10)
+                await vscode.commands.executeCommand('workbench.action.closeAuxiliaryBar')
+                await vscode.commands.executeCommand('workbench.action.closePanel')
+            }),
+            vscode.commands.registerCommand('able.openTerminalAndCloseSideBar', async () => {
+                await vscode.commands.executeCommand('workbench.action.closeSidebar')
+                await sleep(10)
+                await vscode.commands.executeCommand('terminal.focus')
+                vscode.window.activeTerminal?.show()
+            })
+        ]
     }
 
-    registerFocusTerminalCommand() {
+    private registerFocusTerminalCommand() {
         let ableTerminal: vscode.Terminal | undefined
-        vscode.commands.registerCommand('able.focusTerminal', () => {
-            if (ableTerminal && ableTerminal.exitStatus === undefined) {
-                ableTerminal.show()
-            } else {
-                ableTerminal = undefined
-                if (vscode.window.tabGroups.all.length === 1) {
-                    vscode.commands.executeCommand('workbench.action.terminal.toggleTerminal')
-                } else {
-                    vscode.commands.executeCommand('able.terminalNew')
-                }
-            }
-        })
-
-        vscode.commands.registerCommand('able.terminalNew', () => {
-            setActiveDocument(vscode.window.activeTextEditor?.document)
-            if (vscode.window.tabGroups.all.length > 1) {
-                ableTerminal = vscode.window.createTerminal({ location: { viewColumn: vscode.ViewColumn.One } })
-            } else {
-                vscode.commands.executeCommand('workbench.action.terminal.new')
-            }
-        })
-
         let activeDocument: vscode.TextDocument | undefined
         const setActiveDocument = (doc: vscode.TextDocument | undefined) => {
             if (doc?.uri.scheme !== 'file') {
@@ -61,66 +43,90 @@ class Extension {
             activeDocument = doc
         }
 
-        vscode.commands.registerCommand('able.focusActiveDocument', () => {
-            if (activeDocument) {
-                const tabGroup = vscode.window.tabGroups.all.find((group) => group.tabs.find((tab) => {
-                    if (tab.input instanceof vscode.TabInputText) {
-                        if (tab.input.uri.toString() === activeDocument?.uri.toString()) {
-                            return tab
-                        }
+        return [
+            vscode.commands.registerCommand('able.focusTerminal', () => {
+                if (ableTerminal && ableTerminal.exitStatus === undefined) {
+                    ableTerminal.show()
+                } else {
+                    ableTerminal = undefined
+                    if (vscode.window.tabGroups.all.length === 1) {
+                        vscode.commands.executeCommand('workbench.action.terminal.toggleTerminal')
+                    } else {
+                        vscode.commands.executeCommand('able.terminalNew')
                     }
-                    return
-                }))
-                vscode.window.showTextDocument(activeDocument, tabGroup?.viewColumn)
-            }
-        })
-
-        vscode.workspace.onDidOpenTextDocument((doc) => {
-            setActiveDocument(doc)
-        })
-
-        vscode.window.onDidChangeActiveTextEditor((editor) => {
-            setActiveDocument(editor?.document)
-        })
+                }
+            }),
+            vscode.commands.registerCommand('able.terminalNew', () => {
+                setActiveDocument(vscode.window.activeTextEditor?.document)
+                if (vscode.window.tabGroups.all.length > 1) {
+                    ableTerminal = vscode.window.createTerminal({ location: { viewColumn: vscode.ViewColumn.One } })
+                } else {
+                    vscode.commands.executeCommand('workbench.action.terminal.new')
+                }
+            }),
+            vscode.commands.registerCommand('able.focusActiveDocument', () => {
+                if (activeDocument) {
+                    const tabGroup = vscode.window.tabGroups.all.find((group) => group.tabs.find((tab) => {
+                        if (tab.input instanceof vscode.TabInputText) {
+                            if (tab.input.uri.toString() === activeDocument?.uri.toString()) {
+                                return tab
+                            }
+                        }
+                        return
+                    }))
+                    vscode.window.showTextDocument(activeDocument, tabGroup?.viewColumn)
+                }
+            }),
+            vscode.workspace.onDidOpenTextDocument((doc) => {
+                setActiveDocument(doc)
+            }),
+            vscode.window.onDidChangeActiveTextEditor((editor) => {
+                setActiveDocument(editor?.document)
+            })
+        ]
     }
 
-    registerShowingOffset() {
+    private registerShowingOffset() {
         const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100.45)
-        vscode.window.onDidChangeTextEditorSelection((event) => {
-            const document = event.textEditor.document
-            const cursor = event.selections?.[0].start
-            if (cursor) {
-                const offset = document.offsetAt(cursor)
-                statusBarItem.text = `offset: ${offset}`
-            }
-        })
-        vscode.window.onDidChangeActiveTextEditor((event) => {
-            if (event?.document.uri.scheme !== 'file') {
-                statusBarItem.hide()
-            } else {
-                statusBarItem.show()
-            }
-        })
         const cursor = vscode.window.activeTextEditor?.selection.start
         if (cursor) {
             const offset = vscode.window.activeTextEditor?.document.offsetAt(cursor)
             statusBarItem.text = `offset: ${offset}`
         }
         statusBarItem.show()
+        return [
+            vscode.window.onDidChangeTextEditorSelection((event) => {
+                const document = event.textEditor.document
+                const activeCursor = event.selections?.[0].start
+                if (activeCursor) {
+                    const offset = document.offsetAt(activeCursor)
+                    statusBarItem.text = `offset: ${offset}`
+                }
+            }),
+            vscode.window.onDidChangeActiveTextEditor((event) => {
+                if (event?.document.uri.scheme !== 'file') {
+                    statusBarItem.hide()
+                } else {
+                    statusBarItem.show()
+                }
+            })
+        ]
     }
 
-    registerRecenterCommand() {
-        vscode.commands.registerCommand('able.recenter', () => {
-            const editor = vscode.window.activeTextEditor
-            const cursor = editor?.selection.active
-            if (editor && cursor) {
-                editor.revealRange(new vscode.Range(cursor, cursor), vscode.TextEditorRevealType.InCenter)
-                this.highlightCursor(editor)
-            }
-        })
+    private registerRecenterCommand() {
+        return [
+            vscode.commands.registerCommand('able.recenter', () => {
+                const editor = vscode.window.activeTextEditor
+                const cursor = editor?.selection.active
+                if (editor && cursor) {
+                    editor.revealRange(new vscode.Range(cursor, cursor), vscode.TextEditorRevealType.InCenter)
+                    this.highlightCursor(editor)
+                }
+            })
+        ]
     }
 
-    highlightCursor(editor: vscode.TextEditor) {
+    private highlightCursor(editor: vscode.TextEditor) {
         const cursor = editor.selection.active
         const decoConfig: vscode.DecorationRenderOptions = {
             borderWidth: '1px',
@@ -139,18 +145,40 @@ class Extension {
 
     }
 
-    registerHighlightCursor() {
-        vscode.window.onDidChangeActiveTextEditor((editor) => {
-            setTimeout(() => {
-                if (editor) {
-                    this.highlightCursor(editor)
+    private registerCtrlk() {
+        return [
+            vscode.commands.registerTextEditorCommand('able.ctrl_k', async (textEditor, edit) => {
+                let deleteRange: vscode.Range
+                const document = textEditor.document
+                const allLines: string[] = []
+                textEditor.selections.forEach((selection) => {
+                    if (selection.isEmpty) {
+                        const cursor = selection.active
+                        const currentLine = textEditor.document.lineAt(cursor.line)
+                        const lineRange = currentLine.range
+                        if (cursor.character === lineRange.end.character) {
+                            deleteRange = new vscode.Range(cursor.line, cursor.character, cursor.line + 1, 0)
+                            edit.delete(deleteRange)
+                        } else {
+                            deleteRange = new vscode.Range(cursor, lineRange.end)
+                            allLines.push(document.getText(deleteRange))
+                            edit.delete(deleteRange)
+                        }
+                    } else {
+                        allLines.push(document.getText(selection))
+                        edit.delete(selection)
+                    }
+                })
+                const eol = document.eol === vscode.EndOfLine.LF ? '\n' : '\r\n'
+                if (allLines.length > 0) {
+                    await vscode.env.clipboard.writeText(allLines.join(eol))
                 }
-            }, 300)
-        })
+            })
+        ]
     }
-
 }
 
-export function activate() {
-    new Extension()
+export function activate(context: vscode.ExtensionContext) {
+    const extension = new Extension()
+    context.subscriptions.push(...extension.registerCommands())
 }
