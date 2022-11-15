@@ -87,7 +87,9 @@
   "activationEvents": [
     "onFileSystem:file",
     "onCommand:able.closeTerminalAndOpenSideBar",
-    "onCommand:able.openTerminalAndCloseSideBar"
+    "onCommand:able.openTerminalAndCloseSideBar",
+    "onCommand:able.terminalNew",
+    "onCommand:able.focusTerminal"
   ],
   "dependencies": {},
   "devDependencies": {
