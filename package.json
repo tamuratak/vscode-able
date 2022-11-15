@@ -78,8 +78,8 @@
         "when": "editorTextFocus"
       },
       {
-        "command": "able.ctrl_k",
         "key": "ctrl+k",
+        "command": "able.ctrl_k",
         "when": "textInputFocus && !editorReadonly"
       }
     ]
