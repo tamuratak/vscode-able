@@ -12,7 +12,7 @@ class Extension {
             ...this.registerFocusTerminalCommand(),
             ...this.registerShowingOffset(),
             ...this.registerRecenterCommand(),
-            ...this.registerCtrlk()
+            ...this.registerKillLinesToEndCommand()
         ]
     }
 
@@ -145,10 +145,9 @@ class Extension {
         setTimeout(() => deco.dispose(), 500)
     }
 
-    private registerCtrlk() {
+    private registerKillLinesToEndCommand() {
         return [
-            vscode.commands.registerTextEditorCommand('able.ctrl_k', async (textEditor, edit) => {
-                let deleteRange: vscode.Range
+            vscode.commands.registerTextEditorCommand('able.killLinesToEnd', async (textEditor, edit) => {
                 const document = textEditor.document
                 const allLines: string[] = []
                 textEditor.selections.forEach((selection) => {
@@ -157,10 +156,10 @@ class Extension {
                         const currentLine = textEditor.document.lineAt(cursor.line)
                         const lineRange = currentLine.range
                         if (cursor.character === lineRange.end.character) {
-                            deleteRange = new vscode.Range(cursor.line, cursor.character, cursor.line + 1, 0)
+                            const deleteRange = new vscode.Range(cursor.line, cursor.character, cursor.line + 1, 0)
                             edit.delete(deleteRange)
                         } else {
-                            deleteRange = new vscode.Range(cursor, lineRange.end)
+                            const deleteRange = new vscode.Range(cursor, lineRange.end)
                             allLines.push(document.getText(deleteRange))
                             edit.delete(deleteRange)
                         }

@@ -39,6 +39,10 @@
       {
         "command": "able.recenter",
         "title": "Able: Recenter"
+      },
+      {
+        "command": "able.killLinesToEnd",
+        "title": "Able: Kill Lines To End"
       }
     ],
     "keybindings": [
@@ -79,7 +83,7 @@
       },
       {
         "key": "ctrl+k",
-        "command": "able.ctrl_k",
+        "command": "able.killLinesToEnd",
         "when": "textInputFocus && !editorReadonly"
       }
     ]
