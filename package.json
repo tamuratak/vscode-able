@@ -1,7 +1,7 @@
 {
   "name": "able",
   "displayName": "Able",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "publisher": "tamuratak",
   "license": "MIT",
   "description": "An extension able to do things",
@@ -75,7 +75,7 @@
       {
         "key": "ctrl+l ctrl+l",
         "command": "able.recenter",
-        "when": "textInputFocus"
+        "when": "editorTextFocus"
       }
     ]
   },
