@@ -12,7 +12,7 @@ class Extension {
             ...this.registerFocusTerminalCommand(),
             ...this.registerShowingOffset(),
             ...this.registerRecenterCommand(),
-            ...this.registerKillLinesToEnd()
+            ...this.registerCtrlk()
         ]
     }
 
@@ -145,32 +145,33 @@ class Extension {
         setTimeout(() => deco.dispose(), 500)
     }
 
-    private registerKillLinesToEnd() {
+    private registerCtrlk() {
         return [
-            vscode.commands.registerTextEditorCommand('able.killLinesToEnd', async (textEditor, edit) => {
+            vscode.commands.registerTextEditorCommand('able.ctrl_k', async (textEditor, edit) => {
+                let deleteRange: vscode.Range
                 const document = textEditor.document
-                const killedLines: string[] = []
+                const allLines: string[] = []
                 textEditor.selections.forEach((selection) => {
                     if (selection.isEmpty) {
                         const cursor = selection.active
                         const currentLine = textEditor.document.lineAt(cursor.line)
                         const lineRange = currentLine.range
                         if (cursor.character === lineRange.end.character) {
-                            const deleteRange = new vscode.Range(cursor.line, cursor.character, cursor.line + 1, 0)
+                            deleteRange = new vscode.Range(cursor.line, cursor.character, cursor.line + 1, 0)
                             edit.delete(deleteRange)
                         } else {
-                            const deleteRange = new vscode.Range(cursor, lineRange.end)
-                            killedLines.push(document.getText(deleteRange))
+                            deleteRange = new vscode.Range(cursor, lineRange.end)
+                            allLines.push(document.getText(deleteRange))
                             edit.delete(deleteRange)
                         }
                     } else {
-                        killedLines.push(document.getText(selection))
+                        allLines.push(document.getText(selection))
                         edit.delete(selection)
                     }
                 })
                 const eol = document.eol === vscode.EndOfLine.LF ? '\n' : '\r\n'
-                if (killedLines.length > 0) {
-                    await vscode.env.clipboard.writeText(killedLines.join(eol))
+                if (allLines.length > 0) {
+                    await vscode.env.clipboard.writeText(allLines.join(eol))
                 }
             })
         ]

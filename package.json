@@ -15,6 +15,32 @@
     "vscode": "^1.73.0"
   },
   "contributes": {
+    "commands": [
+      {
+        "command": "able.closeTerminalAndOpenSideBar",
+        "title": "Able: Close Terminal and Open Side Bar"
+      },
+      {
+        "command": "able.openTerminalAndCloseSideBar",
+        "title": "Able: Open Terminal and Close Side Bar"
+      },
+      {
+        "command": "able.terminalNew",
+        "title": "Able: Create New Terminal"
+      },
+      {
+        "command": "able.focusTerminal",
+        "title": "Able: Focus Terminal"
+      },
+      {
+        "command": "able.focusActiveDocument",
+        "title": "Able: Focus Active Document"
+      },
+      {
+        "command": "able.recenter",
+        "title": "Able: Recenter"
+      }
+    ],
     "keybindings": [
       {
         "command": "able.closeTerminalAndOpenSideBar",
@@ -53,7 +79,7 @@
       },
       {
         "key": "ctrl+k",
-        "command": "able.killLinesToEnd",
+        "command": "able.ctrl_k",
         "when": "textInputFocus && !editorReadonly"
       }
     ]
