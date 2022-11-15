@@ -76,6 +76,11 @@
         "key": "ctrl+l ctrl+l",
         "command": "able.recenter",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "able.ctrl_k",
+        "key": "ctrl+k",
+        "when": "textInputFocus && !editorReadonly"
       }
     ]
   },
