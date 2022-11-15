@@ -149,7 +149,7 @@ class Extension {
         return [
             vscode.commands.registerTextEditorCommand('able.killLinesToEnd', async (textEditor, edit) => {
                 const document = textEditor.document
-                const allLines: string[] = []
+                const killedLines: string[] = []
                 textEditor.selections.forEach((selection) => {
                     if (selection.isEmpty) {
                         const cursor = selection.active
@@ -160,17 +160,17 @@ class Extension {
                             edit.delete(deleteRange)
                         } else {
                             const deleteRange = new vscode.Range(cursor, lineRange.end)
-                            allLines.push(document.getText(deleteRange))
+                            killedLines.push(document.getText(deleteRange))
                             edit.delete(deleteRange)
                         }
                     } else {
-                        allLines.push(document.getText(selection))
+                        killedLines.push(document.getText(selection))
                         edit.delete(selection)
                     }
                 })
                 const eol = document.eol === vscode.EndOfLine.LF ? '\n' : '\r\n'
-                if (allLines.length > 0) {
-                    await vscode.env.clipboard.writeText(allLines.join(eol))
+                if (killedLines.length > 0) {
+                    await vscode.env.clipboard.writeText(killedLines.join(eol))
                 }
             })
         ]
