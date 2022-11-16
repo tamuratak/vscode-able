@@ -60,6 +60,8 @@ class Extension {
                 setActiveDocument(vscode.window.activeTextEditor?.document)
                 if (vscode.window.tabGroups.all.length > 1) {
                     ableTerminal = vscode.window.createTerminal({ location: { viewColumn: vscode.ViewColumn.One } })
+                    ableTerminal.sendText(' export PROMPT="%{$fg[red]%}%B[%l) %b%n@ %2~% ]$ "')
+                    ableTerminal.sendText(' clear')
                 } else {
                     vscode.commands.executeCommand('workbench.action.terminal.new')
                 }
