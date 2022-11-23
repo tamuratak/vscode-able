@@ -56,12 +56,14 @@ class Extension {
                     }
                 }
             }),
-            vscode.commands.registerCommand('able.terminalNew', () => {
+            vscode.commands.registerCommand('able.terminalNew', async () => {
                 setActiveDocument(vscode.window.activeTextEditor?.document)
                 if (vscode.window.tabGroups.all.length > 1) {
                     ableTerminal = vscode.window.createTerminal({ location: { viewColumn: vscode.ViewColumn.One } })
                     ableTerminal.sendText(' export PROMPT="%{$fg[red]%}%B[%l)%b %2~% ]$ "')
                     ableTerminal.sendText(' clear')
+                    await sleep(100)
+                    ableTerminal.show()
                 } else {
                     vscode.commands.executeCommand('workbench.action.terminal.new')
                 }
