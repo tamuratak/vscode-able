@@ -182,4 +182,10 @@ class Extension {
 export function activate(context: vscode.ExtensionContext) {
     const extension = new Extension()
     context.subscriptions.push(...extension.registerCommands())
+
+    context.environmentVariableCollection.delete('GIT_INDEX_FILE')
+    if (vscode.env.appName.includes('Insiders')) {
+        context.environmentVariableCollection.append('GIT_EDITOR', 'codeInsiders -nw')
+    }
+
 }
