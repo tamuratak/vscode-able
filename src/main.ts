@@ -76,8 +76,9 @@ class Extension {
                         }
                         return
                     }))
-                    vscode.window.showTextDocument(activeDocument, tabGroup?.viewColumn)
+                    return vscode.window.showTextDocument(activeDocument, tabGroup?.viewColumn)
                 }
+                return
             }),
             vscode.workspace.onDidOpenTextDocument((doc) => {
                 setActiveDocument(doc)
@@ -118,10 +119,12 @@ class Extension {
 
     private registerRecenterCommand() {
         return [
-            vscode.commands.registerCommand('able.recenter', () => {
+            vscode.commands.registerCommand('able.recenter', async () => {
+                await vscode.commands.executeCommand('able.focusActiveDocument')
                 const editor = vscode.window.activeTextEditor
                 const cursor = editor?.selection.active
                 if (editor && cursor) {
+                    await vscode.window.showTextDocument(editor.document)
                     editor.revealRange(new vscode.Range(cursor, cursor), vscode.TextEditorRevealType.InCenter)
                     this.highlightCursor(editor)
                 }

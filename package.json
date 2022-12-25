@@ -78,8 +78,7 @@
       },
       {
         "key": "ctrl+l ctrl+l",
-        "command": "able.recenter",
-        "when": "editorTextFocus"
+        "command": "able.recenter"
       },
       {
         "key": "ctrl+k",
