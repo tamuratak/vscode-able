@@ -12,7 +12,7 @@
     "url": "https://github.com/tamuratak/vscode-able.git"
   },
   "engines": {
-    "vscode": "^1.81.0"
+    "vscode": "^1.83.0"
   },
   "capabilities": {
     "virtualWorkspaces": true,
@@ -99,12 +99,12 @@
   "dependencies": {},
   "devDependencies": {
     "@types/node": "^18",
-    "@types/vscode": "1.81.0",
-    "@typescript-eslint/eslint-plugin": "6.5.0",
-    "@typescript-eslint/parser": "6.5.0",
-    "eslint": "8.48.0",
-    "typescript": "^5.1",
-    "@vscode/vsce": "2.21.0"
+    "@types/vscode": "1.83.0",
+    "@typescript-eslint/eslint-plugin": "6.7.4",
+    "@typescript-eslint/parser": "6.7.4",
+    "eslint": "8.51.0",
+    "typescript": "5.2.2",
+    "@vscode/vsce": "2.21.1"
   },
   "files": [
     "out/**/*",
