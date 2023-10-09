@@ -189,6 +189,8 @@ export function activate(context: vscode.ExtensionContext) {
     context.environmentVariableCollection.delete('GIT_INDEX_FILE')
     if (vscode.env.appName.includes('Insiders')) {
         context.environmentVariableCollection.replace('GIT_EDITOR', 'codeInsiders -nw')
+    } else {
+        context.environmentVariableCollection.replace('GIT_EDITOR', 'vscode -nw')
     }
 
 }
