@@ -50,9 +50,9 @@ class Extension {
                 } else {
                     ableTerminal = undefined
                     if (vscode.window.tabGroups.all.length === 1) {
-                        vscode.commands.executeCommand('workbench.action.terminal.toggleTerminal')
+                        void vscode.commands.executeCommand('workbench.action.terminal.toggleTerminal')
                     } else {
-                        vscode.commands.executeCommand('able.terminalNew')
+                        void vscode.commands.executeCommand('able.terminalNew')
                     }
                 }
             }),
@@ -63,7 +63,7 @@ class Extension {
                     ableTerminal.sendText(' export PROMPT="%{$fg[red]%}%B[%l)%b %2~% ]$ "')
                     ableTerminal.sendText(' clear')
                 } else {
-                    vscode.commands.executeCommand('workbench.action.terminal.new')
+                    void vscode.commands.executeCommand('workbench.action.terminal.new')
                 }
             }),
             vscode.commands.registerCommand('able.focusActiveDocument', () => {
