@@ -103,14 +103,14 @@
   ],
   "dependencies": {},
   "devDependencies": {
-    "@eslint/js": "9.11.1",
+    "@eslint/js": "9.15.0",
     "@types/eslint__js": "8.42.3",
     "@types/node": "~20.14",
     "@types/vscode": "1.95.0",
     "@vscode/vsce": "3.1.1",
-    "eslint": "9.11.1",
-    "typescript": "~5.5",
-    "typescript-eslint": "8.7.0"
+    "eslint": "9.15.0",
+    "typescript": "5.7.2",
+    "typescript-eslint": "8.16.0"
   },
   "files": [
     "out/**/*",

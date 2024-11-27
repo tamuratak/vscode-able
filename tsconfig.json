@@ -1,24 +1,28 @@
 {
     "compilerOptions": {
-        "alwaysStrict": true,
         "esModuleInterop": true,
+        "exactOptionalPropertyTypes": true,
         "forceConsistentCasingInFileNames": true,
+        "isolatedModules": true,
         "lib": [
-            "es2021"
+            "es2022"
         ],
-        "module": "commonjs",
+        "module": "node16",
         "noFallthroughCasesInSwitch": true,
-        "noImplicitAny": true,
+        "noImplicitOverride": true,
         "noImplicitReturns": true,
-        "noImplicitThis": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noUncheckedSideEffectImports": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "outDir": "out",
+        "resolveJsonModule": true,
         "rootDir": ".",
+        "skipLibCheck": true,
         "sourceMap": true,
         "strict": true,
-        "target": "es2021",
-        "baseUrl": "./"
+        "target": "es2022",
+        "baseUrl": "./",
     },
     "exclude": [
         "node_modules"
