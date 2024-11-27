@@ -89,7 +89,12 @@
       {
         "key": "ctrl+k",
         "command": "able.killLinesToEnd",
-        "when": "textInputFocus && !editorReadonly"
+        "when": "editorTextFocus && !editorReadonly"
+      },
+      {
+        "key": "ctrl+k",
+        "command": "-deleteAllRight",
+        "when": "editorTextFocus && !editorReadonly"
       }
     ]
   },
