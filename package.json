@@ -24,13 +24,13 @@
     "chatParticipants": [
       {
           "id": "able.chatParticipant",
-          "fullName": "Able Chat Participant",
+          "fullName": "Able Chat",
           "name": "able",
           "description": "Able to write well",
           "isSticky": true,
           "commands": [
             {
-              "name": "make_fluent",
+              "name": "fluent",
               "description": "Make fluent"
             }
           ]
