@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import { handler } from './chat/make_fluent'
 
 function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms))
@@ -183,6 +184,7 @@ class Extension {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+    vscode.chat.createChatParticipant('able.chatParticipant', handler);
     const extension = new Extension()
     context.subscriptions.push(...extension.registerCommands())
 

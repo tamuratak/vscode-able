@@ -21,6 +21,21 @@
     }
   },
   "contributes": {
+    "chatParticipants": [
+      {
+          "id": "able.chatParticipant",
+          "fullName": "Able Chat Participant",
+          "name": "able",
+          "description": "Able to write well",
+          "isSticky": true,
+          "commands": [
+            {
+              "name": "make_fluent",
+              "description": "Make fluent"
+            }
+          ]
+      }
+    ],
     "commands": [
       {
         "command": "able.closeTerminalAndOpenSideBar",
