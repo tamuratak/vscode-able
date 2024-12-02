@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { MAKE_FLUENT_PROMPT } from './prompt'
 
-function make_fluent_prompt(input: string) {
+function makeFluentPrompt(input: string) {
     return MAKE_FLUENT_PROMPT + '\n' + input
 }
 
@@ -16,6 +16,13 @@ const fluentMessagesBase = [
     vscode.LanguageModelChatMessage.User(MAKE_FLUENT_PROMPT + '\n' + 'We provide additional features by setting up new event listeners in `latextoybox.ts` for DOM elements within `viewer.html`. We do not and should not override functions defined by PDF.js.'),
     vscode.LanguageModelChatMessage.Assistant('To enhance functionality, we add new event listeners in `latextoybox.ts` for DOM elements within `viewer.html`. We neither override nor should we override functions defined by PDF.js.')
 ]
+
+export interface HistoryEntry {
+    type: 'user' | 'assistant'
+    text: string
+}
+
+export type AbleHistory = HistoryEntry[]
 
 export const handler: vscode.ChatRequestHandler = async (
     request: vscode.ChatRequest,
@@ -33,7 +40,7 @@ export const handler: vscode.ChatRequestHandler = async (
                 const response = chatResponseToString(hist)
                 const pair = extractInputAndOutput(response)
                 if (pair) {
-                    const user = make_fluent_prompt(pair.input)
+                    const user = makeFluentPrompt(pair.input)
                     const assistant = pair.output
                     chattHistory.push(vscode.LanguageModelChatMessage.User(user))
                     chattHistory.push(vscode.LanguageModelChatMessage.Assistant(assistant))
@@ -47,6 +54,7 @@ export const handler: vscode.ChatRequestHandler = async (
             }
         }
     }
+    extractAbleHistory(context)
     if (request.command === 'fluent') {
         const fluentMessages = [...fluentMessagesBase, ...chattHistory]
         let prompt = ''
@@ -56,7 +64,7 @@ export const handler: vscode.ChatRequestHandler = async (
                 const { uri, range } = ref.value as { uri: vscode.Uri, range: vscode.Range }
                 const doc = await vscode.workspace.openTextDocument(uri)
                 selectedText = doc.getText(range)
-                prompt = make_fluent_prompt(selectedText)
+                prompt = makeFluentPrompt(selectedText)
                 break
             }
         }
@@ -79,6 +87,31 @@ export const handler: vscode.ChatRequestHandler = async (
             stream.markdown(fragment)
         }
     }
+}
+
+function extractAbleHistory(context: vscode.ChatContext): HistoryEntry[] {
+    const history: HistoryEntry[] = []
+    for (const hist of context.history) {
+        if (hist.command === 'fluent') {
+            if (hist instanceof vscode.ChatResponseTurn) {
+                const response = chatResponseToString(hist)
+                const pair = extractInputAndOutput(response)
+                if (pair) {
+                    const user = makeFluentPrompt(pair.input)
+                    const assistant = pair.output
+                    history.push({type: 'user', text: user})
+                    history.push({type: 'assistant', text: assistant})
+                }
+            }
+        } else if (hist.participant === 'able.chatParticipant') {
+            if (hist instanceof vscode.ChatRequestTurn) {
+                history.push({type: 'user', text: hist.prompt})
+            } else if (hist instanceof vscode.ChatResponseTurn) {
+                history.push({type: 'assistant', text: chatResponseToString(hist)})
+            }
+        }
+    }
+    return history
 }
 
 function chatResponseToString(response: vscode.ChatResponseTurn): string {

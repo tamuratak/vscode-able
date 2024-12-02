@@ -3,21 +3,19 @@ import {
     BasePromptElementProps,
     PrioritizedList,
     PromptElement,
+    PromptPiece,
     UserMessage,
-} from '@vscode/prompt-tsx';
-
-export interface PromptProps extends BasePromptElementProps {
-    userQuery: string
-}
-
-export interface PromptState {
-    creationScript: string
-}
+} from '@vscode/prompt-tsx'
+import { AbleHistory } from './chat'
 
 export const MAKE_FLUENT_PROMPT = 'Make fluent:'
 
-export class FluentPrompt extends PromptElement<PromptProps, PromptState> {
-    async render() {
+export interface FluentPromptProps extends BasePromptElementProps {
+    history: AbleHistory
+}
+
+export class FluentPrompt extends PromptElement<FluentPromptProps> {
+    render() {
         return (
             <>
                 <UserMessage>
@@ -51,7 +49,30 @@ export class FluentPrompt extends PromptElement<PromptProps, PromptState> {
                         The position of the IME widget is not ideal at the end of a long line.
                     </AssistantMessage>
                 </PrioritizedList>
+                <HistoryMessages history={this.props.history} />
             </>
         )
+    }
+}
+
+interface HistoryMessagesProps extends BasePromptElementProps {
+    history: AbleHistory
+}
+
+export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
+    render(): PromptPiece {
+        const history: (UserMessage | AssistantMessage)[] = [];
+        for (const hist of this.props.history) {
+            if (hist.type === 'user') {
+                history.push(<UserMessage>{hist.text}</UserMessage>);
+            } else {
+                history.push(<AssistantMessage>{hist.text}</AssistantMessage>)
+            }
+        }
+        return (
+            <PrioritizedList priority={0} descending={false}>
+                {history}
+            </PrioritizedList>
+        );
     }
 }
