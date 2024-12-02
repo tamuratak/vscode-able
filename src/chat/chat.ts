@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FluentPrompt, HistoryEntry, MAKE_FLUENT_PROMPT } from './prompt'
+import { FluentPrompt, HistoryEntry, MAKE_FLUENT_PROMPT, SimplePrompt } from './prompt'
 import { renderPrompt } from '@vscode/prompt-tsx'
 
 function makeFluentPrompt(input: string) {
@@ -14,18 +14,17 @@ export const handler: vscode.ChatRequestHandler = async (
 ) => {
     const ableHistory = extractAbleHistory(context)
     if (request.command === 'fluent') {
-        let prompt = ''
-        let selectedText = ''
+        let selectedText: string | undefined
         for (const ref of request.references) {
             if (ref.id === 'vscode.implicit.selection') {
                 const { uri, range } = ref.value as { uri: vscode.Uri, range: vscode.Range }
                 const doc = await vscode.workspace.openTextDocument(uri)
                 selectedText = doc.getText(range)
-                prompt = makeFluentPrompt(selectedText)
                 break
             }
         }
-        const {messages} = await renderPrompt(FluentPrompt, {history: ableHistory, prompt}, { modelMaxPromptTokens: 4096 }, request.model)
+        const input = selectedText ?? request.prompt
+        const {messages} = await renderPrompt(FluentPrompt, {history: ableHistory, input}, { modelMaxPromptTokens: 4096 }, request.model)
         const chatResponse = await request.model.sendRequest(messages, {}, token)
 
         let responseText = ''
@@ -36,7 +35,7 @@ export const handler: vscode.ChatRequestHandler = async (
         stream.markdown('#### output\n' + responseText)
         return
     } else {
-        const {messages} = await renderPrompt(FluentPrompt, {history: ableHistory, prompt: request.prompt}, { modelMaxPromptTokens: 4096 }, request.model)
+        const {messages} = await renderPrompt(SimplePrompt, {history: ableHistory, prompt: request.prompt}, { modelMaxPromptTokens: 4096 }, request.model)
         const chatResponse = await request.model.sendRequest(messages, {}, token)
         for await (const fragment of chatResponse.text) {
             stream.markdown(fragment)

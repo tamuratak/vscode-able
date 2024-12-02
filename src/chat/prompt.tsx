@@ -34,7 +34,7 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
 
 export interface FluentPromptProps extends BasePromptElementProps {
     history: HistoryEntry[],
-    prompt: string
+    input: string
 }
 
 export class FluentPrompt extends PromptElement<FluentPromptProps> {
@@ -74,7 +74,9 @@ export class FluentPrompt extends PromptElement<FluentPromptProps> {
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
                 <UserMessage>
-                    {this.props.prompt}
+                    {MAKE_FLUENT_PROMPT}
+                    <br />
+                    {this.props.input}
                 </UserMessage>
             </>
         )
