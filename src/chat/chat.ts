@@ -1,21 +1,10 @@
 import * as vscode from 'vscode'
-import { MAKE_FLUENT_PROMPT } from './prompt'
+import { FluentPrompt, MAKE_FLUENT_PROMPT } from './prompt'
+import { renderPrompt } from '@vscode/prompt-tsx'
 
 function makeFluentPrompt(input: string) {
     return MAKE_FLUENT_PROMPT + '\n' + input
 }
-
-const fluentMessagesBase = [
-    vscode.LanguageModelChatMessage.User('Instructions: \nPlease write a clear, concise, and grammatically correct English sentence that effectively conveys the idea. The tone should be formal, and it should be neutral. Do not use codeblocks in the output.'),
-    vscode.LanguageModelChatMessage.User(MAKE_FLUENT_PROMPT + '\n' + 'The following error message pops up. The message doesn\'t mention that  the terminal launch attempt from the `tasks.json` file has failed. Users cannot tell which configuration is wrong.'),
-    vscode.LanguageModelChatMessage.Assistant('The following error message appears, but it doesn\'t indicate that the terminal launch attempt from the `tasks.json` file has failed. As a result, users are unable to identify which configuration is incorrect.'),
-    vscode.LanguageModelChatMessage.User(MAKE_FLUENT_PROMPT + '\n' + 'Users are unable to identify that the terminal launch attempt from the `tasks.json` file has failed.'),
-    vscode.LanguageModelChatMessage.Assistant('Users cannot recognize that the terminal launch attempt from the `tasks.json` file has failed.'),
-    vscode.LanguageModelChatMessage.User(MAKE_FLUENT_PROMPT + '\n' + 'The position of the IME widget is not good at the last of a long line.'),
-    vscode.LanguageModelChatMessage.Assistant('The position of the IME widget is not ideal at the end of a long line.'),
-    vscode.LanguageModelChatMessage.User(MAKE_FLUENT_PROMPT + '\n' + 'We provide additional features by setting up new event listeners in `latextoybox.ts` for DOM elements within `viewer.html`. We do not and should not override functions defined by PDF.js.'),
-    vscode.LanguageModelChatMessage.Assistant('To enhance functionality, we add new event listeners in `latextoybox.ts` for DOM elements within `viewer.html`. We neither override nor should we override functions defined by PDF.js.')
-]
 
 export interface HistoryEntry {
     type: 'user' | 'assistant'
@@ -30,33 +19,8 @@ export const handler: vscode.ChatRequestHandler = async (
     stream: vscode.ChatResponseStream,
     token: vscode.CancellationToken
 ) => {
-    const chattHistory: vscode.LanguageModelChatMessage[] = []
-    for (const hist of context.history) {
-        if (hist.participant !== 'able.chatParticipant') {
-            continue
-        }
-        if (hist.command === 'fluent') {
-            if (hist instanceof vscode.ChatResponseTurn) {
-                const response = chatResponseToString(hist)
-                const pair = extractInputAndOutput(response)
-                if (pair) {
-                    const user = makeFluentPrompt(pair.input)
-                    const assistant = pair.output
-                    chattHistory.push(vscode.LanguageModelChatMessage.User(user))
-                    chattHistory.push(vscode.LanguageModelChatMessage.Assistant(assistant))
-                }
-            }
-        } else {
-            if (hist instanceof vscode.ChatRequestTurn) {
-                vscode.LanguageModelChatMessage.User(hist.prompt)
-            } else if (hist instanceof vscode.ChatResponseTurn) {
-                vscode.LanguageModelChatMessage.Assistant(chatResponseToString(hist))
-            }
-        }
-    }
-    extractAbleHistory(context)
+    const ableHistory = extractAbleHistory(context)
     if (request.command === 'fluent') {
-        const fluentMessages = [...fluentMessagesBase, ...chattHistory]
         let prompt = ''
         let selectedText = ''
         for (const ref of request.references) {
@@ -68,20 +32,18 @@ export const handler: vscode.ChatRequestHandler = async (
                 break
             }
         }
-        fluentMessages.push(vscode.LanguageModelChatMessage.User(prompt))
-        const chatResponse = await request.model.sendRequest(fluentMessages, {}, token)
+        const {messages} = await renderPrompt(FluentPrompt, {history: ableHistory, prompt}, { modelMaxPromptTokens: 4096 }, request.model)
+        const chatResponse = await request.model.sendRequest(messages, {}, token)
 
         let responseText = ''
         for await (const fragment of chatResponse.text) {
             responseText += fragment
         }
-        fluentMessages.push(vscode.LanguageModelChatMessage.Assistant(responseText))
         stream.markdown('#### input\n' + selectedText + '\n\n')
         stream.markdown('#### output\n' + responseText)
         return
     } else {
-        const messages = [...chattHistory]
-        messages.push(vscode.LanguageModelChatMessage.User(request.prompt))
+        const {messages} = await renderPrompt(FluentPrompt, {history: ableHistory, prompt: request.prompt}, { modelMaxPromptTokens: 4096 }, request.model)
         const chatResponse = await request.model.sendRequest(messages, {}, token)
         for await (const fragment of chatResponse.text) {
             stream.markdown(fragment)

@@ -10,8 +10,27 @@ import { AbleHistory } from './chat'
 
 export const MAKE_FLUENT_PROMPT = 'Make fluent:'
 
+export interface SimplePromptProps extends BasePromptElementProps {
+    history: AbleHistory,
+    prompt: string
+}
+
+export class SimplePrompt extends PromptElement<SimplePromptProps> {
+    render() {
+        return (
+            <>
+                <HistoryMessages history={this.props.history} />
+                <UserMessage>
+                    {this.props.prompt}
+                </UserMessage>
+            </>
+        )
+    }
+}
+
 export interface FluentPromptProps extends BasePromptElementProps {
-    history: AbleHistory
+    history: AbleHistory,
+    prompt: string
 }
 
 export class FluentPrompt extends PromptElement<FluentPromptProps> {
@@ -50,6 +69,9 @@ export class FluentPrompt extends PromptElement<FluentPromptProps> {
                     </AssistantMessage>
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
+                <UserMessage>
+                    {this.props.prompt}
+                </UserMessage>
             </>
         )
     }
