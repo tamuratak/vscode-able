@@ -5,7 +5,7 @@ function make_fluent_prompt(input: string) {
     return MAKE_FLUENT_PROMPT + '\n' + input
 }
 
-let fluentMessages = [
+const fluentMessagesBase = [
     vscode.LanguageModelChatMessage.User('Instructions: \nPlease write a clear, concise, and grammatically correct English sentence that effectively conveys the idea. The tone should be formal, and it should be neutral. Do not use codeblocks in the output.'),
     vscode.LanguageModelChatMessage.User(MAKE_FLUENT_PROMPT + '\n' + 'The following error message pops up. The message doesn\'t mention that  the terminal launch attempt from the `tasks.json` file has failed. Users cannot tell which configuration is wrong.'),
     vscode.LanguageModelChatMessage.Assistant('The following error message appears, but it doesn\'t indicate that the terminal launch attempt from the `tasks.json` file has failed. As a result, users are unable to identify which configuration is incorrect.'),
@@ -17,13 +17,6 @@ let fluentMessages = [
     vscode.LanguageModelChatMessage.Assistant('To enhance functionality, we add new event listeners in `latextoybox.ts` for DOM elements within `viewer.html`. We neither override nor should we override functions defined by PDF.js.')
 ]
 
-interface ChatHistoryEntry {
-    user: string,
-    assistant: string
-}
-
-type ChatHistory = ChatHistoryEntry[]
-
 export const handler: vscode.ChatRequestHandler = async (
     request: vscode.ChatRequest,
     context: vscode.ChatContext,
@@ -31,27 +24,31 @@ export const handler: vscode.ChatRequestHandler = async (
     token: vscode.CancellationToken
 ) => {
     if (request.command === 'fluent') {
-        if (fluentMessages.length > 20) {
-            fluentMessages = fluentMessages.slice(fluentMessages.length - 20)
-
-        }
-        const fluentHistory: ChatHistory = []
+        const fluentHistory: vscode.LanguageModelChatMessage[] = [...fluentMessagesBase]
         for (const hist of context.history) {
-            if (hist.participant === 'able.chatParticipant' && hist.command === 'fluent') {
+            if (hist.participant !== 'able.chatParticipant') {
+                continue
+            }
+            if (hist.command === 'fluent') {
                 if (hist instanceof vscode.ChatResponseTurn) {
-                    for (const res of hist.response) {
-                        if (res instanceof vscode.ChatResponseMarkdownPart) {
-                            const pair = extractInputAndOutput(res.value.value)
-                            if (pair) {
-                                const user = make_fluent_prompt(pair.input)
-                                const assistant = pair.output
-                                fluentHistory.push({user, assistant})
-                            }
-                        }
+                    const response = chatResponseToString(hist)
+                    const pair = extractInputAndOutput(response)
+                    if (pair) {
+                        const user = make_fluent_prompt(pair.input)
+                        const assistant = pair.output
+                        fluentHistory.push(vscode.LanguageModelChatMessage.User(user))
+                        fluentHistory.push(vscode.LanguageModelChatMessage.Assistant(assistant))
                     }
+                }
+            } else {
+                if (hist instanceof vscode.ChatRequestTurn) {
+                    vscode.LanguageModelChatMessage.User(hist.prompt)
+                } else if (hist instanceof vscode.ChatResponseTurn) {
+                    vscode.LanguageModelChatMessage.Assistant(chatResponseToString(hist))
                 }
             }
         }
+        const fluentMessages = [...fluentHistory]
         let prompt = '';
         let selectedText = ''
         for (const ref of request.references) {
@@ -77,6 +74,16 @@ export const handler: vscode.ChatRequestHandler = async (
     } else {
         stream.markdown('Unknown command')
     }
+}
+
+function chatResponseToString(response: vscode.ChatResponseTurn): string {
+    let str = ''
+    for (const part of response.response) {
+        if (part instanceof vscode.ChatResponseMarkdownPart) {
+            str += part.value.value
+        }
+    }
+    return str
 }
 
 function extractInputAndOutput(str: string) {
