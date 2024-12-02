@@ -13,12 +13,17 @@ export interface PromptState {
     creationScript: string
 }
 
-const MAKE_FLUENT_PROMPT = 'No codeblocks. Make fluent:'
+export const MAKE_FLUENT_PROMPT = 'Make fluent:'
 
 export class FluentPrompt extends PromptElement<PromptProps, PromptState> {
     async render() {
         return (
             <>
+                <UserMessage>
+                    Instructions:
+                    <br />
+                    Please write a clear, concise, and grammatically correct English sentence that effectively conveys the idea. The tone should be formal, and it should be neutral. Do not use codeblocks in the output.
+                </UserMessage>
                 <UserMessage>
                     {MAKE_FLUENT_PROMPT}
                     <br />
