@@ -15,8 +15,7 @@ export interface HistoryEntry {
     text: string
 }
 
-export interface SimplePromptProps extends BasePromptElementProps {
-    history: HistoryEntry[],
+export interface SimplePromptProps extends HistoryMessagesProps {
     prompt: string
 }
 
@@ -45,8 +44,7 @@ export class MakeFluent extends PromptElement {
     }
 }
 
-export interface FluentPromptProps extends BasePromptElementProps {
-    history: HistoryEntry[],
+export interface FluentPromptProps extends HistoryMessagesProps {
     input: string
 }
 
