@@ -109,9 +109,14 @@ export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
             }
         }
         return (
-            <PrioritizedList priority={0} descending={false}>
-                {history}
-            </PrioritizedList>
+            <>
+                <PrioritizedList priority={0} descending={false}>
+                    {history.slice(0, -10)}
+                </PrioritizedList>
+                <PrioritizedList priority={1000} descending={false}>
+                    {history.slice(-10)}
+                </PrioritizedList>
+            </>
         );
     }
 }
