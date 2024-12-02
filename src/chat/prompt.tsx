@@ -6,11 +6,12 @@ import {
     PromptPiece,
     UserMessage,
 } from '@vscode/prompt-tsx'
+import type { RequestCommands } from './chat'
 
-export const MAKE_FLUENT_PROMPT = 'Make fluent:'
 
 export interface HistoryEntry {
-    type: 'user' | 'assistant'
+    type: 'user' | 'assistant',
+    command?: RequestCommands | undefined,
     text: string
 }
 
@@ -31,6 +32,8 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
         )
     }
 }
+
+export const MAKE_FLUENT_PROMPT = 'Make fluent:'
 
 export interface FluentPromptProps extends BasePromptElementProps {
     history: HistoryEntry[],
@@ -92,7 +95,17 @@ export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
         const history: (UserMessage | AssistantMessage)[] = [];
         for (const hist of this.props.history) {
             if (hist.type === 'user') {
-                history.push(<UserMessage>{hist.text}</UserMessage>);
+                if (hist.command === 'fluent') {
+                    history.push(
+                        <UserMessage>
+                            {MAKE_FLUENT_PROMPT}
+                            <br />
+                            {hist.text}
+                        </UserMessage>
+                    )
+                } else {
+                    history.push(<UserMessage>{hist.text}</UserMessage>)
+                }
             } else {
                 history.push(<AssistantMessage>{hist.text}</AssistantMessage>)
             }

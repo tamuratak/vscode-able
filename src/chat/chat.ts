@@ -1,10 +1,8 @@
 import * as vscode from 'vscode'
-import { FluentPrompt, HistoryEntry, MAKE_FLUENT_PROMPT, SimplePrompt } from './prompt'
+import { FluentPrompt, HistoryEntry, SimplePrompt } from './prompt'
 import { renderPrompt } from '@vscode/prompt-tsx'
 
-function makeFluentPrompt(input: string) {
-    return MAKE_FLUENT_PROMPT + '\n' + input
-}
+export type RequestCommands = 'fluent'
 
 export const handler: vscode.ChatRequestHandler = async (
     request: vscode.ChatRequest,
@@ -51,10 +49,8 @@ function extractAbleHistory(context: vscode.ChatContext): HistoryEntry[] {
                 const response = chatResponseToString(hist)
                 const pair = extractInputAndOutput(response)
                 if (pair) {
-                    const user = makeFluentPrompt(pair.input)
-                    const assistant = pair.output
-                    history.push({type: 'user', text: user})
-                    history.push({type: 'assistant', text: assistant})
+                    history.push({type: 'user', command: 'fluent', text: pair.input})
+                    history.push({type: 'assistant', text: pair.output})
                 }
             }
         } else if (hist.participant === 'able.chatParticipant') {
