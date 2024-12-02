@@ -33,7 +33,17 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
     }
 }
 
-export const MAKE_FLUENT_PROMPT = 'Make fluent:'
+export class MakeFluent extends PromptElement {
+    render() {
+        return (
+            <UserMessage>
+                Make fluent:
+                <br />
+                {this.props.children}
+            </UserMessage>
+        )
+    }
+}
 
 export interface FluentPromptProps extends BasePromptElementProps {
     history: HistoryEntry[],
@@ -50,37 +60,29 @@ export class FluentPrompt extends PromptElement<FluentPromptProps> {
                     Please write a clear, concise, and grammatically correct English sentence that effectively conveys the idea. The tone should be formal, and it should be neutral. Do not use codeblocks in the output.
                 </UserMessage>
                 <PrioritizedList priority={100} descending={false}>
-                    <UserMessage>
-                        {MAKE_FLUENT_PROMPT}
-                        <br />
+                    <MakeFluent>
                         The following error message pops up. The message doesn't mention that  the terminal launch attempt from the `tasks.json` file has failed. Users cannot tell which configuration is wrong.
-                    </UserMessage>
+                    </MakeFluent>
                     <AssistantMessage>
                         The following error message appears, but it doesn't indicate that the terminal launch attempt from the `tasks.json` file has failed. As a result, users are unable to identify which configuration is incorrect.
                     </AssistantMessage>
-                    <UserMessage>
-                        {MAKE_FLUENT_PROMPT}
-                        <br />
+                    <MakeFluent>
                         Users are unable to identify that the terminal launch attempt from the `tasks.json` file has failed.
-                    </UserMessage>
+                    </MakeFluent>
                     <AssistantMessage>
                         Users cannot recognize that the terminal launch attempt from the `tasks.json` file has failed.
                     </AssistantMessage>
-                    <UserMessage>
-                        {MAKE_FLUENT_PROMPT}
-                        <br />
+                    <MakeFluent>
                         The position of the IME widget is not good at the last of a long line.
-                    </UserMessage>
+                    </MakeFluent>
                     <AssistantMessage>
                         The position of the IME widget is not ideal at the end of a long line.
                     </AssistantMessage>
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
-                <UserMessage>
-                    {MAKE_FLUENT_PROMPT}
-                    <br />
+                <MakeFluent>
                     {this.props.input}
-                </UserMessage>
+                </MakeFluent>
             </>
         )
     }
@@ -97,11 +99,9 @@ export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
             if (hist.type === 'user') {
                 if (hist.command === 'fluent') {
                     history.push(
-                        <UserMessage>
-                            {MAKE_FLUENT_PROMPT}
-                            <br />
+                        <MakeFluent>
                             {hist.text}
-                        </UserMessage>
+                        </MakeFluent>
                     )
                 } else {
                     history.push(<UserMessage>{hist.text}</UserMessage>)
