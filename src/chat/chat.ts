@@ -23,33 +23,33 @@ export const handler: vscode.ChatRequestHandler = async (
     stream: vscode.ChatResponseStream,
     token: vscode.CancellationToken
 ) => {
-    if (request.command === 'fluent') {
-        const fluentHistory: vscode.LanguageModelChatMessage[] = [...fluentMessagesBase]
-        for (const hist of context.history) {
-            if (hist.participant !== 'able.chatParticipant') {
-                continue
+    const chattHistory: vscode.LanguageModelChatMessage[] = []
+    for (const hist of context.history) {
+        if (hist.participant !== 'able.chatParticipant') {
+            continue
+        }
+        if (hist.command === 'fluent') {
+            if (hist instanceof vscode.ChatResponseTurn) {
+                const response = chatResponseToString(hist)
+                const pair = extractInputAndOutput(response)
+                if (pair) {
+                    const user = make_fluent_prompt(pair.input)
+                    const assistant = pair.output
+                    chattHistory.push(vscode.LanguageModelChatMessage.User(user))
+                    chattHistory.push(vscode.LanguageModelChatMessage.Assistant(assistant))
+                }
             }
-            if (hist.command === 'fluent') {
-                if (hist instanceof vscode.ChatResponseTurn) {
-                    const response = chatResponseToString(hist)
-                    const pair = extractInputAndOutput(response)
-                    if (pair) {
-                        const user = make_fluent_prompt(pair.input)
-                        const assistant = pair.output
-                        fluentHistory.push(vscode.LanguageModelChatMessage.User(user))
-                        fluentHistory.push(vscode.LanguageModelChatMessage.Assistant(assistant))
-                    }
-                }
-            } else {
-                if (hist instanceof vscode.ChatRequestTurn) {
-                    vscode.LanguageModelChatMessage.User(hist.prompt)
-                } else if (hist instanceof vscode.ChatResponseTurn) {
-                    vscode.LanguageModelChatMessage.Assistant(chatResponseToString(hist))
-                }
+        } else {
+            if (hist instanceof vscode.ChatRequestTurn) {
+                vscode.LanguageModelChatMessage.User(hist.prompt)
+            } else if (hist instanceof vscode.ChatResponseTurn) {
+                vscode.LanguageModelChatMessage.Assistant(chatResponseToString(hist))
             }
         }
-        const fluentMessages = [...fluentHistory]
-        let prompt = '';
+    }
+    if (request.command === 'fluent') {
+        const fluentMessages = [...fluentMessagesBase, ...chattHistory]
+        let prompt = ''
         let selectedText = ''
         for (const ref of request.references) {
             if (ref.id === 'vscode.implicit.selection') {
@@ -72,7 +72,12 @@ export const handler: vscode.ChatRequestHandler = async (
         stream.markdown('#### output\n' + responseText)
         return
     } else {
-        stream.markdown('Unknown command')
+        const messages = [...chattHistory]
+        messages.push(vscode.LanguageModelChatMessage.User(request.prompt))
+        const chatResponse = await request.model.sendRequest(messages, {}, token)
+        for await (const fragment of chatResponse.text) {
+            stream.markdown(fragment)
+        }
     }
 }
 
