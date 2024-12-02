@@ -1,17 +1,10 @@
 import * as vscode from 'vscode'
-import { FluentPrompt, MAKE_FLUENT_PROMPT } from './prompt'
+import { FluentPrompt, HistoryEntry, MAKE_FLUENT_PROMPT } from './prompt'
 import { renderPrompt } from '@vscode/prompt-tsx'
 
 function makeFluentPrompt(input: string) {
     return MAKE_FLUENT_PROMPT + '\n' + input
 }
-
-export interface HistoryEntry {
-    type: 'user' | 'assistant'
-    text: string
-}
-
-export type AbleHistory = HistoryEntry[]
 
 export const handler: vscode.ChatRequestHandler = async (
     request: vscode.ChatRequest,

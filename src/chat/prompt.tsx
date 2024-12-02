@@ -6,12 +6,16 @@ import {
     PromptPiece,
     UserMessage,
 } from '@vscode/prompt-tsx'
-import { AbleHistory } from './chat'
 
 export const MAKE_FLUENT_PROMPT = 'Make fluent:'
 
+export interface HistoryEntry {
+    type: 'user' | 'assistant'
+    text: string
+}
+
 export interface SimplePromptProps extends BasePromptElementProps {
-    history: AbleHistory,
+    history: HistoryEntry[],
     prompt: string
 }
 
@@ -29,7 +33,7 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
 }
 
 export interface FluentPromptProps extends BasePromptElementProps {
-    history: AbleHistory,
+    history: HistoryEntry[],
     prompt: string
 }
 
@@ -78,7 +82,7 @@ export class FluentPrompt extends PromptElement<FluentPromptProps> {
 }
 
 interface HistoryMessagesProps extends BasePromptElementProps {
-    history: AbleHistory
+    history: HistoryEntry[]
 }
 
 export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
