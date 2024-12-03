@@ -184,7 +184,7 @@ class Extension {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-    vscode.chat.createChatParticipant('able.chatParticipant', handler);
+    vscode.chat.createChatParticipant('able.chatParticipant', handler)
     const extension = new Extension()
     context.subscriptions.push(...extension.registerCommands())
 

@@ -1,3 +1,4 @@
+/* eslint-disable  @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument */
 import {
     AssistantMessage,
     BasePromptElementProps,
@@ -92,7 +93,7 @@ interface HistoryMessagesProps extends BasePromptElementProps {
 
 export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     render(): PromptPiece {
-        const history: (UserMessage | AssistantMessage)[] = [];
+        const history: (UserMessage | AssistantMessage)[] = []
         for (const hist of this.props.history) {
             if (hist.type === 'user') {
                 if (hist.command === 'fluent') {
@@ -117,6 +118,6 @@ export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
                     {history.slice(-10)}
                 </PrioritizedList>
             </>
-        );
+        )
     }
 }

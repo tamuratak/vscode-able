@@ -75,11 +75,11 @@ function chatResponseToString(response: vscode.ChatResponseTurn): string {
 }
 
 function extractInputAndOutput(str: string) {
-    const regex = /#### input\n(.+?)\n\n#### output\n(.+)/s;
-    const match = str.match(regex);
+    const regex = /#### input\n(.+?)\n\n#### output\n(.+)/s
+    const match = str.match(regex)
     if (match) {
-        const input = match[1];
-        const output = match[2];
+        const input = match[1]
+        const output = match[2]
         return {input, output}
     } else {
         return
