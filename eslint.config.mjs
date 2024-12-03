@@ -2,8 +2,26 @@ import eslint from "@eslint/js";
 import tseslint from 'typescript-eslint';
 
 const commonRules = {
-    "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-empty-function": "off",
+    "@typescript-eslint/naming-convention": ["error",
+        {
+            selector: "default",
+            format: ["camelCase", "PascalCase", "UPPER_CASE"],
+            leadingUnderscore: "allow",
+        }, {
+            selector: "method",
+            format: ["camelCase"],
+            leadingUnderscore: "allow",
+        }, {
+            selector: "function",
+            format: ["camelCase"],
+        }, {
+            selector: "typeLike",
+            format: ["PascalCase"],
+        }, {
+            selector: "objectLiteralProperty",
+            format: null,
+        }
+    ],
     "@typescript-eslint/consistent-type-assertions": ["error", {
         assertionStyle: "as",
         objectLiteralTypeAssertions: "never",
@@ -22,12 +40,6 @@ const commonRules = {
     }],
     "no-shadow": "off",
     "@typescript-eslint/no-shadow": "error",
-    "@typescript-eslint/no-unsafe-argument": "error",
-    "@typescript-eslint/no-unsafe-assignment": "error",
-    "@typescript-eslint/no-unsafe-call": "error",
-    "@typescript-eslint/no-unsafe-return": "error",
-    "no-unused-expressions": "off",
-    "@typescript-eslint/no-unused-expressions": "error",
     "no-unused-vars": "off",
     "@typescript-eslint/no-unused-vars": [
         "error",
@@ -41,21 +53,25 @@ const commonRules = {
             "ignoreRestSiblings": true
         }
     ],
-    "@typescript-eslint/no-require-imports": "error",
     "@typescript-eslint/prefer-includes": "error",
     "@typescript-eslint/prefer-readonly": "error",
     "no-return-await": "off",
     "@typescript-eslint/return-await": "error",
-    "require-await": "off",
-    "@typescript-eslint/require-await": "error",
-    "@typescript-eslint/unbound-method": "error",
+    "@typescript-eslint/restrict-template-expressions": ["error", {
+        allow: [
+            {
+                from: "package",
+                name: ["Uri"],
+                package: "vscode",
+            }
+        ],
+    }],
     "curly": "error",
     "default-case": "error",
     "eol-last": "error",
     "eqeqeq": ["error", "always"],
     "func-call-spacing": ["error", "never"],
     "no-caller": "error",
-    "no-constant-condition": "error",
     "no-eval": "error",
     "no-invalid-this": "error",
     "no-multiple-empty-lines": "error",
@@ -86,48 +102,28 @@ const commonRules = {
 export default tseslint.config(
     {
         ignores: [
+            "eslint.config.mjs",
             "node_modules/",
             "out/",
             ".vscode/",
-            ".git/",
+            ".git/"
         ],
     },
     eslint.configs.recommended,
-    ...tseslint.configs.recommended,
+    ...tseslint.configs.recommendedTypeChecked,
     ...tseslint.configs.stylistic,
     {
-        files: [
-            "src/**/*.ts"
-        ],
         languageOptions: {
-            parser: tseslint.parser,
             ecmaVersion: 2018,
-            sourceType: "commonjs",
             parserOptions: {
-                project: "./tsconfig.json",
+                projectService: {
+                    defaultProject: "tsconfig.json",
+                },
+                tsconfigRootDir: import.meta.dirname
             },
         },
         rules: {
-            "@typescript-eslint/naming-convention": ["error",
-                {
-                    selector: "default",
-                    format: ["camelCase", "PascalCase", "UPPER_CASE"],
-                    leadingUnderscore: "allow",
-                }, {
-                    selector: "method",
-                    format: ["camelCase"],
-                }, {
-                    selector: "function",
-                    format: ["camelCase"],
-                }, {
-                    selector: "typeLike",
-                    format: ["PascalCase"],
-                }, {
-                    selector: "objectLiteralProperty",
-                    format: null,
-                }
-            ],
             ...commonRules,
-        },
+        }
     }
 )

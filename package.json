@@ -21,6 +21,21 @@
     }
   },
   "contributes": {
+    "chatParticipants": [
+      {
+        "id": "able.chatParticipant",
+        "fullName": "Able Chat",
+        "name": "able",
+        "description": "Able to write well",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "fluent",
+            "description": "Make fluent"
+          }
+        ]
+      }
+    ],
     "commands": [
       {
         "command": "able.closeTerminalAndOpenSideBar",
@@ -101,7 +116,9 @@
   "activationEvents": [
     "onFileSystem:file"
   ],
-  "dependencies": {},
+  "dependencies": {
+    "@vscode/prompt-tsx": "^0.3.0-alpha.13"
+  },
   "devDependencies": {
     "@eslint/js": "9.15.0",
     "@types/eslint__js": "8.42.3",
