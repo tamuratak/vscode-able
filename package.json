@@ -42,28 +42,32 @@
         "title": "Able: Close Terminal and Open Side Bar"
       },
       {
-        "command": "able.openTerminalAndCloseSideBar",
-        "title": "Able: Open Terminal and Close Side Bar"
-      },
-      {
-        "command": "able.terminalNew",
-        "title": "Able: Create New Terminal"
-      },
-      {
-        "command": "able.focusTerminal",
-        "title": "Able: Focus Terminal"
+        "command": "able.disableInlineSuggest",
+        "title": "Copilot, please: be quiet for a whild"
       },
       {
         "command": "able.focusActiveDocument",
         "title": "Able: Focus Active Document"
       },
       {
-        "command": "able.recenter",
-        "title": "Able: Recenter"
+        "command": "able.focusTerminal",
+        "title": "Able: Focus Terminal"
       },
       {
         "command": "able.killLinesToEnd",
         "title": "Able: Kill Lines To End"
+      },
+      {
+        "command": "able.openTerminalAndCloseSideBar",
+        "title": "Able: Open Terminal and Close Side Bar"
+      },
+      {
+        "command": "able.recenter",
+        "title": "Able: Recenter"
+      },
+      {
+        "command": "able.terminalNew",
+        "title": "Able: Create New Terminal"
       }
     ],
     "keybindings": [
@@ -71,6 +75,11 @@
         "command": "able.closeTerminalAndOpenSideBar",
         "key": "Shift+Ctrl+t",
         "when": "!sideBarVisible"
+      },
+      {
+        "command": "able.disableInlineSuggest",
+        "key": "shift+escape",
+        "when": "inlineSuggestionVisible"
       },
       {
         "command": "able.openTerminalAndCloseSideBar",

@@ -13,7 +13,8 @@ class Extension {
             ...this.registerFocusTerminalCommand(),
             ...this.registerShowingOffset(),
             ...this.registerRecenterCommand(),
-            ...this.registerKillLinesToEndCommand()
+            ...this.registerKillLinesToEndCommand(),
+            ...this.registerDisableInlineSuggestCommand()
         ]
     }
 
@@ -181,6 +182,20 @@ class Extension {
             })
         ]
     }
+
+    private registerDisableInlineSuggestCommand() {
+        return [
+            vscode.commands.registerCommand('able.disableInlineSuggest', () => {
+                const configuration = vscode.workspace.getConfiguration('editor')
+                configuration.update('inlineSuggest.enabled', false, vscode.ConfigurationTarget.Global)
+                vscode.commands.executeCommand('editor.action.inlineSuggest.hide')
+                setTimeout(() => {
+                    configuration.update('inlineSuggest.enabled', true, vscode.ConfigurationTarget.Global)
+                }, 10000)
+            })
+        ]
+    }
+
 }
 
 export function activate(context: vscode.ExtensionContext) {
