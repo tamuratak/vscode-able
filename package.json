@@ -1,7 +1,7 @@
 {
   "name": "able",
   "displayName": "Able",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publisher": "tamuratak",
   "license": "MIT",
   "description": "An extension able to do things",
@@ -14,6 +14,11 @@
   "engines": {
     "vscode": "^1.95.0"
   },
+  "files": [
+    "node_modules",
+    "out",
+    "LICENSE"
+  ],
   "capabilities": {
     "virtualWorkspaces": true,
     "untrustedWorkspaces": {
