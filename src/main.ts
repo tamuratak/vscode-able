@@ -21,8 +21,8 @@ class Extension {
 
     private registerActivateChatModelCommand() {
         return [
-            vscode.commands.registerCommand('able.activateCopilotChatModels', async () => {
-                activateCopilotChatModels()
+            vscode.commands.registerCommand('able.activateCopilotChatModels', () => {
+                void activateCopilotChatModels()
             })
         ]
     }
