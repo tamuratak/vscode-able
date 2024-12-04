@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { handler } from './chat/chat'
+import { activateCopilotChatModels, handler } from './chat/chat'
 
 function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms))
@@ -9,12 +9,21 @@ class Extension {
 
     registerCommands() {
         return [
+            ...this.registerActivateChatModelCommand(),
             ...this.registerTerminalAndSideBarCommand(),
             ...this.registerFocusTerminalCommand(),
             ...this.registerShowingOffset(),
             ...this.registerRecenterCommand(),
             ...this.registerKillLinesToEndCommand(),
             ...this.registerDisableInlineSuggestCommand()
+        ]
+    }
+
+    private registerActivateChatModelCommand() {
+        return [
+            vscode.commands.registerCommand('able.activateCopilotChatModels', async () => {
+                activateCopilotChatModels()
+            })
         ]
     }
 

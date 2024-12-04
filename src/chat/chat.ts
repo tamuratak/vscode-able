@@ -85,3 +85,10 @@ function extractInputAndOutput(str: string) {
         return
     }
 }
+
+export async function activateCopilotChatModels() {
+    const result = await vscode.lm.selectChatModels({
+        vendor: 'copilot'
+    })
+    console.dir(result)
+}

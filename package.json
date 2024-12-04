@@ -38,6 +38,10 @@
     ],
     "commands": [
       {
+        "command": "able.activateCopilotChatModels",
+        "title": "Able: Activate Copilot Chat Models"
+      },
+      {
         "command": "able.closeTerminalAndOpenSideBar",
         "title": "Able: Close Terminal and Open Side Bar"
       },
