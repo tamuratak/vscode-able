@@ -187,10 +187,10 @@ class Extension {
         return [
             vscode.commands.registerCommand('able.disableInlineSuggest', () => {
                 const configuration = vscode.workspace.getConfiguration('editor')
-                configuration.update('inlineSuggest.enabled', false, vscode.ConfigurationTarget.Global)
-                vscode.commands.executeCommand('editor.action.inlineSuggest.hide')
+                void configuration.update('inlineSuggest.enabled', false, vscode.ConfigurationTarget.Global)
+                void vscode.commands.executeCommand('editor.action.inlineSuggest.hide')
                 setTimeout(() => {
-                    configuration.update('inlineSuggest.enabled', true, vscode.ConfigurationTarget.Global)
+                    void configuration.update('inlineSuggest.enabled', true, vscode.ConfigurationTarget.Global)
                 }, 10000)
             })
         ]
