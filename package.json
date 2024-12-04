@@ -1,7 +1,7 @@
 {
   "name": "able",
   "displayName": "Able",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "tamuratak",
   "license": "MIT",
   "description": "An extension able to do things",
@@ -138,10 +138,6 @@
     "typescript": "5.7.2",
     "typescript-eslint": "8.16.0"
   },
-  "files": [
-    "out/**/*",
-    "LICENSE"
-  ],
   "scripts": {
     "build": "npm run compile",
     "compile": "tsc -p ./",
