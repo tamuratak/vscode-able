@@ -155,7 +155,7 @@ class ToJa extends PromptElement {
     render() {
         return (
             <UserMessage>
-                以下の文章を、自然で流暢な日本語に翻訳してください:
+                Please translate the following text into natural and fluent Japanese:
                 <br />
                 {this.props.children}
             </UserMessage>
@@ -172,10 +172,22 @@ export class ToJaPrompt extends PromptElement<ToJaPromptProps> {
         return (
             <>
                 <UserMessage>
-                    指示:
+                    Instructions:
                     <br />
-                    元の意味やニュアンスを忠実に再現しつつ、文脈に応じた適切な表現を使用してください。必要に応じて、日本語としての自然な言い回しに調整してください。
+                    Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
                 </UserMessage>
+                <ToJa>
+                    The symptoms suggest it might be a hardware error.
+                </ToJa>
+                <AssistantMessage>
+                    症状からすると、ハードウェアのエラーの可能性があります。
+                </AssistantMessage>
+                <ToJa>
+                    I would like to request an additional cleaning for the kitchen drain.
+                </ToJa>
+                <AssistantMessage>
+                    追加でキッチンの排水口のクリーニングを希望します。
+                </AssistantMessage>
                 <HistoryMessages history={this.props.history} />
                 <ToJa>
                     {this.props.input}

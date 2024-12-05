@@ -26,8 +26,12 @@ export const handler: vscode.ChatRequestHandler = async (
         for await (const fragment of chatResponse.text) {
             responseText += fragment
         }
-        stream.markdown('#### input\n' + input + '\n\n')
-        stream.markdown('#### output\n' + responseText)
+        if (selectedText) {
+            stream.markdown('#### input\n' + input + '\n\n')
+            stream.markdown('#### output\n' + responseText)
+        } else {
+            stream.markdown(responseText)
+        }
         return
     } else  if (request.command === 'fluent_ja') {
         const selectedText = await getSelectedText(request)
@@ -39,8 +43,12 @@ export const handler: vscode.ChatRequestHandler = async (
         for await (const fragment of chatResponse.text) {
             responseText += fragment
         }
-        stream.markdown('#### input\n' + input + '\n\n')
-        stream.markdown('#### output\n' + responseText)
+        if (selectedText) {
+            stream.markdown('#### input\n' + input + '\n\n')
+            stream.markdown('#### output\n' + responseText)
+        } else {
+            stream.markdown(responseText)
+        }
         return
     } if (request.command === 'to_en') {
         const selectedText = await getSelectedText(request)
@@ -52,8 +60,12 @@ export const handler: vscode.ChatRequestHandler = async (
         for await (const fragment of chatResponse.text) {
             responseText += fragment
         }
-        stream.markdown('#### input\n' + input + '\n\n')
-        stream.markdown('#### output\n' + responseText)
+        if (selectedText) {
+            stream.markdown('#### input\n' + input + '\n\n')
+            stream.markdown('#### output\n' + responseText)
+        } else {
+            stream.markdown(responseText)
+        }
     } else if (request.command === 'to_ja') {
         const selectedText = await getSelectedText(request)
         const input = selectedText ?? request.prompt
@@ -64,8 +76,12 @@ export const handler: vscode.ChatRequestHandler = async (
         for await (const fragment of chatResponse.text) {
             responseText += fragment
         }
-        stream.markdown('#### input\n' + input + '\n\n')
-        stream.markdown('#### output\n' + responseText)
+        if (selectedText) {
+            stream.markdown('#### input\n' + input + '\n\n')
+            stream.markdown('#### output\n' + responseText)
+        } else {
+            stream.markdown(responseText)
+        }
     } {
         const {messages} = await renderPrompt(SimplePrompt, {history: ableHistory, prompt: request.prompt}, { modelMaxPromptTokens: 4096 }, request.model)
         const chatResponse = await model.sendRequest(messages, {}, token)
@@ -80,12 +96,18 @@ function extractAbleHistory(context: vscode.ChatContext): HistoryEntry[] {
     for (const hist of context.history) {
         if (hist.participant === 'able.chatParticipant') {
             if (hist.command === 'fluent' || hist.command === 'fluent_ja' || hist.command === 'to_en' || hist.command === 'to_ja') {
-                if (hist instanceof vscode.ChatResponseTurn) {
+                if (hist instanceof vscode.ChatRequestTurn) {
+                    if (!hist.references.find((ref) => ref.id === 'vscode.implicit.selection')) {
+                        history.push({type: 'user', command: hist.command, text: hist.prompt})
+                    }
+                } else if (hist instanceof vscode.ChatResponseTurn) {
                     const response = chatResponseToString(hist)
                     const pair = extractInputAndOutput(response)
                     if (pair) {
                         history.push({type: 'user', command: hist.command, text: pair.input})
                         history.push({type: 'assistant', text: pair.output})
+                    } else {
+                        history.push({type: 'assistant', command: hist.command, text: response})
                     }
                 } 
             } else {
