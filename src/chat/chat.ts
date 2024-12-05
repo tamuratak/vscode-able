@@ -11,11 +11,16 @@ export const handler: vscode.ChatRequestHandler = async (
     token: vscode.CancellationToken
 ) => {
     const ableHistory = extractAbleHistory(context)
+    const [mini,] = await vscode.lm.selectChatModels({
+        vendor: 'copilot',
+        family: 'gpt-4o-mini'
+    })
+    const model = mini ?? request.model
     if (request.command === 'fluent') {
         const selectedText = await getSelectedText(request)
         const input = selectedText ?? request.prompt
         const {messages} = await renderPrompt(FluentPrompt, {history: ableHistory, input}, { modelMaxPromptTokens: 4096 }, request.model)
-        const chatResponse = await request.model.sendRequest(messages, {}, token)
+        const chatResponse = await model.sendRequest(messages, {}, token)
 
         let responseText = ''
         for await (const fragment of chatResponse.text) {
@@ -28,7 +33,7 @@ export const handler: vscode.ChatRequestHandler = async (
         const selectedText = await getSelectedText(request)
         const input = selectedText ?? request.prompt
         const {messages} = await renderPrompt(ToEnPrompt, {history: ableHistory, input}, { modelMaxPromptTokens: 4096 }, request.model)
-        const chatResponse = await request.model.sendRequest(messages, {}, token)
+        const chatResponse = await model.sendRequest(messages, {}, token)
 
         let responseText = ''
         for await (const fragment of chatResponse.text) {
@@ -38,7 +43,7 @@ export const handler: vscode.ChatRequestHandler = async (
         stream.markdown('#### output\n' + responseText)
     } else {
         const {messages} = await renderPrompt(SimplePrompt, {history: ableHistory, prompt: request.prompt}, { modelMaxPromptTokens: 4096 }, request.model)
-        const chatResponse = await request.model.sendRequest(messages, {}, token)
+        const chatResponse = await model.sendRequest(messages, {}, token)
         for await (const fragment of chatResponse.text) {
             stream.markdown(fragment)
         }
