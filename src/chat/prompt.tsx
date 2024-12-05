@@ -87,6 +87,18 @@ export class FluentPrompt extends PromptElement<FluentPromptProps> {
     }
 }
 
+export class ToEn extends PromptElement {
+    render() {
+        return (
+            <UserMessage>
+                Translate the following sentence literally into natural English:
+                <br />
+                {this.props.children}
+            </UserMessage>
+        )
+    }
+}
+
 export interface ToEnPromptProps extends HistoryMessagesProps {
     input: string
 }
@@ -98,11 +110,10 @@ export class ToEnPrompt extends PromptElement<ToEnPromptProps> {
                 <UserMessage>
                     Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
                 </UserMessage>
-                <UserMessage>
-                    Translate the following sentence literally into natural English:
-                    <br />
+                <HistoryMessages history={this.props.history} />
+                <ToEn>
                     {this.props.input}
-                </UserMessage>
+                </ToEn>
             </>
         )
     }
@@ -122,6 +133,12 @@ export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
                         <MakeFluent>
                             {hist.text}
                         </MakeFluent>
+                    )
+                } else if (hist.command === 'to_en') {
+                    history.push(
+                        <ToEn>
+                            {hist.text}
+                        </ToEn>
                     )
                 } else {
                     history.push(<UserMessage>{hist.text}</UserMessage>)
