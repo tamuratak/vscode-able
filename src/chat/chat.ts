@@ -1,8 +1,8 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, SimplePrompt, ToEnPrompt } from './prompt'
+import { FluentJaPrompt, FluentPrompt, HistoryEntry, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt'
 import { renderPrompt } from '@vscode/prompt-tsx'
 
-export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en'
+export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
 
 export const handler: vscode.ChatRequestHandler = async (
     request: vscode.ChatRequest,
@@ -54,7 +54,19 @@ export const handler: vscode.ChatRequestHandler = async (
         }
         stream.markdown('#### input\n' + input + '\n\n')
         stream.markdown('#### output\n' + responseText)
-    } else {
+    } else if (request.command === 'to_ja') {
+        const selectedText = await getSelectedText(request)
+        const input = selectedText ?? request.prompt
+        const {messages} = await renderPrompt(ToJaPrompt, {history: ableHistory, input}, { modelMaxPromptTokens: 4096 }, request.model)
+        const chatResponse = await model.sendRequest(messages, {}, token)
+
+        let responseText = ''
+        for await (const fragment of chatResponse.text) {
+            responseText += fragment
+        }
+        stream.markdown('#### input\n' + input + '\n\n')
+        stream.markdown('#### output\n' + responseText)
+    } {
         const {messages} = await renderPrompt(SimplePrompt, {history: ableHistory, prompt: request.prompt}, { modelMaxPromptTokens: 4096 }, request.model)
         const chatResponse = await model.sendRequest(messages, {}, token)
         for await (const fragment of chatResponse.text) {
@@ -67,7 +79,7 @@ function extractAbleHistory(context: vscode.ChatContext): HistoryEntry[] {
     const history: HistoryEntry[] = []
     for (const hist of context.history) {
         if (hist.participant === 'able.chatParticipant') {
-            if (hist.command === 'fluent' || hist.command === 'fluent_ja' || hist.command === 'to_en') {
+            if (hist.command === 'fluent' || hist.command === 'fluent_ja' || hist.command === 'to_en' || hist.command === 'to_ja') {
                 if (hist instanceof vscode.ChatResponseTurn) {
                     const response = chatResponseToString(hist)
                     const pair = extractInputAndOutput(response)

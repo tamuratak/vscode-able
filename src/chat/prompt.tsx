@@ -151,6 +151,40 @@ export class ToEnPrompt extends PromptElement<ToEnPromptProps> {
     }
 }
 
+class ToJa extends PromptElement {
+    render() {
+        return (
+            <UserMessage>
+                以下の文章を、自然で流暢な日本語に翻訳してください:
+                <br />
+                {this.props.children}
+            </UserMessage>
+        )
+    }
+}
+
+interface ToJaPromptProps extends HistoryMessagesProps {
+    input: string
+}
+
+export class ToJaPrompt extends PromptElement<ToJaPromptProps> {
+    render() {
+        return (
+            <>
+                <UserMessage>
+                    指示:
+                    <br />
+                    元の意味やニュアンスを忠実に再現しつつ、文脈に応じた適切な表現を使用してください。必要に応じて、日本語としての自然な言い回しに調整してください。
+                </UserMessage>
+                <HistoryMessages history={this.props.history} />
+                <ToJa>
+                    {this.props.input}
+                </ToJa>
+            </>
+        )
+    }
+}
+
 interface HistoryMessagesProps extends BasePromptElementProps {
     history: HistoryEntry[]
 }

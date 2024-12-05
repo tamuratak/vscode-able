@@ -45,6 +45,10 @@
           {
             "name": "to_en",
             "description": "Translate to English"
+          },
+          {
+            "name": "to_ja",
+            "description": "Translate to Japanese"
           }
         ]
       }
