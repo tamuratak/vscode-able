@@ -53,20 +53,22 @@ export const handler: vscode.ChatRequestHandler = async (
 function extractAbleHistory(context: vscode.ChatContext): HistoryEntry[] {
     const history: HistoryEntry[] = []
     for (const hist of context.history) {
-        if (hist.command === 'fluent' || hist.command === 'to_en') {
-            if (hist instanceof vscode.ChatResponseTurn) {
-                const response = chatResponseToString(hist)
-                const pair = extractInputAndOutput(response)
-                if (pair) {
-                    history.push({type: 'user', command: hist.command, text: pair.input})
-                    history.push({type: 'assistant', text: pair.output})
+        if (hist.participant === 'able.chatParticipant') {
+            if (hist.command === 'fluent' || hist.command === 'to_en') {
+                if (hist instanceof vscode.ChatResponseTurn) {
+                    const response = chatResponseToString(hist)
+                    const pair = extractInputAndOutput(response)
+                    if (pair) {
+                        history.push({type: 'user', command: hist.command, text: pair.input})
+                        history.push({type: 'assistant', text: pair.output})
+                    }
+                } 
+            } else {
+                if (hist instanceof vscode.ChatRequestTurn) {
+                    history.push({type: 'user', text: hist.prompt})
+                } else if (hist instanceof vscode.ChatResponseTurn) {
+                    history.push({type: 'assistant', text: chatResponseToString(hist)})
                 }
-            }
-        } else if (hist.participant === 'able.chatParticipant') {
-            if (hist instanceof vscode.ChatRequestTurn) {
-                history.push({type: 'user', text: hist.prompt})
-            } else if (hist instanceof vscode.ChatResponseTurn) {
-                history.push({type: 'assistant', text: chatResponseToString(hist)})
             }
         }
     }
