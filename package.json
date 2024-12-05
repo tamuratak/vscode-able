@@ -37,6 +37,10 @@
           {
             "name": "fluent",
             "description": "Make fluent"
+          },
+          {
+            "name": "to_en",
+            "description": "Translate to English"
           }
         ]
       }

@@ -87,6 +87,27 @@ export class FluentPrompt extends PromptElement<FluentPromptProps> {
     }
 }
 
+export interface ToEnPromptProps extends HistoryMessagesProps {
+    input: string
+}
+
+export class ToEnPrompt extends PromptElement<ToEnPromptProps> {
+    render() {
+        return (
+            <>
+                <UserMessage>
+                    Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
+                </UserMessage>
+                <UserMessage>
+                    Translate the following sentence literally into natural English:
+                    <br />
+                    {this.props.input}
+                </UserMessage>
+            </>
+        )
+    }
+}
+
 interface HistoryMessagesProps extends BasePromptElementProps {
     history: HistoryEntry[]
 }
