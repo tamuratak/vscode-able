@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { FluentJaPrompt, FluentPrompt, HistoryEntry, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt'
-import { renderPrompt } from '@vscode/prompt-tsx'
+import { PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
 
@@ -17,77 +17,50 @@ export const handler: vscode.ChatRequestHandler = async (
     })
     const model = mini ?? request.model
     if (request.command === 'fluent') {
-        const selectedText = await getSelectedText(request)
-        const input = selectedText ?? request.prompt
-        const {messages} = await renderPrompt(FluentPrompt, {history: ableHistory, input}, { modelMaxPromptTokens: 4096 }, request.model)
-        const chatResponse = await model.sendRequest(messages, {}, token)
-
-        let responseText = ''
-        for await (const fragment of chatResponse.text) {
-            responseText += fragment
-        }
-        if (selectedText) {
-            stream.markdown('#### input\n' + input + '\n\n')
-            stream.markdown('#### output\n' + responseText)
-        } else {
-            stream.markdown(responseText)
-        }
+        const response = await makeResponse(request, token, FluentPrompt, model, ableHistory)
+        stream.markdown(response)
         return
     } else  if (request.command === 'fluent_ja') {
-        const selectedText = await getSelectedText(request)
-        const input = selectedText ?? request.prompt
-        const {messages} = await renderPrompt(FluentJaPrompt, {history: ableHistory, input}, { modelMaxPromptTokens: 4096 }, request.model)
-        const chatResponse = await model.sendRequest(messages, {}, token)
-
-        let responseText = ''
-        for await (const fragment of chatResponse.text) {
-            responseText += fragment
-        }
-        if (selectedText) {
-            stream.markdown('#### input\n' + input + '\n\n')
-            stream.markdown('#### output\n' + responseText)
-        } else {
-            stream.markdown(responseText)
-        }
+        const response = await makeResponse(request, token, FluentJaPrompt, model, ableHistory)
+        stream.markdown(response)
         return
     } if (request.command === 'to_en') {
-        const selectedText = await getSelectedText(request)
-        const input = selectedText ?? request.prompt
-        const {messages} = await renderPrompt(ToEnPrompt, {history: ableHistory, input}, { modelMaxPromptTokens: 4096 }, request.model)
-        const chatResponse = await model.sendRequest(messages, {}, token)
-
-        let responseText = ''
-        for await (const fragment of chatResponse.text) {
-            responseText += fragment
-        }
-        if (selectedText) {
-            stream.markdown('#### input\n' + input + '\n\n')
-            stream.markdown('#### output\n' + responseText)
-        } else {
-            stream.markdown(responseText)
-        }
+        const response = await makeResponse(request, token, ToEnPrompt, model, ableHistory)
+        stream.markdown(response)
+        return
     } else if (request.command === 'to_ja') {
-        const selectedText = await getSelectedText(request)
-        const input = selectedText ?? request.prompt
-        const {messages} = await renderPrompt(ToJaPrompt, {history: ableHistory, input}, { modelMaxPromptTokens: 4096 }, request.model)
-        const chatResponse = await model.sendRequest(messages, {}, token)
-
-        let responseText = ''
-        for await (const fragment of chatResponse.text) {
-            responseText += fragment
-        }
-        if (selectedText) {
-            stream.markdown('#### input\n' + input + '\n\n')
-            stream.markdown('#### output\n' + responseText)
-        } else {
-            stream.markdown(responseText)
-        }
+        const response = await makeResponse(request, token, ToJaPrompt, model, ableHistory)
+        stream.markdown(response)
+        return
     } {
         const {messages} = await renderPrompt(SimplePrompt, {history: ableHistory, prompt: request.prompt}, { modelMaxPromptTokens: 4096 }, request.model)
         const chatResponse = await model.sendRequest(messages, {}, token)
         for await (const fragment of chatResponse.text) {
             stream.markdown(fragment)
         }
+    }
+}
+
+async function makeResponse(
+    request: vscode.ChatRequest,
+    token: vscode.CancellationToken,
+    ctor: PromptElementCtor<any, any>,
+    model: vscode.LanguageModelChat,
+    ableHistory: HistoryEntry[]
+) {
+    const selectedText = await getSelectedText(request)
+    const input = selectedText ?? request.prompt
+    const {messages} = await renderPrompt(ctor, {history: ableHistory, input}, { modelMaxPromptTokens: 4096 }, request.model)
+    const chatResponse = await model.sendRequest(messages, {}, token)
+
+    let responseText = ''
+    for await (const fragment of chatResponse.text) {
+        responseText += fragment
+    }
+    if (selectedText) {
+        return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
+    } else {
+        return responseText
     }
 }
 
