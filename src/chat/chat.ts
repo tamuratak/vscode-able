@@ -20,7 +20,7 @@ export const handler: vscode.ChatRequestHandler = async (
         const response = await makeResponse(request, token, FluentPrompt, model, ableHistory)
         stream.markdown(response)
         return
-    } else  if (request.command === 'fluent_ja') {
+    } else if (request.command === 'fluent_ja') {
         const response = await makeResponse(request, token, FluentJaPrompt, model, ableHistory)
         stream.markdown(response)
         return
@@ -44,6 +44,7 @@ export const handler: vscode.ChatRequestHandler = async (
 async function makeResponse(
     request: vscode.ChatRequest,
     token: vscode.CancellationToken,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ctor: PromptElementCtor<any, any>,
     model: vscode.LanguageModelChat,
     ableHistory: HistoryEntry[]
@@ -82,7 +83,7 @@ function extractAbleHistory(context: vscode.ChatContext): HistoryEntry[] {
                     } else {
                         history.push({type: 'assistant', command: hist.command, text: response})
                     }
-                } 
+                }
             } else {
                 if (hist instanceof vscode.ChatRequestTurn) {
                     history.push({type: 'user', text: hist.prompt})
