@@ -30,6 +30,8 @@ import {
 	Disposable,
 	Event,
 	EventEmitter,
+	InputBoxValidationMessage,
+	InputBoxValidationSeverity,
 	SecretStorage,
 	window,
 } from 'vscode'
@@ -40,12 +42,15 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 	abstract readonly serviceId: string
 	protected abstract readonly secretStoreKey: string
 
+	protected abstract validateKey(key: string): Promise<InputBoxValidationMessage>
+
 	// this property is used to determine if the token has been changed in another window of VS Code.
 	// It is used in the checkForUpdates function.
-	private currentApiKey: Promise<string | undefined> | undefined
+	private currentApiKey: Thenable<string | undefined> | undefined
 	private initializedDisposable: Disposable | undefined
 
 	private readonly _onDidChangeSessions = new EventEmitter<AuthenticationProviderAuthenticationSessionsChangeEvent>()
+
 	get onDidChangeSessions(): Event<AuthenticationProviderAuthenticationSessionsChangeEvent> {
 		return this._onDidChangeSessions.event
 	}
@@ -103,7 +108,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 	}
 
 	private cacheApiKeyFromStorage() {
-		this.currentApiKey = this.secretStorage.get(this.secretStoreKey) as Promise<string | undefined>
+		this.currentApiKey = this.secretStorage.get(this.secretStoreKey)
 		return this.currentApiKey
 	}
 
@@ -111,7 +116,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 	async getSessions(_scopes?: string[]): Promise<AuthenticationSession[]> {
 		this.ensureInitialized()
 		const apiKey = await this.cacheApiKeyFromStorage()
-		return apiKey ? [this._toAuthenticationSession(apiKey)] : []
+		return apiKey ? [this.toAuthenticationSession(apiKey)] : []
 	}
 
 	// This function is called after `this.getSessions` is called and only when:
@@ -127,18 +132,18 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 			placeHolder: 'API Key',
 			prompt: 'Enter an API Key.',
 			password: true,
+			validateInput: (input) => this.validateKey(input),
 		})
 
-		// Note: this example doesn't do any validation of the token beyond making sure it's not empty.
 		if (!apiKey) {
 			throw new Error('API Key is required')
 		}
 
-		// Don't set `currentToken` here, since we want to fire the proper events in the `checkForUpdates` call
+		// Don't set `currentApiKey` here, since we want to fire the proper events in the `checkForUpdates` call
 		await this.secretStorage.store(this.secretStoreKey, apiKey)
 		console.log('Successfully logged in.')
 
-		return this._toAuthenticationSession(apiKey)
+		return this.toAuthenticationSession(apiKey)
 	}
 
 	// This function is called when the end user signs out of the account.
@@ -148,10 +153,10 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 			return
 		}
 		await this.secretStorage.delete(this.secretStoreKey)
-		this._onDidChangeSessions.fire({ removed: [this._toAuthenticationSession(apiKey)], added: [], changed: [] })
+		this._onDidChangeSessions.fire({ removed: [this.toAuthenticationSession(apiKey)], added: [], changed: [] })
 	}
 
-	private _toAuthenticationSession(apiKey: string): AuthenticationSession {
+	private toAuthenticationSession(apiKey: string): AuthenticationSession {
 		return {
 			accessToken: apiKey,
 			id: this.serviceId,
@@ -169,4 +174,9 @@ export class OpenAiApiKeyAuthenticationProvider extends BaseApiKeyAuthentication
 	readonly label = 'OpenAI API (with Able)'
 	readonly serviceId = 'openai_api'
 	protected readonly secretStoreKey = 'openai_api.secret_store_key'
+
+    protected validateKey(_key: string): Promise<InputBoxValidationMessage> {
+		return Promise.resolve({message: 'Invalid API Key', severity: InputBoxValidationSeverity.Error})
+	}
+
 }
