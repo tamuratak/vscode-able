@@ -16,7 +16,7 @@ export interface HistoryEntry {
     text: string
 }
 
-export interface SimplePromptProps extends HistoryMessagesProps {
+interface SimplePromptProps extends HistoryMessagesProps {
     prompt: string
 }
 
@@ -33,7 +33,7 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
     }
 }
 
-export class MakeFluent extends PromptElement {
+class MakeFluent extends PromptElement {
     render() {
         return (
             <UserMessage>
@@ -45,7 +45,7 @@ export class MakeFluent extends PromptElement {
     }
 }
 
-export interface FluentPromptProps extends HistoryMessagesProps {
+interface FluentPromptProps extends HistoryMessagesProps {
     input: string
 }
 
@@ -87,11 +87,121 @@ export class FluentPrompt extends PromptElement<FluentPromptProps> {
     }
 }
 
+class MakeFluentJa extends PromptElement {
+    render() {
+        return (
+            <UserMessage>
+                以下の文章を、自然で流暢な日本語に書き換えてください:
+                <br />
+                {this.props.children}
+            </UserMessage>
+        )
+    }
+}
+
+export class FluentJaPrompt extends PromptElement<FluentPromptProps> {
+    render() {
+        return (
+            <>
+                <UserMessage>
+                    指示:
+                    <br />
+                    元の意味や意図を損なわないようにしつつ、読みやすく丁寧な表現にしてください。
+                </UserMessage>
+                <HistoryMessages history={this.props.history} />
+                <MakeFluentJa>
+                    {this.props.input}
+                </MakeFluentJa>
+            </>
+        )
+    }
+}
+
+class ToEn extends PromptElement {
+    render() {
+        return (
+            <UserMessage>
+                Translate the following sentence literally into natural English:
+                <br />
+                {this.props.children}
+            </UserMessage>
+        )
+    }
+}
+
+interface ToEnPromptProps extends HistoryMessagesProps {
+    input: string
+}
+
+export class ToEnPrompt extends PromptElement<ToEnPromptProps> {
+    render() {
+        return (
+            <>
+                <UserMessage>
+                    Instructions:
+                    <br />
+                    Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
+                </UserMessage>
+                <HistoryMessages history={this.props.history} />
+                <ToEn>
+                    {this.props.input}
+                </ToEn>
+            </>
+        )
+    }
+}
+
+class ToJa extends PromptElement {
+    render() {
+        return (
+            <UserMessage>
+                Please translate the following text into natural and fluent Japanese:
+                <br />
+                {this.props.children}
+            </UserMessage>
+        )
+    }
+}
+
+interface ToJaPromptProps extends HistoryMessagesProps {
+    input: string
+}
+
+export class ToJaPrompt extends PromptElement<ToJaPromptProps> {
+    render() {
+        return (
+            <>
+                <UserMessage>
+                    Instructions:
+                    <br />
+                    Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
+                </UserMessage>
+                <ToJa>
+                    The symptoms suggest it might be a hardware error.
+                </ToJa>
+                <AssistantMessage>
+                    症状からすると、ハードウェアのエラーの可能性があります。
+                </AssistantMessage>
+                <ToJa>
+                    I would like to request an additional cleaning for the kitchen drain.
+                </ToJa>
+                <AssistantMessage>
+                    追加でキッチンの排水口のクリーニングを希望します。
+                </AssistantMessage>
+                <HistoryMessages history={this.props.history} />
+                <ToJa>
+                    {this.props.input}
+                </ToJa>
+            </>
+        )
+    }
+}
+
 interface HistoryMessagesProps extends BasePromptElementProps {
     history: HistoryEntry[]
 }
 
-export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
+class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     render(): PromptPiece {
         const history: (UserMessage | AssistantMessage)[] = []
         for (const hist of this.props.history) {
@@ -101,6 +211,12 @@ export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
                         <MakeFluent>
                             {hist.text}
                         </MakeFluent>
+                    )
+                } else if (hist.command === 'to_en') {
+                    history.push(
+                        <ToEn>
+                            {hist.text}
+                        </ToEn>
                     )
                 } else {
                     history.push(<UserMessage>{hist.text}</UserMessage>)

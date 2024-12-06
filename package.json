@@ -37,6 +37,18 @@
           {
             "name": "fluent",
             "description": "Make fluent"
+          },
+          {
+            "name": "fluent_ja",
+            "description": "Make fluent in Japanese"
+          },
+          {
+            "name": "to_en",
+            "description": "Translate to English"
+          },
+          {
+            "name": "to_ja",
+            "description": "Translate to Japanese"
           }
         ]
       }
