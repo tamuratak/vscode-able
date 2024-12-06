@@ -30,8 +30,6 @@ import {
 	Disposable,
 	Event,
 	EventEmitter,
-	InputBoxValidationMessage,
-	InputBoxValidationSeverity,
 	SecretStorage,
 	window,
 } from 'vscode'
@@ -42,7 +40,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 	abstract readonly serviceId: string
 	protected abstract readonly secretStoreKey: string
 
-	protected abstract validateKey(key: string): Promise<InputBoxValidationMessage>
+	protected abstract validateKey(key: string): Promise<boolean>
 
 	// this property is used to determine if the token has been changed in another window of VS Code.
 	// It is used in the checkForUpdates function.
@@ -132,10 +130,9 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 			placeHolder: 'API Key',
 			prompt: 'Enter an API Key.',
 			password: true,
-			validateInput: (input) => this.validateKey(input),
 		})
 
-		if (!apiKey) {
+		if (!apiKey || !(await this.validateKey(apiKey))) {
 			throw new Error('API Key is required')
 		}
 
@@ -175,8 +172,8 @@ export class OpenAiApiKeyAuthenticationProvider extends BaseApiKeyAuthentication
 	readonly serviceId = 'openai_api'
 	protected readonly secretStoreKey = 'openai_api.secret_store_key'
 
-    protected validateKey(_key: string): Promise<InputBoxValidationMessage> {
-		return Promise.resolve({message: 'Invalid API Key', severity: InputBoxValidationSeverity.Error})
+    protected validateKey(_key: string): Promise<boolean> {
+		return Promise.resolve(false)
 	}
 
 }

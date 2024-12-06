@@ -8,6 +8,10 @@ export function activate(context: vscode.ExtensionContext) {
     const openAiAuthProvider = new OpenAiApiKeyAuthenticationProvider(context.secrets)
     vscode.authentication.registerAuthenticationProvider(openAiAuthProvider.serviceId, openAiAuthProvider.label, openAiAuthProvider)
 
+    context.subscriptions.push(vscode.commands.registerCommand('able.loginOpenAI', () => {
+        void vscode.authentication.getSession(openAiAuthProvider.serviceId, [], { createIfNone: true })
+    }))
+
     vscode.chat.createChatParticipant('able.chatParticipant', handler)
     context.subscriptions.push(...registerCommands())
 
