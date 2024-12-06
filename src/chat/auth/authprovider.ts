@@ -166,7 +166,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 }
 
 export class OpenAiApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
-	readonly label = 'OpenAI API Key (with Able)'
+	readonly label = 'OpenAI API (with Able)'
 	readonly serviceId = 'openai_api'
 	readonly secretStoreKey = 'openai_api.secret_store_key'
 }
