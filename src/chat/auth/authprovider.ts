@@ -38,7 +38,7 @@ import {
 abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvider, Disposable {
 	abstract readonly label: string
 	abstract readonly serviceId: string
-	abstract readonly secretStoreKey: string
+	protected abstract readonly secretStoreKey: string
 
 	// this property is used to determine if the token has been changed in another window of VS Code.
 	// It is used in the checkForUpdates function.
@@ -168,5 +168,5 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 export class OpenAiApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
 	readonly label = 'OpenAI API (with Able)'
 	readonly serviceId = 'openai_api'
-	readonly secretStoreKey = 'openai_api.secret_store_key'
+	protected readonly secretStoreKey = 'openai_api.secret_store_key'
 }
