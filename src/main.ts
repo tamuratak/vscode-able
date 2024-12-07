@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { handler } from './chat/chat'
 import { registerCommands } from './commands'
-import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authprovider'
+import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders'
 
 
 export function activate(context: vscode.ExtensionContext) {
