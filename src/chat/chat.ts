@@ -51,7 +51,7 @@ async function makeResponse(
 ) {
     const selectedText = await getSelectedText(request)
     const input = selectedText ?? request.prompt
-    const {messages} = await renderPrompt(ctor, {history: ableHistory, input}, { modelMaxPromptTokens: 4096 }, request.model)
+    const {messages} = await renderPrompt(ctor, {history: ableHistory, input}, { modelMaxPromptTokens: 1024 }, request.model)
     const chatResponse = await model.sendRequest(messages, {}, token)
 
     let responseText = ''
