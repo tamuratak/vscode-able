@@ -122,18 +122,49 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 	// - `vscode.authentication.getSessions` was called with `forceNewSession: true`
 	// - The end user initiates the "silent" auth flow via the Accounts menu
 	async createSession(_scopes: string[]): Promise<AuthenticationSession> {
+		const disposables: Disposable[] = []
 		this.ensureInitialized()
 
-		const apiKey = await window.showInputBox({
-			title: this.label,
-			ignoreFocusOut: true,
-			placeHolder: 'API Key',
-			prompt: 'Enter an API Key.',
-			password: true,
-		})
+		const input = window.createInputBox();
+		input.title = this.label
+		input.password = true;
+		input.placeholder = 'API Key'
+		input.prompt = 'Enter an API Key.'
+		input.ignoreFocusOut = true
+		disposables.push(
+			input.onDidChangeValue(() => {
+				input.validationMessage = undefined
+			})
+		)
+		input.show()
 
-		if (!apiKey || !(await this.validateKey(apiKey))) {
-			throw new Error('API Key is required')
+		let apiKey: string
+		try {
+			apiKey = await new Promise((resolve, reject) => {
+				const errorMessage = 'Invalid API key'
+				disposables.push(
+					input.onDidAccept(async () => {
+						input.busy = true;
+						input.enabled = false;
+						if (!input.value || !(await this.validateKey(input.value))) {
+							input.validationMessage = errorMessage
+							input.busy = false
+							input.enabled = true
+							return
+						}
+						resolve(input.value)
+					}),
+					input.onDidHide(async () => {
+						if (!input.value || !(await this.validateKey(input.value))) {
+							reject(new Error(errorMessage))
+						}
+					})
+				)
+			})
+		} finally {
+			disposables.forEach(d => {
+				d.dispose()
+			})
 		}
 
 		// Don't set `currentApiKey` here, since we want to fire the proper events in the `checkForUpdates` call
@@ -172,7 +203,7 @@ export class OpenAiApiKeyAuthenticationProvider extends BaseApiKeyAuthentication
 	readonly serviceId = 'openai_api'
 	protected readonly secretStoreKey = 'openai_api.secret_store_key'
 
-    protected validateKey(_key: string): Promise<boolean> {
+	protected validateKey(_key: string): Promise<boolean> {
 		return Promise.resolve(false)
 	}
 
