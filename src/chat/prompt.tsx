@@ -37,7 +37,7 @@ class MakeFluent extends PromptElement {
     render() {
         return (
             <UserMessage>
-                The following rewriting work is related to software development.
+                This is related to software development.
                 <br />
                 Make fluent:
                 <br />
@@ -93,7 +93,7 @@ class MakeFluentJa extends PromptElement {
     render() {
         return (
             <UserMessage>
-                The following rewriting work is related to software development. Please rewrite the following text into natural and fluent Japanese:
+                This is related to software development. Please rewrite the following text into natural and fluent Japanese:
                 <br />
                 {this.props.children}
             </UserMessage>
@@ -123,7 +123,7 @@ class ToEn extends PromptElement {
     render() {
         return (
             <UserMessage>
-                The following translation work is related to software development. Translate the following sentence literally into natural English:
+                This is related to software development. Translate the following sentence literally into natural English:
                 <br />
                 {this.props.children}
             </UserMessage>
@@ -157,7 +157,7 @@ class ToJa extends PromptElement {
     render() {
         return (
             <UserMessage>
-                The following translation work is related to software development. Please translate the following text into natural and fluent Japanese:
+                This is related to software development. Please translate the following text into natural and fluent Japanese:
                 <br />
                 {this.props.children}
             </UserMessage>
