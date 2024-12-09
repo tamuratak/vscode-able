@@ -131,35 +131,31 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 		input.placeholder = 'API Key'
 		input.prompt = 'Enter an API Key.'
 		input.ignoreFocusOut = true
-		disposables.push(
-			input.onDidChangeValue(() => {
-				input.validationMessage = undefined
-			})
-		)
+		input.onDidChangeValue(() => {
+			input.validationMessage = undefined
+		}, disposables)
 		input.show()
 
 		let apiKey: string
 		try {
 			apiKey = await new Promise((resolve, reject) => {
 				const errorMessage = 'Invalid API key'
-				disposables.push(
-					input.onDidAccept(async () => {
-						input.busy = true;
-						input.enabled = false;
-						if (!input.value || !(await this.validateKey(input.value))) {
-							input.validationMessage = errorMessage
-							input.busy = false
-							input.enabled = true
-							return
-						}
-						resolve(input.value)
-					}),
-					input.onDidHide(async () => {
-						if (!input.value || !(await this.validateKey(input.value))) {
-							reject(new Error(errorMessage))
-						}
-					})
-				)
+				input.onDidAccept(async () => {
+					input.busy = true;
+					input.enabled = false;
+					if (!input.value || !(await this.validateKey(input.value))) {
+						input.validationMessage = errorMessage
+						input.busy = false
+						input.enabled = true
+						return
+					}
+					resolve(input.value)
+				}, disposables),
+				input.onDidHide(async () => {
+					if (!input.value || !(await this.validateKey(input.value))) {
+						reject(new Error(errorMessage))
+					}
+				}, disposables)
 			})
 		} finally {
 			disposables.forEach(d => {
