@@ -26,6 +26,12 @@
     }
   },
   "contributes": {
+    "authentication": [
+      {
+        "id": "openai_api",
+        "label": "OpenAI API (with Able)"
+      }
+    ],
     "chatParticipants": [
       {
         "id": "able.chatParticipant",
@@ -77,6 +83,10 @@
       {
         "command": "able.killLinesToEnd",
         "title": "Able: Kill Lines To End"
+      },
+      {
+        "command": "able.loginOpenAI",
+        "title": "Able: Login to OpenAI"
       },
       {
         "command": "able.openTerminalAndCloseSideBar",
@@ -147,7 +157,8 @@
     "onFileSystem:file"
   ],
   "dependencies": {
-    "@vscode/prompt-tsx": "^0.3.0-alpha.13"
+    "@vscode/prompt-tsx": "^0.3.0-alpha.13",
+    "openai": "^4.76.0"
   },
   "devDependencies": {
     "@eslint/js": "9.15.0",
