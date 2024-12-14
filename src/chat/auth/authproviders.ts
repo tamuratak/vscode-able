@@ -155,6 +155,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 						input.enabled = true
 						return
 					}
+					input.dispose()
 					resolve(input.value)
 				}, disposables)
 				input.onDidHide(async () => {
@@ -171,7 +172,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 
 		// Don't set `currentApiKey` here, since we want to fire the proper events in the `checkForUpdates` call
 		await this.secretStorage.store(this.secretStoreKey, apiKey)
-		console.log('Successfully logged in.')
+		console.log('Successfully logged in for OpenAI API (with Able).')
 
 		return this.toAuthenticationSession(apiKey)
 	}
