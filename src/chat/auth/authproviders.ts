@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+import OpenAI from 'openai'
 import {
 	authentication,
 	AuthenticationProvider,
@@ -150,7 +151,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 						return
 					}
 					resolve(input.value)
-				}, disposables),
+				}, disposables)
 				input.onDidHide(async () => {
 					if (!input.value || !(await this.validateKey(input.value))) {
 						reject(new Error(errorMessage))
@@ -199,8 +200,18 @@ export class OpenAiApiKeyAuthenticationProvider extends BaseApiKeyAuthentication
 	readonly serviceId = 'openai_api'
 	protected readonly secretStoreKey = 'openai_api.secret_store_key'
 
-	protected validateKey(_key: string): Promise<boolean> {
-		return Promise.resolve(false)
+	protected async validateKey(apiKey: string): Promise<boolean> {
+		try {
+			const client = new OpenAI({ apiKey })
+			const result = await client.models.list()
+			if (result.data.length > 0) {
+				return true
+			} else {
+				return false
+			}
+		} catch {
+			return false
+		}
 	}
 
 }
