@@ -7,7 +7,7 @@ import { BaseTokensPerMessage, BaseTokensPerName, ChatMessage, ChatRole } from '
 import { ExternalPromise } from '../utils/externalpromise.js'
 
 
-export class Tokenizer implements ITokenizer {
+export class Gpt4oTokenizer implements ITokenizer {
     private readonly _tokenizer = new ExternalPromise<TikTokenizer>()
     private readonly baseTokensPerMessage = BaseTokensPerMessage
     private readonly baseTokensPerName = BaseTokensPerName

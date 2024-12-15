@@ -3,14 +3,14 @@ import { FluentJaPrompt, FluentPrompt, HistoryEntry, SimplePrompt, ToEnPrompt, T
 import { ChatMessage, ChatRole, PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { ExternalPromise } from '../utils/externalpromise.js'
 import { OpenAI } from 'openai'
-import { Tokenizer } from './tokenizer.js'
+import { Gpt4oTokenizer } from './tokenizer.js'
 import type { ChatCompletionMessageParam } from 'openai/resources/index'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
 
 export class ChatHandler {
-    private readonly tokenizer = new Tokenizer()
+    private readonly gpt4oTokenizer = new Gpt4oTokenizer()
     private readonly gpt4omini = new ExternalPromise<vscode.LanguageModelChat>()
     private readonly openAiClient = new ExternalPromise<OpenAI>()
 
@@ -97,7 +97,7 @@ export class ChatHandler {
         return chatResponse
     }
 
-    async openAiGpt4oMiniResponseWithSelection(
+    private async openAiGpt4oMiniResponseWithSelection(
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -115,7 +115,7 @@ export class ChatHandler {
         }
     }
 
-    async openAiGpt4oMiniResponse(
+    private async openAiGpt4oMiniResponse(
         token: vscode.CancellationToken,
         input: string,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,7 +130,7 @@ export class ChatHandler {
             client = new OpenAI({ apiKey: session.accessToken })
             this.openAiClient.resolve(client)
         }
-        const renderResult = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, this.tokenizer, undefined, undefined, 'none')
+        const renderResult = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, this.gpt4oTokenizer, undefined, undefined, 'none')
         const messages = this.convertToChatCompletionMessageParams(renderResult.messages)
         const abortController = new AbortController()
         const signal = abortController.signal
