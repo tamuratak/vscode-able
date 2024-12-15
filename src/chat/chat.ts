@@ -36,31 +36,29 @@ export class ChatHandler {
         ) => {
             const ableHistory = extractAbleHistory(context)
             if (request.command === 'fluent') {
-                const response = await this.copilotChatResponseWithSelection(token, request, FluentPrompt, ableHistory)
+                const response = await this.openAiGpt4oMiniResponseWithSelection(token, request, FluentPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'fluent_ja') {
-                const response = await this.copilotChatResponseWithSelection(token, request, FluentJaPrompt, ableHistory)
+                const response = await this.openAiGpt4oMiniResponseWithSelection(token, request, FluentJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } if (request.command === 'to_en') {
-                const response = await this.copilotChatResponseWithSelection(token, request, ToEnPrompt, ableHistory)
+                const response = await this.openAiGpt4oMiniResponseWithSelection(token, request, ToEnPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'to_ja') {
-                const response = await this.copilotChatResponseWithSelection(token, request, ToJaPrompt, ableHistory)
+                const response = await this.openAiGpt4oMiniResponseWithSelection(token, request, ToJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } {
-                const chatResponse = await this.copilotChatResponse(token, request.prompt, SimplePrompt, ableHistory)
-                for await (const fragment of chatResponse.text) {
-                    stream.markdown(fragment)
-                }
+                const chatResponse = await this.openAiGpt4oMiniResponse(token, request.prompt, SimplePrompt, ableHistory)
+                stream.markdown(chatResponse.choices[0]?.message.content ?? '')
             }
         }
     }
 
-    private async copilotChatResponseWithSelection(
+    async copilotChatResponseWithSelection(
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -105,7 +103,7 @@ export class ChatHandler {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ctor: PromptElementCtor<any, any>,
         ableHistory: HistoryEntry[],
-    ) {
+    ): Promise<string> {
         const selectedText = await getSelectedText(request)
         const input = selectedText ?? request.prompt
         const chatResponse = await this.openAiGpt4oMiniResponse(token, input, ctor, ableHistory)
@@ -113,7 +111,7 @@ export class ChatHandler {
         if (selectedText) {
             return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
         } else {
-            return responseText
+            return responseText ?? ''
         }
     }
 
