@@ -118,7 +118,7 @@ export class ChatHandler {
     }
 
     async openAiGpt4oMiniResponse(
-        _token: vscode.CancellationToken,
+        token: vscode.CancellationToken,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ctor: PromptElementCtor<any, any>,
         ableHistory: HistoryEntry[],
@@ -134,7 +134,10 @@ export class ChatHandler {
         }
         const renderResult = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, this.tokenizer, undefined, undefined, 'none')
         const messages = this.convertToChatCompletionMessageParams(renderResult.messages)
-        const chatResponse = await client.chat.completions.create({messages, model: 'gpt-4o-mini', max_tokens: 1024, n: 1})
+        const abortController = new AbortController()
+        const signal = abortController.signal
+        token.onCancellationRequested(() => abortController.abort())
+        const chatResponse = await client.chat.completions.create({ messages, model: 'gpt-4o-mini', max_tokens: 1024, n: 1 }, { signal })
         return chatResponse
     }
 
@@ -143,7 +146,7 @@ export class ChatHandler {
         for (const message of messages) {
             if (message.role === ChatRole.Tool) {
                 if (message.tool_call_id) {
-                    result.push({role: ChatRole.Tool, tool_call_id: message.tool_call_id, content: message.content})
+                    result.push({ role: ChatRole.Tool, tool_call_id: message.tool_call_id, content: message.content })
                 }
             } else {
                 result.push(message)
