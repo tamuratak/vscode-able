@@ -52,7 +52,7 @@ export class ChatHandler {
                 stream.markdown(response)
                 return
             } {
-                const chatResponse = await this.copilotChatResponse(token, SimplePrompt, ableHistory, request.prompt, request.model)
+                const chatResponse = await this.copilotChatResponse(token, request.prompt, SimplePrompt, ableHistory)
                 for await (const fragment of chatResponse.text) {
                     stream.markdown(fragment)
                 }
@@ -70,7 +70,7 @@ export class ChatHandler {
     ) {
         const selectedText = await getSelectedText(request)
         const input = selectedText ?? request.prompt
-        const chatResponse = await this.copilotChatResponse(token, ctor, ableHistory, input, model)
+        const chatResponse = await this.copilotChatResponse(token, input, ctor, ableHistory, model)
 
         let responseText = ''
         for await (const fragment of chatResponse.text) {
@@ -85,10 +85,10 @@ export class ChatHandler {
 
     private async copilotChatResponse(
         token: vscode.CancellationToken,
+        input: string,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ctor: PromptElementCtor<any, any>,
         ableHistory: HistoryEntry[],
-        input: string,
         model?: vscode.LanguageModelChat
     ) {
         if (!model) {
@@ -108,7 +108,7 @@ export class ChatHandler {
     ) {
         const selectedText = await getSelectedText(request)
         const input = selectedText ?? request.prompt
-        const chatResponse = await this.openAiGpt4oMiniResponse(token, ctor, ableHistory, input)
+        const chatResponse = await this.openAiGpt4oMiniResponse(token, input, ctor, ableHistory)
         const responseText = chatResponse.choices[0]?.message.content
         if (selectedText) {
             return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
@@ -119,10 +119,10 @@ export class ChatHandler {
 
     async openAiGpt4oMiniResponse(
         token: vscode.CancellationToken,
+        input: string,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ctor: PromptElementCtor<any, any>,
         ableHistory: HistoryEntry[],
-        input: string,
     ) {
         let client: OpenAI
         if (this.openAiClient.isResolved) {
