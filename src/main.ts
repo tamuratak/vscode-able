@@ -1,14 +1,23 @@
 import * as vscode from 'vscode'
-import { ChatHandler } from './chat/chat'
-import { registerCommands } from './commands'
-import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders'
+import { ChatHandler } from './chat/chat.js'
+import { registerCommands } from './commands.js'
+import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 
 
 export class Extension {
-    readonly handler: ChatHandler
+    private readonly handler: ChatHandler
     constructor(public readonly openAiServiceId: string) {
         this.handler = new ChatHandler(openAiServiceId)
     }
+
+    getHandler() {
+        return this.handler.getHandler()
+    }
+
+    async activate() {
+        await this.handler.initGpt4oMini()
+    }
+
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -20,7 +29,10 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('able.loginOpenAI', () => {
             void vscode.authentication.getSession(openAiAuthProvider.serviceId, [], { createIfNone: true })
         }),
-        vscode.chat.createChatParticipant('able.chatParticipant', extension.handler.getHandler()),
+        vscode.chat.createChatParticipant('able.chatParticipant', extension.getHandler()),
+        vscode.commands.registerCommand('able.activateCopilotChatModels', () => {
+            void extension.activate()
+        }),
         ...registerCommands()
     )
 

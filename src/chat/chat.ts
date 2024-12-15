@@ -1,13 +1,30 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt'
-import { PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
+import { FluentJaPrompt, FluentPrompt, HistoryEntry, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { ChatMessage, ChatRole, PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
+import { ExternalPromise } from '../utils/externalpromise.js'
+import { OpenAI } from 'openai'
+import { Tokenizer } from './tokenizer.js'
+import type { ChatCompletionMessageParam } from 'openai/resources/index'
+
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
 
 export class ChatHandler {
+    private readonly tokenizer = new Tokenizer()
+    private readonly gpt4omini = new ExternalPromise<vscode.LanguageModelChat>()
+    private readonly openAiClient = new ExternalPromise<OpenAI>()
 
-    constructor(public readonly openAiServiceId: string) {
+    constructor(public readonly openAiServiceId: string) { }
 
+    async initGpt4oMini() {
+        const [mini,] = await vscode.lm.selectChatModels({
+            vendor: 'copilot',
+            family: 'gpt-4o-mini'
+        })
+        if (!mini) {
+            console.error('Failed to load GPT-4o Mini model')
+        }
+        this.gpt4omini.resolve(mini)
     }
 
     getHandler(): vscode.ChatRequestHandler {
@@ -18,60 +35,124 @@ export class ChatHandler {
             token: vscode.CancellationToken
         ) => {
             const ableHistory = extractAbleHistory(context)
-            const [mini,] = await vscode.lm.selectChatModels({
-                vendor: 'copilot',
-                family: 'gpt-4o-mini'
-            })
-            const model = mini ?? request.model
             if (request.command === 'fluent') {
-                const response = await makeResponse(request, token, FluentPrompt, model, ableHistory)
+                const response = await this.openAiGpt4oMiniResponseWithSelection(token, request, FluentPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'fluent_ja') {
-                const response = await makeResponse(request, token, FluentJaPrompt, model, ableHistory)
+                const response = await this.openAiGpt4oMiniResponseWithSelection(token, request, FluentJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } if (request.command === 'to_en') {
-                const response = await makeResponse(request, token, ToEnPrompt, model, ableHistory)
+                const response = await this.openAiGpt4oMiniResponseWithSelection(token, request, ToEnPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'to_ja') {
-                const response = await makeResponse(request, token, ToJaPrompt, model, ableHistory)
+                const response = await this.openAiGpt4oMiniResponseWithSelection(token, request, ToJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } {
-                const { messages } = await renderPrompt(SimplePrompt, { history: ableHistory, prompt: request.prompt }, { modelMaxPromptTokens: 4096 }, request.model)
-                const chatResponse = await model.sendRequest(messages, {}, token)
-                for await (const fragment of chatResponse.text) {
-                    stream.markdown(fragment)
-                }
+                const chatResponse = await this.openAiGpt4oMiniResponse(token, request.prompt, SimplePrompt, ableHistory)
+                stream.markdown(chatResponse.choices[0]?.message.content ?? '')
             }
         }
     }
-}
 
-async function makeResponse(
-    request: vscode.ChatRequest,
-    token: vscode.CancellationToken,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ctor: PromptElementCtor<any, any>,
-    model: vscode.LanguageModelChat,
-    ableHistory: HistoryEntry[]
-) {
-    const selectedText = await getSelectedText(request)
-    const input = selectedText ?? request.prompt
-    const { messages } = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, request.model)
-    const chatResponse = await model.sendRequest(messages, {}, token)
+    async copilotChatResponseWithSelection(
+        token: vscode.CancellationToken,
+        request: vscode.ChatRequest,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ctor: PromptElementCtor<any, any>,
+        ableHistory: HistoryEntry[],
+        model?: vscode.LanguageModelChat
+    ) {
+        const selectedText = await getSelectedText(request)
+        const input = selectedText ?? request.prompt
+        const chatResponse = await this.copilotChatResponse(token, input, ctor, ableHistory, model)
 
-    let responseText = ''
-    for await (const fragment of chatResponse.text) {
-        responseText += fragment
+        let responseText = ''
+        for await (const fragment of chatResponse.text) {
+            responseText += fragment
+        }
+        if (selectedText) {
+            return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
+        } else {
+            return responseText
+        }
     }
-    if (selectedText) {
-        return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
-    } else {
-        return responseText
+
+    private async copilotChatResponse(
+        token: vscode.CancellationToken,
+        input: string,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ctor: PromptElementCtor<any, any>,
+        ableHistory: HistoryEntry[],
+        model?: vscode.LanguageModelChat
+    ) {
+        if (!model) {
+            model = await this.gpt4omini.promise
+        }
+        const { messages } = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, model)
+        const chatResponse = await model.sendRequest(messages, {}, token)
+        return chatResponse
     }
+
+    async openAiGpt4oMiniResponseWithSelection(
+        token: vscode.CancellationToken,
+        request: vscode.ChatRequest,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ctor: PromptElementCtor<any, any>,
+        ableHistory: HistoryEntry[],
+    ): Promise<string> {
+        const selectedText = await getSelectedText(request)
+        const input = selectedText ?? request.prompt
+        const chatResponse = await this.openAiGpt4oMiniResponse(token, input, ctor, ableHistory)
+        const responseText = chatResponse.choices[0]?.message.content
+        if (selectedText) {
+            return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
+        } else {
+            return responseText ?? ''
+        }
+    }
+
+    async openAiGpt4oMiniResponse(
+        token: vscode.CancellationToken,
+        input: string,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ctor: PromptElementCtor<any, any>,
+        ableHistory: HistoryEntry[],
+    ) {
+        let client: OpenAI
+        if (this.openAiClient.isResolved) {
+            client = await this.openAiClient.promise
+        } else {
+            const session = await vscode.authentication.getSession(this.openAiServiceId, [], { createIfNone: true })
+            client = new OpenAI({ apiKey: session.accessToken })
+            this.openAiClient.resolve(client)
+        }
+        const renderResult = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, this.tokenizer, undefined, undefined, 'none')
+        const messages = this.convertToChatCompletionMessageParams(renderResult.messages)
+        const abortController = new AbortController()
+        const signal = abortController.signal
+        token.onCancellationRequested(() => abortController.abort())
+        const chatResponse = await client.chat.completions.create({ messages, model: 'gpt-4o-mini', max_tokens: 1024, n: 1 }, { signal })
+        return chatResponse
+    }
+
+    private convertToChatCompletionMessageParams(messages: ChatMessage[]): ChatCompletionMessageParam[] {
+        const result: ChatCompletionMessageParam[] = []
+        for (const message of messages) {
+            if (message.role === ChatRole.Tool) {
+                if (message.tool_call_id) {
+                    result.push({ role: ChatRole.Tool, tool_call_id: message.tool_call_id, content: message.content })
+                }
+            } else {
+                result.push(message)
+            }
+        }
+        return result
+    }
+
 }
 
 function extractAbleHistory(context: vscode.ChatContext): HistoryEntry[] {
@@ -138,9 +219,3 @@ function extractInputAndOutput(str: string) {
     }
 }
 
-export async function activateCopilotChatModels() {
-    const result = await vscode.lm.selectChatModels({
-        vendor: 'copilot'
-    })
-    console.dir(result)
-}
