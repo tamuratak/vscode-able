@@ -1,13 +1,27 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt'
+import { FluentJaPrompt, FluentPrompt, HistoryEntry, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import { PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
+import { ExternalPromise } from '../utils/externalpromise.js'
+//import { Tokenizer } from './tokenizer.js'
+
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
 
 export class ChatHandler {
+    //    private readonly tokenizer = new Tokenizer()
+    private readonly gpt4omini = new ExternalPromise<vscode.LanguageModelChat>()
 
-    constructor(public readonly openAiServiceId: string) {
+    constructor(public readonly openAiServiceId: string) { }
 
+    async initGpt4oMini() {
+        const [mini,] = await vscode.lm.selectChatModels({
+            vendor: 'copilot',
+            family: 'gpt-4o-mini'
+        })
+        if (!mini) {
+            console.error('Failed to load GPT-4o Mini model')
+        }
+        this.gpt4omini.resolve(mini)
     }
 
     getHandler(): vscode.ChatRequestHandler {
@@ -18,60 +32,70 @@ export class ChatHandler {
             token: vscode.CancellationToken
         ) => {
             const ableHistory = extractAbleHistory(context)
-            const [mini,] = await vscode.lm.selectChatModels({
-                vendor: 'copilot',
-                family: 'gpt-4o-mini'
-            })
-            const model = mini ?? request.model
             if (request.command === 'fluent') {
-                const response = await makeResponse(request, token, FluentPrompt, model, ableHistory)
+                const response = await this.copilotChatResponseWithSelection(request, token, FluentPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'fluent_ja') {
-                const response = await makeResponse(request, token, FluentJaPrompt, model, ableHistory)
+                const response = await this.copilotChatResponseWithSelection(request, token, FluentJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } if (request.command === 'to_en') {
-                const response = await makeResponse(request, token, ToEnPrompt, model, ableHistory)
+                const response = await this.copilotChatResponseWithSelection(request, token, ToEnPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'to_ja') {
-                const response = await makeResponse(request, token, ToJaPrompt, model, ableHistory)
+                const response = await this.copilotChatResponseWithSelection(request, token, ToJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } {
-                const { messages } = await renderPrompt(SimplePrompt, { history: ableHistory, prompt: request.prompt }, { modelMaxPromptTokens: 4096 }, request.model)
-                const chatResponse = await model.sendRequest(messages, {}, token)
+                const chatResponse = await this.copilotChatResponse(token, SimplePrompt, ableHistory, request.prompt, request.model)
                 for await (const fragment of chatResponse.text) {
                     stream.markdown(fragment)
                 }
             }
         }
     }
-}
 
-async function makeResponse(
-    request: vscode.ChatRequest,
-    token: vscode.CancellationToken,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ctor: PromptElementCtor<any, any>,
-    model: vscode.LanguageModelChat,
-    ableHistory: HistoryEntry[]
-) {
-    const selectedText = await getSelectedText(request)
-    const input = selectedText ?? request.prompt
-    const { messages } = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, request.model)
-    const chatResponse = await model.sendRequest(messages, {}, token)
+    private async copilotChatResponseWithSelection(
+        request: vscode.ChatRequest,
+        token: vscode.CancellationToken,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ctor: PromptElementCtor<any, any>,
+        ableHistory: HistoryEntry[],
+        model?: vscode.LanguageModelChat
+    ) {
+        const selectedText = await getSelectedText(request)
+        const input = selectedText ?? request.prompt
+        const chatResponse = await this.copilotChatResponse(token, ctor, ableHistory, input, model)
 
-    let responseText = ''
-    for await (const fragment of chatResponse.text) {
-        responseText += fragment
+        let responseText = ''
+        for await (const fragment of chatResponse.text) {
+            responseText += fragment
+        }
+        if (selectedText) {
+            return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
+        } else {
+            return responseText
+        }
     }
-    if (selectedText) {
-        return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
-    } else {
-        return responseText
+
+    private async copilotChatResponse(
+        token: vscode.CancellationToken,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ctor: PromptElementCtor<any, any>,
+        ableHistory: HistoryEntry[],
+        input: string,
+        model?: vscode.LanguageModelChat
+    ) {
+        if (!model) {
+            model = await this.gpt4omini.promise
+        }
+        const { messages } = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, model)
+        const chatResponse = await model.sendRequest(messages, {}, token)
+        return chatResponse
     }
+
 }
 
 function extractAbleHistory(context: vscode.ChatContext): HistoryEntry[] {
@@ -138,9 +162,3 @@ function extractInputAndOutput(str: string) {
     }
 }
 
-export async function activateCopilotChatModels() {
-    const result = await vscode.lm.selectChatModels({
-        vendor: 'copilot'
-    })
-    console.dir(result)
-}

@@ -1,5 +1,4 @@
 import * as vscode from 'vscode'
-import { activateCopilotChatModels } from './chat/chat'
 
 
 function sleep(ms: number) {
@@ -8,21 +7,12 @@ function sleep(ms: number) {
 
 export function registerCommands() {
     return [
-        ...registerActivateChatModelCommand(),
         ...registerTerminalAndSideBarCommand(),
         ...registerFocusTerminalCommand(),
         ...registerShowingOffset(),
         ...registerRecenterCommand(),
         ...registerKillLinesToEndCommand(),
         ...registerDisableInlineSuggestCommand()
-    ]
-}
-
-function registerActivateChatModelCommand() {
-    return [
-        vscode.commands.registerCommand('able.activateCopilotChatModels', () => {
-            void activateCopilotChatModels()
-        })
     ]
 }
 

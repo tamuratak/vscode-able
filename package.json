@@ -157,6 +157,7 @@
     "onFileSystem:file"
   ],
   "dependencies": {
+    "@microsoft/tiktokenizer": "^1.0.9",
     "@vscode/prompt-tsx": "^0.3.0-alpha.13",
     "openai": "^4.76.0"
   },

@@ -7,7 +7,7 @@ import {
     PromptPiece,
     UserMessage,
 } from '@vscode/prompt-tsx'
-import type { RequestCommands } from './chat'
+import type { RequestCommands } from './chat.js'
 
 
 export interface HistoryEntry {
