@@ -99,6 +99,24 @@ export class ChatHandler {
         return chatResponse
     }
 
+    async openAiGpt4oMiniResponseWithSelection(
+        token: vscode.CancellationToken,
+        request: vscode.ChatRequest,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ctor: PromptElementCtor<any, any>,
+        ableHistory: HistoryEntry[],
+    ) {
+        const selectedText = await getSelectedText(request)
+        const input = selectedText ?? request.prompt
+        const chatResponse = await this.openAiGpt4oMiniResponse(token, ctor, ableHistory, input)
+        const responseText = chatResponse.choices[0]?.message.content
+        if (selectedText) {
+            return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
+        } else {
+            return responseText
+        }
+    }
+
     async openAiGpt4oMiniResponse(
         _token: vscode.CancellationToken,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -114,9 +132,9 @@ export class ChatHandler {
             client = new OpenAI({ apiKey: session.accessToken })
             this.openAiClient.resolve(client)
         }
-        let renderResult = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, this.tokenizer, undefined, undefined, 'none')
+        const renderResult = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, this.tokenizer, undefined, undefined, 'none')
         const messages = this.convertToChatCompletionMessageParams(renderResult.messages)
-        const chatResponse = await client.chat.completions.create({messages, model: 'gpt-4o-mini', max_tokens: 1024})
+        const chatResponse = await client.chat.completions.create({messages, model: 'gpt-4o-mini', max_tokens: 1024, n: 1})
         return chatResponse
     }
 
