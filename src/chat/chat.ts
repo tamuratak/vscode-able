@@ -1,15 +1,18 @@
 import * as vscode from 'vscode'
 import { FluentJaPrompt, FluentPrompt, HistoryEntry, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
-import { PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
+import { ChatMessage, ChatRole, PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { ExternalPromise } from '../utils/externalpromise.js'
-//import { Tokenizer } from './tokenizer.js'
+import { OpenAI } from 'openai'
+import { Tokenizer } from './tokenizer.js'
+import type { ChatCompletionMessageParam } from 'openai/resources/index'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
 
 export class ChatHandler {
-    //    private readonly tokenizer = new Tokenizer()
+    private readonly tokenizer = new Tokenizer()
     private readonly gpt4omini = new ExternalPromise<vscode.LanguageModelChat>()
+    private readonly openAiClient = new ExternalPromise<OpenAI>()
 
     constructor(public readonly openAiServiceId: string) { }
 
@@ -33,19 +36,19 @@ export class ChatHandler {
         ) => {
             const ableHistory = extractAbleHistory(context)
             if (request.command === 'fluent') {
-                const response = await this.copilotChatResponseWithSelection(request, token, FluentPrompt, ableHistory)
+                const response = await this.copilotChatResponseWithSelection(token, request, FluentPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'fluent_ja') {
-                const response = await this.copilotChatResponseWithSelection(request, token, FluentJaPrompt, ableHistory)
+                const response = await this.copilotChatResponseWithSelection(token, request, FluentJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } if (request.command === 'to_en') {
-                const response = await this.copilotChatResponseWithSelection(request, token, ToEnPrompt, ableHistory)
+                const response = await this.copilotChatResponseWithSelection(token, request, ToEnPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'to_ja') {
-                const response = await this.copilotChatResponseWithSelection(request, token, ToJaPrompt, ableHistory)
+                const response = await this.copilotChatResponseWithSelection(token, request, ToJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } {
@@ -58,8 +61,8 @@ export class ChatHandler {
     }
 
     private async copilotChatResponseWithSelection(
-        request: vscode.ChatRequest,
         token: vscode.CancellationToken,
+        request: vscode.ChatRequest,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ctor: PromptElementCtor<any, any>,
         ableHistory: HistoryEntry[],
@@ -94,6 +97,41 @@ export class ChatHandler {
         const { messages } = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, model)
         const chatResponse = await model.sendRequest(messages, {}, token)
         return chatResponse
+    }
+
+    async openAiGpt4oMiniResponse(
+        _token: vscode.CancellationToken,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ctor: PromptElementCtor<any, any>,
+        ableHistory: HistoryEntry[],
+        input: string,
+    ) {
+        let client: OpenAI
+        if (this.openAiClient.isResolved) {
+            client = await this.openAiClient.promise
+        } else {
+            const session = await vscode.authentication.getSession(this.openAiServiceId, [], { createIfNone: true })
+            client = new OpenAI({ apiKey: session.accessToken })
+            this.openAiClient.resolve(client)
+        }
+        let renderResult = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, this.tokenizer, undefined, undefined, 'none')
+        const messages = this.convertToChatCompletionMessageParams(renderResult.messages)
+        const chatResponse = await client.chat.completions.create({messages, model: 'gpt-4o-mini', max_tokens: 1024})
+        return chatResponse
+    }
+
+    private convertToChatCompletionMessageParams(messages: ChatMessage[]): ChatCompletionMessageParam[] {
+        const result: ChatCompletionMessageParam[] = []
+        for (const message of messages) {
+            if (message.role === ChatRole.Tool) {
+                if (message.tool_call_id) {
+                    result.push({role: ChatRole.Tool, tool_call_id: message.tool_call_id, content: message.content})
+                }
+            } else {
+                result.push(message)
+            }
+        }
+        return result
     }
 
 }
