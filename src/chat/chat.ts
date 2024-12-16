@@ -7,12 +7,18 @@ import { Gpt4oTokenizer } from './tokenizer.js'
 import type { ChatCompletionMessageParam } from 'openai/resources/index'
 
 
-export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
+export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja' | 'use_copilot' | 'use_openai_api'
+
+enum ChatVendor {
+    Copilot = 'copilot',
+    OpenAiApi = 'openai_api',
+}
 
 export class ChatHandler {
     private readonly gpt4oTokenizer = new Gpt4oTokenizer()
     private readonly gpt4omini = new ExternalPromise<vscode.LanguageModelChat>()
     private readonly openAiClient = new ExternalPromise<OpenAI>()
+    private vendor = ChatVendor.Copilot
 
     constructor(public readonly openAiServiceId: string) { }
 
@@ -36,29 +42,35 @@ export class ChatHandler {
         ) => {
             const ableHistory = extractAbleHistory(context)
             if (request.command === 'fluent') {
-                const response = await this.openAiGpt4oMiniResponseWithSelection(token, request, FluentPrompt, ableHistory)
+                const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'fluent_ja') {
-                const response = await this.openAiGpt4oMiniResponseWithSelection(token, request, FluentJaPrompt, ableHistory)
+                const response = await this.responseWithSelection(token, request, FluentJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } if (request.command === 'to_en') {
-                const response = await this.openAiGpt4oMiniResponseWithSelection(token, request, ToEnPrompt, ableHistory)
+                const response = await this.responseWithSelection(token, request, ToEnPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'to_ja') {
-                const response = await this.openAiGpt4oMiniResponseWithSelection(token, request, ToJaPrompt, ableHistory)
+                const response = await this.responseWithSelection(token, request, ToJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
-            } {
+            } else if (request.command === 'use_copilot') {
+                this.vendor = ChatVendor.Copilot
+                stream.markdown('Changed the chat vendor to Copilot')
+            } else if (request.command === 'use_openai_api') {
+                this.vendor = ChatVendor.OpenAiApi
+                stream.markdown('Changed the chat vendor to OpenAI API')
+            } else {
                 const chatResponse = await this.openAiGpt4oMiniResponse(token, request.prompt, SimplePrompt, ableHistory)
                 stream.markdown(chatResponse.choices[0]?.message.content ?? '')
             }
         }
     }
 
-    async copilotChatResponseWithSelection(
+    private async responseWithSelection(
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,11 +80,15 @@ export class ChatHandler {
     ) {
         const selectedText = await getSelectedText(request)
         const input = selectedText ?? request.prompt
-        const chatResponse = await this.copilotChatResponse(token, input, ctor, ableHistory, model)
-
         let responseText = ''
-        for await (const fragment of chatResponse.text) {
-            responseText += fragment
+        if (this.vendor === ChatVendor.Copilot) {
+            const chatResponse = await this.copilotChatResponse(token, input, ctor, ableHistory, model)
+            for await (const fragment of chatResponse.text) {
+                responseText += fragment
+            }
+        } else {
+            const chatResponse = await this.openAiGpt4oMiniResponse(token, input, ctor, ableHistory)
+            responseText = chatResponse.choices[0]?.message.content ?? ''
         }
         if (selectedText) {
             return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
@@ -95,24 +111,6 @@ export class ChatHandler {
         const { messages } = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, model)
         const chatResponse = await model.sendRequest(messages, {}, token)
         return chatResponse
-    }
-
-    private async openAiGpt4oMiniResponseWithSelection(
-        token: vscode.CancellationToken,
-        request: vscode.ChatRequest,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ctor: PromptElementCtor<any, any>,
-        ableHistory: HistoryEntry[],
-    ): Promise<string> {
-        const selectedText = await getSelectedText(request)
-        const input = selectedText ?? request.prompt
-        const chatResponse = await this.openAiGpt4oMiniResponse(token, input, ctor, ableHistory)
-        const responseText = chatResponse.choices[0]?.message.content
-        if (selectedText) {
-            return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
-        } else {
-            return responseText ?? ''
-        }
     }
 
     private async openAiGpt4oMiniResponse(
