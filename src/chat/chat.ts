@@ -60,7 +60,6 @@ export class ChatHandler {
             } else if (request.command === 'use_copilot') {
                 this.vendor = ChatVendor.Copilot
                 stream.markdown('Changed the chat vendor to Copilot')
-                
             } else if (request.command === 'use_openai_api') {
                 this.vendor = ChatVendor.OpenAiApi
                 stream.markdown('Changed the chat vendor to OpenAI API')
