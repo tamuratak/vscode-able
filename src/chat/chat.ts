@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import { ChatMessage, ChatRole, PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { ExternalPromise } from '../utils/externalpromise.js'
 import { OpenAI } from 'openai'
@@ -27,10 +27,13 @@ export class ChatHandler {
             vendor: 'copilot',
             family: 'gpt-4o-mini'
         })
-        if (!mini) {
-            console.error('Failed to load GPT-4o Mini model')
+        if (mini) {
+            this.gpt4omini.resolve(mini)
+        } else {
+            const message = 'Failed to load GPT-4o Mini model'
+            this.gpt4omini.reject(new Error(message))
+            console.error(message)
         }
-        this.gpt4omini.resolve(mini)
     }
 
     getHandler(): vscode.ChatRequestHandler {
@@ -70,11 +73,10 @@ export class ChatHandler {
         }
     }
 
-    private async responseWithSelection(
+    private async responseWithSelection<S>(
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ctor: PromptElementCtor<any, any>,
+        ctor: PromptElementCtor<InputProps, S>,
         ableHistory: HistoryEntry[],
         model?: vscode.LanguageModelChat
     ) {
@@ -97,11 +99,10 @@ export class ChatHandler {
         }
     }
 
-    private async copilotChatResponse(
+    private async copilotChatResponse<S>(
         token: vscode.CancellationToken,
         input: string,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ctor: PromptElementCtor<any, any>,
+        ctor: PromptElementCtor<InputProps, S>,
         ableHistory: HistoryEntry[],
         model?: vscode.LanguageModelChat
     ) {
@@ -113,11 +114,10 @@ export class ChatHandler {
         return chatResponse
     }
 
-    private async openAiGpt4oMiniResponse(
+    private async openAiGpt4oMiniResponse<S>(
         token: vscode.CancellationToken,
         input: string,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ctor: PromptElementCtor<any, any>,
+        ctor: PromptElementCtor<InputProps, S>,
         ableHistory: HistoryEntry[],
     ) {
         let client: OpenAI
