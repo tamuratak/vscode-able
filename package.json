@@ -14,9 +14,6 @@
   "engines": {
     "vscode": "^1.95.0"
   },
-  "extensionDependencies": [
-    "GitHub.copilot-chat"
-  ],
   "files": [
     "node_modules",
     "out",
