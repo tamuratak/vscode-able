@@ -55,6 +55,14 @@
           {
             "name": "to_ja",
             "description": "Translate to Japanese"
+          },
+          {
+            "name": "use_copilot",
+            "description": "Use Copilot"
+          },
+          {
+            "name": "use_openai_api",
+            "description": "Use OpenAI API"
           }
         ]
       }
@@ -166,17 +174,18 @@
     "@types/eslint__js": "8.42.3",
     "@types/node": "~20.14",
     "@types/vscode": "1.95.0",
-    "@vscode/vsce": "3.1.1",
+    "@vscode/vsce": "3.2.1",
     "eslint": "9.15.0",
+    "rimraf": "3.0.2",
     "typescript": "5.7.2",
     "typescript-eslint": "8.16.0"
   },
   "scripts": {
     "build": "npm run compile",
     "compile": "tsc -p ./",
-    "clean": "rm -rf out/src/* out/test/*",
+    "clean": "rimraf out/ .eslintcache",
     "lint": "eslint --cache .",
-    "lint:fix": "eslint --fix .",
+    "lint:fix": "eslint --fix --cache .",
     "release": "npm run clean && npm run lint && npm run compile && vsce package",
     "watch": "tsc -w -p ./"
   }

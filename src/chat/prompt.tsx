@@ -16,17 +16,17 @@ export interface HistoryEntry {
     text: string
 }
 
-interface SimplePromptProps extends HistoryMessagesProps {
-    prompt: string
+export interface InputProps extends HistoryMessagesProps {
+    input: string
 }
 
-export class SimplePrompt extends PromptElement<SimplePromptProps> {
+export class SimplePrompt extends PromptElement<InputProps> {
     render() {
         return (
             <>
                 <HistoryMessages history={this.props.history} />
                 <UserMessage>
-                    {this.props.prompt}
+                    {this.props.input}
                 </UserMessage>
             </>
         )
@@ -45,11 +45,7 @@ class MakeFluent extends PromptElement {
     }
 }
 
-interface FluentPromptProps extends HistoryMessagesProps {
-    input: string
-}
-
-export class FluentPrompt extends PromptElement<FluentPromptProps> {
+export class FluentPrompt extends PromptElement<InputProps> {
     render() {
         return (
             <>
@@ -99,7 +95,7 @@ class MakeFluentJa extends PromptElement {
     }
 }
 
-export class FluentJaPrompt extends PromptElement<FluentPromptProps> {
+export class FluentJaPrompt extends PromptElement<InputProps> {
     render() {
         return (
             <>
@@ -129,11 +125,7 @@ class ToEn extends PromptElement {
     }
 }
 
-interface ToEnPromptProps extends HistoryMessagesProps {
-    input: string
-}
-
-export class ToEnPrompt extends PromptElement<ToEnPromptProps> {
+export class ToEnPrompt extends PromptElement<InputProps> {
     render() {
         return (
             <>
@@ -163,11 +155,7 @@ class ToJa extends PromptElement {
     }
 }
 
-interface ToJaPromptProps extends HistoryMessagesProps {
-    input: string
-}
-
-export class ToJaPrompt extends PromptElement<ToJaPromptProps> {
+export class ToJaPrompt extends PromptElement<InputProps> {
     render() {
         return (
             <>
