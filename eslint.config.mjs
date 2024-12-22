@@ -106,7 +106,8 @@ export default tseslint.config(
             "node_modules/",
             "out/",
             ".vscode/",
-            ".git/"
+            ".git/",
+            ".venv/"
         ],
     },
     eslint.configs.recommended,
