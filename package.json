@@ -165,12 +165,18 @@
     "onFileSystem:file"
   ],
   "dependencies": {
+    "@jupyterlab/coreutils": "^6.3.4",
     "@jupyterlab/services": "^7.3.4",
+    "@jupyterlite/contents": "^0.4.5",
+    "@jupyterlite/kernel": "^0.4.5",
     "@jupyterlite/pyodide-kernel": "^0.4.6",
+    "@lumino/coreutils": "^2.2.0",
     "@microsoft/tiktokenizer": "^1.0.9",
     "@vscode/prompt-tsx": "^0.3.0-alpha.13",
+    "comlink": "^4.4.2",
     "openai": "^4.76.0",
-    "pyodide": "^0.26.4"
+    "pyodide": "^0.26.4",
+    "strip-ansi": "^7.1.0"
   },
   "devDependencies": {
     "@eslint/js": "9.15.0",
