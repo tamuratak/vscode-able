@@ -1,3 +1,4 @@
+pyodide/
 out/
 *.vsix
 /.vscode-test/
