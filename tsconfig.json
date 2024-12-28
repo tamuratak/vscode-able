@@ -26,6 +26,9 @@
         "strict": true,
         "target": "es2022",
         "baseUrl": "./",
+        "paths": {
+            "emscripten": ["types/emscripten/index.js"],
+        }  
     },
     "exclude": [
         "node_modules"
