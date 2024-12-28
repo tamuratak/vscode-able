@@ -6,7 +6,7 @@ import { KernelMessage } from '@jupyterlab/services'
 
 import type { IPyodideWorkerKernel } from './tokens.js'
 import { SyncMessaging } from './syncmessagingworker.js'
-import * as fs from 'fs'
+import * as fs from 'node:fs'
 
 export class PyodideRemoteKernel {
     constructor(private readonly syncMessaging: SyncMessaging) {
@@ -21,6 +21,7 @@ export class PyodideRemoteKernel {
     async initialize(options: IPyodideWorkerKernel.IOptions): Promise<void> {
         this._options = options
         const originalFetch = globalThis.fetch
+        // ここで fetch を上書きしている
         globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => {
             this.log('info', `Pyodide Fetching ${input}`)
             if (typeof input === 'string') {
