@@ -10,7 +10,8 @@
         "lib": [
             "es2022"
         ],
-        "module": "node16",
+        "module": "NodeNext",
+        "moduleResolution": "nodenext",
         "noFallthroughCasesInSwitch": true,
         "noImplicitOverride": true,
         "noImplicitReturns": true,
@@ -19,7 +20,6 @@
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "outDir": "out",
-        "resolveJsonModule": true,
         "rootDir": ".",
         "skipLibCheck": true,
         "sourceMap": true,
