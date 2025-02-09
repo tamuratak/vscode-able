@@ -107,6 +107,7 @@ export default tseslint.config(
             "eslint.config.mjs",
             "node_modules/",
             "out/",
+            "server.mjs",
             ".venv/",
             ".vscode/",
             ".git/"
