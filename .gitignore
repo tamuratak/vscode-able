@@ -2,7 +2,9 @@ _output/
 pyodide/
 out/
 *.vsix
+/.venv/
 /.vscode-test/
+
 
 # Logs
 logs
