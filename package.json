@@ -167,7 +167,8 @@
   "dependencies": {
     "@microsoft/tiktokenizer": "^1.0.9",
     "@vscode/prompt-tsx": "^0.3.0-alpha.13",
-    "openai": "^4.76.0"
+    "openai": "^4.76.0",
+    "pyodide": "0.26.4"
   },
   "devDependencies": {
     "@eslint/js": "9.15.0",

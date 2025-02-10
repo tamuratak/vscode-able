@@ -103,10 +103,11 @@ export default tseslint.config(
     {
         ignores: [
             "_output/",
-            "pyodide/",
             "eslint.config.mjs",
+            "dist/",
             "node_modules/",
             "out/",
+            "pyodide/",
             ".venv/",
             ".vscode/",
             ".git/"
