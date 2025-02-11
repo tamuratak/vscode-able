@@ -164,11 +164,15 @@
   "activationEvents": [
     "onFileSystem:file"
   ],
+  "imports": {
+    "#pyodide": {
+      "default": "./pyodide/pyodide/pyodide.js"
+    }
+  },
   "dependencies": {
     "@microsoft/tiktokenizer": "^1.0.9",
     "@vscode/prompt-tsx": "^0.3.0-alpha.13",
-    "openai": "^4.76.0",
-    "pyodide": "0.26.4"
+    "openai": "^4.76.0"
   },
   "devDependencies": {
     "@eslint/js": "9.15.0",
