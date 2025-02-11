@@ -15,6 +15,7 @@
     "vscode": "^1.95.0"
   },
   "files": [
+    "pyodide/pyodide",
     "node_modules",
     "out",
     "LICENSE"
