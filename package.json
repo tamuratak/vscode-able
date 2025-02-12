@@ -191,6 +191,7 @@
     "build": "npm run compile",
     "compile": "tsc -p ./",
     "clean": "rimraf out/ .eslintcache",
+    "download_pyodide": "node ./dev/download_pyodide.mjs",
     "lint": "eslint --cache .",
     "lint:fix": "eslint --fix --cache .",
     "release": "npm run clean && npm run lint && npm run compile && vsce package",

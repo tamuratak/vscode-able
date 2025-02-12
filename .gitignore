@@ -1,7 +1,7 @@
-_output/
-pyodide/
-out/
-*.vsix
+/_output/
+/pyodide*/
+/out/
+/*.vsix
 /.vscode-test/
 
 # Logs
