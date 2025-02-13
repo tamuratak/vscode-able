@@ -68,6 +68,32 @@
         ]
       }
     ],
+    "languageModelTools": [
+      {
+        "name": "able-python",
+        "tags": [
+          "Python Execution"
+      ],
+      "displayName": "Run Python",
+        "modelDescription": "This tool executes Python code using Pyodide, a WebAssembly-based Python runtime, and returns the result of the final expression evaluated by the code. It is particularly useful in scenarios where a large language model (LLM) needs to dynamically evaluate code snippets for debugging, testing, or real-time data processing. By leveraging this tool, an LLM can safely run Python code in a sandboxed environment, allowing for rapid experimentation and iterative development. This capability is especially beneficial when an LLM must validate code behavior or compute results on the fly as part of its decision-making process.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+              "code": {
+                  "type": "string",
+                  "description": "The Python code to run"
+              },
+              "reason": {
+                  "type": "string",
+                  "description": "The reason for running the code"
+              }
+          },
+          "required": [
+              "code"
+          ]
+        }
+      }
+    ],
     "commands": [
       {
         "command": "able.activateCopilotChatModels",
