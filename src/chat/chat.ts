@@ -5,7 +5,7 @@ import { ExternalPromise } from '../utils/externalpromise.js'
 import { OpenAI } from 'openai'
 import { Gpt4oTokenizer } from './tokenizer.js'
 import type { ChatCompletionMessageParam } from 'openai/resources/index'
-import { extractAbleHistory } from './chatlib/utils.js'
+import { extractAbleHistory, getSelectedText } from './chatlib/utils.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja' | 'use_copilot' | 'use_openai_api'
@@ -211,15 +211,4 @@ export class ChatHandler {
         return result
     }
 
-}
-
-async function getSelectedText(request: vscode.ChatRequest) {
-    for (const ref of request.references) {
-        if (ref.id === 'vscode.implicit.selection') {
-            const { uri, range } = ref.value as { uri: vscode.Uri, range: vscode.Range }
-            const doc = await vscode.workspace.openTextDocument(uri)
-            return doc.getText(range)
-        }
-    }
-    return
 }

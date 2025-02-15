@@ -1,6 +1,16 @@
 import * as vscode from 'vscode'
 import { HistoryEntry } from '../prompt.js'
 
+export async function getSelectedText(request: vscode.ChatRequest) {
+    for (const ref of request.references) {
+        if (ref.id === 'vscode.implicit.selection') {
+            const { uri, range } = ref.value as { uri: vscode.Uri, range: vscode.Range }
+            const doc = await vscode.workspace.openTextDocument(uri)
+            return doc.getText(range)
+        }
+    }
+    return
+}
 
 export function extractAbleHistory(context: vscode.ChatContext): HistoryEntry[] {
     const history: HistoryEntry[] = []
