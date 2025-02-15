@@ -1,11 +1,10 @@
 import * as vscode from 'vscode'
 import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
-import { ChatMessage, ChatRole, PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
+import { PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { ExternalPromise } from '../utils/externalpromise.js'
 import { OpenAI } from 'openai'
 import { Gpt4oTokenizer } from './tokenizer.js'
-import type { ChatCompletionMessageParam } from 'openai/resources/index'
-import { extractAbleHistory, getSelectedText } from './chatlib/utils.js'
+import { convertToChatCompletionMessageParams, extractAbleHistory, getSelectedText } from './chatlib/utils.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja' | 'use_copilot' | 'use_openai_api'
@@ -189,26 +188,12 @@ export class ChatHandler {
             this.openAiClient.resolve(client)
         }
         const renderResult = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, this.gpt4oTokenizer, undefined, undefined, 'none')
-        const messages = this.convertToChatCompletionMessageParams(renderResult.messages)
+        const messages = convertToChatCompletionMessageParams(renderResult.messages)
         const abortController = new AbortController()
         const signal = abortController.signal
         token.onCancellationRequested(() => abortController.abort())
         const chatResponse = await client.chat.completions.create({ messages, model: 'gpt-4o-mini', max_tokens: 1024, n: 1 }, { signal })
         return chatResponse
-    }
-
-    private convertToChatCompletionMessageParams(messages: ChatMessage[]): ChatCompletionMessageParam[] {
-        const result: ChatCompletionMessageParam[] = []
-        for (const message of messages) {
-            if (message.role === ChatRole.Tool) {
-                if (message.tool_call_id) {
-                    result.push({ role: ChatRole.Tool, tool_call_id: message.tool_call_id, content: message.content })
-                }
-            } else {
-                result.push(message)
-            }
-        }
-        return result
     }
 
 }
