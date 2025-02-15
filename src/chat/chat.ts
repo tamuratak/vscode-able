@@ -5,6 +5,7 @@ import { ExternalPromise } from '../utils/externalpromise.js'
 import { OpenAI } from 'openai'
 import { Gpt4oTokenizer } from './tokenizer.js'
 import type { ChatCompletionMessageParam } from 'openai/resources/index'
+import { extractAbleHistory } from './chatlib/utils.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja' | 'use_copilot' | 'use_openai_api'
@@ -28,10 +29,11 @@ export class ChatHandler {
             family: 'gpt-4o-mini'
         })
         if (mini) {
+            console.log('GPT-4o Mini model loaded')
             this.gpt4omini.resolve(mini)
         } else {
             const message = 'Failed to load GPT-4o Mini model'
-            this.gpt4omini.reject(new Error(message))
+            void vscode.window.showErrorMessage(message)
             console.error(message)
         }
     }
@@ -45,19 +47,19 @@ export class ChatHandler {
         ) => {
             const ableHistory = extractAbleHistory(context)
             if (request.command === 'fluent') {
-                const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory)
+                const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory, stream)
                 stream.markdown(response)
                 return
             } else if (request.command === 'fluent_ja') {
-                const response = await this.responseWithSelection(token, request, FluentJaPrompt, ableHistory)
+                const response = await this.responseWithSelection(token, request, FluentJaPrompt, ableHistory, stream)
                 stream.markdown(response)
                 return
             } if (request.command === 'to_en') {
-                const response = await this.responseWithSelection(token, request, ToEnPrompt, ableHistory)
+                const response = await this.responseWithSelection(token, request, ToEnPrompt, ableHistory, stream)
                 stream.markdown(response)
                 return
             } else if (request.command === 'to_ja') {
-                const response = await this.responseWithSelection(token, request, ToJaPrompt, ableHistory)
+                const response = await this.responseWithSelection(token, request, ToJaPrompt, ableHistory, stream)
                 stream.markdown(response)
                 return
             } else if (request.command === 'use_copilot') {
@@ -67,8 +69,12 @@ export class ChatHandler {
                 this.vendor = ChatVendor.OpenAiApi
                 stream.markdown('Changed the chat vendor to OpenAI API')
             } else {
-                const chatResponse = await this.openAiGpt4oMiniResponse(token, request.prompt, SimplePrompt, ableHistory)
-                stream.markdown(chatResponse.choices[0]?.message.content ?? '')
+                if (this.vendor === ChatVendor.Copilot) {
+                    await this.copilotChatResponse(token, request, SimplePrompt, ableHistory, stream)
+                } else {
+                    const chatResponse = await this.openAiGpt4oMiniResponse(token, request.prompt, SimplePrompt, ableHistory)
+                    stream.markdown(chatResponse.choices[0]?.message.content ?? '')
+                }
             }
         }
     }
@@ -78,16 +84,14 @@ export class ChatHandler {
         request: vscode.ChatRequest,
         ctor: PromptElementCtor<InputProps, S>,
         ableHistory: HistoryEntry[],
+        stream: vscode.ChatResponseStream,
         model?: vscode.LanguageModelChat
     ) {
         const selectedText = await getSelectedText(request)
         const input = selectedText ?? request.prompt
         let responseText = ''
         if (this.vendor === ChatVendor.Copilot) {
-            const chatResponse = await this.copilotChatResponse(token, input, ctor, ableHistory, model)
-            for await (const fragment of chatResponse.text) {
-                responseText += fragment
-            }
+            await this.copilotChatResponse(token, request, ctor, ableHistory, stream, model)
         } else {
             const chatResponse = await this.openAiGpt4oMiniResponse(token, input, ctor, ableHistory)
             responseText = chatResponse.choices[0]?.message.content ?? ''
@@ -101,18 +105,74 @@ export class ChatHandler {
 
     private async copilotChatResponse<S>(
         token: vscode.CancellationToken,
-        input: string,
+        request: vscode.ChatRequest,
         ctor: PromptElementCtor<InputProps, S>,
         ableHistory: HistoryEntry[],
-        model?: vscode.LanguageModelChat
+        stream: vscode.ChatResponseStream,
+        model?: vscode.LanguageModelChat,
     ) {
         if (!model) {
+            if (!this.gpt4omini.isResolved) {
+                void vscode.window.showErrorMessage('GPT-4o Mini model is not loaded. Execute the activation command.')
+                return
+            }
             model = await this.gpt4omini.promise
         }
-        const { messages } = await renderPrompt(ctor, { history: ableHistory, input }, { modelMaxPromptTokens: 1024 }, model)
-        const chatResponse = await model.sendRequest(messages, {}, token)
-        return chatResponse
+        const { messages } = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 1024 }, model)
+        const tools: vscode.LanguageModelChatTool[] = []
+        const ablePython = vscode.lm.tools.find(tool => tool.name === 'able_python')
+        if (ablePython && ablePython.inputSchema) {
+            tools.push({ name: ablePython.name, description: ablePython.description, inputSchema: ablePython.inputSchema})
+        }
+        const chatResponse = await model.sendRequest(messages, { tools }, token)
+        return this.processChatResponse(chatResponse, messages, token, request, stream, tools, model)
     }
+
+    private async processChatResponse(
+        chatResponse: vscode.LanguageModelChatResponse,
+        messages: vscode.LanguageModelChatMessage[],
+        token: vscode.CancellationToken,
+        request: vscode.ChatRequest,
+        stream: vscode.ChatResponseStream,
+        tools: vscode.LanguageModelChatTool[],
+        model: vscode.LanguageModelChat,
+    ): Promise<void> {
+        const newMessages = [...messages]
+        let responseStr = ''
+        const toolCalls: vscode.LanguageModelToolCallPart[] = []
+        for await (const fragment of chatResponse.stream) {
+            if (fragment instanceof vscode.LanguageModelTextPart) {
+                stream.markdown(fragment.value)
+                responseStr += fragment.value
+            } else if (fragment instanceof vscode.LanguageModelToolCallPart) {
+                if (fragment.name === 'able_python') {
+                    toolCalls.push(fragment)
+                }
+            }
+        }
+        if (toolCalls.length > 0) {
+            newMessages.push(vscode.LanguageModelChatMessage.Assistant(responseStr))
+            for (const fragment of toolCalls) {
+                const result = await vscode.lm.invokeTool(fragment.name, { input: fragment.input, toolInvocationToken: request.toolInvocationToken }, token)
+                const ret: string[] = []
+                for (const part of result.content) {
+                    if (part instanceof vscode.LanguageModelTextPart) {
+                        ret.push(part.value)
+                    }
+                }
+                const toolResultPart = new vscode.LanguageModelToolResultPart(fragment.callId, [new vscode.LanguageModelTextPart(ret.join(''))])
+                newMessages.push(
+                    vscode.LanguageModelChatMessage.Assistant([fragment]),
+                    vscode.LanguageModelChatMessage.User([toolResultPart]),
+                )
+            }
+            const mess = new vscode.LanguageModelTextPart('Above is the result of calling one or more tools. Answer using the natural language of the user.')
+            newMessages.push(vscode.LanguageModelChatMessage.User([mess]))
+            const chatResponse2 = await model.sendRequest(newMessages, { tools }, token)
+            await this.processChatResponse(chatResponse2, newMessages, token, request, stream, tools, model)
+        }
+    }
+
 
     private async openAiGpt4oMiniResponse<S>(
         token: vscode.CancellationToken,
@@ -153,37 +213,6 @@ export class ChatHandler {
 
 }
 
-function extractAbleHistory(context: vscode.ChatContext): HistoryEntry[] {
-    const history: HistoryEntry[] = []
-    for (const hist of context.history) {
-        if (hist.participant === 'able.chatParticipant') {
-            if (hist.command === 'fluent' || hist.command === 'fluent_ja' || hist.command === 'to_en' || hist.command === 'to_ja') {
-                if (hist instanceof vscode.ChatRequestTurn) {
-                    if (!hist.references.find((ref) => ref.id === 'vscode.implicit.selection')) {
-                        history.push({ type: 'user', command: hist.command, text: hist.prompt })
-                    }
-                } else if (hist instanceof vscode.ChatResponseTurn) {
-                    const response = chatResponseToString(hist)
-                    const pair = extractInputAndOutput(response)
-                    if (pair) {
-                        history.push({ type: 'user', command: hist.command, text: pair.input })
-                        history.push({ type: 'assistant', text: pair.output })
-                    } else {
-                        history.push({ type: 'assistant', command: hist.command, text: response })
-                    }
-                }
-            } else {
-                if (hist instanceof vscode.ChatRequestTurn) {
-                    history.push({ type: 'user', text: hist.prompt })
-                } else if (hist instanceof vscode.ChatResponseTurn) {
-                    history.push({ type: 'assistant', text: chatResponseToString(hist) })
-                }
-            }
-        }
-    }
-    return history
-}
-
 async function getSelectedText(request: vscode.ChatRequest) {
     for (const ref of request.references) {
         if (ref.id === 'vscode.implicit.selection') {
@@ -194,26 +223,3 @@ async function getSelectedText(request: vscode.ChatRequest) {
     }
     return
 }
-
-function chatResponseToString(response: vscode.ChatResponseTurn): string {
-    let str = ''
-    for (const part of response.response) {
-        if (part instanceof vscode.ChatResponseMarkdownPart) {
-            str += part.value.value
-        }
-    }
-    return str
-}
-
-function extractInputAndOutput(str: string) {
-    const regex = /#### input\n(.+?)\n\n#### output\n(.+)/s
-    const match = str.match(regex)
-    if (match) {
-        const input = match[1]
-        const output = match[2]
-        return { input, output }
-    } else {
-        return
-    }
-}
-

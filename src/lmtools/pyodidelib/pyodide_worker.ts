@@ -2,10 +2,10 @@ import { loadPyodide } from '#pyodide'
 import * as workerpool from 'workerpool'
 
 
-async function runPythonAsync(): Promise<number> {
+async function runPythonAsync(code: string): Promise<string> {
     const pyodide = await loadPyodide()
-    console.log(pyodide)
-    return await pyodide.runPythonAsync('1+1') as number
+    const ret = await pyodide.runPythonAsync(code) as unknown
+    return JSON.stringify(ret)
 }
 
 const workers = {runPythonAsync}
@@ -13,7 +13,7 @@ const workers = {runPythonAsync}
 // workerpool passes the resolved value of Promise, not Promise.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type IPyodideWorker = {
-    runPythonAsync: (...args: Parameters<typeof runPythonAsync>) => number,
+    runPythonAsync: (code: string) => string
 }
 
 workerpool.worker(workers)

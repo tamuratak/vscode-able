@@ -70,7 +70,7 @@
     ],
     "languageModelTools": [
       {
-        "name": "able-python",
+        "name": "able_python",
         "tags": [
           "Python Execution"
       ],
