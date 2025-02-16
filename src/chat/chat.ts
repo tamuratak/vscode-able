@@ -208,7 +208,7 @@ export class ChatHandler {
             this.openAiClient.resolve(client)
         }
         const renderResult = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 1024 }, this.gpt4oTokenizer, undefined, undefined, 'none')
-        const systemMessage = { role: 'system', content: '質問を答えるのにPython コードを実行する場合は able_python を使う。' } as const
+        const systemMessage = { role: 'system', content: 'When answering a question that requires executing Python code, use able_python.' } as const
         const messages = [systemMessage, ...convertToChatCompletionMessageParams(renderResult.messages)]
         const abortController = new AbortController()
         const signal = abortController.signal

@@ -3,6 +3,7 @@
 /out/
 /*.vsix
 /.vscode-test/
+/.contextdir_for_llm
 
 # Logs
 logs
