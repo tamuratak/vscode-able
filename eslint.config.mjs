@@ -101,12 +101,14 @@ const commonRules = {
 
 export default tseslint.config(
     {
-        ignores: [
+        ignores: [            
             "_output/",
-            "pyodide/",
             "eslint.config.mjs",
+            "dev/",
+            "dist/",
             "node_modules/",
             "out/",
+            "pyodide*/",
             ".venv/",
             ".vscode/",
             ".git/"

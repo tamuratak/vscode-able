@@ -2,6 +2,7 @@ import * as vscode from 'vscode'
 import { ChatHandler } from './chat/chat.js'
 import { registerCommands } from './commands.js'
 import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
+import { PythonTool } from './lmtools/pyodide.js'
 
 
 export class Extension {
@@ -33,6 +34,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('able.activateCopilotChatModels', () => {
             void extension.activate()
         }),
+        vscode.lm.registerTool('able_python', new PythonTool()),
         ...registerCommands()
     )
 
