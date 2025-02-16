@@ -5,6 +5,7 @@ import { ExternalPromise } from '../utils/externalpromise.js'
 import { OpenAI } from 'openai'
 import { Gpt4oTokenizer } from './tokenizer.js'
 import { convertToChatCompletionMessageParams, extractAbleHistory, getSelectedText } from './chatlib/utils.js'
+// import type { Stream } from 'openai/streaming.mjs'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja' | 'use_copilot' | 'use_openai_api'
@@ -46,19 +47,19 @@ export class ChatHandler {
         ) => {
             const ableHistory = extractAbleHistory(context)
             if (request.command === 'fluent') {
-                const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory, stream)
+                const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'fluent_ja') {
-                const response = await this.responseWithSelection(token, request, FluentJaPrompt, ableHistory, stream)
+                const response = await this.responseWithSelection(token, request, FluentJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } if (request.command === 'to_en') {
-                const response = await this.responseWithSelection(token, request, ToEnPrompt, ableHistory, stream)
+                const response = await this.responseWithSelection(token, request, ToEnPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'to_ja') {
-                const response = await this.responseWithSelection(token, request, ToJaPrompt, ableHistory, stream)
+                const response = await this.responseWithSelection(token, request, ToJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
             } else if (request.command === 'use_copilot') {
@@ -71,8 +72,7 @@ export class ChatHandler {
                 if (this.vendor === ChatVendor.Copilot) {
                     await this.copilotChatResponse(token, request, SimplePrompt, ableHistory, stream)
                 } else {
-                    const chatResponse = await this.openAiGpt4oMiniResponse(token, request.prompt, SimplePrompt, ableHistory)
-                    stream.markdown(chatResponse.choices[0]?.message.content ?? '')
+                    await this.openAiGpt4oMiniResponse(token, request.prompt, SimplePrompt, ableHistory, stream)
                 }
             }
         }
@@ -83,17 +83,26 @@ export class ChatHandler {
         request: vscode.ChatRequest,
         ctor: PromptElementCtor<InputProps, S>,
         ableHistory: HistoryEntry[],
-        stream: vscode.ChatResponseStream,
+        stream?: vscode.ChatResponseStream,
         model?: vscode.LanguageModelChat
     ) {
         const selectedText = await getSelectedText(request)
         const input = selectedText ?? request.prompt
         let responseText = ''
         if (this.vendor === ChatVendor.Copilot) {
-            await this.copilotChatResponse(token, request, ctor, ableHistory, stream, model)
+            const {chatResponse} = await this.copilotChatResponse(token, request, ctor, ableHistory, stream, model)
+            if (chatResponse) {
+                for await (const fragment of chatResponse.text) {
+                    responseText += fragment
+                }
+            }
         } else {
-            const chatResponse = await this.openAiGpt4oMiniResponse(token, input, ctor, ableHistory)
-            responseText = chatResponse.choices[0]?.message.content ?? ''
+            const {chatResponse} = await this.openAiGpt4oMiniResponse(token, input, ctor, ableHistory, stream)
+            if (chatResponse) {
+                for await (const fragment of chatResponse) {
+                    responseText += fragment.choices[0]?.delta?.content ?? ''
+                }
+            }
         }
         if (selectedText) {
             return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
@@ -102,29 +111,39 @@ export class ChatHandler {
         }
     }
 
-    private async copilotChatResponse<S>(
-        token: vscode.CancellationToken,
-        request: vscode.ChatRequest,
-        ctor: PromptElementCtor<InputProps, S>,
-        ableHistory: HistoryEntry[],
-        stream: vscode.ChatResponseStream,
-        model?: vscode.LanguageModelChat,
-    ) {
-        if (!model) {
-            if (!this.gpt4omini.isResolved) {
-                void vscode.window.showErrorMessage('GPT-4o Mini model is not loaded. Execute the activation command.')
-                return
-            }
-            model = await this.gpt4omini.promise
-        }
-        const { messages } = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 1024 }, model)
+    private getLmTools() {
         const tools: vscode.LanguageModelChatTool[] = []
         const ablePython = vscode.lm.tools.find(tool => tool.name === 'able_python')
         if (ablePython && ablePython.inputSchema) {
             tools.push({ name: ablePython.name, description: ablePython.description, inputSchema: ablePython.inputSchema})
         }
+        return tools
+    }
+
+    private async copilotChatResponse<S>(
+        token: vscode.CancellationToken,
+        request: vscode.ChatRequest,
+        ctor: PromptElementCtor<InputProps, S>,
+        ableHistory: HistoryEntry[],
+        stream?: vscode.ChatResponseStream,
+        model?: vscode.LanguageModelChat,
+    ) {
+        if (!model) {
+            if (!this.gpt4omini.isResolved) {
+                void vscode.window.showErrorMessage('GPT-4o Mini model is not loaded. Execute the activation command.')
+                throw new Error('GPT-4o Mini model is not loaded')
+            }
+            model = await this.gpt4omini.promise
+        }
+        const { messages } = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 1024 }, model)
+        const tools = this.getLmTools()
         const chatResponse = await model.sendRequest(messages, { tools }, token)
-        return this.processChatResponse(chatResponse, messages, token, request, stream, tools, model)
+        if (stream) {
+            await this.processChatResponse(chatResponse, messages, token, request, stream, tools, model)
+            return { chatResponse: undefined, messages: undefined, tools, model }
+        } else {
+            return { chatResponse, messages, tools, model }
+        }
     }
 
     private async processChatResponse(
@@ -178,6 +197,7 @@ export class ChatHandler {
         input: string,
         ctor: PromptElementCtor<InputProps, S>,
         ableHistory: HistoryEntry[],
+        stream?: vscode.ChatResponseStream
     ) {
         let client: OpenAI
         if (this.openAiClient.isResolved) {
@@ -192,8 +212,25 @@ export class ChatHandler {
         const abortController = new AbortController()
         const signal = abortController.signal
         token.onCancellationRequested(() => abortController.abort())
-        const chatResponse = await client.chat.completions.create({ messages, model: 'gpt-4o-mini', max_tokens: 1024, n: 1 }, { signal })
-        return chatResponse
+        if (stream) {
+            return {chatResponse: undefined}
+        } else {
+            const chatResponse = await client.chat.completions.create({ messages, model: 'gpt-4o-mini', max_tokens: 1024, n: 1, stream: true }, { signal })
+            return {chatResponse}
+        }
     }
+/*
+    private async processOpenAiResponse(
+        chatResponse: Stream<OpenAI.Chat.Completions.ChatCompletionChunk>,
+        messages: OpenAI.ChatCompletionMessage[],
+        token: vscode.CancellationToken,
+        request: vscode.ChatRequest,
+        stream: vscode.ChatResponseStream,
+    ) {
+        const newMessages = [...messages]
+        let responseStr = ''
+        chatResponse
 
+    }
+*/
 }
