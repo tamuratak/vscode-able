@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt, ToolResultDirectivePrompt } from './prompt.js'
-import { PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
+import { type PromptElementCtor, renderPrompt, type ToolCall } from '@vscode/prompt-tsx'
 import { ExternalPromise } from '../utils/externalpromise.js'
 import { OpenAI } from 'openai'
 import { Gpt4oTokenizer } from './tokenizer.js'
@@ -245,7 +245,7 @@ export class ChatHandler {
     ) {
         const newMessages = [...messages]
         let responseStr = ''
-        const toolCalls: NonNullToolCall[] = []
+        const toolCalls: ToolCall[] = []
         for await (const fragment of chatResponse) {
             const choice = fragment.choices[0]
             if (choice.delta.content) {
@@ -289,13 +289,4 @@ export class ChatHandler {
         }
     }
 
-}
-
-interface NonNullToolCall {
-    function: {
-        name: string
-        arguments: string
-    }
-    id: string
-    type: string
 }

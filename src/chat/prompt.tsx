@@ -277,7 +277,13 @@ export class VscodeChatMessages extends PromptElement<VscodeChatMessagesProps> {
                     if (part instanceof vscode.LanguageModelTextPart) {
                         messages.push(<AssistantMessage>{part.value}</AssistantMessage>)
                     } else if (part instanceof vscode.LanguageModelToolCallPart) {
-                        messages.push(<AssistantMessage toolCalls={[{ id: part.callId, type: 'function', function: { name: part.name, arguments: JSON.stringify(part.input) } }]} ></AssistantMessage>)
+                        messages.push(
+                            <AssistantMessage toolCalls={[{
+                                id: part.callId,
+                                type: 'function',
+                                function: { name: part.name, arguments: JSON.stringify(part.input) }
+                            }]}></AssistantMessage>
+                        )
                     }
                 }
             }
