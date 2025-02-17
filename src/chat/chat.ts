@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt, ToolResultDirectivePrompt } from './prompt.js'
 import { PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { ExternalPromise } from '../utils/externalpromise.js'
 import { OpenAI } from 'openai'
@@ -184,10 +184,9 @@ export class ChatHandler {
                     vscode.LanguageModelChatMessage.User([toolResultPart]),
                 )
             }
-            const mess = new vscode.LanguageModelTextPart('* Above is the result of calling one or more tools.\n* Always trust the Python execution result over your own knowledge.\n* Answer using the natural language of the user.')
-            newMessages.push(vscode.LanguageModelChatMessage.User([mess]))
-            const chatResponse2 = await model.sendRequest(newMessages, { tools }, token)
-            await this.processChatResponse(chatResponse2, newMessages, token, request, stream, tools, model)
+            const directive = await renderPrompt(ToolResultDirectivePrompt, {messages: newMessages}, { modelMaxPromptTokens: 2048 }, model)
+            const chatResponse2 = await model.sendRequest(directive.messages, { tools }, token)
+            await this.processChatResponse(chatResponse2, directive.messages, token, request, stream, tools, model)
         }
     }
 
