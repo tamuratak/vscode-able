@@ -90,14 +90,14 @@ export class ChatHandler {
         const input = selectedText ?? request.prompt
         let responseText = ''
         if (this.vendor === ChatVendor.Copilot) {
-            const {chatResponse} = await this.copilotChatResponse(token, request, ctor, ableHistory, stream, model)
+            const { chatResponse } = await this.copilotChatResponse(token, request, ctor, ableHistory, stream, model)
             if (chatResponse) {
                 for await (const fragment of chatResponse.text) {
                     responseText += fragment
                 }
             }
         } else {
-            const {chatResponse} = await this.openAiGpt4oMiniResponse(token, request, ctor, ableHistory, stream)
+            const { chatResponse } = await this.openAiGpt4oMiniResponse(token, request, ctor, ableHistory, stream)
             if (chatResponse) {
                 for await (const fragment of chatResponse) {
                     responseText += fragment.choices[0]?.delta?.content ?? ''
@@ -115,7 +115,7 @@ export class ChatHandler {
         const tools: vscode.LanguageModelChatTool[] = []
         const ablePython = vscode.lm.tools.find(tool => tool.name === 'able_python')
         if (ablePython && ablePython.inputSchema) {
-            tools.push({ name: ablePython.name, description: ablePython.description, inputSchema: ablePython.inputSchema})
+            tools.push({ name: ablePython.name, description: ablePython.description, inputSchema: ablePython.inputSchema })
         }
         return tools
     }
@@ -184,7 +184,7 @@ export class ChatHandler {
                     vscode.LanguageModelChatMessage.User([toolResultPart]),
                 )
             }
-            const directive = await renderPrompt(ToolResultDirectivePrompt, {messages: newMessages}, { modelMaxPromptTokens: 2048 }, model)
+            const directive = await renderPrompt(ToolResultDirectivePrompt, { messages: newMessages }, { modelMaxPromptTokens: 2048 }, model)
             const chatResponse2 = await model.sendRequest(directive.messages, { tools }, token)
             await this.processChatResponse(chatResponse2, directive.messages, token, request, stream, tools, model)
         }
@@ -228,9 +228,9 @@ export class ChatHandler {
         const chatResponse = await client.chat.completions.create({ messages, model: 'gpt-4o-mini', max_completion_tokens: 2048, n: 1, stream: true, tools }, { signal })
         if (stream) {
             await this.processOpenAiResponse(chatResponse, messages, token, request, stream, tools, signal)
-            return {chatResponse: undefined}
+            return { chatResponse: undefined }
         } else {
-            return {chatResponse}
+            return { chatResponse }
         }
     }
 
@@ -256,7 +256,7 @@ export class ChatHandler {
                     if (!toolCall.function) {
                         continue
                     }
-                    const {index} = toolCall
+                    const { index } = toolCall
                     if (toolCalls[index]) {
                         toolCalls[index].function.arguments += toolCall.function.arguments
                     } else {
@@ -269,7 +269,7 @@ export class ChatHandler {
             }
         }
         if (toolCalls.length > 0) {
-            newMessages.push({role: 'assistant', content: responseStr})
+            newMessages.push({ role: 'assistant', content: responseStr })
             for (const fragment of toolCalls) {
                 const frag = { function: { name: fragment.function.name, arguments: fragment.function.arguments }, id: fragment.id, type: 'function' as const }
                 const input = JSON.parse(fragment.function.arguments) as Record<string, unknown>
@@ -280,7 +280,7 @@ export class ChatHandler {
                         ret.push(part.value)
                     }
                 }
-                newMessages.push({role: 'assistant', content: '', tool_calls: [frag]})
+                newMessages.push({ role: 'assistant', content: '', tool_calls: [frag] })
                 newMessages.push({ role: 'tool', content: ret.join(''), tool_call_id: fragment.id })
             }
             const client = await this.openAiClient.promise
