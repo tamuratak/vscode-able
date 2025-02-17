@@ -6,6 +6,7 @@ import { OpenAI } from 'openai'
 import { Gpt4oTokenizer } from './tokenizer.js'
 import { convertToChatCompletionMessageParams, extractAbleHistory, getSelectedText } from './chatlib/utils.js'
 import type { Stream } from 'openai/streaming.mjs'
+import type { ChatCompletionChunk, ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/index.mjs'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja' | 'use_copilot' | 'use_openai_api'
@@ -211,7 +212,7 @@ export class ChatHandler {
         const abortController = new AbortController()
         const signal = abortController.signal
         token.onCancellationRequested(() => abortController.abort())
-        const tools: OpenAI.ChatCompletionTool[] = []
+        const tools: ChatCompletionTool[] = []
         for (const tool of this.getLmTools()) {
             if (tool.inputSchema) {
                 tools.push({
@@ -234,12 +235,12 @@ export class ChatHandler {
     }
 
     private async processOpenAiResponse(
-        chatResponse: Stream<OpenAI.Chat.Completions.ChatCompletionChunk>,
-        messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        chatResponse: Stream<ChatCompletionChunk>,
+        messages: ChatCompletionMessageParam[],
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
         stream: vscode.ChatResponseStream,
-        tools: OpenAI.Chat.Completions.ChatCompletionTool[],
+        tools: ChatCompletionTool[],
         signal: AbortSignal
     ) {
         const newMessages = [...messages]
