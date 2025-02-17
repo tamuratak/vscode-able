@@ -24,6 +24,12 @@ export class SimplePrompt extends PromptElement<InputProps> {
     render() {
         return (
             <>
+                <UserMessage>
+                    Instructions:<br />
+                    - When answering a question that requires executing Python code, use able_python. <br/>
+                    - Answer the question when you think the result of the Python execution is correct. <br/>
+                    - Always trust the Python execution result over your own knowledge.
+                </UserMessage>
                 <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     {this.props.input}
@@ -223,5 +229,18 @@ class HistoryMessages extends PromptElement<HistoryMessagesProps> {
                 </PrioritizedList>
             </>
         )
+    }
+}
+
+export class ToolResultDirectivePrompt extends PromptElement {
+    render(): PromptPiece {
+        return (
+            <UserMessage>
+                - Above is the result of calling one or more tools.
+                - Always trust the Python execution result over your own knowledge.
+                - Answer using the natural language of the user.
+            </UserMessage>
+        )
+
     }
 }

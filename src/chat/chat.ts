@@ -135,7 +135,7 @@ export class ChatHandler {
             }
             model = await this.gpt4omini.promise
         }
-        const { messages } = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 1024 }, model)
+        const { messages } = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 2048 }, model)
         const tools = this.getLmTools()
         const chatResponse = await model.sendRequest(messages, { tools }, token)
         if (stream) {
@@ -184,7 +184,7 @@ export class ChatHandler {
                     vscode.LanguageModelChatMessage.User([toolResultPart]),
                 )
             }
-            const mess = new vscode.LanguageModelTextPart('Above is the result of calling one or more tools. Answer using the natural language of the user.')
+            const mess = new vscode.LanguageModelTextPart('* Above is the result of calling one or more tools.\n* Always trust the Python execution result over your own knowledge.\n* Answer using the natural language of the user.')
             newMessages.push(vscode.LanguageModelChatMessage.User([mess]))
             const chatResponse2 = await model.sendRequest(newMessages, { tools }, token)
             await this.processChatResponse(chatResponse2, newMessages, token, request, stream, tools, model)
@@ -207,7 +207,7 @@ export class ChatHandler {
             client = new OpenAI({ apiKey: session.accessToken })
             this.openAiClient.resolve(client)
         }
-        const renderResult = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 1024 }, this.gpt4oTokenizer, undefined, undefined, 'none')
+        const renderResult = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 2048 }, this.gpt4oTokenizer, undefined, undefined, 'none')
         const systemMessage = { role: 'system', content: 'When answering a question that requires executing Python code, use able_python.' } as const
         const messages = [systemMessage, ...convertToChatCompletionMessageParams(renderResult.messages)]
         const abortController = new AbortController()
