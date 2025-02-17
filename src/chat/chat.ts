@@ -207,8 +207,7 @@ export class ChatHandler {
             this.openAiClient.resolve(client)
         }
         const renderResult = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 2048 }, this.gpt4oTokenizer, undefined, undefined, 'none')
-        const systemMessage = { role: 'system', content: 'When answering a question that requires executing Python code, use able_python.' } as const
-        const messages = [systemMessage, ...convertToChatCompletionMessageParams(renderResult.messages)]
+        const messages = convertToChatCompletionMessageParams(renderResult.messages)
         const abortController = new AbortController()
         const signal = abortController.signal
         token.onCancellationRequested(() => abortController.abort())
