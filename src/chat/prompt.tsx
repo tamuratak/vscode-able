@@ -5,10 +5,14 @@ import {
     PrioritizedList,
     PromptElement,
     PromptPiece,
+    SystemMessage,
+    ToolMessage,
     UserMessage,
 } from '@vscode/prompt-tsx'
 import type { RequestCommands } from './chat.js'
-
+import * as vscode from 'vscode'
+import type { BaseChatMessage } from '@vscode/prompt-tsx/dist/base/promptElements.js'
+import type { ChatCompletionContentPart, ChatCompletionContentPartRefusal, ChatCompletionMessageParam } from 'openai/resources/index.mjs';
 
 export interface HistoryEntry {
     type: 'user' | 'assistant',
@@ -24,6 +28,12 @@ export class SimplePrompt extends PromptElement<InputProps> {
     render() {
         return (
             <>
+                <UserMessage>
+                    Instructions:<br />
+                    - When answering a question that requires executing Python code, use able_python. <br />
+                    - Answer the question when you think the result of the Python execution is correct. <br />
+                    - Always trust the Python execution result over your own knowledge.
+                </UserMessage>
                 <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     {this.props.input}
@@ -191,7 +201,7 @@ interface HistoryMessagesProps extends BasePromptElementProps {
 
 class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     render(): PromptPiece {
-        const history: (UserMessage | AssistantMessage)[] = []
+        const history: BaseChatMessage[] = []
         for (const hist of this.props.history) {
             if (hist.type === 'user') {
                 if (hist.command === 'fluent') {
@@ -223,5 +233,129 @@ class HistoryMessages extends PromptElement<HistoryMessagesProps> {
                 </PrioritizedList>
             </>
         )
+    }
+}
+
+export class ToolResultDirectivePrompt extends PromptElement<VscodeChatMessagesProps> {
+    render(): PromptPiece {
+        return (
+            <>
+                <VscodeChatMessages messages={this.props.messages} />
+                <UserMessage>
+                    - Above is the result of calling one or more tools. <br />
+                    - Always trust the Python execution result over your own knowledge. <br />
+                    - Answer using the natural language of the user.
+                </UserMessage>
+            </>
+        )
+
+    }
+}
+
+interface VscodeChatMessagesProps extends BasePromptElementProps {
+    messages: vscode.LanguageModelChatMessage[]
+}
+
+export class VscodeChatMessages extends PromptElement<VscodeChatMessagesProps> {
+    render(): PromptPiece {
+        const messages: BaseChatMessage[] = []
+        for (const mesg of this.props.messages) {
+            if (mesg.role === vscode.LanguageModelChatMessageRole.User) {
+                for (const part of mesg.content) {
+                    if (part instanceof vscode.LanguageModelTextPart) {
+                        messages.push(<UserMessage>{part.value}</UserMessage>)
+                    } else if (part instanceof vscode.LanguageModelToolResultPart) {
+                        let content = ''
+                        for (const txt of part.content) {
+                            if (txt instanceof vscode.LanguageModelTextPart) {
+                                content += txt.value
+                            }
+                        }
+                        messages.push(<ToolMessage toolCallId={part.callId}>{content}</ToolMessage>)
+                    }
+                }
+            } else if (mesg.role === vscode.LanguageModelChatMessageRole.Assistant) {
+                for (const part of mesg.content) {
+                    if (part instanceof vscode.LanguageModelTextPart) {
+                        messages.push(<AssistantMessage>{part.value}</AssistantMessage>)
+                    } else if (part instanceof vscode.LanguageModelToolCallPart) {
+                        messages.push(
+                            <AssistantMessage toolCalls={[{
+                                id: part.callId,
+                                type: 'function',
+                                function: { name: part.name, arguments: JSON.stringify(part.input) }
+                            }]}></AssistantMessage>
+                        )
+                    }
+                }
+            }
+        }
+        return (
+            <>
+                <PrioritizedList priority={0} descending={false}>
+                    {messages.slice(0, -10)}
+                </PrioritizedList>
+                <>
+                    {messages.slice(-10)}
+                </>
+            </>
+        )
+    }
+}
+
+interface OpenAIChatMessagesProps extends BasePromptElementProps {
+    messages: ChatCompletionMessageParam[];
+}
+
+export class OpenAIChatMessages extends PromptElement<OpenAIChatMessagesProps> {
+    render(): PromptPiece {
+        const messages: BaseChatMessage[] = []
+        for (const mesg of this.props.messages) {
+            if (mesg.role === 'user') {
+                messages.push(<UserMessage name={mesg.name ?? ''}>{processContent(mesg.content)}</UserMessage>);
+            } else if (mesg.role === 'assistant') {
+                if (mesg.tool_calls && mesg.tool_calls.length > 0) {
+                    messages.push(
+                        <AssistantMessage name={mesg.name ?? ''} toolCalls={mesg.tool_calls}>
+                            {processContent(mesg.content)}
+                        </AssistantMessage>
+                    )
+                } else {
+                    messages.push(<AssistantMessage name={mesg.name ?? ''}>{processContent(mesg.content)}</AssistantMessage>)
+                }
+            } else if (mesg.role === 'tool') {
+                messages.push(<ToolMessage toolCallId={mesg.tool_call_id}>{processContent(mesg.content)}</ToolMessage>)
+            } else if (mesg.role === 'system') {
+                messages.push(<SystemMessage name={mesg.name ?? ''}>{processContent(mesg.content)}</SystemMessage>)
+            }
+        }
+        return (
+            <>
+                <PrioritizedList priority={0} descending={false}>
+                    {messages.slice(0, -10)}
+                </PrioritizedList>
+                <>
+                    {messages.slice(-10)}
+                </>
+            </>
+        );
+    }
+}
+
+function processContent(content: string | (ChatCompletionContentPart | ChatCompletionContentPartRefusal)[] | undefined | null): string {
+    if (typeof content === 'string') {
+        return content
+    } else if (Array.isArray(content)) {
+        let result = ''
+        for (const part of content) {
+            if (part.type === 'text') {
+                result += part.text
+            } else if (part.type === 'refusal') {
+                result += part.refusal
+            }
+        }
+        return result
+    } else {
+        return ''
     }
 }

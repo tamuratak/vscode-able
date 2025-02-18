@@ -1,11 +1,12 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
-import { PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
+import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt, ToolResultDirectivePrompt } from './prompt.js'
+import { type PromptElementCtor, renderPrompt, type ToolCall } from '@vscode/prompt-tsx'
 import { ExternalPromise } from '../utils/externalpromise.js'
 import { OpenAI } from 'openai'
 import { Gpt4oTokenizer } from './tokenizer.js'
 import { convertToChatCompletionMessageParams, extractAbleHistory, getSelectedText } from './chatlib/utils.js'
 import type { Stream } from 'openai/streaming.mjs'
+import type { ChatCompletionChunk, ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/index.mjs'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja' | 'use_copilot' | 'use_openai_api'
@@ -90,14 +91,14 @@ export class ChatHandler {
         const input = selectedText ?? request.prompt
         let responseText = ''
         if (this.vendor === ChatVendor.Copilot) {
-            const {chatResponse} = await this.copilotChatResponse(token, request, ctor, ableHistory, stream, model)
+            const { chatResponse } = await this.copilotChatResponse(token, request, ctor, ableHistory, stream, model)
             if (chatResponse) {
                 for await (const fragment of chatResponse.text) {
                     responseText += fragment
                 }
             }
         } else {
-            const {chatResponse} = await this.openAiGpt4oMiniResponse(token, request, ctor, ableHistory, stream)
+            const { chatResponse } = await this.openAiGpt4oMiniResponse(token, request, ctor, ableHistory, stream)
             if (chatResponse) {
                 for await (const fragment of chatResponse) {
                     responseText += fragment.choices[0]?.delta?.content ?? ''
@@ -115,7 +116,7 @@ export class ChatHandler {
         const tools: vscode.LanguageModelChatTool[] = []
         const ablePython = vscode.lm.tools.find(tool => tool.name === 'able_python')
         if (ablePython && ablePython.inputSchema) {
-            tools.push({ name: ablePython.name, description: ablePython.description, inputSchema: ablePython.inputSchema})
+            tools.push({ name: ablePython.name, description: ablePython.description, inputSchema: ablePython.inputSchema })
         }
         return tools
     }
@@ -135,7 +136,7 @@ export class ChatHandler {
             }
             model = await this.gpt4omini.promise
         }
-        const { messages } = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 1024 }, model)
+        const { messages } = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 2048 }, model)
         const tools = this.getLmTools()
         const chatResponse = await model.sendRequest(messages, { tools }, token)
         if (stream) {
@@ -184,10 +185,9 @@ export class ChatHandler {
                     vscode.LanguageModelChatMessage.User([toolResultPart]),
                 )
             }
-            const mess = new vscode.LanguageModelTextPart('Above is the result of calling one or more tools. Answer using the natural language of the user.')
-            newMessages.push(vscode.LanguageModelChatMessage.User([mess]))
-            const chatResponse2 = await model.sendRequest(newMessages, { tools }, token)
-            await this.processChatResponse(chatResponse2, newMessages, token, request, stream, tools, model)
+            const directive = await renderPrompt(ToolResultDirectivePrompt, { messages: newMessages }, { modelMaxPromptTokens: 2048 }, model)
+            const chatResponse2 = await model.sendRequest(directive.messages, { tools }, token)
+            await this.processChatResponse(chatResponse2, directive.messages, token, request, stream, tools, model)
         }
     }
 
@@ -207,13 +207,12 @@ export class ChatHandler {
             client = new OpenAI({ apiKey: session.accessToken })
             this.openAiClient.resolve(client)
         }
-        const renderResult = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 1024 }, this.gpt4oTokenizer, undefined, undefined, 'none')
-        const systemMessage = { role: 'system', content: 'When answering a question that requires executing Python code, use able_python.' } as const
-        const messages = [systemMessage, ...convertToChatCompletionMessageParams(renderResult.messages)]
+        const renderResult = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 2048 }, this.gpt4oTokenizer, undefined, undefined, 'none')
+        const messages = convertToChatCompletionMessageParams(renderResult.messages)
         const abortController = new AbortController()
         const signal = abortController.signal
         token.onCancellationRequested(() => abortController.abort())
-        const tools: OpenAI.ChatCompletionTool[] = []
+        const tools: ChatCompletionTool[] = []
         for (const tool of this.getLmTools()) {
             if (tool.inputSchema) {
                 tools.push({
@@ -229,24 +228,24 @@ export class ChatHandler {
         const chatResponse = await client.chat.completions.create({ messages, model: 'gpt-4o-mini', max_completion_tokens: 2048, n: 1, stream: true, tools }, { signal })
         if (stream) {
             await this.processOpenAiResponse(chatResponse, messages, token, request, stream, tools, signal)
-            return {chatResponse: undefined}
+            return { chatResponse: undefined }
         } else {
-            return {chatResponse}
+            return { chatResponse }
         }
     }
 
     private async processOpenAiResponse(
-        chatResponse: Stream<OpenAI.Chat.Completions.ChatCompletionChunk>,
-        messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        chatResponse: Stream<ChatCompletionChunk>,
+        messages: ChatCompletionMessageParam[],
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
         stream: vscode.ChatResponseStream,
-        tools: OpenAI.Chat.Completions.ChatCompletionTool[],
+        tools: ChatCompletionTool[],
         signal: AbortSignal
     ) {
         const newMessages = [...messages]
         let responseStr = ''
-        const toolCalls: NonNullToolCall[] = []
+        const toolCalls: ToolCall[] = []
         for await (const fragment of chatResponse) {
             const choice = fragment.choices[0]
             if (choice.delta.content) {
@@ -257,7 +256,7 @@ export class ChatHandler {
                     if (!toolCall.function) {
                         continue
                     }
-                    const {index} = toolCall
+                    const { index } = toolCall
                     if (toolCalls[index]) {
                         toolCalls[index].function.arguments += toolCall.function.arguments
                     } else {
@@ -270,7 +269,7 @@ export class ChatHandler {
             }
         }
         if (toolCalls.length > 0) {
-            newMessages.push({role: 'assistant', content: responseStr})
+            newMessages.push({ role: 'assistant', content: responseStr })
             for (const fragment of toolCalls) {
                 const frag = { function: { name: fragment.function.name, arguments: fragment.function.arguments }, id: fragment.id, type: 'function' as const }
                 const input = JSON.parse(fragment.function.arguments) as Record<string, unknown>
@@ -281,7 +280,7 @@ export class ChatHandler {
                         ret.push(part.value)
                     }
                 }
-                newMessages.push({role: 'assistant', content: '', tool_calls: [frag]})
+                newMessages.push({ role: 'assistant', content: '', tool_calls: [frag] })
                 newMessages.push({ role: 'tool', content: ret.join(''), tool_call_id: fragment.id })
             }
             const client = await this.openAiClient.promise
@@ -290,13 +289,4 @@ export class ChatHandler {
         }
     }
 
-}
-
-interface NonNullToolCall {
-    function: {
-        name: string
-        arguments: string
-    }
-    id: string
-    type: string
 }
