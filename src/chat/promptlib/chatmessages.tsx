@@ -13,6 +13,10 @@ import * as vscode from 'vscode'
 import type { BaseChatMessage } from '@vscode/prompt-tsx/dist/base/promptElements.js'
 import type { ChatCompletionContentPart, ChatCompletionContentPartRefusal, ChatCompletionMessageParam } from 'openai/resources/index.mjs'
 
+/**
+ * Utility classes to convert an array of chat messages into their corresponding @vscode/prompt-tsx components.
+ * It loops over each chat message, checks the message role, and renders the proper component after processing its content.
+ */
 
 export interface VscodeChatMessagesProps extends BasePromptElementProps {
     messages: vscode.LanguageModelChatMessage[]
