@@ -21,8 +21,11 @@ export class ChatHandler {
     private readonly gpt4omini = new ExternalPromise<vscode.LanguageModelChat>()
     private readonly openAiClient = new ExternalPromise<OpenAI>()
     private vendor = ChatVendor.Copilot
+    private readonly outputChannel = vscode.window.createOutputChannel('vscode-able-chat', { log: true })
 
-    constructor(public readonly openAiServiceId: string) { }
+    constructor(public readonly openAiServiceId: string) {
+        this.outputChannel.info('ChatHandler initialized')
+    }
 
     async initGpt4oMini() {
         const [mini,] = await vscode.lm.selectChatModels({
@@ -30,12 +33,12 @@ export class ChatHandler {
             family: 'gpt-4o-mini'
         })
         if (mini) {
-            console.log('GPT-4o Mini model loaded')
+            this.outputChannel.info('GPT-4o Mini model loaded')
             this.gpt4omini.resolve(mini)
         } else {
             const message = 'Failed to load GPT-4o Mini model'
             void vscode.window.showErrorMessage(message)
-            console.error(message)
+            this.outputChannel.error(message)
         }
     }
 
@@ -138,7 +141,14 @@ export class ChatHandler {
         }
         const { messages } = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 2048 }, model)
         const tools = this.getLmTools()
-        const chatResponse = await model.sendRequest(messages, { tools }, token)
+        const chatResponse = await model.sendRequest(
+            messages, { tools }, token
+        ).then(r => r, e => {
+            if (e instanceof Error) {
+                this.outputChannel.error(e, messages)
+            }
+            throw e
+        })
         if (stream) {
             await this.processChatResponse(chatResponse, messages, token, request, stream, tools, model)
             return { chatResponse: undefined, messages: undefined, tools, model }
@@ -172,7 +182,20 @@ export class ChatHandler {
         if (toolCalls.length > 0) {
             newMessages.push(vscode.LanguageModelChatMessage.Assistant(responseStr))
             for (const fragment of toolCalls) {
-                const result = await vscode.lm.invokeTool(fragment.name, { input: fragment.input, toolInvocationToken: request.toolInvocationToken }, token)
+                const result = await vscode.lm.invokeTool(
+                    fragment.name,
+                    { input: fragment.input, toolInvocationToken: request.toolInvocationToken }, token
+                ).then(r => r, e => {
+                    if (e instanceof Error) {
+                        this.outputChannel.error(e, fragment)
+                    } else {
+                        this.outputChannel.error('Unknown error', e, fragment)
+                    }
+                    return undefined
+                })
+                if (result === undefined) {
+                    continue
+                }
                 const ret: string[] = []
                 for (const part of result.content) {
                     if (part instanceof vscode.LanguageModelTextPart) {
@@ -186,7 +209,14 @@ export class ChatHandler {
                 )
             }
             const directive = await renderPrompt(ToolResultDirectivePrompt, { messages: newMessages }, { modelMaxPromptTokens: 2048 }, model)
-            const chatResponse2 = await model.sendRequest(directive.messages, { tools }, token)
+            const chatResponse2 = await model.sendRequest(
+                directive.messages, { tools }, token
+            ).then(r => r, e => {
+                if (e instanceof Error) {
+                    this.outputChannel.error(e, directive.messages)
+                }
+                throw e
+            })
             await this.processChatResponse(chatResponse2, directive.messages, token, request, stream, tools, model)
         }
     }
@@ -225,7 +255,14 @@ export class ChatHandler {
                 })
             }
         }
-        const chatResponse = await client.chat.completions.create({ messages, model: 'gpt-4o-mini', max_completion_tokens: 2048, n: 1, stream: true, tools }, { signal })
+        const chatResponse = await client.chat.completions.create(
+            { messages, model: 'gpt-4o-mini', max_completion_tokens: 2048, n: 1, stream: true, tools }, { signal }
+        ).then(r => r, e => {
+            if (e instanceof Error) {
+                this.outputChannel.error(e, messages)
+            }
+            throw e
+        })
         if (stream) {
             await this.processOpenAiResponse(chatResponse, messages, token, request, stream, tools, signal)
             return { chatResponse: undefined }
@@ -273,7 +310,19 @@ export class ChatHandler {
             for (const fragment of toolCalls) {
                 const frag = { function: { name: fragment.function.name, arguments: fragment.function.arguments }, id: fragment.id, type: 'function' as const }
                 const input = JSON.parse(fragment.function.arguments) as Record<string, unknown>
-                const result = await vscode.lm.invokeTool(fragment.function.name, { input, toolInvocationToken: request.toolInvocationToken }, token)
+                const result = await vscode.lm.invokeTool(
+                    fragment.function.name, { input, toolInvocationToken: request.toolInvocationToken }, token
+                ).then(r => r, e => {
+                    if (e instanceof Error) {
+                        this.outputChannel.error(e, fragment)
+                    } else {
+                        this.outputChannel.error('Unknown error', e, fragment)
+                    }
+                    return undefined
+                })
+                if (result === undefined) {
+                    continue
+                }
                 const ret: string[] = []
                 for (const part of result.content) {
                     if (part instanceof vscode.LanguageModelTextPart) {
@@ -284,7 +333,14 @@ export class ChatHandler {
                 newMessages.push({ role: 'tool', content: ret.join(''), tool_call_id: fragment.id })
             }
             const client = await this.openAiClient.promise
-            const chatResponse2 = await client.chat.completions.create({ messages: newMessages, model: 'gpt-4o-mini', max_completion_tokens: 2048, n: 1, stream: true, tools }, { signal })
+            const chatResponse2 = await client.chat.completions.create(
+                { messages: newMessages, model: 'gpt-4o-mini', max_completion_tokens: 2048, n: 1, stream: true, tools }, { signal }
+            ).then(r => r, e => {
+                if (e instanceof Error) {
+                    this.outputChannel.error(e, newMessages)
+                }
+                throw e
+            })
             await this.processOpenAiResponse(chatResponse2, newMessages, token, request, stream, tools, signal)
         }
     }
