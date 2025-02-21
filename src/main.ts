@@ -15,6 +15,10 @@ export class Extension {
         return this.handler.getHandler()
     }
 
+    quickPickModel() {
+        return this.handler.quickPickModel()
+    }
+
     async activate() {
         await this.handler.initGpt4oMini()
     }
@@ -29,6 +33,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.authentication.registerAuthenticationProvider(openAiAuthProvider.serviceId, openAiAuthProvider.label, openAiAuthProvider),
         vscode.commands.registerCommand('able.loginOpenAI', () => {
             void vscode.authentication.getSession(openAiAuthProvider.serviceId, [], { createIfNone: true })
+        }),
+        vscode.commands.registerCommand('able.quickPickModel', () => {
+            void extension.quickPickModel()
         }),
         vscode.chat.createChatParticipant('able.chatParticipant', extension.getHandler()),
         vscode.commands.registerCommand('able.activateCopilotChatModels', () => {

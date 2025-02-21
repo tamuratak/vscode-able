@@ -18,7 +18,7 @@ enum ChatVendor {
 
 export class ChatHandler {
     private readonly gpt4oTokenizer = new Gpt4oTokenizer()
-    private readonly gpt4omini = new ExternalPromise<vscode.LanguageModelChat>()
+    private copilotModel: vscode.LanguageModelChat | undefined
     private readonly openAiClient = new ExternalPromise<OpenAI>()
     private vendor = ChatVendor.Copilot
     private readonly outputChannel = vscode.window.createOutputChannel('vscode-able-chat', { log: true })
@@ -34,11 +34,63 @@ export class ChatHandler {
         })
         if (mini) {
             this.outputChannel.info('GPT-4o Mini model loaded')
-            this.gpt4omini.resolve(mini)
+            this.copilotModel = mini
         } else {
             const message = 'Failed to load GPT-4o Mini model'
             void vscode.window.showErrorMessage(message)
             this.outputChannel.error(message)
+        }
+    }
+
+    async quickPickModel() {
+        try {
+            const models = await vscode.lm.selectChatModels({ vendor: 'copilot' })
+            if (models.length === 0) {
+                void vscode.window.showErrorMessage('No chat models found')
+                return
+            }
+            const generatedItems = models.map(model => ({ label: model.family, model }))
+            const items = [{ label: 'openai-gpt-4o-mini', model: undefined }, ...generatedItems]
+
+            const quickPick = vscode.window.createQuickPick<typeof items[0]>()
+            quickPick.items = items
+            quickPick.placeholder = 'Select chat model'
+            if (this.copilotModel) {
+                quickPick.activeItems = items.filter(i => i.label === this.copilotModel?.family)
+            }
+
+            const selectionPromise = new Promise<typeof items[0] | undefined>((resolve) => {
+                quickPick.onDidAccept(() => {
+                    resolve(quickPick.selectedItems[0])
+                    quickPick.hide()
+                })
+                quickPick.onDidHide(() => {
+                    resolve(undefined)
+                })
+            })
+            quickPick.show()
+
+            const selection = await selectionPromise
+            if (!selection) {
+                return
+            }
+            if (selection.model) {
+                this.copilotModel = selection.model
+                this.vendor = ChatVendor.Copilot
+            } else if (selection.label === 'openai-gpt-4o-mini') {
+                this.copilotModel = undefined
+                this.vendor = ChatVendor.OpenAiApi
+                await this.resolveOpenAiClient()
+            } else {
+                void vscode.window.showErrorMessage('Invalid selection')
+                return
+            }
+            this.outputChannel.info(`Model selected: ${selection.label}`)
+        } catch (error) {
+            if (error instanceof Error) {
+                this.outputChannel.error(error)
+            }
+            void vscode.window.showErrorMessage('Failed to select chat model')
         }
     }
 
@@ -133,11 +185,11 @@ export class ChatHandler {
         model?: vscode.LanguageModelChat,
     ) {
         if (!model) {
-            if (!this.gpt4omini.isResolved) {
+            if (!this.copilotModel) {
                 void vscode.window.showErrorMessage('GPT-4o Mini model is not loaded. Execute the activation command.')
                 throw new Error('GPT-4o Mini model is not loaded')
             }
-            model = await this.gpt4omini.promise
+            model = this.copilotModel
         }
         const { messages } = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 2048 }, model)
         const tools = this.getLmTools()
@@ -222,6 +274,15 @@ export class ChatHandler {
     }
 
 
+    private async resolveOpenAiClient() {
+        if (!this.openAiClient.isResolved) {
+            const session = await vscode.authentication.getSession(this.openAiServiceId, [], { createIfNone: true })
+            const client = new OpenAI({ apiKey: session.accessToken })
+            this.openAiClient.resolve(client)
+        }
+        return this.openAiClient.promise
+    }
+
     private async openAiGpt4oMiniResponse<S>(
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
@@ -229,14 +290,7 @@ export class ChatHandler {
         ableHistory: HistoryEntry[],
         stream?: vscode.ChatResponseStream
     ) {
-        let client: OpenAI
-        if (this.openAiClient.isResolved) {
-            client = await this.openAiClient.promise
-        } else {
-            const session = await vscode.authentication.getSession(this.openAiServiceId, [], { createIfNone: true })
-            client = new OpenAI({ apiKey: session.accessToken })
-            this.openAiClient.resolve(client)
-        }
+        const client = await this.resolveOpenAiClient()
         const renderResult = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 2048 }, this.gpt4oTokenizer, undefined, undefined, 'none')
         const messages = convertToChatCompletionMessageParams(renderResult.messages)
         const abortController = new AbortController()

@@ -100,6 +100,10 @@
         "title": "Able: Activate Copilot Chat Models"
       },
       {
+        "command": "able.quickPickModel",
+        "title": "Able: Select Chat Model"
+      },
+      {
         "command": "able.closeTerminalAndOpenSideBar",
         "title": "Able: Close Terminal and Open Side Bar"
       },
