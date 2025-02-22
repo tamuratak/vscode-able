@@ -31,10 +31,9 @@ export class ChatHandler {
             family: 'gpt-4o-mini'
         })
         if (mini) {
-            this.outputChannel.info('GPT-4o Mini model loaded')
-            this.copilotChatHandler.copilotModel = mini
+            this.outputChannel.info('Successfully loaded the GPT-4o Mini model.')
         } else {
-            const message = 'Failed to load GPT-4o Mini model'
+            const message = 'Failed to load GPT-4o Mini model.'
             void vscode.window.showErrorMessage(message)
             this.outputChannel.error(message)
         }
@@ -44,7 +43,7 @@ export class ChatHandler {
         try {
             const models = await vscode.lm.selectChatModels({ vendor: 'copilot' })
             if (models.length === 0) {
-                void vscode.window.showErrorMessage('No Copilot chat models found')
+                void vscode.window.showErrorMessage('No Copilot chat models found.')
                 return
             }
             const generatedItems = models.map(model => ({ label: model.family, model }))
@@ -53,8 +52,8 @@ export class ChatHandler {
             const quickPick = vscode.window.createQuickPick<typeof items[0]>()
             quickPick.items = items
             quickPick.placeholder = 'Select chat model'
-            if (this.copilotChatHandler.copilotModel) {
-                quickPick.activeItems = items.filter(i => i.label === this.copilotChatHandler.copilotModel?.family)
+            if (this.copilotChatHandler.copilotModelFamily) {
+                quickPick.activeItems = items.filter(i => i.label === this.copilotChatHandler.copilotModelFamily)
             }
 
             const selectionPromise = new Promise<typeof items[0] | undefined>((resolve) => {
@@ -73,22 +72,20 @@ export class ChatHandler {
                 return
             }
             if (selection.model) {
-                this.copilotChatHandler.copilotModel = selection.model
                 this.vendor = ChatVendor.Copilot
+                this.copilotChatHandler.copilotModelFamily = selection.label
             } else if (selection.label === 'openai-gpt-4o-mini') {
-                this.copilotChatHandler.copilotModel = undefined
                 this.vendor = ChatVendor.OpenAiApi
                 await this.openaiApiChatHandler.resolveOpenAiClient()
             } else {
-                void vscode.window.showErrorMessage('Invalid selection')
-                return
+                throw new Error('should not reach here')
             }
             this.outputChannel.info(`Model selected: ${selection.label}`)
         } catch (error) {
             if (error instanceof Error) {
                 this.outputChannel.error(error)
             }
-            void vscode.window.showErrorMessage('Failed to select chat model')
+            void vscode.window.showErrorMessage('Failed to select chat model.')
         }
     }
 
@@ -124,7 +121,7 @@ export class ChatHandler {
                 stream.markdown('Changed the chat vendor to OpenAI API')
             } else {
                 if (this.vendor === ChatVendor.Copilot) {
-                    await this.copilotChatHandler.copilotChatResponse(token, request, SimplePrompt, ableHistory, stream)
+                    await this.copilotChatHandler.copilotChatResponse(token, request, SimplePrompt, ableHistory, stream, request.model)
                 } else {
                     await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, SimplePrompt, ableHistory, stream)
                 }
@@ -138,7 +135,7 @@ export class ChatHandler {
         ctor: PromptElementCtor<InputProps, S>,
         ableHistory: HistoryEntry[],
         stream?: vscode.ChatResponseStream,
-        model?: vscode.LanguageModelChat
+        model?: vscode.LanguageModelChat,
     ) {
         const selectedText = await getSelectedText(request)
         const input = selectedText ?? request.prompt

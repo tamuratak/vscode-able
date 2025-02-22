@@ -5,7 +5,7 @@ import { getLmTools } from './utils.js'
 
 
 export class CopilotChatHandler {
-    copilotModel: vscode.LanguageModelChat | undefined
+    copilotModelFamily = 'gpt-4o-mini'
 
     constructor(
         private readonly outputChannel: vscode.LogOutputChannel
@@ -20,11 +20,14 @@ export class CopilotChatHandler {
         model?: vscode.LanguageModelChat,
     ) {
         if (!model) {
-            if (!this.copilotModel) {
-                void vscode.window.showErrorMessage('GPT-4o Mini model is not loaded. Execute the activation command.')
-                throw new Error('GPT-4o Mini model is not loaded')
-            }
-            model = this.copilotModel
+            [model] = await vscode.lm.selectChatModels({
+                vendor: 'copilot',
+                family: this.copilotModelFamily
+            })
+        }
+        if (!model) {
+            void vscode.window.showErrorMessage('Copilot model is not loaded. Execute the activation command.')
+            throw new Error('Copilot model is not loaded')
         }
         const { messages } = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 2048 }, model)
         const tools = getLmTools()
