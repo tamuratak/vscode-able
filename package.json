@@ -92,6 +92,35 @@
               "code"
           ]
         }
+      },
+      {
+        "name": "able_edit",
+        "tags": [
+          "Text Editing"
+        ],
+        "displayName": "Edit Text",
+        "modelDescription": "This tool edits text based on instructions, allowing an LLM to modify or enhance content. It should include previous and next lines to help identify the correct edit range.",
+        "inputSchema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "textToReplace": {
+                "type": "string",
+                "description": "The text to replace in the original text. This should include the previous and next lines of the original text to help identify the correct edit range."
+              },
+              "input": {
+                "type": "string",
+                "description": "The new input text to insert into the range of the textToReplace. This should include the previous and next lines of the original text to help identify the correct edit range."
+              }
+              
+            },
+            "required": [
+              "textToReplace",
+              "input"
+            ]
+          }
+        }
       }
     ],
     "commands": [
