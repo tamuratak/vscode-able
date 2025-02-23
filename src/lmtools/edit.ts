@@ -1,22 +1,24 @@
-// import { CancellationToken, LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolInvocationPrepareOptions, LanguageModelToolResult, MarkdownString, PreparedToolInvocation, ProviderResult, Uri } from 'vscode'
+import { LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult } from 'vscode'
 import * as vscode from 'vscode'
-/*
+
 interface EditInput {
-    uri: Uri
+    textToReplace: string,
     input: string
 }
 
-export class EditTool implements LanguageModelTool<EditInput> {
-    invoke(options: LanguageModelToolInvocationOptions<EditInput>, token: CancellationToken): ProviderResult<LanguageModelToolResult> {
+export class EditTool implements LanguageModelTool<EditInput[]> {
 
-    }
-
-    prepareInvocation(options: LanguageModelToolInvocationPrepareOptions<EditInput>, token: CancellationToken): ProviderResult<PreparedToolInvocation> {
-
+    invoke(options: LanguageModelToolInvocationOptions<EditInput[]>) {
+        const result: LanguageModelTextPart[] = []
+        for (const input of options.input) {
+            result.push(new LanguageModelTextPart(input.textToReplace))
+            result.push(new LanguageModelTextPart(input.input))
+        }
+        return new LanguageModelToolResult(result)
     }
 
 }
-*/
+
 
 export function getRangeToReplace(document: vscode.TextDocument, input: string) {
     const inputLines = input.split('\n')

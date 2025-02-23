@@ -42,6 +42,10 @@
         "isSticky": true,
         "commands": [
           {
+            "name": "edit",
+            "description": "Edit text based on instructions"
+          },
+          {
             "name": "fluent",
             "description": "Make fluent"
           },
