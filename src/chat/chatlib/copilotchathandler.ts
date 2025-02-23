@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { HistoryEntry, InputProps, ToolResultDirectivePrompt } from '../prompt.js'
 import { type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
-import { getLmTools } from './utils.js'
+import { getLmTools } from './tools.js'
 
 
 export class CopilotChatHandler {
