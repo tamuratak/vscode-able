@@ -80,4 +80,3 @@ export function convertToChatCompletionMessageParams(messages: ChatMessage[]): C
     }
     return result
 }
-

@@ -97,7 +97,10 @@ export class ChatHandler {
             token: vscode.CancellationToken
         ) => {
             const ableHistory = extractAbleHistory(context)
-            if (request.command === 'fluent') {
+            if (request.command === 'edit') {
+                // TODO
+                console.log('edit')
+            } else if (request.command === 'fluent') {
                 const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory)
                 stream.markdown(response)
                 return
