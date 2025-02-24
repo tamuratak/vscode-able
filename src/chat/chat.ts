@@ -6,7 +6,7 @@ import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 
 
-export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja' | 'use_copilot' | 'use_openai_api'
+export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
 
 enum ChatVendor {
     Copilot = 'copilot',
@@ -116,12 +116,6 @@ export class ChatHandler {
                 const response = await this.responseWithSelection(token, request, ToJaPrompt, ableHistory)
                 stream.markdown(response)
                 return
-            } else if (request.command === 'use_copilot') {
-                this.vendor = ChatVendor.Copilot
-                stream.markdown('Changed the chat vendor to Copilot')
-            } else if (request.command === 'use_openai_api') {
-                this.vendor = ChatVendor.OpenAiApi
-                stream.markdown('Changed the chat vendor to OpenAI API')
             } else {
                 if (this.vendor === ChatVendor.Copilot) {
                     await this.copilotChatHandler.copilotChatResponse(token, request, SimplePrompt, ableHistory, stream, request.model)

@@ -60,14 +60,6 @@
           {
             "name": "to_ja",
             "description": "Translate to Japanese"
-          },
-          {
-            "name": "use_copilot",
-            "description": "Use Copilot"
-          },
-          {
-            "name": "use_openai_api",
-            "description": "Use OpenAI API"
           }
         ]
       }
