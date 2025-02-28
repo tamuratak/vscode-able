@@ -42,6 +42,10 @@
         "isSticky": true,
         "commands": [
           {
+            "name": "edit",
+            "description": "Edit text based on instructions"
+          },
+          {
             "name": "fluent",
             "description": "Make fluent"
           },
@@ -56,14 +60,6 @@
           {
             "name": "to_ja",
             "description": "Translate to Japanese"
-          },
-          {
-            "name": "use_copilot",
-            "description": "Use Copilot"
-          },
-          {
-            "name": "use_openai_api",
-            "description": "Use OpenAI API"
           }
         ]
       }
@@ -73,24 +69,52 @@
         "name": "able_python",
         "tags": [
           "Python Execution"
-      ],
-      "displayName": "Run Python",
+        ],
+        "displayName": "Run Python",
         "modelDescription": "This tool runs Python code using Pyodide, a WebAssembly-based runtime, and returns the result of the final evaluated expression. It allows an LLM to dynamically evaluate code for debugging, testing, or real-time data processing in a safe, sandboxed environment. This is useful for validating code behavior or computing results during decision-making.",
         "inputSchema": {
           "type": "object",
           "properties": {
-              "code": {
-                  "type": "string",
-                  "description": "The Python code to run"
-              },
-              "reason": {
-                  "type": "string",
-                  "description": "The reason for running the code"
-              }
+            "code": {
+              "type": "string",
+              "description": "The Python code to run"
+            },
+            "reason": {
+              "type": "string",
+              "description": "The reason for running the code"
+            }
           },
           "required": [
-              "code"
+            "code"
           ]
+        }
+      },
+      {
+        "name": "able_edit",
+        "tags": [
+          "Text Editing"
+        ],
+        "displayName": "Edit Text",
+        "modelDescription": "This tool edits text based on instructions, allowing an LLM to modify or enhance content. It should include previous and next lines to help identify the correct edit range.",
+        "inputSchema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "textToReplace": {
+                "type": "string",
+                "description": "The text to replace in the original text. This should include the previous and next lines of the original text to help identify the correct edit range."
+              },
+              "input": {
+                "type": "string",
+                "description": "The new input text to insert into the range of the textToReplace. This should include the previous and next lines of the original text to help identify the correct edit range."
+              }
+            },
+            "required": [
+              "textToReplace",
+              "input"
+            ]
+          }
         }
       }
     ],
@@ -209,11 +233,16 @@
   "devDependencies": {
     "@eslint/js": "9.15.0",
     "@types/eslint__js": "8.42.3",
+    "@types/mocha": "^10.0.10",
     "@types/node": "~20.14",
     "@types/vscode": "1.95.0",
+    "@vscode/test-electron": "^2.4.1",
     "@vscode/vsce": "3.2.1",
     "eslint": "9.15.0",
+    "glob": "^11.0.1",
+    "mocha": "^11.1.0",
     "rimraf": "3.0.2",
+    "source-map-support": "^0.5.21",
     "typescript": "5.7.2",
     "typescript-eslint": "8.16.0"
   },
@@ -225,6 +254,8 @@
     "lint": "eslint --cache .",
     "lint:fix": "eslint --fix --cache .",
     "release": "npm run clean && npm run lint && npm run compile && vsce package",
+    "test": "mocha --require source-map-support/register --ui tdd out/test/unittest/**/*.js",
+    "test:vscode": "node ./out/test/runvscodetest.js",
     "watch": "tsc -w -p ./"
   }
 }

@@ -4,9 +4,10 @@ import { type PromptElementCtor, renderPrompt, type ToolCall } from '@vscode/pro
 import { ExternalPromise } from '../../utils/externalpromise.js'
 import { OpenAI } from 'openai'
 import { Gpt4oTokenizer } from '../tokenizer.js'
-import { convertToChatCompletionMessageParams, getLmTools } from './utils.js'
+import { convertToChatCompletionMessageParams } from './utils.js'
 import type { Stream } from 'openai/streaming.mjs'
 import type { ChatCompletionChunk, ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/index.mjs'
+import { getLmTools } from './tools.js'
 
 
 export class OpenAiApiChatHandler {

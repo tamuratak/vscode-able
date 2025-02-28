@@ -3,6 +3,7 @@ import { ChatHandler } from './chat/chat.js'
 import { registerCommands } from './commands.js'
 import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 import { PythonTool } from './lmtools/pyodide.js'
+import { EditTool } from './lmtools/edit.js'
 
 
 export class Extension {
@@ -42,6 +43,7 @@ export function activate(context: vscode.ExtensionContext) {
             void extension.activate()
         }),
         vscode.lm.registerTool('able_python', new PythonTool()),
+        vscode.lm.registerTool('able_edit', new EditTool()),
         ...registerCommands()
     )
 

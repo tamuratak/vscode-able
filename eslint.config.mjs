@@ -112,6 +112,7 @@ export default tseslint.config(
             ".contextdir_for_llm/",
             ".venv/",
             ".vscode/",
+            ".vscode-test/",
             ".git/"
         ],
     },
