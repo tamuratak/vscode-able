@@ -1,5 +1,6 @@
 import { LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult } from 'vscode'
 import * as vscode from 'vscode'
+import { ChatHandler } from '../chat/chat.js'
 
 interface EditInput {
     textToReplace: string,
@@ -7,6 +8,11 @@ interface EditInput {
 }
 
 export class EditTool implements LanguageModelTool<EditInput[]> {
+    private readonly chatHandler: ChatHandler
+
+    constructor(chatHandler: ChatHandler) {
+        this.chatHandler = chatHandler
+    }
 
     invoke(options: LanguageModelToolInvocationOptions<EditInput[]>) {
         const result: LanguageModelTextPart[] = []
