@@ -14,6 +14,7 @@ enum ChatVendor {
 }
 
 interface ChatSession {
+    readonly vscodeImplicitViewport?: vscode.ChatPromptReference | undefined
     readonly references: readonly vscode.ChatPromptReference[]
     readonly prompt: string
 }
@@ -106,36 +107,45 @@ export class ChatHandler {
             stream: vscode.ChatResponseStream,
             token: vscode.CancellationToken
         ) => {
-            this.outputChannel.info(JSON.stringify(request.references))
-            this.chatSession = { references: request.references, prompt: request.prompt }
-            const ableHistory = extractAbleHistory(context)
-            if (request.command === 'edit') {
-                // TODO
-                console.log('edit')
-            } else if (request.command === 'fluent') {
-                const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory)
-                stream.markdown(response)
-                return
-            } else if (request.command === 'fluent_ja') {
-                const response = await this.responseWithSelection(token, request, FluentJaPrompt, ableHistory)
-                stream.markdown(response)
-                return
-            } if (request.command === 'to_en') {
-                const response = await this.responseWithSelection(token, request, ToEnPrompt, ableHistory)
-                stream.markdown(response)
-                return
-            } else if (request.command === 'to_ja') {
-                const response = await this.responseWithSelection(token, request, ToJaPrompt, ableHistory)
-                stream.markdown(response)
-                return
-            } else {
-                if (this.vendor === ChatVendor.Copilot) {
-                    await this.copilotChatHandler.copilotChatResponse(token, request, SimplePrompt, ableHistory, stream, request.model)
+            try {
+                this.outputChannel.info(JSON.stringify(request.references))
+                this.chatSession = this.extractChatSession(request)
+                const ableHistory = extractAbleHistory(context)
+                if (request.command === 'edit') {
+                    // TODO
+                    console.log('edit')
+                } else if (request.command === 'fluent') {
+                    const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory)
+                    stream.markdown(response)
+                    return
+                } else if (request.command === 'fluent_ja') {
+                    const response = await this.responseWithSelection(token, request, FluentJaPrompt, ableHistory)
+                    stream.markdown(response)
+                    return
+                } if (request.command === 'to_en') {
+                    const response = await this.responseWithSelection(token, request, ToEnPrompt, ableHistory)
+                    stream.markdown(response)
+                    return
+                } else if (request.command === 'to_ja') {
+                    const response = await this.responseWithSelection(token, request, ToJaPrompt, ableHistory)
+                    stream.markdown(response)
+                    return
                 } else {
-                    await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, SimplePrompt, ableHistory, stream)
+                    if (this.vendor === ChatVendor.Copilot) {
+                        await this.copilotChatHandler.copilotChatResponse(token, request, SimplePrompt, ableHistory, stream, request.model)
+                    } else {
+                        await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, SimplePrompt, ableHistory, stream)
+                    }
                 }
+            } finally {
+                this.chatSession = undefined
             }
         }
+    }
+
+    private extractChatSession(request: vscode.ChatRequest) {
+        const vscodeImplicitViewport = request.references.find(ref => ref.id === 'vscode.implicit.viewport')
+        return { references: request.references, prompt: request.prompt, vscodeImplicitViewport }
     }
 
     private async responseWithSelection<S>(
