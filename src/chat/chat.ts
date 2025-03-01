@@ -13,16 +13,26 @@ enum ChatVendor {
     OpenAiApi = 'openai_api',
 }
 
+interface ChatSession {
+    readonly references: readonly vscode.ChatPromptReference[]
+    readonly prompt: string
+}
+
 export class ChatHandler {
     private vendor = ChatVendor.Copilot
     private readonly outputChannel = vscode.window.createOutputChannel('vscode-able-chat', { log: true })
     private readonly copilotChatHandler: CopilotChatHandler
     private readonly openaiApiChatHandler: OpenAiApiChatHandler
+    private chatSession: ChatSession | undefined
 
     constructor(public readonly openAiServiceId: string) {
         this.copilotChatHandler = new CopilotChatHandler(this.outputChannel)
         this.openaiApiChatHandler = new OpenAiApiChatHandler(openAiServiceId, this.outputChannel)
         this.outputChannel.info('ChatHandler initialized')
+    }
+
+    getChatSession() {
+        return this.chatSession
     }
 
     async initGpt4oMini() {
@@ -96,6 +106,8 @@ export class ChatHandler {
             stream: vscode.ChatResponseStream,
             token: vscode.CancellationToken
         ) => {
+            this.outputChannel.info(JSON.stringify(request.references))
+            this.chatSession = { references: request.references, prompt: request.prompt }
             const ableHistory = extractAbleHistory(context)
             if (request.command === 'edit') {
                 // TODO
