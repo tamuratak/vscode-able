@@ -2,6 +2,7 @@ import { LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOp
 import { ChatHandler } from '../chat/chat.js'
 
 interface EditInput {
+    file?: string | undefined,
     textToReplace: string,
     input: string
 }
