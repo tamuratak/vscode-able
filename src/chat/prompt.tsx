@@ -274,3 +274,29 @@ export class FilePrompt extends PromptElement<FilePromptProps> {
         )
     }
 }
+
+interface EditPromptProps extends FilePromptProps {
+    prompt: string
+}
+
+export class EditPrompt extends PromptElement<EditPromptProps> {
+    render(): PromptPiece {
+        return (
+            <>
+                <UserMessage>
+                    Instructions:<br />
+                    - When editing a file, please use able_edit.
+                </UserMessage>
+                <UserMessage>
+                    {this.props.prompt} <br /><br />
+                    The following is the content of the file.<br /><br />
+                    <FilePrompt
+                        uri={this.props.uri}
+                        content={this.props.content}
+                        metadata={this.props.metadata}
+                    />
+                </UserMessage>
+            </>
+        )
+    }
+}
