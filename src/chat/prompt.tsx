@@ -249,3 +249,28 @@ export class ToolResultDirectivePrompt extends PromptElement<VscodeChatMessagesP
 
     }
 }
+
+interface FilePromptProps extends BasePromptElementProps {
+    uri: string,
+    content: string,
+    metadata: Record<string, string>
+}
+
+export class FilePrompt extends PromptElement<FilePromptProps> {
+    render(): PromptPiece {
+        const metadatas: BaseChatMessage[] = []
+        for (const [key, value] of Object.entries(this.props.metadata)) {
+            metadatas.push(<>  - {key}: {value}<br /></>)
+        }
+        return (
+            <>
+                ### File: {this.props.uri}<br />
+                Metadata:<br />
+                {metadatas}
+                <br />
+                Content:<br />
+                {this.props.content}
+            </>
+        )
+    }
+}
