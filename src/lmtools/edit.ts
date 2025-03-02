@@ -8,7 +8,7 @@ interface EditInput {
 }
 
 export class EditTool implements LanguageModelTool<EditInput[]> {
-    private readonly chatHandler: ChatHandler
+    readonly chatHandler: ChatHandler
 
     constructor(chatHandler: ChatHandler) {
         this.chatHandler = chatHandler

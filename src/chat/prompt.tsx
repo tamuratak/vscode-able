@@ -8,7 +8,6 @@ import {
     UserMessage,
 } from '@vscode/prompt-tsx'
 import type { RequestCommands } from './chat.js'
-import { BaseChatMessage } from '@vscode/prompt-tsx/dist/base/promptElements.js'
 import { VscodeChatMessages, VscodeChatMessagesProps } from './promptlib/chatmessages.js'
 
 
@@ -199,7 +198,7 @@ interface HistoryMessagesProps extends BasePromptElementProps {
 
 class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     render(): PromptPiece {
-        const history: BaseChatMessage[] = []
+        const history: PromptPiece[] = []
         for (const hist of this.props.history) {
             if (hist.type === 'user') {
                 if (hist.command === 'fluent') {
@@ -241,7 +240,7 @@ export class ToolResultDirectivePrompt extends PromptElement<VscodeChatMessagesP
                 <VscodeChatMessages messages={this.props.messages} />
                 <UserMessage>
                     - Above is the result of calling one or more tools. <br />
-                    - Always trust the Python execution result over your own knowledge. <br />
+                    - Always trust the result over your own knowledge. <br />
                     - Answer using the natural language of the user.
                 </UserMessage>
             </>
@@ -258,7 +257,7 @@ interface FilePromptProps extends BasePromptElementProps {
 
 export class FilePrompt extends PromptElement<FilePromptProps> {
     render(): PromptPiece {
-        const metadatas: BaseChatMessage[] = []
+        const metadatas: PromptPiece[] = []
         if (this.props.metadata) {
             for (const [key, value] of Object.entries(this.props.metadata)) {
                 metadatas.push(<>  - {key}: {value}<br /></>)
