@@ -90,6 +90,8 @@ export class CopilotChatHandler {
                 for (const part of result.content) {
                     if (part instanceof vscode.LanguageModelTextPart) {
                         ret.push(part.value)
+                    } else if (part instanceof vscode.LanguageModelPromptTsxPart) {
+                        // TODO
                     }
                 }
                 const toolResultPart = new vscode.LanguageModelToolResultPart(fragment.callId, [new vscode.LanguageModelTextPart(ret.join(''))])
