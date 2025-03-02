@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
-import { HistoryEntry, InputProps, ToolResultDirectivePrompt } from '../prompt.js'
-import { type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
-import { availableTools, getLmTools } from './tools.js'
+import { ToolResultDirectivePrompt } from '../prompt.js'
+import { type BasePromptElementProps, type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
+import { ableTools, getLmTools } from './tools.js'
 
 
 export class CopilotChatHandler {
@@ -11,11 +11,11 @@ export class CopilotChatHandler {
         private readonly outputChannel: vscode.LogOutputChannel
     ) { }
 
-    async copilotChatResponse<S>(
+    async copilotChatResponse<P extends BasePromptElementProps, S>(
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
-        ctor: PromptElementCtor<InputProps, S>,
-        ableHistory: HistoryEntry[],
+        ctor: PromptElementCtor<P, S>,
+        props: P,
         stream?: vscode.ChatResponseStream,
         model?: vscode.LanguageModelChat,
     ) {
@@ -29,7 +29,7 @@ export class CopilotChatHandler {
             void vscode.window.showErrorMessage('Copilot model is not loaded. Execute the activation command.')
             throw new Error('Copilot model is not loaded')
         }
-        const { messages } = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 2048 }, model)
+        const { messages } = await renderPrompt(ctor, props, { modelMaxPromptTokens: 2048 }, model)
         const tools = getLmTools()
         const chatResponse = await model.sendRequest(
             messages, { tools }, token
@@ -64,7 +64,7 @@ export class CopilotChatHandler {
                 stream.markdown(fragment.value)
                 responseStr += fragment.value
             } else if (fragment instanceof vscode.LanguageModelToolCallPart) {
-                if (availableTools.includes(fragment.name)) {
+                if (ableTools.includes(fragment.name)) {
                     toolCalls.push(fragment)
                 }
             }

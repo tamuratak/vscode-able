@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { EditPrompt, FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import { type PromptElementCtor } from '@vscode/prompt-tsx'
 import { extractAbleHistory, getSelectedText } from './chatlib/utils.js'
 import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
@@ -112,8 +112,11 @@ export class ChatHandler {
                 this.chatSession = this.extractChatSession(request)
                 const ableHistory = extractAbleHistory(context)
                 if (request.command === 'edit') {
-                    // TODO
-                    console.log('edit')
+                    if (this.chatSession.vscodeImplicitViewport?.value instanceof vscode.Uri) {
+                        const uri = this.chatSession.vscodeImplicitViewport.value
+                        const document = await vscode.workspace.openTextDocument(uri)
+                        await this.copilotChatHandler.copilotChatResponse(token, request, EditPrompt, { history: ableHistory, input: request.prompt, uri: uri.toString(), content: document.getText() }, stream)
+                    }
                 } else if (request.command === 'fluent') {
                     const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory)
                     stream.markdown(response)
@@ -132,7 +135,7 @@ export class ChatHandler {
                     return
                 } else {
                     if (this.vendor === ChatVendor.Copilot) {
-                        await this.copilotChatHandler.copilotChatResponse(token, request, SimplePrompt, ableHistory, stream, request.model)
+                        await this.copilotChatHandler.copilotChatResponse(token, request, SimplePrompt, { history: ableHistory, input: request.prompt }, stream, request.model)
                     } else {
                         await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, SimplePrompt, ableHistory, stream)
                     }
@@ -160,7 +163,7 @@ export class ChatHandler {
         const input = selectedText ?? request.prompt
         let responseText = ''
         if (this.vendor === ChatVendor.Copilot) {
-            const { chatResponse } = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, ableHistory, stream, model)
+            const { chatResponse } = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input: request.prompt }, stream, model)
             if (chatResponse) {
                 for await (const fragment of chatResponse.text) {
                     responseText += fragment

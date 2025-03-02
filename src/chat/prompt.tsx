@@ -8,7 +8,7 @@ import {
     UserMessage,
 } from '@vscode/prompt-tsx'
 import type { RequestCommands } from './chat.js'
-import type { BaseChatMessage } from '@vscode/prompt-tsx/dist/base/promptElements.js'
+import { BaseChatMessage } from '@vscode/prompt-tsx/dist/base/promptElements.js'
 import { VscodeChatMessages, VscodeChatMessagesProps } from './promptlib/chatmessages.js'
 
 
@@ -253,31 +253,41 @@ export class ToolResultDirectivePrompt extends PromptElement<VscodeChatMessagesP
 interface FilePromptProps extends BasePromptElementProps {
     uri: string,
     content: string,
-    metadata: Record<string, string>
+    metadata?: Record<string, string> | undefined
 }
 
 export class FilePrompt extends PromptElement<FilePromptProps> {
     render(): PromptPiece {
         const metadatas: BaseChatMessage[] = []
-        for (const [key, value] of Object.entries(this.props.metadata)) {
-            metadatas.push(<>  - {key}: {value}<br /></>)
+        if (this.props.metadata) {
+            for (const [key, value] of Object.entries(this.props.metadata)) {
+                metadatas.push(<>  - {key}: {value}<br /></>)
+            }
         }
-        return (
-            <>
-                ### File: {this.props.uri}<br />
-                Metadata:<br />
-                {metadatas}
-                <br />
-                Content:<br />
-                {this.props.content}
-            </>
-        )
+        if (metadatas.length > 0) {
+            return (
+                <>
+                    ### File: {this.props.uri}<br />
+                    Metadata:<br />
+                    {metadatas}
+                    <br />
+                    Content:<br />
+                    {this.props.content}
+                </>
+            )
+        } else {
+            return (
+                <>
+                    ### File: {this.props.uri}<br />
+                    Content:<br />
+                    {this.props.content}
+                </>
+            )
+        }
     }
 }
 
-interface EditPromptProps extends FilePromptProps {
-    prompt: string
-}
+interface EditPromptProps extends FilePromptProps, InputProps { }
 
 export class EditPrompt extends PromptElement<EditPromptProps> {
     render(): PromptPiece {
@@ -288,7 +298,9 @@ export class EditPrompt extends PromptElement<EditPromptProps> {
                     - When editing a file, please use able_edit.
                 </UserMessage>
                 <UserMessage>
-                    {this.props.prompt} <br /><br />
+                    {this.props.input}
+                </UserMessage>
+                <UserMessage>
                     The following is the content of the file.<br /><br />
                     <FilePrompt
                         uri={this.props.uri}
