@@ -40,6 +40,9 @@ export function calculateEditDistance(array1: string[], array2: string[]): numbe
  * @returns Array of [start, end] offset pairs (character positions) where the best matches start and end
  */
 export function findBestMatches(documentText: string, searchString: string): [number, number][] {
+    if (documentText.length === 0 || searchString.length === 0) {
+        return []
+    }
     // Split strings by continuous whitespace
     const splittedText = documentText.split(/\s+/)
     const searchTokens = searchString.split(/\s+/)
