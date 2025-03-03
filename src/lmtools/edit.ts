@@ -56,13 +56,13 @@ export class EditTool implements LanguageModelTool<EditInput> {
         }
     }
 
-    async getRangeToReplace(input: string) {
+    async getRangeToReplace(textToReplace: string) {
         const uri = this.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
         if (!uri) {
             throw new Error('No chat session')
         }
         const document = await vscode.workspace.openTextDocument(uri)
-        const ranges = getRangeToReplace(document, input)
+        const ranges = getRangeToReplace(document, textToReplace)
         if (ranges.length > 1) {
             throw new Error('Multiple ranges found')
         }

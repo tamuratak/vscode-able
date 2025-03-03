@@ -1,17 +1,17 @@
 import * as vscode from 'vscode'
 
-export function getRangeToReplace(document: vscode.TextDocument, input: string) {
+export function getRangeToReplace(document: vscode.TextDocument, textToReplace: string) {
     const docString = document.getText()
     const indices: number[] = []
     let startIndex = 0
-    while ((startIndex = docString.indexOf(input, startIndex)) > -1) {
+    while ((startIndex = docString.indexOf(textToReplace, startIndex)) > -1) {
         indices.push(startIndex)
-        startIndex += input.length
+        startIndex += textToReplace.length
     }
     const result: vscode.Range[] = []
     for (const index of indices) {
         const start = document.positionAt(index)
-        const end = document.positionAt(index + input.length)
+        const end = document.positionAt(index + textToReplace.length)
         result.push(new vscode.Range(start, end))
     }
     return result
