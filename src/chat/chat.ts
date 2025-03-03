@@ -19,9 +19,9 @@ interface ChatSession {
     readonly prompt: string
 }
 
-export class ChatHandler {
+export class ChatHandleManager {
     private vendor = ChatVendor.Copilot
-    private readonly outputChannel = vscode.window.createOutputChannel('vscode-able-chat', { log: true })
+    readonly outputChannel = vscode.window.createOutputChannel('vscode-able-chat', { log: true })
     private readonly copilotChatHandler: CopilotChatHandler
     private readonly openaiApiChatHandler: OpenAiApiChatHandler
     private chatSession: ChatSession | undefined
@@ -29,7 +29,7 @@ export class ChatHandler {
     constructor(public readonly openAiServiceId: string) {
         this.copilotChatHandler = new CopilotChatHandler(this.outputChannel)
         this.openaiApiChatHandler = new OpenAiApiChatHandler(openAiServiceId, this.outputChannel)
-        this.outputChannel.info('ChatHandler initialized')
+        this.outputChannel.info('ChatHandleManager initialized')
     }
 
     getChatSession() {

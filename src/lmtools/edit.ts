@@ -1,5 +1,5 @@
 import { LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult } from 'vscode'
-import { ChatHandler } from '../chat/chat.js'
+import { ChatHandleManager } from '../chat/chat.js'
 
 interface EditInput {
     file?: string | undefined,
@@ -8,19 +8,17 @@ interface EditInput {
 }
 
 export class EditTool implements LanguageModelTool<EditInput[]> {
-    readonly chatHandler: ChatHandler
+    readonly chatHandler: ChatHandleManager
 
-    constructor(chatHandler: ChatHandler) {
+    constructor(chatHandler: ChatHandleManager) {
         this.chatHandler = chatHandler
     }
 
     invoke(options: LanguageModelToolInvocationOptions<EditInput[]>) {
-        const result: LanguageModelTextPart[] = []
         for (const input of options.input) {
-            result.push(new LanguageModelTextPart(input.textToReplace))
-            result.push(new LanguageModelTextPart(input.input))
+            this.chatHandler.outputChannel.info(`EditTool input: ${JSON.stringify(input)}`)
         }
-        return new LanguageModelToolResult(result)
+        return new LanguageModelToolResult([new LanguageModelTextPart('Edit succeeded')])
     }
 
 }

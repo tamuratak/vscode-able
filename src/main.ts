@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { ChatHandler } from './chat/chat.js'
+import { ChatHandleManager } from './chat/chat.js'
 import { registerCommands } from './commands.js'
 import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 import { PythonTool } from './lmtools/pyodide.js'
@@ -7,11 +7,11 @@ import { EditTool } from './lmtools/edit.js'
 
 
 export class Extension {
-    private readonly handler: ChatHandler
+    private readonly handler: ChatHandleManager
     private readonly editTool: EditTool
 
     constructor(public readonly openAiServiceId: string) {
-        this.handler = new ChatHandler(openAiServiceId)
+        this.handler = new ChatHandleManager(openAiServiceId)
         this.editTool = new EditTool(this.handler)
     }
 
