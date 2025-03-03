@@ -30,6 +30,7 @@ export class CopilotChatHandler {
             throw new Error('Copilot model is not loaded')
         }
         const { messages } = await renderPrompt(ctor, props, { modelMaxPromptTokens: 2048 }, model)
+        this.outputChannel.info('Copilot chat response', JSON.stringify(messages, null, 2))
         const tools = getLmTools()
         const chatResponse = await model.sendRequest(
             messages, { tools }, token

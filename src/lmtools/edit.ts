@@ -7,14 +7,12 @@ interface EditInput {
     input: string
 }
 
-export class EditTool implements LanguageModelTool<EditInput[]> {
+export class EditTool implements LanguageModelTool<EditInput> {
 
     constructor(private readonly chatHandleManager: ChatHandleManager) { }
 
-    invoke(options: LanguageModelToolInvocationOptions<EditInput[]>) {
-        for (const input of options.input) {
-            this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(input)}`)
-        }
+    invoke(options: LanguageModelToolInvocationOptions<EditInput>) {
+        this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
         return new LanguageModelToolResult([new LanguageModelTextPart('Edit succeeded')])
     }
 
