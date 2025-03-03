@@ -31,7 +31,7 @@ export function calculateEditDistance(array1: string[], array2: string[]): numbe
 }
 
 /**
- * Finds the positions in string a that best match string b using edit distance.
+ * Finds the positions in documentText that best match searchString using edit distance.
  * Strings are split by continuous whitespace.
  * Window sizes vary to accommodate potential matches of different lengths.
  *
