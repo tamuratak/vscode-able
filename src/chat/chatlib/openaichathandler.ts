@@ -126,6 +126,8 @@ export class OpenAiApiChatHandler {
                 for (const part of result.content) {
                     if (part instanceof vscode.LanguageModelTextPart) {
                         ret.push(part.value)
+                    } else if (part instanceof vscode.LanguageModelPromptTsxPart) {
+                        // TODO
                     }
                 }
                 newMessages.push({ role: 'assistant', content: '', tool_calls: [frag] })

@@ -1,12 +1,14 @@
 import * as vscode from 'vscode'
 
-export const availableTools = ['able_python', 'able_edit']
+export const ableTools = ['able_python', 'able_edit']
 
 export function getLmTools() {
     const tools: vscode.LanguageModelChatTool[] = []
-    const ablePython = vscode.lm.tools.find(tool => availableTools.includes(tool.name))
-    if (ablePython && ablePython.inputSchema) {
-        tools.push({ name: ablePython.name, description: ablePython.description, inputSchema: ablePython.inputSchema })
+    const availableTools = vscode.lm.tools.filter(tool => ableTools.includes(tool.name))
+    for (const tool of availableTools) {
+        if (tool.inputSchema) {
+            tools.push({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema })
+        }
     }
     return tools
 }

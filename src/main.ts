@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { ChatHandler } from './chat/chat.js'
+import { ChatHandleManager } from './chat/chat.js'
 import { registerCommands } from './commands.js'
 import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 import { PythonTool } from './lmtools/pyodide.js'
@@ -7,13 +7,20 @@ import { EditTool } from './lmtools/edit.js'
 
 
 export class Extension {
-    private readonly handler: ChatHandler
+    private readonly handler: ChatHandleManager
+    private readonly editTool: EditTool
+
     constructor(public readonly openAiServiceId: string) {
-        this.handler = new ChatHandler(openAiServiceId)
+        this.handler = new ChatHandleManager(openAiServiceId)
+        this.editTool = new EditTool(this.handler)
     }
 
-    getHandler() {
+    getChatHandler() {
         return this.handler.getHandler()
+    }
+
+    getEditTool() {
+        return this.editTool
     }
 
     quickPickModel() {
@@ -38,12 +45,12 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('able.quickPickModel', () => {
             void extension.quickPickModel()
         }),
-        vscode.chat.createChatParticipant('able.chatParticipant', extension.getHandler()),
+        vscode.chat.createChatParticipant('able.chatParticipant', extension.getChatHandler()),
         vscode.commands.registerCommand('able.activateCopilotChatModels', () => {
             void extension.activate()
         }),
         vscode.lm.registerTool('able_python', new PythonTool()),
-        vscode.lm.registerTool('able_edit', new EditTool()),
+        vscode.lm.registerTool('able_edit', extension.getEditTool()),
         ...registerCommands()
     )
 

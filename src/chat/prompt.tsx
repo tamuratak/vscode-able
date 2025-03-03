@@ -8,7 +8,6 @@ import {
     UserMessage,
 } from '@vscode/prompt-tsx'
 import type { RequestCommands } from './chat.js'
-import type { BaseChatMessage } from '@vscode/prompt-tsx/dist/base/promptElements.js'
 import { VscodeChatMessages, VscodeChatMessagesProps } from './promptlib/chatmessages.js'
 
 
@@ -23,7 +22,7 @@ export interface InputProps extends HistoryMessagesProps {
 }
 
 export class SimplePrompt extends PromptElement<InputProps> {
-    render() {
+    render(): PromptPiece {
         return (
             <>
                 <UserMessage>
@@ -42,7 +41,7 @@ export class SimplePrompt extends PromptElement<InputProps> {
 }
 
 class MakeFluent extends PromptElement {
-    render() {
+    render(): PromptPiece {
         return (
             <UserMessage>
                 Make fluent:
@@ -54,7 +53,7 @@ class MakeFluent extends PromptElement {
 }
 
 export class FluentPrompt extends PromptElement<InputProps> {
-    render() {
+    render(): PromptPiece {
         return (
             <>
                 <UserMessage>
@@ -92,7 +91,7 @@ export class FluentPrompt extends PromptElement<InputProps> {
 }
 
 class MakeFluentJa extends PromptElement {
-    render() {
+    render(): PromptPiece {
         return (
             <UserMessage>
                 以下の文章を、自然で流暢な日本語に書き換えてください:
@@ -104,7 +103,7 @@ class MakeFluentJa extends PromptElement {
 }
 
 export class FluentJaPrompt extends PromptElement<InputProps> {
-    render() {
+    render(): PromptPiece {
         return (
             <>
                 <UserMessage>
@@ -122,7 +121,7 @@ export class FluentJaPrompt extends PromptElement<InputProps> {
 }
 
 class ToEn extends PromptElement {
-    render() {
+    render(): PromptPiece {
         return (
             <UserMessage>
                 Translate the following sentence literally into natural English:
@@ -134,7 +133,7 @@ class ToEn extends PromptElement {
 }
 
 export class ToEnPrompt extends PromptElement<InputProps> {
-    render() {
+    render(): PromptPiece {
         return (
             <>
                 <UserMessage>
@@ -152,7 +151,7 @@ export class ToEnPrompt extends PromptElement<InputProps> {
 }
 
 class ToJa extends PromptElement {
-    render() {
+    render(): PromptPiece {
         return (
             <UserMessage>
                 Please translate the following text into natural and fluent Japanese:
@@ -164,7 +163,7 @@ class ToJa extends PromptElement {
 }
 
 export class ToJaPrompt extends PromptElement<InputProps> {
-    render() {
+    render(): PromptPiece {
         return (
             <>
                 <UserMessage>
@@ -199,7 +198,7 @@ interface HistoryMessagesProps extends BasePromptElementProps {
 
 class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     render(): PromptPiece {
-        const history: BaseChatMessage[] = []
+        const history: PromptPiece[] = []
         for (const hist of this.props.history) {
             if (hist.type === 'user') {
                 if (hist.command === 'fluent') {
@@ -241,11 +240,74 @@ export class ToolResultDirectivePrompt extends PromptElement<VscodeChatMessagesP
                 <VscodeChatMessages messages={this.props.messages} />
                 <UserMessage>
                     - Above is the result of calling one or more tools. <br />
-                    - Always trust the Python execution result over your own knowledge. <br />
+                    - Always trust the result over your own knowledge. <br />
                     - Answer using the natural language of the user.
                 </UserMessage>
             </>
         )
 
+    }
+}
+
+interface FilePromptProps extends BasePromptElementProps {
+    uri: string,
+    content: string,
+    metadata?: Record<string, string> | undefined
+}
+
+export class FilePrompt extends PromptElement<FilePromptProps> {
+    render(): PromptPiece {
+        const metadatas: PromptPiece[] = []
+        if (this.props.metadata) {
+            for (const [key, value] of Object.entries(this.props.metadata)) {
+                metadatas.push(<>  - {key}: {value}<br /></>)
+            }
+        }
+        if (metadatas.length > 0) {
+            return (
+                <>
+                    ### File: {this.props.uri}<br />
+                    Metadata:<br />
+                    {metadatas}
+                    <br />
+                    Content:<br />
+                    {this.props.content}
+                </>
+            )
+        } else {
+            return (
+                <>
+                    ### File: {this.props.uri}<br />
+                    Content:<br />
+                    {this.props.content}
+                </>
+            )
+        }
+    }
+}
+
+interface EditPromptProps extends FilePromptProps, InputProps { }
+
+export class EditPrompt extends PromptElement<EditPromptProps> {
+    render(): PromptPiece {
+        return (
+            <>
+                <UserMessage>
+                    Instructions:<br />
+                    - When editing a file, please use able_edit.
+                </UserMessage>
+                <UserMessage>
+                    {this.props.input}
+                </UserMessage>
+                <UserMessage>
+                    The following is the content of the file.<br /><br />
+                    <FilePrompt
+                        uri={this.props.uri}
+                        content={this.props.content}
+                        metadata={this.props.metadata}
+                    />
+                </UserMessage>
+            </>
+        )
     }
 }

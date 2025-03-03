@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { EditPrompt, FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import { type PromptElementCtor } from '@vscode/prompt-tsx'
 import { extractAbleHistory, getSelectedText } from './chatlib/utils.js'
 import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
@@ -13,16 +13,27 @@ enum ChatVendor {
     OpenAiApi = 'openai_api',
 }
 
-export class ChatHandler {
+interface ChatSession {
+    readonly vscodeImplicitViewport?: vscode.ChatPromptReference | undefined
+    readonly references: readonly vscode.ChatPromptReference[]
+    readonly prompt: string
+}
+
+export class ChatHandleManager {
     private vendor = ChatVendor.Copilot
-    private readonly outputChannel = vscode.window.createOutputChannel('vscode-able-chat', { log: true })
+    readonly outputChannel = vscode.window.createOutputChannel('vscode-able-chat', { log: true })
     private readonly copilotChatHandler: CopilotChatHandler
     private readonly openaiApiChatHandler: OpenAiApiChatHandler
+    private chatSession: ChatSession | undefined
 
     constructor(public readonly openAiServiceId: string) {
         this.copilotChatHandler = new CopilotChatHandler(this.outputChannel)
         this.openaiApiChatHandler = new OpenAiApiChatHandler(openAiServiceId, this.outputChannel)
-        this.outputChannel.info('ChatHandler initialized')
+        this.outputChannel.info('ChatHandleManager initialized')
+    }
+
+    getChatSession() {
+        return this.chatSession
     }
 
     async initGpt4oMini() {
@@ -96,34 +107,48 @@ export class ChatHandler {
             stream: vscode.ChatResponseStream,
             token: vscode.CancellationToken
         ) => {
-            const ableHistory = extractAbleHistory(context)
-            if (request.command === 'edit') {
-                // TODO
-                console.log('edit')
-            } else if (request.command === 'fluent') {
-                const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory)
-                stream.markdown(response)
-                return
-            } else if (request.command === 'fluent_ja') {
-                const response = await this.responseWithSelection(token, request, FluentJaPrompt, ableHistory)
-                stream.markdown(response)
-                return
-            } if (request.command === 'to_en') {
-                const response = await this.responseWithSelection(token, request, ToEnPrompt, ableHistory)
-                stream.markdown(response)
-                return
-            } else if (request.command === 'to_ja') {
-                const response = await this.responseWithSelection(token, request, ToJaPrompt, ableHistory)
-                stream.markdown(response)
-                return
-            } else {
-                if (this.vendor === ChatVendor.Copilot) {
-                    await this.copilotChatHandler.copilotChatResponse(token, request, SimplePrompt, ableHistory, stream, request.model)
+            try {
+                this.outputChannel.info(JSON.stringify(request.references))
+                this.chatSession = this.extractChatSession(request)
+                const ableHistory = extractAbleHistory(context)
+                if (request.command === 'edit') {
+                    if (this.chatSession.vscodeImplicitViewport?.value instanceof vscode.Uri) {
+                        const uri = this.chatSession.vscodeImplicitViewport.value
+                        const document = await vscode.workspace.openTextDocument(uri)
+                        await this.copilotChatHandler.copilotChatResponse(token, request, EditPrompt, { history: ableHistory, input: request.prompt, uri: uri.toString(), content: document.getText() }, stream)
+                    }
+                } else if (request.command === 'fluent') {
+                    const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory)
+                    stream.markdown(response)
+                    return
+                } else if (request.command === 'fluent_ja') {
+                    const response = await this.responseWithSelection(token, request, FluentJaPrompt, ableHistory)
+                    stream.markdown(response)
+                    return
+                } if (request.command === 'to_en') {
+                    const response = await this.responseWithSelection(token, request, ToEnPrompt, ableHistory)
+                    stream.markdown(response)
+                    return
+                } else if (request.command === 'to_ja') {
+                    const response = await this.responseWithSelection(token, request, ToJaPrompt, ableHistory)
+                    stream.markdown(response)
+                    return
                 } else {
-                    await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, SimplePrompt, ableHistory, stream)
+                    if (this.vendor === ChatVendor.Copilot) {
+                        await this.copilotChatHandler.copilotChatResponse(token, request, SimplePrompt, { history: ableHistory, input: request.prompt }, stream, request.model)
+                    } else {
+                        await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, SimplePrompt, ableHistory, stream)
+                    }
                 }
+            } finally {
+                this.chatSession = undefined
             }
         }
+    }
+
+    private extractChatSession(request: vscode.ChatRequest) {
+        const vscodeImplicitViewport = request.references.find(ref => ref.id === 'vscode.implicit.viewport')
+        return { references: request.references, prompt: request.prompt, vscodeImplicitViewport }
     }
 
     private async responseWithSelection<S>(
@@ -138,7 +163,7 @@ export class ChatHandler {
         const input = selectedText ?? request.prompt
         let responseText = ''
         if (this.vendor === ChatVendor.Copilot) {
-            const { chatResponse } = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, ableHistory, stream, model)
+            const { chatResponse } = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input: request.prompt }, stream, model)
             if (chatResponse) {
                 for await (const fragment of chatResponse.text) {
                     responseText += fragment
