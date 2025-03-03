@@ -44,7 +44,7 @@ export function findBestMatches(documentText: string, searchString: string): [nu
     const splittedText = documentText.split(/\s+/)
     const searchTokens = searchString.split(/\s+/)
 
-    // If b is empty or longer than a, no valid match is possible
+    // If searchTokens is empty or longer than splittedText, no valid match is possible
     if (searchTokens.length === 0 || searchTokens.length > splittedText.length) {
         return []
     }
@@ -53,7 +53,7 @@ export function findBestMatches(documentText: string, searchString: string): [nu
     const bestMatches: [number, number][] = []
     let minDistance = Infinity
 
-    // Define window size variation (check windows of bTokens.length ± variation)
+    // Define window size variation (check windows of searchTokens.length ± variation)
     const variation = Math.min(2, Math.floor(searchTokens.length / 2))
     const minWindowSize = Math.max(1, searchTokens.length - variation)
     const maxWindowSize = Math.min(splittedText.length, searchTokens.length + variation)
@@ -62,10 +62,10 @@ export function findBestMatches(documentText: string, searchString: string): [nu
     for (let windowSize = minWindowSize; windowSize <= maxWindowSize; windowSize++) {
         // Try every possible window position
         for (let startIndex = 0; startIndex <= splittedText.length - windowSize; startIndex++) {
-            // Create window of tokens in 'a' with variable length
+            // Create window of tokens in documentText with variable length
             const windowTokens = splittedText.slice(startIndex, startIndex + windowSize)
 
-            // Calculate edit distance between this window and b
+            // Calculate edit distance between this window and searchString
             const distance = calculateEditDistance(windowTokens, searchTokens)
 
             // Normalize distance by the maximum length to avoid favoring shorter windows
