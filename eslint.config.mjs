@@ -109,11 +109,7 @@ export default tseslint.config(
             "node_modules/",
             "out/",
             "pyodide*/",
-            ".contextdir_for_llm/",
-            ".venv/",
-            ".vscode/",
-            ".vscode-test/",
-            ".git/"
+            ".*/"
         ],
     },
     eslint.configs.recommended,
