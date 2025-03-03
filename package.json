@@ -97,28 +97,25 @@
         "displayName": "Edit File",
         "modelDescription": "This tool edits a file based on instructions, allowing an LLM to modify or enhance content. It should include the three lines before and after the changes.",
         "inputSchema": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "file": {
-                "type": "string",
-                "description": "The file to edit"
-              },
-              "textToReplace": {
-                "type": "string",
-                "description": "The text to replace in the original text. This should include include the three lines before and after the changes. Without your comment in the code."
-              },
-              "input": {
-                "type": "string",
-                "description": "The new input text to insert into the range of the textToReplace. This should include include the three lines before and after the changes. Without your comment in the code."
-              }
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string",
+              "description": "The file to edit"
             },
-            "required": [
-              "textToReplace",
-              "input"
-            ]
-          }
+            "textToReplace": {
+              "type": "string",
+              "description": "The text to replace in the original text. This should include include the three lines before and after the changes. Without your comment in the code."
+            },
+            "input": {
+              "type": "string",
+              "description": "The new input text to insert into the range of the textToReplace. This should include include the three lines before and after the changes. Without your comment in the code."
+            }
+          },
+          "required": [
+            "textToReplace",
+            "input"
+          ]
         }
       }
     ],
