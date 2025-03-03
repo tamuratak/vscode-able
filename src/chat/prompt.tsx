@@ -22,7 +22,7 @@ export interface InputProps extends HistoryMessagesProps {
 }
 
 export class SimplePrompt extends PromptElement<InputProps> {
-    render() {
+    render(): PromptPiece {
         return (
             <>
                 <UserMessage>
@@ -41,7 +41,7 @@ export class SimplePrompt extends PromptElement<InputProps> {
 }
 
 class MakeFluent extends PromptElement {
-    render() {
+    render(): PromptPiece {
         return (
             <UserMessage>
                 Make fluent:
@@ -53,7 +53,7 @@ class MakeFluent extends PromptElement {
 }
 
 export class FluentPrompt extends PromptElement<InputProps> {
-    render() {
+    render(): PromptPiece {
         return (
             <>
                 <UserMessage>
@@ -91,7 +91,7 @@ export class FluentPrompt extends PromptElement<InputProps> {
 }
 
 class MakeFluentJa extends PromptElement {
-    render() {
+    render(): PromptPiece {
         return (
             <UserMessage>
                 以下の文章を、自然で流暢な日本語に書き換えてください:
@@ -103,7 +103,7 @@ class MakeFluentJa extends PromptElement {
 }
 
 export class FluentJaPrompt extends PromptElement<InputProps> {
-    render() {
+    render(): PromptPiece {
         return (
             <>
                 <UserMessage>
@@ -121,7 +121,7 @@ export class FluentJaPrompt extends PromptElement<InputProps> {
 }
 
 class ToEn extends PromptElement {
-    render() {
+    render(): PromptPiece {
         return (
             <UserMessage>
                 Translate the following sentence literally into natural English:
@@ -133,7 +133,7 @@ class ToEn extends PromptElement {
 }
 
 export class ToEnPrompt extends PromptElement<InputProps> {
-    render() {
+    render(): PromptPiece {
         return (
             <>
                 <UserMessage>
@@ -151,7 +151,7 @@ export class ToEnPrompt extends PromptElement<InputProps> {
 }
 
 class ToJa extends PromptElement {
-    render() {
+    render(): PromptPiece {
         return (
             <UserMessage>
                 Please translate the following text into natural and fluent Japanese:
@@ -163,7 +163,7 @@ class ToJa extends PromptElement {
 }
 
 export class ToJaPrompt extends PromptElement<InputProps> {
-    render() {
+    render(): PromptPiece {
         return (
             <>
                 <UserMessage>
