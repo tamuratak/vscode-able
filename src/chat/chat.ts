@@ -112,11 +112,19 @@ export class ChatHandleManager {
                 this.chatSession = this.extractChatSession(request)
                 const ableHistory = extractAbleHistory(context)
                 if (request.command === 'edit') {
+                    let uri: vscode.Uri | undefined
                     if (this.chatSession.vscodeImplicitViewport?.value instanceof vscode.Uri) {
-                        const uri = this.chatSession.vscodeImplicitViewport.value
+                        uri = this.chatSession.vscodeImplicitViewport.value
+                    } else if (this.chatSession.vscodeImplicitViewport?.value instanceof vscode.Location) {
+                        uri = this.chatSession.vscodeImplicitViewport.value.uri
+                    } else if (typeof this.chatSession.vscodeImplicitViewport?.value === 'string') {
+                        uri = vscode.Uri.parse(this.chatSession.vscodeImplicitViewport.value)
+                    }
+                    if (uri) {
                         const document = await vscode.workspace.openTextDocument(uri)
                         await this.copilotChatHandler.copilotChatResponse(token, request, EditPrompt, { history: ableHistory, input: request.prompt, uri: uri.toString(), content: document.getText() }, stream)
                     }
+                    return
                 } else if (request.command === 'fluent') {
                     const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory)
                     stream.markdown(response)
