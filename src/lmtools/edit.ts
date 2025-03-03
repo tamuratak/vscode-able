@@ -16,10 +16,12 @@ const decoration = vscode.window.createTextEditorDecorationType({
 })
 
 export class EditTool implements LanguageModelTool<EditInput> {
+    private disposeDecorateion?: (() => void) | undefined
 
     constructor(private readonly chatHandleManager: ChatHandleManager) { }
 
-    invoke(options: LanguageModelToolInvocationOptions<EditInput>) {
+    invoke(options: LanguageModelToolInvocationOptions<EditInput>, token: vscode.CancellationToken) {
+        token.onCancellationRequested(() => this.disposeDecorateion?.())
         this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
         const uri = this.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
         if (!uri) {
@@ -27,14 +29,12 @@ export class EditTool implements LanguageModelTool<EditInput> {
         }
         //        const document = await vscode.workspace.openTextDocument(uri)
         //        const range = await this.getRangeToReplace(options.input.textToReplace)
-        const editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uri.toString())
-        if (editor) {
-            editor.setDecorations(decoration, [])
-        }
+        this.disposeDecorateion?.()
+        this.disposeDecorateion = undefined
         return new LanguageModelToolResult([new LanguageModelTextPart('Edit succeeded')])
     }
 
-    async prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<EditInput>) {
+    async prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<EditInput>, token: vscode.CancellationToken) {
         this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
         const uri = this.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
         if (!uri) {
@@ -47,6 +47,10 @@ export class EditTool implements LanguageModelTool<EditInput> {
             throw new Error('Editor not found for the specified document')
         }
         editor.setDecorations(decoration, [range])
+        this.disposeDecorateion = () => {
+            editor.setDecorations(decoration, [])
+        }
+        token.onCancellationRequested(() => this.disposeDecorateion?.())
         return {
             confirmationMessages: {
                 title: 'Edit file?',
