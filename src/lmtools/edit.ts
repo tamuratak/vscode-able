@@ -26,7 +26,7 @@ export class EditTool implements LanguageModelTool<EditInput> {
 
     constructor(private readonly chatHandleManager: ChatHandleManager) { }
 
-    invoke(options: LanguageModelToolInvocationOptions<EditInput>) {
+    async invoke(options: LanguageModelToolInvocationOptions<EditInput>) {
         try {
             this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
             const currentInput = this.currentInput
@@ -40,7 +40,16 @@ export class EditTool implements LanguageModelTool<EditInput> {
                 return new LanguageModelToolResult([new LanguageModelTextPart('Edit failed')])
             }
             this.clearCurrentSession()
-            // TODO: implement the edit
+            const { uri, range } = currentInput
+            const editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uri.toString())
+            if (!editor) {
+                this.chatHandleManager.outputChannel.error('EditTool editor is undefined')
+                return new LanguageModelToolResult([new LanguageModelTextPart('Edit failed')])
+            }
+            await editor.edit(editBuilder => {
+                editBuilder.replace(range, input)
+            })
+            this.chatHandleManager.outputChannel.info('EditTool edit was successful');
             return new LanguageModelToolResult([new LanguageModelTextPart('Edit succeeded')])
         } finally {
             this.clearCurrentSession()
@@ -48,7 +57,7 @@ export class EditTool implements LanguageModelTool<EditInput> {
     }
 
     async prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<EditInput>, token: vscode.CancellationToken) {
-
+        this.clearCurrentSession()
         this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
         const uri = this.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
         if (!uri) {
