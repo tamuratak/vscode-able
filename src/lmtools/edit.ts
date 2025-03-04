@@ -16,12 +16,12 @@ const decoration = vscode.window.createTextEditorDecorationType({
 })
 
 export class EditTool implements LanguageModelTool<EditInput> {
-    private disposeDecorateion?: (() => void) | undefined
+    private decorationDisposer?: (() => void) | undefined
 
     constructor(private readonly chatHandleManager: ChatHandleManager) { }
 
     invoke(options: LanguageModelToolInvocationOptions<EditInput>, token: vscode.CancellationToken) {
-        token.onCancellationRequested(() => this.disposeDecorateion?.())
+        token.onCancellationRequested(() => this.disposeDecoration())
         this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
         const uri = this.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
         if (!uri) {
@@ -29,8 +29,7 @@ export class EditTool implements LanguageModelTool<EditInput> {
         }
         //        const document = await vscode.workspace.openTextDocument(uri)
         //        const range = await this.getRangeToReplace(options.input.textToReplace)
-        this.disposeDecorateion?.()
-        this.disposeDecorateion = undefined
+        this.disposeDecoration()
         return new LanguageModelToolResult([new LanguageModelTextPart('Edit succeeded')])
     }
 
@@ -47,10 +46,8 @@ export class EditTool implements LanguageModelTool<EditInput> {
             throw new Error('Editor not found for the specified document')
         }
         editor.setDecorations(decoration, [range])
-        this.disposeDecorateion = () => {
-            editor.setDecorations(decoration, [])
-        }
-        token.onCancellationRequested(() => this.disposeDecorateion?.())
+        this.setDecorationDisposer(() => editor.setDecorations(decoration, []))
+        token.onCancellationRequested(() => this.disposeDecoration())
         return {
             confirmationMessages: {
                 title: 'Edit file?',
@@ -58,6 +55,15 @@ export class EditTool implements LanguageModelTool<EditInput> {
             },
             invocationMessage: 'Editing file...'
         }
+    }
+
+    private disposeDecoration() {
+        this.decorationDisposer?.();
+        this.decorationDisposer = undefined;
+    }
+
+    private setDecorationDisposer(disposer: () => void) {
+        this.decorationDisposer = disposer
     }
 
     async getRangeToReplace(textToReplace: string) {
