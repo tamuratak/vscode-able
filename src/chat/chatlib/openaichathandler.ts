@@ -8,6 +8,7 @@ import { convertToChatCompletionMessageParams } from './utils.js'
 import type { Stream } from 'openai/streaming.mjs'
 import type { ChatCompletionChunk, ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/index.mjs'
 import { getLmTools } from './tools.js'
+import { EditTool } from '../../lmtools/edit.js'
 
 
 export class OpenAiApiChatHandler {
@@ -15,8 +16,11 @@ export class OpenAiApiChatHandler {
     private readonly openAiClient = new ExternalPromise<OpenAI>()
 
     constructor(
-        public readonly openAiServiceId: string,
-        private readonly outputChannel: vscode.LogOutputChannel
+        private readonly openAiServiceId: string,
+        private readonly extension: {
+            readonly outputChannel: vscode.LogOutputChannel,
+            readonly editTool: EditTool
+        }
     ) { }
 
     async resolveOpenAiClient() {
@@ -59,7 +63,7 @@ export class OpenAiApiChatHandler {
             { messages, model: 'gpt-4o-mini', max_completion_tokens: 2048, n: 1, stream: true, tools }, { signal }
         ).then(r => r, e => {
             if (e instanceof Error) {
-                this.outputChannel.error(e, messages)
+                this.extension.outputChannel.error(e, messages)
             }
             throw e
         })
@@ -114,11 +118,15 @@ export class OpenAiApiChatHandler {
                     fragment.function.name, { input, toolInvocationToken: request.toolInvocationToken }, token
                 ).then(r => r, e => {
                     if (e instanceof Error) {
-                        this.outputChannel.error(e, fragment)
+                        this.extension.outputChannel.error(e, fragment)
                     } else {
-                        this.outputChannel.error('Unknown error', e, fragment)
+                        this.extension.outputChannel.error('Unknown error', e, fragment)
                     }
-                    return undefined
+                    if (fragment.function.name === 'able_replace_text') {
+                        this.extension.editTool.clearCurrentSession()
+                    }
+                    // TODO
+                    throw e
                 })
                 if (result === undefined) {
                     continue
@@ -139,7 +147,7 @@ export class OpenAiApiChatHandler {
                 { messages: newMessages, model: 'gpt-4o-mini', max_completion_tokens: 2048, n: 1, stream: true, tools }, { signal }
             ).then(r => r, e => {
                 if (e instanceof Error) {
-                    this.outputChannel.error(e, newMessages)
+                    this.extension.outputChannel.error(e, newMessages)
                 }
                 throw e
             })

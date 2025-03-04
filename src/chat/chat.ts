@@ -4,6 +4,7 @@ import { type PromptElementCtor } from '@vscode/prompt-tsx'
 import { convertHistory, getSelectedText } from './chatlib/utils.js'
 import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
+import { EditTool } from '../lmtools/edit.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -42,15 +43,20 @@ class ChatSession {
 
 export class ChatHandleManager {
     private vendor = ChatVendor.Copilot
-    readonly outputChannel = vscode.window.createOutputChannel('vscode-able-chat', { log: true })
-    private readonly copilotChatHandler: CopilotChatHandler
-    private readonly openaiApiChatHandler: OpenAiApiChatHandler
+
+    readonly copilotChatHandler: CopilotChatHandler
+    readonly openaiApiChatHandler: OpenAiApiChatHandler
     private chatSession: ChatSession | undefined
 
-    constructor(public readonly openAiServiceId: string) {
-        this.copilotChatHandler = new CopilotChatHandler(this.outputChannel)
-        this.openaiApiChatHandler = new OpenAiApiChatHandler(openAiServiceId, this.outputChannel)
-        this.outputChannel.info('ChatHandleManager initialized')
+    constructor(openAiServiceId: string,
+        readonly extension: {
+            readonly outputChannel: vscode.LogOutputChannel,
+            readonly editTool: EditTool
+        }
+    ) {
+        this.copilotChatHandler = new CopilotChatHandler(extension)
+        this.openaiApiChatHandler = new OpenAiApiChatHandler(openAiServiceId, extension)
+        this.extension.outputChannel.info('ChatHandleManager initialized')
     }
 
     getChatSession() {
@@ -63,11 +69,11 @@ export class ChatHandleManager {
             family: 'gpt-4o-mini'
         })
         if (mini) {
-            this.outputChannel.info('Successfully loaded the GPT-4o Mini model.')
+            this.extension.outputChannel.info('Successfully loaded the GPT-4o Mini model.')
         } else {
             const message = 'Failed to load GPT-4o Mini model.'
             void vscode.window.showErrorMessage(message)
-            this.outputChannel.error(message)
+            this.extension.outputChannel.error(message)
         }
     }
 
@@ -112,10 +118,10 @@ export class ChatHandleManager {
             } else {
                 throw new Error('should not reach here')
             }
-            this.outputChannel.info(`Model selected: ${selection.label}`)
+            this.extension.outputChannel.info(`Model selected: ${selection.label}`)
         } catch (error) {
             if (error instanceof Error) {
-                this.outputChannel.error(error)
+                this.extension.outputChannel.error(error)
             }
             void vscode.window.showErrorMessage('Failed to select chat model.')
         }
@@ -129,7 +135,7 @@ export class ChatHandleManager {
             token: vscode.CancellationToken
         ) => {
             try {
-                this.outputChannel.info(JSON.stringify(request.references))
+                this.extension.outputChannel.info(JSON.stringify(request.references))
                 this.chatSession = new ChatSession(request)
                 const ableHistory = convertHistory(context)
                 if (request.command === 'edit') {
