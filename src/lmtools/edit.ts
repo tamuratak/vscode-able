@@ -20,8 +20,8 @@ export class EditTool implements LanguageModelTool<EditInput> {
 
     constructor(private readonly chatHandleManager: ChatHandleManager) { }
 
-    invoke(options: LanguageModelToolInvocationOptions<EditInput>, token: vscode.CancellationToken) {
-        token.onCancellationRequested(() => this.disposeDecoration())
+    invoke(options: LanguageModelToolInvocationOptions<EditInput>) {
+        this.disposeDecoration()
         this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
         const uri = this.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
         if (!uri) {
@@ -29,7 +29,6 @@ export class EditTool implements LanguageModelTool<EditInput> {
         }
         //        const document = await vscode.workspace.openTextDocument(uri)
         //        const range = await this.getRangeToReplace(options.input.textToReplace)
-        this.disposeDecoration()
         return new LanguageModelToolResult([new LanguageModelTextPart('Edit succeeded')])
     }
 
