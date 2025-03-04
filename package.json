@@ -15,7 +15,12 @@
     "vscode": "^1.95.0"
   },
   "files": [
-    "pyodide/pyodide",
+    "pyodide/pyodide/*.json",
+    "pyodide/pyodide/*.ts",
+    "pyodide/pyodide/*.js",
+    "pyodide/pyodide/*.mjs",
+    "pyodide/pyodide/*.wasm",
+    "pyodide/pyodide/micropip*",
     "node_modules",
     "out",
     "LICENSE"
