@@ -28,14 +28,16 @@ export class EditTool implements LanguageModelTool<EditInput> {
 
     invoke(options: LanguageModelToolInvocationOptions<EditInput>) {
         try {
+            this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
             const currentInput = this.currentInput
             if (!currentInput) {
-                throw new Error('No current input')
+                this.chatHandleManager.outputChannel.error('EditTool currentInput is undefined')
+                return new LanguageModelToolResult([new LanguageModelTextPart('Edit failed')])
             }
             if (currentInput !== options.input || currentInput.textToReplace !== options.input.textToReplace || currentInput.input !== options.input.input) {
-                throw new Error('Input has changed')
+                this.chatHandleManager.outputChannel.error('EditTool currentInput is not same as options.input')
+                return new LanguageModelToolResult([new LanguageModelTextPart('Edit failed')])
             }
-            this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
             this.clearCurrentSession()
             // TODO: implement the edit
             return new LanguageModelToolResult([new LanguageModelTextPart('Edit succeeded')])
