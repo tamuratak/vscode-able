@@ -65,7 +65,7 @@ export class EditTool implements LanguageModelTool<EditInput> {
         this.decorationDisposer = disposer
     }
 
-    async getRangeToReplace(textToReplace: string) {
+    private async getRangeToReplace(textToReplace: string) {
         const uri = this.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
         if (!uri) {
             throw new Error('No chat session')
