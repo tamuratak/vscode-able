@@ -252,37 +252,29 @@ export class ToolResultDirectivePrompt extends PromptElement<VscodeChatMessagesP
 interface FilePromptProps extends BasePromptElementProps {
     uri: string,
     content: string,
-    metadata?: Record<string, string> | undefined
+    metadata?: Map<string, string> | undefined
 }
 
 export class FilePrompt extends PromptElement<FilePromptProps> {
     render(): PromptPiece {
-        const metadatas: PromptPiece[] = []
+        const metadatas = [
+            <>  - Content Length: {this.props.content.length} characters<br /></>
+        ] as PromptPiece[]
         if (this.props.metadata) {
-            for (const [key, value] of Object.entries(this.props.metadata)) {
+            for (const [key, value] of this.props.metadata) {
                 metadatas.push(<>  - {key}: {value}<br /></>)
             }
         }
-        if (metadatas.length > 0) {
-            return (
-                <>
-                    ### File: {this.props.uri}<br />
-                    Metadata:<br />
-                    {metadatas}
-                    <br />
-                    Content:<br />
-                    {this.props.content}
-                </>
-            )
-        } else {
-            return (
-                <>
-                    ### File: {this.props.uri}<br />
-                    Content:<br />
-                    {this.props.content}
-                </>
-            )
-        }
+        return (
+            <>
+                ### File: {this.props.uri}<br />
+                Metadata:<br />
+                {metadatas}
+                <br />
+                Content:<br />
+                {this.props.content}
+            </>
+        )
     }
 }
 

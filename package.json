@@ -115,6 +115,14 @@
             "input": {
               "type": "string",
               "description": "The new input text to insert into the range of the textToReplace. This should include include the three lines before and after the changes. Without your comment in the code."
+            },
+            "startOffset": {
+              "type": "number",
+              "description": "The start offset of the text to replace. If the range to be replaced begins at the start of the file, this should be 0. You can use able_count_characters to get the offset."
+            },
+            "endOffset": {
+              "type": "number",
+              "description": "The end offset of the text to replace. This should reference the position after the last character that you want to replace."
             }
           },
           "required": [
