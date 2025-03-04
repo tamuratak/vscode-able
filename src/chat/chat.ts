@@ -180,14 +180,14 @@ export class ChatHandleManager {
         const input = selectedText ?? request.prompt
         let responseText = ''
         if (this.vendor === ChatVendor.Copilot) {
-            const { chatResponse } = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input: request.prompt }, stream, model)
+            const { chatResponse } = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input }, stream, model)
             if (chatResponse) {
                 for await (const fragment of chatResponse.text) {
                     responseText += fragment
                 }
             }
         } else {
-            const { chatResponse } = await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, ctor, ableHistory, stream)
+            const { chatResponse } = await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, ctor, ableHistory, stream, input)
             if (chatResponse) {
                 for await (const fragment of chatResponse) {
                     responseText += fragment.choices[0]?.delta?.content ?? ''

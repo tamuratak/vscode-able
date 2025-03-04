@@ -33,10 +33,11 @@ export class OpenAiApiChatHandler {
         request: vscode.ChatRequest,
         ctor: PromptElementCtor<InputProps, S>,
         ableHistory: HistoryEntry[],
-        stream?: vscode.ChatResponseStream
+        stream?: vscode.ChatResponseStream,
+        prompt?: string
     ) {
         const client = await this.resolveOpenAiClient()
-        const renderResult = await renderPrompt(ctor, { history: ableHistory, input: request.prompt }, { modelMaxPromptTokens: 2048 }, this.gpt4oTokenizer, undefined, undefined, 'none')
+        const renderResult = await renderPrompt(ctor, { history: ableHistory, input: prompt ?? request.prompt }, { modelMaxPromptTokens: 2048 }, this.gpt4oTokenizer, undefined, undefined, 'none')
         const messages = convertToChatCompletionMessageParams(renderResult.messages)
         const abortController = new AbortController()
         const signal = abortController.signal
