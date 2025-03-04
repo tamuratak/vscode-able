@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { ToolResultDirectivePrompt } from '../prompt.js'
 import { type BasePromptElementProps, type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
-import { ableTools, getLmTools } from './tools.js'
+import { getLmTools } from './tools.js'
 
 
 export class CopilotChatHandler {
@@ -65,9 +65,7 @@ export class CopilotChatHandler {
                 stream.markdown(fragment.value)
                 responseStr += fragment.value
             } else if (fragment instanceof vscode.LanguageModelToolCallPart) {
-                if (ableTools.includes(fragment.name)) {
-                    toolCalls.push(fragment)
-                }
+                toolCalls.push(fragment)
             }
         }
         if (toolCalls.length > 0) {
