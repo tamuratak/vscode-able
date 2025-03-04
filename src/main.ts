@@ -4,6 +4,7 @@ import { registerCommands } from './commands.js'
 import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 import { PythonTool } from './lmtools/pyodide.js'
 import { EditTool } from './lmtools/edit.js'
+import { CountTool } from './lmtools/countcharacters.js'
 
 
 export class Extension {
@@ -50,7 +51,8 @@ export function activate(context: vscode.ExtensionContext) {
             void extension.activate()
         }),
         vscode.lm.registerTool('able_python', new PythonTool()),
-        vscode.lm.registerTool('able_edit', extension.getEditTool()),
+        vscode.lm.registerTool('able_replace_text', extension.getEditTool()),
+        vscode.lm.registerTool('able_count_characters', new CountTool()),
         ...registerCommands()
     )
 

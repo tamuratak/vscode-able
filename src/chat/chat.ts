@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { EditPrompt, FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import { type PromptElementCtor } from '@vscode/prompt-tsx'
-import { extractAbleHistory, getSelectedText } from './chatlib/utils.js'
+import { convertHistory, getSelectedText } from './chatlib/utils.js'
 import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 
@@ -131,7 +131,7 @@ export class ChatHandleManager {
             try {
                 this.outputChannel.info(JSON.stringify(request.references))
                 this.chatSession = new ChatSession(request)
-                const ableHistory = extractAbleHistory(context)
+                const ableHistory = convertHistory(context)
                 if (request.command === 'edit') {
                     const uri = this.chatSession.vscodeImplicitViewport?.uri
                     if (uri) {
