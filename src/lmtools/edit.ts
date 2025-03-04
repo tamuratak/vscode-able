@@ -34,7 +34,8 @@ export class EditTool implements LanguageModelTool<EditInput> {
                 this.chatHandleManager.outputChannel.error('EditTool currentInput is undefined')
                 return new LanguageModelToolResult([new LanguageModelTextPart('Edit failed')])
             }
-            if (currentInput !== options.input || currentInput.textToReplace !== options.input.textToReplace || currentInput.input !== options.input.input) {
+            const { file, textToReplace, input } = options.input
+            if (currentInput.file !== file || currentInput.textToReplace !== textToReplace || currentInput.input !== input) {
                 this.chatHandleManager.outputChannel.error('EditTool currentInput is not same as options.input')
                 return new LanguageModelToolResult([new LanguageModelTextPart('Edit failed')])
             }
