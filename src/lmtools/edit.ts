@@ -35,11 +35,9 @@ export class EditTool implements LanguageModelTool<EditInput> {
             if (currentInput !== options.input || currentInput.textToReplace !== options.input.textToReplace || currentInput.input !== options.input.input) {
                 throw new Error('Input has changed')
             }
-//            const { uri, range } = this.currentInput
             this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
             this.clearCurrentSession()
-            //        const document = await vscode.workspace.openTextDocument(uri)
-            //        const range = await this.getRangeToReplace(options.input.textToReplace)
+            // TODO: implement the edit
             return new LanguageModelToolResult([new LanguageModelTextPart('Edit succeeded')])
         } finally {
             this.clearCurrentSession()
@@ -57,11 +55,11 @@ export class EditTool implements LanguageModelTool<EditInput> {
         if (!range) {
             return undefined
         }
-        this.setCurrentInput({ ...options.input, range, uri })
         const editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uri.toString())
         if (!editor) {
             return undefined
         }
+        this.setCurrentInput({ ...options.input, range, uri })
         editor.setDecorations(decoration, [range])
         this.setDecorationDisposer(() => editor.setDecorations(decoration, []))
         token.onCancellationRequested(() => this.clearCurrentSession())
