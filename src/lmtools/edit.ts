@@ -36,13 +36,15 @@ export class EditTool implements LanguageModelTool<EditInput> {
         this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
         const uri = this.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
         if (!uri) {
-            throw new Error('No chat session')
+            return undefined
         }
         const range = await this.getRangeToReplace(options.input.textToReplace)
+        if (!range) {
+            return undefined
+        }
         const editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uri.toString())
-
         if (!editor) {
-            throw new Error('Editor not found for the specified document')
+            return undefined
         }
         editor.setDecorations(decoration, [range])
         this.setDecorationDisposer(() => editor.setDecorations(decoration, []))
@@ -65,17 +67,17 @@ export class EditTool implements LanguageModelTool<EditInput> {
         this.decorationDisposer = disposer
     }
 
-    private async getRangeToReplace(textToReplace: string) {
+    private async getRangeToReplace(textToReplace: string): Promise<vscode.Range | undefined> {
         const uri = this.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
         if (!uri) {
-            throw new Error('No chat session')
+            return undefined
         }
         const document = await vscode.workspace.openTextDocument(uri)
         const ranges = getRangeToReplace(document, textToReplace)
-        if (ranges.length > 1) {
-            throw new Error('Multiple ranges found')
+        if (ranges.length === 1) {
+            return ranges[0]
         }
-        return ranges[0]
+        return undefined
     }
 
 }
