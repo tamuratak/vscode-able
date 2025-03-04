@@ -90,7 +90,7 @@
         }
       },
       {
-        "name": "able_edit",
+        "name": "able_replace_text",
         "tags": [
           "Text Editing"
         ],

@@ -50,7 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
             void extension.activate()
         }),
         vscode.lm.registerTool('able_python', new PythonTool()),
-        vscode.lm.registerTool('able_edit', extension.getEditTool()),
+        vscode.lm.registerTool('able_replace_text', extension.getEditTool()),
         ...registerCommands()
     )
 

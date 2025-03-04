@@ -294,7 +294,7 @@ export class EditPrompt extends PromptElement<EditPromptProps> {
             <>
                 <UserMessage>
                     Instructions:<br />
-                    - When editing a file, please use able_edit.
+                    - When editing a file, please use able_replace_text.
                 </UserMessage>
                 <UserMessage>
                     {this.props.input}
