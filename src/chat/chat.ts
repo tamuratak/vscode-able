@@ -142,7 +142,14 @@ export class ChatHandleManager {
                     const uri = this.chatSession.vscodeImplicitViewport?.uri
                     if (uri) {
                         const document = await vscode.workspace.openTextDocument(uri)
-                        await this.copilotChatHandler.copilotChatResponse(token, request, EditPrompt, { history: ableHistory, input: request.prompt, uri: uri.toString(), content: document.getText() }, stream)
+                        await this.copilotChatHandler.copilotChatResponse(
+                            token,
+                            request,
+                            EditPrompt,
+                            { history: ableHistory, input: request.prompt, uri: uri.toString(), content: document.getText() },
+                            stream,
+                            request.model
+                        )
                     }
                     return
                 } else if (request.command === 'fluent') {
