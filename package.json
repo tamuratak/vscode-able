@@ -14,6 +14,9 @@
   "engines": {
     "vscode": "^1.95.0"
   },
+  "enabledApiProposals": [
+    "chatParticipantAdditions"
+  ],
   "files": [
     "pyodide/pyodide/*.json",
     "pyodide/pyodide/*.ts",

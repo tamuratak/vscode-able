@@ -109,7 +109,8 @@ export default tseslint.config(
             "node_modules/",
             "out/",
             "pyodide*/",
-            ".*/"
+            ".*/",
+            "*.d.ts",
         ],
     },
     eslint.configs.recommended,
