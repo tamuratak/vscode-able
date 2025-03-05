@@ -5,3 +5,4 @@
 - When using Node.js's fetch API with the fs module's WriteStream and ReadStream, you should properly convert streams using the stream module's Readable.toWeb, Readable.fromWeb, Writable.toWeb, and Writable.fromWeb.
 - Use `for (const ... of ...)` instead of `Array.prototype.forEach`.
 - Avoid overusing `Array.prototype.map`.
+- Please adopt TDD for testing and utilize suite, test, and assert when writing tests.

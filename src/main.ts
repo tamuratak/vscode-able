@@ -7,17 +7,18 @@ import { EditTool } from './lmtools/edit.js'
 import { CountTool } from './lmtools/countcharacters.js'
 
 
-export class Extension {
-    private readonly handler: ChatHandleManager
-    private readonly editTool: EditTool
+class Extension {
+    readonly chatHandleManager: ChatHandleManager
+    readonly editTool: EditTool
+    readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
 
     constructor(public readonly openAiServiceId: string) {
-        this.handler = new ChatHandleManager(openAiServiceId)
-        this.editTool = new EditTool(this.handler)
+        this.chatHandleManager = new ChatHandleManager(openAiServiceId, this)
+        this.editTool = new EditTool(this)
     }
 
     getChatHandler() {
-        return this.handler.getHandler()
+        return this.chatHandleManager.getHandler()
     }
 
     getEditTool() {
@@ -25,11 +26,11 @@ export class Extension {
     }
 
     quickPickModel() {
-        return this.handler.quickPickModel()
+        return this.chatHandleManager.quickPickModel()
     }
 
     async activate() {
-        await this.handler.initGpt4oMini()
+        await this.chatHandleManager.initGpt4oMini()
     }
 
 }

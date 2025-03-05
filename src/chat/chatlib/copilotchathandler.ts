@@ -2,14 +2,16 @@ import * as vscode from 'vscode'
 import { ToolResultDirectivePrompt } from '../prompt.js'
 import { type BasePromptElementProps, type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { getLmTools } from './tools.js'
+import type { EditTool } from '../../lmtools/edit.js'
 
 
 export class CopilotChatHandler {
     copilotModelFamily = 'gpt-4o-mini'
 
-    constructor(
-        private readonly outputChannel: vscode.LogOutputChannel
-    ) { }
+    constructor(readonly extension: {
+        readonly outputChannel: vscode.LogOutputChannel
+        readonly editTool: EditTool
+    }) { }
 
     async copilotChatResponse<P extends BasePromptElementProps, S>(
         token: vscode.CancellationToken,
@@ -30,13 +32,13 @@ export class CopilotChatHandler {
             throw new Error('Copilot model is not loaded')
         }
         const { messages } = await renderPrompt(ctor, props, { modelMaxPromptTokens: 2048 }, model)
-        this.outputChannel.info('Copilot chat response', JSON.stringify(messages, null, 2))
+        this.extension.outputChannel.info('Copilot chat response', JSON.stringify(messages, null, 2))
         const tools = getLmTools()
         const chatResponse = await model.sendRequest(
             messages, { tools }, token
         ).then(r => r, e => {
             if (e instanceof Error) {
-                this.outputChannel.error(e, messages)
+                this.extension.outputChannel.error(e, messages)
             }
             throw e
         })
@@ -76,11 +78,15 @@ export class CopilotChatHandler {
                     { input: fragment.input, toolInvocationToken: request.toolInvocationToken }, token
                 ).then(r => r, e => {
                     if (e instanceof Error) {
-                        this.outputChannel.error(e, fragment)
+                        this.extension.outputChannel.error(e, fragment)
                     } else {
-                        this.outputChannel.error('Unknown error', e, fragment)
+                        this.extension.outputChannel.error('Unknown error', e, fragment)
                     }
-                    return undefined
+                    if (fragment.name === 'able_replace_text') {
+                        this.extension.editTool.clearCurrentSession()
+                    }
+                    // TODO
+                    throw e
                 })
                 if (result === undefined) {
                     continue
@@ -104,7 +110,7 @@ export class CopilotChatHandler {
                 directive.messages, { tools }, token
             ).then(r => r, e => {
                 if (e instanceof Error) {
-                    this.outputChannel.error(e, directive.messages)
+                    this.extension.outputChannel.error(e, directive.messages)
                 }
                 throw e
             })

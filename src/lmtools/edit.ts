@@ -1,5 +1,5 @@
 import { LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult } from 'vscode'
-import { ChatHandleManager } from '../chat/chat.js'
+import type { ChatHandleManager } from '../chat/chat.js'
 import { getRangeToReplace } from './editlib/getrange.js'
 import * as vscode from 'vscode'
 
@@ -24,22 +24,35 @@ export class EditTool implements LanguageModelTool<EditInput> {
     private decorationDisposer?: (() => void) | undefined
     private currentInput: CurrentInput | undefined
 
-    constructor(private readonly chatHandleManager: ChatHandleManager) { }
+    constructor(private readonly extension: {
+        readonly outputChannel: vscode.LogOutputChannel
+        readonly chatHandleManager: ChatHandleManager
+    }) { }
 
-    invoke(options: LanguageModelToolInvocationOptions<EditInput>) {
+    async invoke(options: LanguageModelToolInvocationOptions<EditInput>) {
         try {
-            this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
+            this.extension.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
             const currentInput = this.currentInput
             if (!currentInput) {
-                this.chatHandleManager.outputChannel.error('EditTool currentInput is undefined')
+                this.extension.outputChannel.error('EditTool currentInput is undefined')
                 return new LanguageModelToolResult([new LanguageModelTextPart('Edit failed')])
             }
-            if (currentInput !== options.input || currentInput.textToReplace !== options.input.textToReplace || currentInput.input !== options.input.input) {
-                this.chatHandleManager.outputChannel.error('EditTool currentInput is not same as options.input')
+            const { file, textToReplace, input } = options.input
+            if (currentInput.file !== file || currentInput.textToReplace !== textToReplace || currentInput.input !== input) {
+                this.extension.outputChannel.error('EditTool currentInput is not same as options.input')
                 return new LanguageModelToolResult([new LanguageModelTextPart('Edit failed')])
             }
             this.clearCurrentSession()
-            // TODO: implement the edit
+            const { uri, range } = currentInput
+            const editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uri.toString())
+            if (!editor) {
+                this.extension.outputChannel.error('EditTool editor is undefined')
+                return new LanguageModelToolResult([new LanguageModelTextPart('Edit failed')])
+            }
+            await editor.edit(editBuilder => {
+                editBuilder.replace(range, input)
+            })
+            this.extension.outputChannel.info('EditTool edit was successful');
             return new LanguageModelToolResult([new LanguageModelTextPart('Edit succeeded')])
         } finally {
             this.clearCurrentSession()
@@ -47,9 +60,9 @@ export class EditTool implements LanguageModelTool<EditInput> {
     }
 
     async prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<EditInput>, token: vscode.CancellationToken) {
-
-        this.chatHandleManager.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
-        const uri = this.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
+        this.clearCurrentSession()
+        this.extension.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
+        const uri = this.extension.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
         if (!uri) {
             return undefined
         }
@@ -63,6 +76,7 @@ export class EditTool implements LanguageModelTool<EditInput> {
         }
         this.setCurrentInput({ ...options.input, range, uri })
         editor.setDecorations(decoration, [range])
+        editor.revealRange(range, vscode.TextEditorRevealType.InCenter)
         this.setDecorationDisposer(() => editor.setDecorations(decoration, []))
         token.onCancellationRequested(() => this.clearCurrentSession())
         return {
@@ -78,7 +92,7 @@ export class EditTool implements LanguageModelTool<EditInput> {
         this.currentInput = input
     }
 
-    private clearCurrentSession() {
+    clearCurrentSession() {
         this.decorationDisposer?.();
         this.decorationDisposer = undefined;
         this.currentInput = undefined
@@ -89,7 +103,7 @@ export class EditTool implements LanguageModelTool<EditInput> {
     }
 
     private async getRangeToReplace(textToReplace: string): Promise<vscode.Range | undefined> {
-        const uri = this.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
+        const uri = this.extension.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
         if (!uri) {
             return undefined
         }

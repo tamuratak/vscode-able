@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
-import { HistoryEntry } from '../prompt.js'
-import { ChatMessage, ChatRole } from '@vscode/prompt-tsx'
+import type { HistoryEntry } from '../prompt.js'
+import { type ChatMessage, ChatRole } from '@vscode/prompt-tsx'
 import type { ChatCompletionMessageParam } from 'openai/resources/index'
 
 export async function getSelectedText(request: vscode.ChatRequest) {
