@@ -5,7 +5,7 @@ import * as vscode from 'vscode'
 
 
 interface EditInput {
-    file?: string | undefined,
+    file: string,
     textToReplace: string,
     input: string
 }
@@ -64,14 +64,17 @@ export class EditTool implements LanguageModelTool<EditInput> {
         this.extension.outputChannel.debug(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
         const uri = this.extension.chatHandleManager.getChatSession()?.vscodeImplicitReference?.uri
         if (!uri) {
+            this.extension.outputChannel.error('vscodeImplicitReference uri is undefined')
             return undefined
         }
         const range = await this.getRangeToReplace(options.input.textToReplace)
         if (!range) {
+            this.extension.outputChannel.error('EditTool range is undefined')
             return undefined
         }
         const editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uri.toString())
         if (!editor) {
+            this.extension.outputChannel.error('Cannot find editor for uri')
             return undefined
         }
         this.setCurrentInput({ ...options.input, range, uri })
@@ -82,7 +85,7 @@ export class EditTool implements LanguageModelTool<EditInput> {
         return {
             confirmationMessages: {
                 title: 'Edit file?',
-                message: new vscode.MarkdownString(`Edit file ${uri.toString()}?`)
+                message: new vscode.MarkdownString(`Edit file ${uri.toString()}\n\n\`\`\`${editor.document.languageId}\n${options.input.input}\n\`\`\``),
             },
             invocationMessage: 'Editing file...'
         }
@@ -116,3 +119,14 @@ export class EditTool implements LanguageModelTool<EditInput> {
     }
 
 }
+
+/*
+    "startOffset": {
+        "type": "number",
+            "description": "The start offset of the text to replace. If the range to be replaced begins at the start of the file, this should be 0. You can use able_count_characters to get the offset. This is optional."
+    },
+    "endOffset": {
+        "type": "number",
+            "description": "The end offset of the text to replace. This should reference the position after the last character that you want to replace. This is optional."
+    }
+*/
