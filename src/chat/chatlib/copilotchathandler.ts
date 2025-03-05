@@ -8,7 +8,7 @@ import type { EditTool } from '../../lmtools/edit.js'
 export class CopilotChatHandler {
     copilotModelFamily = 'gpt-4o-mini'
 
-    constructor(readonly extension: {
+    constructor(private readonly extension: {
         readonly outputChannel: vscode.LogOutputChannel
         readonly editTool: EditTool
     }) { }

@@ -47,12 +47,12 @@ class ChatSession {
 export class ChatHandleManager {
     private vendor = ChatVendor.Copilot
 
-    readonly copilotChatHandler: CopilotChatHandler
-    readonly openaiApiChatHandler: OpenAiApiChatHandler
+    private readonly copilotChatHandler: CopilotChatHandler
+    private readonly openaiApiChatHandler: OpenAiApiChatHandler
     private chatSession: ChatSession | undefined
 
     constructor(openAiServiceId: string,
-        readonly extension: {
+        private readonly extension: {
             readonly outputChannel: vscode.LogOutputChannel,
             readonly editTool: EditTool
         }
