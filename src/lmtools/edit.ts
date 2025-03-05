@@ -5,7 +5,7 @@ import * as vscode from 'vscode'
 
 
 interface EditInput {
-    file?: string | undefined,
+    file: string,
     textToReplace: string,
     input: string
 }
@@ -116,3 +116,14 @@ export class EditTool implements LanguageModelTool<EditInput> {
     }
 
 }
+
+/*
+    "startOffset": {
+        "type": "number",
+            "description": "The start offset of the text to replace. If the range to be replaced begins at the start of the file, this should be 0. You can use able_count_characters to get the offset. This is optional."
+    },
+    "endOffset": {
+        "type": "number",
+            "description": "The end offset of the text to replace. This should reference the position after the last character that you want to replace. This is optional."
+    }
+*/
