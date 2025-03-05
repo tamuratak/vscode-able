@@ -138,7 +138,7 @@ export class ChatHandleManager {
             token: vscode.CancellationToken
         ) => {
             try {
-                this.extension.outputChannel.info(JSON.stringify(request.references))
+                this.extension.outputChannel.debug(JSON.stringify(request.references))
                 this.chatSession = new ChatSession(request)
                 const ableHistory = convertHistory(context)
                 if (request.command === 'edit') {
