@@ -5,6 +5,7 @@ import { convertHistory, getSelectedText } from './chatlib/utils.js'
 import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import type { EditTool } from '../lmtools/edit.js'
+import { vscodeImplicitSelectionId, vscodeImplicitViewportId } from './chatlib/constants.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -14,28 +15,30 @@ enum ChatVendor {
     OpenAiApi = 'openai_api',
 }
 
+interface VscodeImplicitReference {
+    type: 'selection' | 'viewport'
+    uri: vscode.Uri
+    range: vscode.Range
+}
+
 class ChatSession {
-    readonly vscodeImplicitViewport?: { uri: vscode.Uri, range?: vscode.Range | undefined }
+    readonly vscodeImplicitReference?: VscodeImplicitReference | undefined
     readonly references: readonly vscode.ChatPromptReference[]
     readonly prompt: string
 
     constructor(request: vscode.ChatRequest) {
         this.references = request.references
         this.prompt = request.prompt
-        const vscodeImplicitViewport = request.references.find(ref => ref.id === 'vscode.implicit.viewport')
-        if (vscodeImplicitViewport) {
-            let uri: vscode.Uri | undefined
-            let range: vscode.Range | undefined
-            if (vscodeImplicitViewport.value instanceof vscode.Uri) {
-                uri = vscodeImplicitViewport.value
-            } else if (vscodeImplicitViewport.value instanceof vscode.Location) {
-                uri = vscodeImplicitViewport.value.uri
-                range = vscodeImplicitViewport.value.range
-            } else if (typeof vscodeImplicitViewport.value === 'string') {
-                uri = vscode.Uri.parse(vscodeImplicitViewport.value)
-            }
-            if (uri) {
-                this.vscodeImplicitViewport = { uri, range }
+        const vscodeImplicitReference = request.references.find(ref => {
+            return [vscodeImplicitViewportId, vscodeImplicitSelectionId].includes(ref.id)
+        })
+        if (vscodeImplicitReference) {
+            if (vscodeImplicitReference.value instanceof vscode.Location) {
+                const { uri, range } = vscodeImplicitReference.value
+                const type = vscodeImplicitReference.id === vscodeImplicitViewportId ? 'viewport' : 'selection'
+                this.vscodeImplicitReference = { uri, range, type }
+            } else {
+                throw new Error('vscodeImplicitReference is not a Location. Should not happen.')
             }
         }
     }
@@ -135,14 +138,21 @@ export class ChatHandleManager {
             token: vscode.CancellationToken
         ) => {
             try {
-                this.extension.outputChannel.info(JSON.stringify(request.references))
+                this.extension.outputChannel.debug(JSON.stringify(request.references))
                 this.chatSession = new ChatSession(request)
                 const ableHistory = convertHistory(context)
                 if (request.command === 'edit') {
-                    const uri = this.chatSession.vscodeImplicitViewport?.uri
+                    const uri = this.chatSession.vscodeImplicitReference?.uri
                     if (uri) {
                         const document = await vscode.workspace.openTextDocument(uri)
-                        await this.copilotChatHandler.copilotChatResponse(token, request, EditPrompt, { history: ableHistory, input: request.prompt, uri: uri.toString(), content: document.getText() }, stream)
+                        await this.copilotChatHandler.copilotChatResponse(
+                            token,
+                            request,
+                            EditPrompt,
+                            { history: ableHistory, input: request.prompt, uri: uri.toString(), content: document.getText() },
+                            stream,
+                            request.model
+                        )
                     }
                     return
                 } else if (request.command === 'fluent') {

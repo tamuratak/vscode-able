@@ -31,7 +31,7 @@ export class EditTool implements LanguageModelTool<EditInput> {
 
     async invoke(options: LanguageModelToolInvocationOptions<EditInput>) {
         try {
-            this.extension.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
+            this.extension.outputChannel.debug(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
             const currentInput = this.currentInput
             if (!currentInput) {
                 this.extension.outputChannel.error('EditTool currentInput is undefined')
@@ -61,8 +61,8 @@ export class EditTool implements LanguageModelTool<EditInput> {
 
     async prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<EditInput>, token: vscode.CancellationToken) {
         this.clearCurrentSession()
-        this.extension.outputChannel.info(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
-        const uri = this.extension.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
+        this.extension.outputChannel.debug(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
+        const uri = this.extension.chatHandleManager.getChatSession()?.vscodeImplicitReference?.uri
         if (!uri) {
             return undefined
         }
@@ -103,7 +103,7 @@ export class EditTool implements LanguageModelTool<EditInput> {
     }
 
     private async getRangeToReplace(textToReplace: string): Promise<vscode.Range | undefined> {
-        const uri = this.extension.chatHandleManager.getChatSession()?.vscodeImplicitViewport?.uri
+        const uri = this.extension.chatHandleManager.getChatSession()?.vscodeImplicitReference?.uri
         if (!uri) {
             return undefined
         }
