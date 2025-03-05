@@ -82,8 +82,11 @@ export class CopilotChatHandler {
                     } else {
                         this.extension.outputChannel.error('Unknown error', e, fragment)
                     }
+                    // When edit canceled, or edit failed.
                     if (fragment.name === 'able_replace_text') {
                         this.extension.editTool.clearCurrentSession()
+                        // TODO
+                        // return LanguageModelToolResult if appropriate
                     }
                     // TODO
                     throw e
@@ -97,6 +100,9 @@ export class CopilotChatHandler {
                         ret.push(part.value)
                     } else if (part instanceof vscode.LanguageModelPromptTsxPart) {
                         // TODO
+                    } else {
+                        // TODO
+                        // part would be instanceof MyCustomResultPart
                     }
                 }
                 const toolResultPart = new vscode.LanguageModelToolResultPart(fragment.callId, [new vscode.LanguageModelTextPart(ret.join(''))])
