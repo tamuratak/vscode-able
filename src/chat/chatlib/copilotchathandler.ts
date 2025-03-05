@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import { ToolResultDirectivePrompt } from '../prompt.js'
 import { type BasePromptElementProps, type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { getLmTools } from './tools.js'
-import { EditTool } from '../../lmtools/edit.js'
+import type { EditTool } from '../../lmtools/edit.js'
 
 
 export class CopilotChatHandler {

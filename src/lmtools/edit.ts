@@ -1,5 +1,5 @@
 import { LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult } from 'vscode'
-import { ChatHandleManager } from '../chat/chat.js'
+import type { ChatHandleManager } from '../chat/chat.js'
 import { getRangeToReplace } from './editlib/getrange.js'
 import * as vscode from 'vscode'
 

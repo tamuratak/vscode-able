@@ -7,7 +7,7 @@ import { EditTool } from './lmtools/edit.js'
 import { CountTool } from './lmtools/countcharacters.js'
 
 
-export class Extension {
+class Extension {
     readonly chatHandleManager: ChatHandleManager
     readonly editTool: EditTool
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })

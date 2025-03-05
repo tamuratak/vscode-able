@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { HistoryEntry, InputProps } from '../prompt.js'
+import type { HistoryEntry, InputProps } from '../prompt.js'
 import { type PromptElementCtor, renderPrompt, type ToolCall } from '@vscode/prompt-tsx'
 import { ExternalPromise } from '../../utils/externalpromise.js'
 import { OpenAI } from 'openai'
@@ -8,7 +8,7 @@ import { convertToChatCompletionMessageParams } from './utils.js'
 import type { Stream } from 'openai/streaming.mjs'
 import type { ChatCompletionChunk, ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/index.mjs'
 import { getLmTools } from './tools.js'
-import { EditTool } from '../../lmtools/edit.js'
+import type { EditTool } from '../../lmtools/edit.js'
 
 
 export class OpenAiApiChatHandler {
