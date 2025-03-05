@@ -2,10 +2,11 @@ import * as vscode from 'vscode'
 import type { HistoryEntry } from '../prompt.js'
 import { type ChatMessage, ChatRole } from '@vscode/prompt-tsx'
 import type { ChatCompletionMessageParam } from 'openai/resources/index'
+import { vscodeImplicitSelectionId } from './constants.js'
 
 export async function getSelectedText(request: vscode.ChatRequest) {
     for (const ref of request.references) {
-        if (ref.id === 'vscode.implicit.selection') {
+        if (ref.id === vscodeImplicitSelectionId) {
             const { uri, range } = ref.value as { uri: vscode.Uri, range: vscode.Range }
             const doc = await vscode.workspace.openTextDocument(uri)
             return doc.getText(range)
@@ -20,7 +21,7 @@ export function convertHistory(context: vscode.ChatContext): HistoryEntry[] {
         if (hist.participant === 'able.chatParticipant') {
             if (hist.command === 'fluent' || hist.command === 'fluent_ja' || hist.command === 'to_en' || hist.command === 'to_ja') {
                 if (hist instanceof vscode.ChatRequestTurn) {
-                    if (!hist.references.find((ref) => ref.id === 'vscode.implicit.selection')) {
+                    if (!hist.references.find((ref) => ref.id === vscodeImplicitSelectionId)) {
                         history.push({ type: 'user', command: hist.command, text: hist.prompt })
                     }
                 } else {

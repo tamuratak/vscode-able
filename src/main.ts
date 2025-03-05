@@ -10,11 +10,13 @@ import { CountTool } from './lmtools/countcharacters.js'
 class Extension {
     readonly chatHandleManager: ChatHandleManager
     readonly editTool: EditTool
+    readonly countTool: CountTool
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
 
     constructor(public readonly openAiServiceId: string) {
         this.chatHandleManager = new ChatHandleManager(openAiServiceId, this)
         this.editTool = new EditTool(this)
+        this.countTool = new CountTool(this)
     }
 
     getChatHandler() {
@@ -23,6 +25,10 @@ class Extension {
 
     getEditTool() {
         return this.editTool
+    }
+
+    getCountTool() {
+        return this.countTool
     }
 
     quickPickModel() {
@@ -53,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.lm.registerTool('able_replace_text', extension.getEditTool()),
-        vscode.lm.registerTool('able_count_characters', new CountTool()),
+        vscode.lm.registerTool('able_count_characters', extension.getCountTool()),
         ...registerCommands()
     )
 
