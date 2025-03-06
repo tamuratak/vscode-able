@@ -86,9 +86,10 @@ export class CopilotChatHandler {
                     if (fragment.name === 'able_replace_text') {
                         this.extension.editTool.clearCurrentSession()
                         // TODO
-                        // return LanguageModelToolResult if appropriate
+                        // check if the error is EditToolError class
+                        // if range or uri is undefined, tell LLM to retry with a new better request. return LanguageModelToolResult.
+                        // else throw error.
                     }
-                    // TODO
                     throw e
                 })
                 if (result === undefined) {
