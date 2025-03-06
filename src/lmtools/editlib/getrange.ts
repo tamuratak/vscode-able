@@ -1,5 +1,6 @@
 import * as vscode from 'vscode'
 
+// TODO: use findBestMatches
 export function getRangeToReplace(document: vscode.TextDocument, textToReplace: string) {
     const docString = document.getText()
     const indices: number[] = []

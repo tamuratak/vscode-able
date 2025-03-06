@@ -82,10 +82,14 @@ export class CopilotChatHandler {
                     } else {
                         this.extension.outputChannel.error('Unknown error', e, fragment)
                     }
+                    // When edit canceled, or edit failed.
                     if (fragment.name === 'able_replace_text') {
                         this.extension.editTool.clearCurrentSession()
+                        // TODO
+                        // check if the error is EditToolError class
+                        // if range or uri is undefined, tell LLM to retry with a new better request. return LanguageModelToolResult.
+                        // else throw error.
                     }
-                    // TODO
                     throw e
                 })
                 if (result === undefined) {
@@ -97,6 +101,9 @@ export class CopilotChatHandler {
                         ret.push(part.value)
                     } else if (part instanceof vscode.LanguageModelPromptTsxPart) {
                         // TODO
+                    } else {
+                        // TODO
+                        // part would be instanceof MyCustomResultPart
                     }
                 }
                 const toolResultPart = new vscode.LanguageModelToolResultPart(fragment.callId, [new vscode.LanguageModelTextPart(ret.join(''))])
