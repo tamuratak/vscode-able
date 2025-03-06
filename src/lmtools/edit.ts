@@ -1,7 +1,7 @@
 import { LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult } from 'vscode'
-import type { ChatHandleManager } from '../chat/chat.js'
 import { getRangeToReplace } from './editlib/getrange.js'
 import * as vscode from 'vscode'
+import { findWorkspaceFileUri } from './editlib/uri.js'
 
 
 interface EditInput {
@@ -39,7 +39,6 @@ export class EditTool implements LanguageModelTool<EditInput> {
 
     constructor(private readonly extension: {
         readonly outputChannel: vscode.LogOutputChannel
-        readonly chatHandleManager: ChatHandleManager
     }) { }
 
     async invoke(options: LanguageModelToolInvocationOptions<EditInput>) {
@@ -87,11 +86,11 @@ export class EditTool implements LanguageModelTool<EditInput> {
     async prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<EditInput>, token: vscode.CancellationToken) {
         this.clearCurrentSession()
         this.extension.outputChannel.debug(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
-        // TODO: use findWorkspaceFileUri
-        const uri = this.extension.chatHandleManager.getChatSession()?.vscodeImplicitReference?.uri
+        const uri = await findWorkspaceFileUri(options.input.file)
         if (!uri) {
-            this.extension.outputChannel.error('vscodeImplicitReference uri is undefined')
-            throw new EditToolError('vscodeImplicitReference uri is undefined', {
+            const message = `findWorkspaceFileUri Cannot find file ${options.input.file}`
+            this.extension.outputChannel.error(message)
+            throw new EditToolError(message, {
                 type: 'uri_is_undefined',
                 uri,
                 range: undefined,
@@ -99,8 +98,9 @@ export class EditTool implements LanguageModelTool<EditInput> {
         }
         const range = await this.getRangeToReplace(uri, options.input.textToReplace)
         if (!range) {
-            this.extension.outputChannel.error('Range to replace cannot be determined')
-            throw new EditToolError('Range to replace cannot be determined', {
+            const message = 'Range to replace cannot be determined'
+            this.extension.outputChannel.error(message)
+            throw new EditToolError(message, {
                 type: 'range_not_found',
                 uri,
                 range,
@@ -108,8 +108,9 @@ export class EditTool implements LanguageModelTool<EditInput> {
         }
         const editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uri.toString())
         if (!editor) {
-            this.extension.outputChannel.error('Cannot find editor for uri')
-            throw new EditToolError('Cannot find editor for uri', {
+            const message = `Cannot find editor for ${uri.toString()}`
+            this.extension.outputChannel.error(message)
+            throw new EditToolError(message, {
                 type: 'editor_not_found',
                 uri,
                 range,
