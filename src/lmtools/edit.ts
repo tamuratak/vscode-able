@@ -1,7 +1,7 @@
 import { LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult } from 'vscode'
 import { getRangeToReplace } from './editlib/getrange.js'
 import * as vscode from 'vscode'
-import { findWorkspaceFileUri } from './editlib/uri.js'
+import { findWorkspaceFileUri } from '../utils/uri.js'
 
 
 interface EditInput {

@@ -1,11 +1,12 @@
 import * as vscode from 'vscode'
 import { EditPrompt, FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
-import { convertHistory, getSelectedText } from './chatlib/utils.js'
+import { convertHistory } from './chatlib/utils.js'
 import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import type { EditTool } from '../lmtools/edit.js'
 import { vscodeImplicitSelectionId, vscodeImplicitViewportId } from './chatlib/constants.js'
+import { getSelectedText } from './chatlib/referenceutils.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -129,7 +130,7 @@ export class ChatHandleManager {
             void vscode.window.showErrorMessage('Failed to select chat model.')
         }
     }
-
+// id === file:///, vscode.file,
     getHandler(): vscode.ChatRequestHandler {
         return async (
             request: vscode.ChatRequest,
