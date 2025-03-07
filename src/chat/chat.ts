@@ -5,8 +5,8 @@ import { convertHistory } from './chatlib/utils.js'
 import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import type { EditTool } from '../lmtools/edit.js'
-import { vscodeImplicitSelectionId, vscodeImplicitViewportId } from './chatlib/constants.js'
 import { getSelectedText } from './chatlib/referenceutils.js'
+import { EditCommand } from './chatlib/editcommand.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -16,33 +16,15 @@ enum ChatVendor {
     OpenAiApi = 'openai_api',
 }
 
-interface VscodeImplicitReference {
-    type: 'selection' | 'viewport'
-    uri: vscode.Uri
-    range: vscode.Range
-}
-
 class ChatSession {
-    readonly vscodeImplicitReference?: VscodeImplicitReference | undefined
     readonly references: readonly vscode.ChatPromptReference[]
     readonly prompt: string
 
     constructor(request: vscode.ChatRequest) {
         this.references = request.references
         this.prompt = request.prompt
-        const vscodeImplicitReference = request.references.find(ref => {
-            return [vscodeImplicitViewportId, vscodeImplicitSelectionId].includes(ref.id)
-        })
-        if (vscodeImplicitReference) {
-            if (vscodeImplicitReference.value instanceof vscode.Location) {
-                const { uri, range } = vscodeImplicitReference.value
-                const type = vscodeImplicitReference.id === vscodeImplicitViewportId ? 'viewport' : 'selection'
-                this.vscodeImplicitReference = { uri, range, type }
-            } else {
-                throw new Error('vscodeImplicitReference is not a Location. Should not happen.')
-            }
-        }
     }
+
 }
 
 export class ChatHandleManager {
@@ -51,6 +33,7 @@ export class ChatHandleManager {
     private readonly copilotChatHandler: CopilotChatHandler
     private readonly openaiApiChatHandler: OpenAiApiChatHandler
     private chatSession: ChatSession | undefined
+    private readonly editCommand: EditCommand
 
     constructor(openAiServiceId: string,
         private readonly extension: {
@@ -60,6 +43,7 @@ export class ChatHandleManager {
     ) {
         this.copilotChatHandler = new CopilotChatHandler(extension)
         this.openaiApiChatHandler = new OpenAiApiChatHandler(openAiServiceId, extension)
+        this.editCommand = new EditCommand(extension)
         this.extension.outputChannel.info('ChatHandleManager initialized')
     }
 
@@ -130,7 +114,7 @@ export class ChatHandleManager {
             void vscode.window.showErrorMessage('Failed to select chat model.')
         }
     }
-// id === file:///, vscode.file,
+
     getHandler(): vscode.ChatRequestHandler {
         return async (
             request: vscode.ChatRequest,
@@ -143,7 +127,7 @@ export class ChatHandleManager {
                 this.chatSession = new ChatSession(request)
                 const ableHistory = convertHistory(context)
                 if (request.command === 'edit') {
-                    const uri = this.chatSession.vscodeImplicitReference?.uri
+                    const uri = this.editCommand.findTargetFile(request)
                     if (uri) {
                         const document = await vscode.workspace.openTextDocument(uri)
                         await this.copilotChatHandler.copilotChatResponse(
