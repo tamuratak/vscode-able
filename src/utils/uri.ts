@@ -31,7 +31,7 @@ export async function findWorkspaceFileUri(file: string): Promise<vscode.Uri | u
 export function toUri(file: string): vscode.Uri | undefined {
     let uri: vscode.Uri | undefined
     try {
-        uri = vscode.Uri.parse(file)
+        uri = vscode.Uri.parse(file, true)
         return uri
     } catch { }
     if (path.isAbsolute(file)) {

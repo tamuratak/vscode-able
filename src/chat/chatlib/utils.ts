@@ -2,18 +2,8 @@ import * as vscode from 'vscode'
 import type { HistoryEntry } from '../prompt.js'
 import { type ChatMessage, ChatRole } from '@vscode/prompt-tsx'
 import type { ChatCompletionMessageParam } from 'openai/resources/index'
-import { vscodeImplicitSelectionId } from './constants.js'
+import { vscodeImplicitSelectionId } from './referenceutils.js'
 
-export async function getSelectedText(request: vscode.ChatRequest) {
-    for (const ref of request.references) {
-        if (ref.id === vscodeImplicitSelectionId) {
-            const { uri, range } = ref.value as { uri: vscode.Uri, range: vscode.Range }
-            const doc = await vscode.workspace.openTextDocument(uri)
-            return doc.getText(range)
-        }
-    }
-    return
-}
 
 export function convertHistory(context: vscode.ChatContext): HistoryEntry[] {
     const history: HistoryEntry[] = []
