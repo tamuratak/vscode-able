@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { vscodeFileId, vscodeImplicitSelectionId, vscodeImplicitViewportId, vscodeSelectionId } from './referenceutils.js'
+import { getLocationReferences, getUriRerefences, vscodeFileId, vscodeImplicitSelectionId, vscodeImplicitViewportId, vscodeSelectionId } from './referenceutils.js'
 
 
 export class EditCommand {
@@ -9,18 +9,18 @@ export class EditCommand {
     }) { }
 
     findTargetFile(request: vscode.ChatRequest): vscode.Uri | undefined {
-        const vscodeFiles = request.references.filter(ref => ref.id === vscodeFileId)
-        if (vscodeFiles.length > 1) {
+        const vscodeFiles = getUriRerefences(request).filter(ref => ref.id === vscodeFileId)
+        if (vscodeFiles.length === 1) {
+            return vscodeFiles[0].value
+        } else if (vscodeFiles.length > 1) {
             const message = '#file reference is duplicated. Should not happen.'
             this.extension.outputChannel.error(message)
             throw new Error(message)
         }
-        for (const ref of vscodeFiles) {
-            return ref.value as vscode.Uri
-        }
-        for (const ref of request.references) {
+        const locationRefs = getLocationReferences(request)
+        for (const ref of locationRefs) {
             if ([vscodeImplicitViewportId, vscodeImplicitSelectionId, vscodeSelectionId].includes(ref.id)) {
-                const { uri } = ref.value as { uri: vscode.Uri }
+                const { uri } = ref.value
                 return uri
             }
         }

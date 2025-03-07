@@ -24,3 +24,34 @@ export async function getSelectedText(request: vscode.ChatRequest) {
     }
     return
 }
+
+interface UriReference extends vscode.ChatPromptReference {
+    value: vscode.Uri
+}
+
+export function getUriRerefences(request: vscode.ChatRequest) {
+    const refs: UriReference[] = []
+    for (const ref of request.references) {
+        if (ref.value instanceof vscode.Uri) {
+            const value = ref.value
+            refs.push({...ref, value})
+
+        }
+    }
+    return refs
+}
+
+interface LocationReference extends vscode.ChatPromptReference {
+    value: vscode.Location
+}
+
+export function getLocationReferences(request: vscode.ChatRequest) {
+    const refs: LocationReference[] = []
+    for (const ref of request.references) {
+        if (ref.value instanceof vscode.Location) {
+            const value = ref.value
+            refs.push({...ref, value})
+        }
+    }
+    return refs
+}
