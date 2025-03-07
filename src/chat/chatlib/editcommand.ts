@@ -1,5 +1,6 @@
 import * as vscode from 'vscode'
-import { vscodeImplicitSelectionId, vscodeImplicitViewportId, vscodeSelectionId } from './constants.js'
+import { vscodeImplicitSelectionId, vscodeImplicitViewportId, vscodeSelectionId } from './referenceutils.js'
+
 
 export class EditCommand {
 

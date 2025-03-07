@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import type { HistoryEntry } from '../prompt.js'
 import { type ChatMessage, ChatRole } from '@vscode/prompt-tsx'
 import type { ChatCompletionMessageParam } from 'openai/resources/index'
-import { vscodeImplicitSelectionId } from './constants.js'
+import { vscodeImplicitSelectionId } from './referenceutils.js'
 
 
 export function convertHistory(context: vscode.ChatContext): HistoryEntry[] {
