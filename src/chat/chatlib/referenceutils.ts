@@ -7,10 +7,10 @@ export const vscodeImplicitViewportId = 'vscode.implicit.viewport'
 /** Reference id for user's active selection */
 export const vscodeImplicitSelectionId = 'vscode.implicit.selection'
 
-/** Reference id for #selection */
+/** Reference id for #selection reference*/
 export const vscodeSelectionId = 'vscode.selection'
 
-/** Reference id for #file */
+/** Reference id for #file reference*/
 export const vscodeFileId = 'vscode.file'
 
 
