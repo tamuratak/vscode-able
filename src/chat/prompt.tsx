@@ -292,7 +292,7 @@ export class EditPrompt extends PromptElement<EditPromptProps> {
                     {this.props.input}
                 </UserMessage>
                 <UserMessage>
-                    The following is the content of the file.<br /><br />
+                    The following is the content of the file to be edited.<br /><br />
                     <FilePrompt
                         uri={this.props.uri}
                         content={this.props.content}
