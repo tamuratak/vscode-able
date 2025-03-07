@@ -278,12 +278,16 @@ export class FilePrompt extends PromptElement<FilePromptProps> {
     }
 }
 
-interface EditPromptProps extends FilePromptProps, InputProps { }
+interface EditPromptProps extends InputProps {
+    target: FilePromptProps,
+    attachments?: FilePromptProps[] | undefined,
+ }
 
 export class EditPrompt extends PromptElement<EditPromptProps> {
     render(): PromptPiece {
         return (
             <>
+                <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     Instructions:<br />
                     - When editing a file, please use able_replace_text.
@@ -294,9 +298,9 @@ export class EditPrompt extends PromptElement<EditPromptProps> {
                 <UserMessage>
                     The following is the content of the file to be edited.<br /><br />
                     <FilePrompt
-                        uri={this.props.uri}
-                        content={this.props.content}
-                        metadata={this.props.metadata}
+                        uri={this.props.target.uri}
+                        content={this.props.target.content}
+                        metadata={this.props.target.metadata}
                     />
                 </UserMessage>
             </>

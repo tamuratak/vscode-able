@@ -125,7 +125,7 @@ export class ChatHandleManager {
             try {
                 this.extension.outputChannel.debug(JSON.stringify(request.references))
                 this.chatSession = new ChatSession(request)
-                const ableHistory = convertHistory(context)
+                const history = convertHistory(context)
                 if (request.command === 'edit') {
                     const uri = this.editCommand.findTargetFile(request)
                     if (uri) {
@@ -134,33 +134,40 @@ export class ChatHandleManager {
                             token,
                             request,
                             EditPrompt,
-                            { history: ableHistory, input: request.prompt, uri: uri.toString(), content: document.getText() },
+                            {
+                                history,
+                                input: request.prompt,
+                                target: {
+                                    uri: uri.toString(),
+                                    content: document.getText()
+                                }
+                            },
                             stream,
                             request.model
                         )
                     }
                     return
                 } else if (request.command === 'fluent') {
-                    const response = await this.responseWithSelection(token, request, FluentPrompt, ableHistory)
+                    const response = await this.responseWithSelection(token, request, FluentPrompt, history)
                     stream.markdown(response)
                     return
                 } else if (request.command === 'fluent_ja') {
-                    const response = await this.responseWithSelection(token, request, FluentJaPrompt, ableHistory)
+                    const response = await this.responseWithSelection(token, request, FluentJaPrompt, history)
                     stream.markdown(response)
                     return
                 } if (request.command === 'to_en') {
-                    const response = await this.responseWithSelection(token, request, ToEnPrompt, ableHistory)
+                    const response = await this.responseWithSelection(token, request, ToEnPrompt, history)
                     stream.markdown(response)
                     return
                 } else if (request.command === 'to_ja') {
-                    const response = await this.responseWithSelection(token, request, ToJaPrompt, ableHistory)
+                    const response = await this.responseWithSelection(token, request, ToJaPrompt, history)
                     stream.markdown(response)
                     return
                 } else {
                     if (this.vendor === ChatVendor.Copilot) {
-                        await this.copilotChatHandler.copilotChatResponse(token, request, SimplePrompt, { history: ableHistory, input: request.prompt }, stream, request.model)
+                        await this.copilotChatHandler.copilotChatResponse(token, request, SimplePrompt, { history, input: request.prompt }, stream, request.model)
                     } else {
-                        await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, SimplePrompt, ableHistory, stream)
+                        await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, SimplePrompt, history, stream)
                     }
                 }
             } finally {
