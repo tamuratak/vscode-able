@@ -106,7 +106,7 @@
           "properties": {
             "file": {
               "type": "string",
-              "description": "The file to edit"
+              "description": "The file to edit. This should be absolute path, starting with /."
             },
             "textToReplace": {
               "type": "string",

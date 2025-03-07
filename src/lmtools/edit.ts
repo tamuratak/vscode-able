@@ -88,7 +88,7 @@ export class EditTool implements LanguageModelTool<EditInput> {
         this.extension.outputChannel.debug(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
         const uri = await findWorkspaceFileUri(options.input.file)
         if (!uri) {
-            const message = `findWorkspaceFileUri Cannot find file ${options.input.file}`
+            const message = `findWorkspaceFileUri Cannot find file: ${options.input.file}`
             this.extension.outputChannel.error(message)
             throw new EditToolError(message, {
                 type: 'uri_is_undefined',
