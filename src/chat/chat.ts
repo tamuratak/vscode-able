@@ -138,7 +138,7 @@ export class ChatHandleManager {
                                 history,
                                 input: request.prompt,
                                 target: {
-                                    uri: uri.toString(),
+                                    uri,
                                     content: document.getText()
                                 }
                             },

@@ -9,6 +9,7 @@ import {
 } from '@vscode/prompt-tsx'
 import type { RequestCommands } from './chat.js'
 import { VscodeChatMessages, VscodeChatMessagesProps } from './promptlib/chatmessages.js'
+import * as vscode from 'vscode'
 
 
 export interface HistoryEntry {
@@ -250,15 +251,16 @@ export class ToolResultDirectivePrompt extends PromptElement<VscodeChatMessagesP
 }
 
 interface FilePromptProps extends BasePromptElementProps {
-    uri: string,
+    uri: vscode.Uri,
     content: string,
-    metadata?: Map<string, string> | undefined
+    metadata?: Map<string, string> | undefined,
+    description?: string | undefined,
 }
 
 export class FilePrompt extends PromptElement<FilePromptProps> {
     render(): PromptPiece {
         const metadatas = [
-            <>  - Content Length: {this.props.content.length} characters<br /></>
+            <>  - Description: {this.props.description ?? 'No description provided'}<br /></>
         ] as PromptPiece[]
         if (this.props.metadata) {
             for (const [key, value] of this.props.metadata) {
@@ -267,7 +269,7 @@ export class FilePrompt extends PromptElement<FilePromptProps> {
         }
         return (
             <>
-                ### File: {this.props.uri}<br />
+                ### File: {this.props.uri.toString(true)}<br />
                 Metadata:<br />
                 {metadatas}
                 <br />
@@ -300,6 +302,7 @@ export class EditPrompt extends PromptElement<EditPromptProps> {
                     <FilePrompt
                         uri={this.props.target.uri}
                         content={this.props.target.content}
+                        description={'File to be edited'}
                         metadata={this.props.target.metadata}
                     />
                 </UserMessage>
