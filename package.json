@@ -123,26 +123,6 @@
             "input"
           ]
         }
-      },
-      {
-        "name": "able_count_characters",
-        "tags": [
-          "Text Analysis"
-        ],
-        "displayName": "Count Characters",
-        "modelDescription": "This tool counts the number of characters in a given input, enabling an LLM to determine the precise range of modifications when editing text.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "input": {
-              "type": "string",
-              "description": "The text to analyze"
-            }
-          },
-          "required": [
-            "input"
-          ]
-        }
       }
     ],
     "commands": [

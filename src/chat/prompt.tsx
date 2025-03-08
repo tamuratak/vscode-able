@@ -9,6 +9,7 @@ import {
 } from '@vscode/prompt-tsx'
 import type { RequestCommands } from './chat.js'
 import { VscodeChatMessages, VscodeChatMessagesProps } from './promptlib/chatmessages.js'
+import * as vscode from 'vscode'
 
 
 export interface HistoryEntry {
@@ -250,15 +251,16 @@ export class ToolResultDirectivePrompt extends PromptElement<VscodeChatMessagesP
 }
 
 interface FilePromptProps extends BasePromptElementProps {
-    uri: string,
+    uri: vscode.Uri,
     content: string,
-    metadata?: Map<string, string> | undefined
+    description?: string | undefined,
+    metadata?: Map<string, string> | undefined,
 }
 
 export class FilePrompt extends PromptElement<FilePromptProps> {
     render(): PromptPiece {
         const metadatas = [
-            <>  - Content Length: {this.props.content.length} characters<br /></>
+            <>  - Description: {this.props.description ?? 'No description provided'}<br /></>
         ] as PromptPiece[]
         if (this.props.metadata) {
             for (const [key, value] of this.props.metadata) {
@@ -267,7 +269,7 @@ export class FilePrompt extends PromptElement<FilePromptProps> {
         }
         return (
             <>
-                ### File: {this.props.uri}<br />
+                ### File: {this.props.uri.toString(true)}<br />
                 Metadata:<br />
                 {metadatas}
                 <br />
@@ -278,12 +280,16 @@ export class FilePrompt extends PromptElement<FilePromptProps> {
     }
 }
 
-interface EditPromptProps extends FilePromptProps, InputProps { }
+interface EditPromptProps extends InputProps {
+    target: FilePromptProps,
+    attachments?: FilePromptProps[] | undefined,
+ }
 
 export class EditPrompt extends PromptElement<EditPromptProps> {
     render(): PromptPiece {
         return (
             <>
+                <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     Instructions:<br />
                     - When editing a file, please use able_replace_text.
@@ -294,9 +300,10 @@ export class EditPrompt extends PromptElement<EditPromptProps> {
                 <UserMessage>
                     The following is the content of the file to be edited.<br /><br />
                     <FilePrompt
-                        uri={this.props.uri}
-                        content={this.props.content}
-                        metadata={this.props.metadata}
+                        uri={this.props.target.uri}
+                        content={this.props.target.content}
+                        description={'File to be edited'}
+                        metadata={this.props.target.metadata}
                     />
                 </UserMessage>
             </>
