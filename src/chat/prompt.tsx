@@ -253,8 +253,8 @@ export class ToolResultDirectivePrompt extends PromptElement<VscodeChatMessagesP
 interface FilePromptProps extends BasePromptElementProps {
     uri: vscode.Uri,
     content: string,
-    metadata?: Map<string, string> | undefined,
     description?: string | undefined,
+    metadata?: Map<string, string> | undefined,
 }
 
 export class FilePrompt extends PromptElement<FilePromptProps> {

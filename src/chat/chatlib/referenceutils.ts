@@ -55,3 +55,16 @@ export function getLocationReferences(request: vscode.ChatRequest) {
     }
     return refs
 }
+
+export function getAttachments(request: vscode.ChatRequest): vscode.Uri[] {
+    const uris: vscode.Uri[] = []
+    for (const ref of request.references) {
+        try {
+            const uri = vscode.Uri.parse(ref.id, true)
+            uris.push(uri)
+        } catch {
+            // ignore
+        }
+    }
+    return uris
+}

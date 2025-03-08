@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { EditPrompt, FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
-import { convertHistory } from './chatlib/utils.js'
+import { convertHistory } from './chatlib/historyutils.js'
 import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import type { EditTool } from '../lmtools/edit.js'

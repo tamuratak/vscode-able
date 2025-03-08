@@ -8,6 +8,9 @@ export class EditCommand {
         readonly outputChannel: vscode.LogOutputChannel
     }) { }
 
+    /**
+     * If a #file reference exists, it serves as the target file to be edited; otherwise, an implicit file reference is selected as the target file.
+     */
     findTargetFile(request: vscode.ChatRequest): vscode.Uri | undefined {
         const vscodeFiles = getUriRerefences(request).filter(ref => ref.id === vscodeFileId)
         if (vscodeFiles.length === 1) {
