@@ -4,19 +4,16 @@ import { registerCommands } from './commands.js'
 import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 import { PythonTool } from './lmtools/pyodide.js'
 import { EditTool } from './lmtools/edit.js'
-import { CountTool } from './lmtools/countcharacters.js'
 
 
 class Extension {
     readonly chatHandleManager: ChatHandleManager
     readonly editTool: EditTool
-    readonly countTool: CountTool
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
 
     constructor(public readonly openAiServiceId: string) {
         this.chatHandleManager = new ChatHandleManager(openAiServiceId, this)
         this.editTool = new EditTool(this)
-        this.countTool = new CountTool(this)
     }
 
     getChatHandler() {
@@ -25,10 +22,6 @@ class Extension {
 
     getEditTool() {
         return this.editTool
-    }
-
-    getCountTool() {
-        return this.countTool
     }
 
     quickPickModel() {
@@ -59,7 +52,6 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.lm.registerTool('able_replace_text', extension.getEditTool()),
-        vscode.lm.registerTool('able_count_characters', extension.getCountTool()),
         ...registerCommands()
     )
 
