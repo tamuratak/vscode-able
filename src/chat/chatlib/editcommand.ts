@@ -1,11 +1,14 @@
 import * as vscode from 'vscode'
-import { getLocationReferences, getUriRerefences, vscodeFileId, vscodeImplicitSelectionId, vscodeImplicitViewportId, vscodeSelectionId } from './referenceutils.js'
+import { getAttachments, getLocationReferences, getUriRerefences, vscodeFileId, vscodeImplicitSelectionId, vscodeImplicitViewportId, vscodeSelectionId } from './referenceutils.js'
+import type { CopilotChatHandler } from './copilotchathandler.js'
+import { EditPrompt, FilePromptProps, type HistoryEntry } from '../prompt.js'
 
 
 export class EditCommand {
 
     constructor(readonly extension: {
         readonly outputChannel: vscode.LogOutputChannel
+        readonly copilotChatHandler: CopilotChatHandler
     }) { }
 
     /**
@@ -28,6 +31,41 @@ export class EditCommand {
             }
         }
         return undefined
+    }
+
+    async getAttachmentFiles(request: vscode.ChatRequest): Promise<FilePromptProps[]> {
+        const result: FilePromptProps[] = []
+        const attachmentUris = getAttachments(request)
+        for (const uri of attachmentUris) {
+            const buf = await vscode.workspace.fs.readFile(uri)
+            const content = buf.toString()
+            result.push({ uri, content })
+        }
+        return result
+    }
+
+    async runEditCommand(request: vscode.ChatRequest, token: vscode.CancellationToken, stream: vscode.ChatResponseStream, history: HistoryEntry[]) {
+        const uri = this.findTargetFile(request)
+        const attachments = await this.getAttachmentFiles(request)
+        if (uri) {
+            const document = await vscode.workspace.openTextDocument(uri)
+            await this.extension.copilotChatHandler.copilotChatResponse(
+                token,
+                request,
+                EditPrompt,
+                {
+                    history,
+                    input: request.prompt,
+                    target: {
+                        uri,
+                        content: document.getText()
+                    },
+                    attachments
+                },
+                stream,
+                request.model
+            )
+        }
     }
 
 }

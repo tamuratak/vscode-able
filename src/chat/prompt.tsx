@@ -250,7 +250,7 @@ export class ToolResultDirectivePrompt extends PromptElement<VscodeChatMessagesP
     }
 }
 
-interface FilePromptProps extends BasePromptElementProps {
+export interface FilePromptProps extends BasePromptElementProps {
     uri: vscode.Uri,
     content: string,
     description?: string | undefined,
@@ -280,16 +280,44 @@ export class FilePrompt extends PromptElement<FilePromptProps> {
     }
 }
 
+interface AttachmentsProps extends BasePromptElementProps {
+    attachments: FilePromptProps[]
+}
+
+export class Attachments extends PromptElement<AttachmentsProps> {
+    render(): PromptPiece {
+        const attachments: PromptPiece[] = []
+        for (const attachment of this.props.attachments) {
+            attachments.push(
+                <UserMessage>
+                    <FilePrompt
+                        uri={attachment.uri}
+                        content={attachment.content}
+                        description='This file was attached for context and should be used only as a reference when executing my instructions. Do not edit it.'
+                        metadata={attachment.metadata}
+                    />
+                </UserMessage>
+            )
+        }
+        return (
+            <>
+                {attachments}
+            </>
+        )
+    }
+}
+
 interface EditPromptProps extends InputProps {
     target: FilePromptProps,
     attachments?: FilePromptProps[] | undefined,
- }
+}
 
 export class EditPrompt extends PromptElement<EditPromptProps> {
     render(): PromptPiece {
         return (
             <>
                 <HistoryMessages history={this.props.history} />
+                <Attachments attachments={this.props.attachments ?? []} />
                 <UserMessage>
                     Instructions:<br />
                     - When editing a file, please use able_replace_text.

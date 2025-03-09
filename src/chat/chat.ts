@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { EditPrompt, FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { convertHistory } from './chatlib/historyutils.js'
 import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
@@ -43,7 +43,7 @@ export class ChatHandleManager {
     ) {
         this.copilotChatHandler = new CopilotChatHandler(extension)
         this.openaiApiChatHandler = new OpenAiApiChatHandler(openAiServiceId, extension)
-        this.editCommand = new EditCommand(extension)
+        this.editCommand = new EditCommand({ ...extension, copilotChatHandler: this.copilotChatHandler })
         this.extension.outputChannel.info('ChatHandleManager initialized')
     }
 
@@ -127,26 +127,7 @@ export class ChatHandleManager {
                 this.chatSession = new ChatSession(request)
                 const history = convertHistory(context)
                 if (request.command === 'edit') {
-                    const uri = this.editCommand.findTargetFile(request)
-                    if (uri) {
-                        const document = await vscode.workspace.openTextDocument(uri)
-                        await this.copilotChatHandler.copilotChatResponse(
-                            token,
-                            request,
-                            EditPrompt,
-                            {
-                                history,
-                                input: request.prompt,
-                                target: {
-                                    uri,
-                                    content: document.getText()
-                                }
-                            },
-                            stream,
-                            request.model
-                        )
-                    }
-                    return
+                    return await this.editCommand.runEditCommand(request, token, stream, history)
                 } else if (request.command === 'fluent') {
                     const response = await this.responseWithSelection(token, request, FluentPrompt, history)
                     stream.markdown(response)
@@ -155,7 +136,7 @@ export class ChatHandleManager {
                     const response = await this.responseWithSelection(token, request, FluentJaPrompt, history)
                     stream.markdown(response)
                     return
-                } if (request.command === 'to_en') {
+                } else if (request.command === 'to_en') {
                     const response = await this.responseWithSelection(token, request, ToEnPrompt, history)
                     stream.markdown(response)
                     return
@@ -208,4 +189,5 @@ export class ChatHandleManager {
             return responseText
         }
     }
+
 }
