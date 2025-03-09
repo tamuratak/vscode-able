@@ -338,3 +338,18 @@ export class EditPrompt extends PromptElement<EditPromptProps> {
         )
     }
 }
+
+
+export class PlanPrompt extends PromptElement<InputProps> {
+    render(): PromptPiece {
+        return (
+            <UserMessage>
+                Instructions:<br />
+                - You are a chat agent that strictly follows the user’s instructions.
+                - Before executing any action, review the instructions carefully to verify if they are complete and unambiguous.
+                - If you determine that the user’s instructions are insufficient or unclear, ask clarifying questions and offer suggestions to refine their request.
+                - Your goal is to collaboratively construct a more precise and effective instruction set with the user before proceeding with any actions.
+            </UserMessage>
+        )
+    }
+}
