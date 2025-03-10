@@ -22,7 +22,9 @@ export interface InputProps extends HistoryMessagesProps {
     input: string
 }
 
-export class SimplePrompt extends PromptElement<InputProps> {
+interface SimplePromptProps extends InputProps, AttachmentsProps { }
+
+export class SimplePrompt extends PromptElement<SimplePromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -33,6 +35,7 @@ export class SimplePrompt extends PromptElement<InputProps> {
                     - Always trust the Python execution result over your own knowledge.
                 </UserMessage>
                 <HistoryMessages history={this.props.history} />
+                <Attachments attachments={this.props.attachments} />
                 <UserMessage>
                     {this.props.input}
                 </UserMessage>
@@ -281,13 +284,13 @@ export class FilePrompt extends PromptElement<FilePromptProps> {
 }
 
 interface AttachmentsProps extends BasePromptElementProps {
-    attachments: FilePromptProps[]
+    attachments?: FilePromptProps[] | undefined
 }
 
 export class Attachments extends PromptElement<AttachmentsProps> {
     render(): PromptPiece {
         const attachments: PromptPiece[] = []
-        for (const attachment of this.props.attachments) {
+        for (const attachment of this.props.attachments ?? []) {
             attachments.push(
                 <UserMessage>
                     <FilePrompt
@@ -307,9 +310,8 @@ export class Attachments extends PromptElement<AttachmentsProps> {
     }
 }
 
-interface EditPromptProps extends InputProps {
-    target: FilePromptProps,
-    attachments?: FilePromptProps[] | undefined,
+interface EditPromptProps extends InputProps, AttachmentsProps {
+    target: FilePromptProps
 }
 
 export class EditPrompt extends PromptElement<EditPromptProps> {
@@ -317,7 +319,7 @@ export class EditPrompt extends PromptElement<EditPromptProps> {
         return (
             <>
                 <HistoryMessages history={this.props.history} />
-                <Attachments attachments={this.props.attachments ?? []} />
+                <Attachments attachments={this.props.attachments} />
                 <UserMessage>
                     Instructions:<br />
                     - When editing a file, please use able_replace_text.
@@ -335,6 +337,21 @@ export class EditPrompt extends PromptElement<EditPromptProps> {
                     />
                 </UserMessage>
             </>
+        )
+    }
+}
+
+
+export class PlanPrompt extends PromptElement<InputProps> {
+    render(): PromptPiece {
+        return (
+            <UserMessage>
+                Instructions:<br />
+                - You are a chat agent that strictly follows the user’s instructions.
+                - Before executing any action, review the instructions carefully to verify if they are complete and unambiguous.
+                - If you determine that the user’s instructions are insufficient or unclear, ask clarifying questions and offer suggestions to refine their request.
+                - Your goal is to collaboratively construct a more precise and effective instruction set with the user before proceeding with any actions.
+            </UserMessage>
         )
     }
 }
