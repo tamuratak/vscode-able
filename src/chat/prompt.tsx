@@ -28,6 +28,20 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
     render(): PromptPiece {
         return (
             <>
+                <HistoryMessages history={this.props.history} />
+                <Attachments attachments={this.props.attachments} />
+                <UserMessage>
+                    {this.props.input}
+                </UserMessage>
+            </>
+        )
+    }
+}
+
+export class PythonMasterPrompt extends PromptElement<SimplePromptProps> {
+    render(): PromptPiece {
+        return (
+            <>
                 <UserMessage>
                     Instructions:<br />
                     - When answering a question that requires executing Python code, use able_python. <br />
