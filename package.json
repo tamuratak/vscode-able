@@ -51,6 +51,10 @@
             "description": "Edit text based on instructions"
           },
           {
+            "name": "plan",
+            "description": "Plan a project"
+          },
+          {
             "name": "fluent",
             "description": "Make fluent"
           },

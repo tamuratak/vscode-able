@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, PlanPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { convertHistory } from './chatlib/historyutils.js'
 import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
@@ -128,6 +128,17 @@ export class ChatHandleManager {
                 const history = convertHistory(context)
                 if (request.command === 'edit') {
                     return await this.editCommand.runEditCommand(request, token, stream, history)
+                } else if (request.command === 'plan') {
+                    const attachments = await getAttachmentFiles(request)
+                    await this.copilotChatHandler.copilotChatResponse(
+                        token,
+                        request,
+                        PlanPrompt,
+                        { history, input: request.prompt, attachments },
+                        stream,
+                        request.model,
+                        [],
+                    )
                 } else if (request.command === 'fluent') {
                     const response = await this.responseWithSelection(token, request, FluentPrompt, history)
                     stream.markdown(response)
