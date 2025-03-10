@@ -5,7 +5,7 @@ import { convertHistory } from './chatlib/historyutils.js'
 import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import type { EditTool } from '../lmtools/edit.js'
-import { getSelectedText } from './chatlib/referenceutils.js'
+import { getAttachmentFiles, getSelectedText } from './chatlib/referenceutils.js'
 import { EditCommand } from './chatlib/editcommand.js'
 
 
@@ -146,7 +146,16 @@ export class ChatHandleManager {
                     return
                 } else {
                     if (this.vendor === ChatVendor.Copilot) {
-                        await this.copilotChatHandler.copilotChatResponse(token, request, SimplePrompt, { history, input: request.prompt }, stream, request.model)
+                        const attachments = await getAttachmentFiles(request)
+                        await this.copilotChatHandler.copilotChatResponse(
+                            token,
+                            request,
+                            SimplePrompt,
+                            { history, input: request.prompt, attachments },
+                            stream,
+                            request.model,
+                            [],
+                        )
                     } else {
                         await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, SimplePrompt, history, stream)
                     }

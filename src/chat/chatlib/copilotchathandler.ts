@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { ToolResultDirectivePrompt } from '../prompt.js'
 import { type BasePromptElementProps, type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
-import { getLmTools } from './tools.js'
+import { AbleTool, getLmTools } from './tools.js'
 import type { EditTool } from '../../lmtools/edit.js'
 
 
@@ -20,6 +20,7 @@ export class CopilotChatHandler {
         props: P,
         stream?: vscode.ChatResponseStream,
         model?: vscode.LanguageModelChat,
+        selectedTools?: readonly AbleTool[]
     ) {
         if (!model) {
             [model] = await vscode.lm.selectChatModels({
@@ -33,7 +34,7 @@ export class CopilotChatHandler {
         }
         const { messages } = await renderPrompt(ctor, props, { modelMaxPromptTokens: 2048 }, model)
         this.extension.outputChannel.debug('Copilot chat response', JSON.stringify(messages, null, 2))
-        const tools = getLmTools()
+        const tools = getLmTools(selectedTools)
         const chatResponse = await model.sendRequest(
             messages, { tools }, token
         ).then(r => r, e => {

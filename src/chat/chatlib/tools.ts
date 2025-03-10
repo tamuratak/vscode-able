@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 
-export const ableTools = ['able_python', 'able_replace_text', 'able_count_characters'] as const
+export const ableTools = ['able_python', 'able_replace_text'] as const
 export type AbleTool = typeof ableTools[number]
 
 export function getLmTools(selectedTools: readonly AbleTool[] = ableTools): vscode.LanguageModelChatTool[] {
