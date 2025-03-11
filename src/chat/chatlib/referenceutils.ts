@@ -75,7 +75,8 @@ export async function getAttachmentFiles(request: vscode.ChatRequest): Promise<F
     const attachmentUris = getAttachmentUris(request)
     for (const uri of attachmentUris) {
         const buf = await vscode.workspace.fs.readFile(uri)
-        const content = buf.toString()
+        const decoder = new TextDecoder()
+        const content = decoder.decode(buf)
         result.push({ uri, content })
     }
     return result
