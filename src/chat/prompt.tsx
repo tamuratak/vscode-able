@@ -28,6 +28,20 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
     render(): PromptPiece {
         return (
             <>
+                <HistoryMessages history={this.props.history} />
+                <Attachments attachments={this.props.attachments} />
+                <UserMessage>
+                    {this.props.input}
+                </UserMessage>
+            </>
+        )
+    }
+}
+
+export class PythonMasterPrompt extends PromptElement<SimplePromptProps> {
+    render(): PromptPiece {
+        return (
+            <>
                 <UserMessage>
                     Instructions:<br />
                     - When answering a question that requires executing Python code, use able_python. <br />
@@ -341,17 +355,28 @@ export class EditPrompt extends PromptElement<EditPromptProps> {
     }
 }
 
+export interface PlanPromptProps extends InputProps, AttachmentsProps { }
 
-export class PlanPrompt extends PromptElement<InputProps> {
+export class PlanPrompt extends PromptElement<PlanPromptProps> {
     render(): PromptPiece {
         return (
-            <UserMessage>
-                Instructions:<br />
-                - You are a chat agent that strictly follows the user’s instructions.
-                - Before executing any action, review the instructions carefully to verify if they are complete and unambiguous.
-                - If you determine that the user’s instructions are insufficient or unclear, ask clarifying questions and offer suggestions to refine their request.
-                - Your goal is to collaboratively construct a more precise and effective instruction set with the user before proceeding with any actions.
-            </UserMessage>
+            <>
+                <HistoryMessages history={this.props.history} />
+                <Attachments attachments={this.props.attachments} />
+                <UserMessage>
+                    Instructions:<br />
+                    - You are a chat agent that strictly follows the user’s instructions.
+                    - You are in PLAN MODE.
+                    - Before executing any action, review the instructions carefully to verify if they are complete and unambiguous.
+                    - If you determine that the user’s instructions are insufficient or unclear, ask clarifying questions and offer suggestions to refine their request.
+                    - Your goal is to collaboratively construct a more precise and effective instruction set with the user before proceeding with any actions.
+                    - In PLAN MODE, please do not generate any code.
+                    - Answer using the natural language of the user.
+                </UserMessage>
+                <UserMessage>
+                    {this.props.input}
+                </UserMessage>
+            </>
         )
     }
 }
