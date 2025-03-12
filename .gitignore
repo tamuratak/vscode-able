@@ -5,6 +5,8 @@
 /.vscode-test/
 /.contextdir_for_llm
 
+/test/fixtures/repositorytree01/ignore/
+
 # Logs
 logs
 *.log

@@ -26,6 +26,9 @@
         "strict": true,
         "target": "es2022",
         "baseUrl": "./",
+        "paths": {
+            "vscodegit": ["./types/vscodegit/git.d.ts"]
+        }
     },
     "exclude": [
         "node_modules"
