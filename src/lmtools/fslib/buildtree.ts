@@ -5,7 +5,6 @@ export async function buildTree(uri: vscode.Uri): Promise<TreeNode> {
     const segments = uri.path.split('/')
     const nodeName = segments[segments.length - 1] || ''
     const root: TreeNode = { name: nodeName }
-    // Stack items consist of the TreeNode representing the directory and its corresponding URI
     const stack: { node: TreeNode, uri: vscode.Uri }[] = [{ node: root, uri }]
 
     while (stack.length > 0) {
