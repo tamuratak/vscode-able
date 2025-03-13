@@ -4,6 +4,7 @@ import { registerCommands } from './commands.js'
 import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 import { PythonTool } from './lmtools/pyodide.js'
 import { EditTool } from './lmtools/edit.js'
+import { ReadFileTool } from './lmtools/fs.js'
 
 
 class Extension {
@@ -52,6 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.lm.registerTool('able_replace_text', extension.getEditTool()),
+        vscode.lm.registerTool('able_read_file', new ReadFileTool(extension)),
         ...registerCommands()
     )
 
