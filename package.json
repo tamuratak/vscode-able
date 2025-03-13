@@ -285,7 +285,9 @@
     "lint": "eslint --cache .",
     "lint:fix": "eslint --fix --cache .",
     "release": "npm run clean && npm run lint && npm run compile && vsce package",
-    "test": "mocha --require source-map-support/register --ui tdd out/test/unittest/**/*.js",
+    "test": "npm run test:xunit && npm run test:spec",
+    "test:xunit": "mocha --require source-map-support/register --reporter xunit --ui tdd out/test/unittest/**/*.js",
+    "test:spec": "mocha --require source-map-support/register --ui tdd out/test/unittest/**/*.js",
     "test:vscode": "node ./out/test/runvscodetest.js",
     "watch": "tsc -w -p ./"
   }
