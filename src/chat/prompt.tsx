@@ -11,7 +11,6 @@ import {
     UserMessage,
 } from '@vscode/prompt-tsx'
 import type { RequestCommands } from './chat.js'
-import { VscodeChatMessages, VscodeChatMessagesProps } from './promptlib/chatmessages.js'
 import * as vscode from 'vscode'
 
 
@@ -21,12 +20,14 @@ export interface HistoryEntry {
     text: string
 }
 
+export interface ToolCallResultPair {
+    toolCall: vscode.LanguageModelToolCallPart
+    toolResult: vscode.LanguageModelToolResult
+}
+
 export interface ToolCallResultRoundProps extends BasePromptElementProps {
     responseStr: string
-    toolCallResultPairs: {
-        toolCall: vscode.LanguageModelToolCallPart
-        toolResult: vscode.LanguageModelToolResult
-    }[]
+    toolCallResultPairs: ToolCallResultPair[]
 }
 
 export class ToolCallResultRoundElement extends PromptElement<ToolCallResultRoundProps> {
@@ -50,6 +51,18 @@ export class ToolCallResultRoundElement extends PromptElement<ToolCallResultRoun
                     ))
                 }
             </>
+        )
+    }
+}
+
+export class ToolResultDirectiveElement extends PromptElement {
+    render(): PromptPiece {
+        return (
+            <UserMessage>
+                - Above is the result of calling one or more tools. <br />
+                - Always trust the result over your own knowledge. <br />
+                - Answer using the natural language of the user.
+            </UserMessage>
         )
     }
 }
@@ -286,22 +299,6 @@ class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     }
 }
 
-export class ToolResultDirectivePrompt extends PromptElement<VscodeChatMessagesProps> {
-    render(): PromptPiece {
-        return (
-            <>
-                <VscodeChatMessages messages={this.props.messages} />
-                <UserMessage>
-                    - Above is the result of calling one or more tools. <br />
-                    - Always trust the result over your own knowledge. <br />
-                    - Answer using the natural language of the user.
-                </UserMessage>
-            </>
-        )
-
-    }
-}
-
 export interface FileElementProps extends BasePromptElementProps {
     uri: vscode.Uri,
     content: string,
@@ -389,11 +386,7 @@ export class EditPrompt extends PromptElement<EditPromptProps> {
                                 responseStr={e.responseStr}
                                 toolCallResultPairs={e.toolCallResultPairs}
                             />
-                            <UserMessage>
-                                - Above is the result of calling one or more tools. <br />
-                                - Always trust the result over your own knowledge. <br />
-                                - Answer using the natural language of the user.
-                            </UserMessage>
+                            <ToolResultDirectiveElement />
                         </>
                     )) ?? ''
                 }

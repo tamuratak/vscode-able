@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { type MainPromptProps, ToolResultDirectivePrompt } from '../prompt.js'
+import { type MainPromptProps, ToolCallResultPair, ToolCallResultRoundProps } from '../prompt.js'
 import { type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { AbleTool, getLmTools } from './tools.js'
 import type { EditTool } from '../../lmtools/edit.js'
@@ -32,50 +32,37 @@ export class CopilotChatHandler {
             void vscode.window.showErrorMessage('Copilot model is not loaded. Execute the activation command.')
             throw new Error('Copilot model is not loaded')
         }
-        const { messages } = await renderPrompt(ctor, props, { modelMaxPromptTokens: 2048 }, model)
-        this.extension.outputChannel.debug('Copilot chat response', JSON.stringify(messages, null, 2))
-        const tools = getLmTools(selectedTools)
-        const chatResponse = await model.sendRequest(
-            messages, { tools }, token
-        ).then(r => r, e => {
-            if (e instanceof Error) {
-                this.extension.outputChannel.error(e, messages)
+        const processChatResponse = async (
+            toolCallResultRounds: ToolCallResultRoundProps[] = []
+        ) => {
+            const { messages } = await renderPrompt(ctor, { ...props, toolCallResultRounds }, { modelMaxPromptTokens: 2048 }, model)
+            this.extension.outputChannel.debug('Copilot chat response', JSON.stringify(messages, null, 2))
+            const tools = getLmTools(selectedTools)
+            const chatResponse = await model.sendRequest(
+                messages, { tools }, token
+            ).then(r => r, e => {
+                if (e instanceof Error) {
+                    this.extension.outputChannel.error(e, messages)
+                }
+                throw e
+            })
+            if (!stream) {
+                return { chatResponse }
             }
-            throw e
-        })
-        if (stream) {
-            await this.processChatResponse(chatResponse, messages, token, request, stream, tools, model)
-            return { chatResponse: undefined, messages: undefined, tools, model }
-        } else {
-            return { chatResponse, messages, tools, model }
-        }
-    }
-
-    // TODO
-    // 以下を processChatResponse が受け取るようにする. 再帰ごとに伸びていく. 最初は空を受け取る.
-    // { responseStr, toolCallResultPairs?: {toolCallPart, toolResult}[] }[]
-    private async processChatResponse(
-        chatResponse: vscode.LanguageModelChatResponse,
-        messages: vscode.LanguageModelChatMessage[],
-        token: vscode.CancellationToken,
-        request: vscode.ChatRequest,
-        stream: vscode.ChatResponseStream,
-        tools: vscode.LanguageModelChatTool[],
-        model: vscode.LanguageModelChat,
-    ): Promise<void> {
-        const newMessages = [...messages]
-        let responseStr = ''
-        const toolCalls: vscode.LanguageModelToolCallPart[] = []
-        for await (const fragment of chatResponse.stream) {
-            if (fragment instanceof vscode.LanguageModelTextPart) {
-                stream.markdown(fragment.value)
-                responseStr += fragment.value
-            } else if (fragment instanceof vscode.LanguageModelToolCallPart) {
-                toolCalls.push(fragment)
+            let responseStr = ''
+            const toolCalls: vscode.LanguageModelToolCallPart[] = []
+            for await (const fragment of chatResponse.stream) {
+                if (fragment instanceof vscode.LanguageModelTextPart) {
+                    stream.markdown(fragment.value)
+                    responseStr += fragment.value
+                } else if (fragment instanceof vscode.LanguageModelToolCallPart) {
+                    toolCalls.push(fragment)
+                }
             }
-        }
-        if (toolCalls.length > 0) {
-            newMessages.push(vscode.LanguageModelChatMessage.Assistant(responseStr))
+            const toolCallResultPairs: ToolCallResultPair[] = []
+            if (toolCalls.length === 0) {
+                return
+            }
             for (const fragment of toolCalls) {
                 const result = await vscode.lm.invokeTool(
                     fragment.name,
@@ -99,34 +86,12 @@ export class CopilotChatHandler {
                 if (result === undefined) {
                     continue
                 }
-                const ret: string[] = []
-                for (const part of result.content) {
-                    if (part instanceof vscode.LanguageModelTextPart) {
-                        ret.push(part.value)
-                    } else if (part instanceof vscode.LanguageModelPromptTsxPart) {
-                        // TODO
-                    } else {
-                        // TODO
-                        // part would be instanceof MyCustomResultPart
-                    }
-                }
-                const toolResultPart = new vscode.LanguageModelToolResultPart(fragment.callId, [new vscode.LanguageModelTextPart(ret.join(''))])
-                newMessages.push(
-                    vscode.LanguageModelChatMessage.Assistant([fragment]),
-                    vscode.LanguageModelChatMessage.User([toolResultPart]),
-                )
+                toolCallResultPairs.push({ toolCall: fragment, toolResult: result })
             }
-            const directive = await renderPrompt(ToolResultDirectivePrompt, { messages: newMessages }, { modelMaxPromptTokens: 2048 }, model)
-            const chatResponse2 = await model.sendRequest(
-                directive.messages, { tools }, token
-            ).then(r => r, e => {
-                if (e instanceof Error) {
-                    this.extension.outputChannel.error(e, directive.messages)
-                }
-                throw e
-            })
-            await this.processChatResponse(chatResponse2, directive.messages, token, request, stream, tools, model)
+            await processChatResponse([...toolCallResultRounds, { responseStr, toolCallResultPairs }])
+            return
         }
+        return processChatResponse()
     }
 
 }

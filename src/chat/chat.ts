@@ -189,9 +189,9 @@ export class ChatHandleManager {
         const input = selectedText ?? request.prompt
         let responseText = ''
         if (this.vendor === ChatVendor.Copilot) {
-            const { chatResponse } = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input }, stream, model)
-            if (chatResponse) {
-                for await (const fragment of chatResponse.text) {
+            const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input }, stream, model)
+            if (ret?.chatResponse) {
+                for await (const fragment of ret.chatResponse.text) {
                     responseText += fragment
                 }
             }
