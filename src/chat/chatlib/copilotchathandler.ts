@@ -32,9 +32,16 @@ export class CopilotChatHandler {
             void vscode.window.showErrorMessage('Copilot model is not loaded. Execute the activation command.')
             throw new Error('Copilot model is not loaded')
         }
-        const processChatResponse = async (
-            toolCallResultRounds: ToolCallResultRoundProps[] = []
-        ) => {
+        // Send requests to the LLM repeatedly until there are no more tool calling requests in the LLM's response.
+        // toolCallResultRounds contains the tool calling requests made up to that point and their results.
+        const toolCallResultRounds: ToolCallResultRoundProps[] = []
+        let count = 0
+        while (true) {
+            if (count > 10) {
+                this.extension.outputChannel.error('Too many iterations')
+                throw new Error('Too many iterations')
+            }
+            count += 1
             const { messages } = await renderPrompt(ctor, { ...props, toolCallResultRounds }, { modelMaxPromptTokens: 2048 }, model)
             this.extension.outputChannel.debug('Copilot chat response', JSON.stringify(messages, null, 2))
             const tools = getLmTools(selectedTools)
@@ -88,10 +95,8 @@ export class CopilotChatHandler {
                 }
                 toolCallResultPairs.push({ toolCall: fragment, toolResult: result })
             }
-            await processChatResponse([...toolCallResultRounds, { responseStr, toolCallResultPairs }])
-            return
+            toolCallResultRounds.push({ responseStr, toolCallResultPairs })
         }
-        return processChatResponse()
     }
 
 }
