@@ -45,7 +45,7 @@ export class CopilotChatHandler {
             const { messages } = await renderPrompt(
                 ctor,
                 { ...props, toolCallResultRounds },
-                { modelMaxPromptTokens: 2048 },
+                { modelMaxPromptTokens: model.maxInputTokens * 0.8 },
                 model // model.countTokens is used to calculate the token count of the prompt.
             )
             this.extension.outputChannel.debug('Copilot chat response', JSON.stringify(messages, null, 2))
