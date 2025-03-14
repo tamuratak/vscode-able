@@ -196,9 +196,9 @@ export class ChatHandleManager {
                 }
             }
         } else {
-            const { chatResponse } = await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, ctor, ableHistory, stream, input)
-            if (chatResponse) {
-                for await (const fragment of chatResponse) {
+            const ret = await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, ctor, ableHistory, stream, input)
+            if (ret?.chatResponse) {
+                for await (const fragment of ret.chatResponse) {
                     responseText += fragment.choices[0]?.delta?.content ?? ''
                 }
             }

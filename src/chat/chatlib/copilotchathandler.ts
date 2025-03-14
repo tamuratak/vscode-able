@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
-import { type MainPromptProps, ToolCallResultPair, ToolCallResultRoundProps } from '../prompt.js'
+import type { MainPromptProps, ToolCallResultPair, ToolCallResultRoundProps } from '../prompt.js'
 import { type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
-import { AbleTool, getLmTools } from './tools.js'
+import { AbleTool, convertToToolCall, getLmTools } from './toolutils.js'
 import type { EditTool } from '../../lmtools/edit.js'
 
 
@@ -93,7 +93,7 @@ export class CopilotChatHandler {
                 if (result === undefined) {
                     continue
                 }
-                toolCallResultPairs.push({ toolCall: fragment, toolResult: result })
+                toolCallResultPairs.push({ toolCall: convertToToolCall(fragment), toolResult: result })
             }
             toolCallResultRounds.push({ responseStr, toolCallResultPairs })
         }

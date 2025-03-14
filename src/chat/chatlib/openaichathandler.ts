@@ -1,13 +1,12 @@
 import * as vscode from 'vscode'
-import type { HistoryEntry, MainPromptProps } from '../prompt.js'
+import type { HistoryEntry, MainPromptProps, ToolCallResultPair, ToolCallResultRoundProps } from '../prompt.js'
 import { type PromptElementCtor, renderPrompt, type ToolCall } from '@vscode/prompt-tsx'
 import { ExternalPromise } from '../../utils/externalpromise.js'
 import { OpenAI } from 'openai'
 import { Gpt4oTokenizer } from '../tokenizer.js'
 import { convertToChatCompletionMessageParams } from './historyutils.js'
-import type { Stream } from 'openai/streaming.mjs'
-import type { ChatCompletionChunk, ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/index.mjs'
-import { getLmTools } from './tools.js'
+import type { ChatCompletionTool } from 'openai/resources/index.mjs'
+import { getLmTools } from './toolutils.js'
 import type { EditTool } from '../../lmtools/edit.js'
 
 
@@ -41,7 +40,15 @@ export class OpenAiApiChatHandler {
         prompt?: string
     ) {
         const client = await this.resolveOpenAiClient()
-        const renderResult = await renderPrompt(ctor, { history: ableHistory, input: prompt ?? request.prompt }, { modelMaxPromptTokens: 2048 }, this.gpt4oTokenizer, undefined, undefined, 'none')
+        const renderResult = await renderPrompt(
+            ctor,
+            { history: ableHistory, input: prompt ?? request.prompt },
+            { modelMaxPromptTokens: 2048 },
+            this.gpt4oTokenizer,
+            undefined,
+            undefined,
+            'none'
+        )
         const messages = convertToChatCompletionMessageParams(renderResult.messages)
         const abortController = new AbortController()
         const signal = abortController.signal
@@ -59,58 +66,55 @@ export class OpenAiApiChatHandler {
                 })
             }
         }
-        const chatResponse = await client.chat.completions.create(
-            { messages, model: 'gpt-4o-mini', max_completion_tokens: 2048, n: 1, stream: true, tools }, { signal }
-        ).then(r => r, e => {
-            if (e instanceof Error) {
-                this.extension.outputChannel.error(e, messages)
+        // Send requests to the LLM repeatedly until there are no more tool calling requests in the LLM's response.
+        // toolCallResultRounds contains the tool calling requests made up to that point and their results.
+        const toolCallResultRounds: ToolCallResultRoundProps[] = []
+        let count = 0
+        while (true) {
+            if (count > 10) {
+                this.extension.outputChannel.error('Too many iterations')
+                throw new Error('Too many iterations')
             }
-            throw e
-        })
-        if (stream) {
-            await this.processOpenAiResponse(chatResponse, messages, token, request, stream, tools, signal)
-            return { chatResponse: undefined }
-        } else {
-            return { chatResponse }
-        }
-    }
-
-    private async processOpenAiResponse(
-        chatResponse: Stream<ChatCompletionChunk>,
-        messages: ChatCompletionMessageParam[],
-        token: vscode.CancellationToken,
-        request: vscode.ChatRequest,
-        stream: vscode.ChatResponseStream,
-        tools: ChatCompletionTool[],
-        signal: AbortSignal
-    ) {
-        const newMessages = [...messages]
-        let responseStr = ''
-        const toolCalls: ToolCall[] = []
-        for await (const fragment of chatResponse) {
-            const choice = fragment.choices[0]
-            if (choice.delta.content) {
-                stream.markdown(choice.delta.content)
-                responseStr += choice.delta.content
-            } else if (choice.delta.tool_calls) {
-                for (const toolCall of choice.delta.tool_calls) {
-                    if (!toolCall.function) {
-                        continue
-                    }
-                    const { index } = toolCall
-                    if (toolCalls[index]) {
-                        toolCalls[index].function.arguments += toolCall.function.arguments
-                    } else {
-                        if (toolCall.function?.name && toolCall.id && toolCall.type) {
-                            toolCalls[index] = { function: { name: toolCall.function.name, arguments: toolCall.function.arguments ?? '' }, id: toolCall.id, type: toolCall.type }
+            count += 1
+            const chatResponse = await client.chat.completions.create(
+                { messages, model: 'gpt-4o-mini', max_completion_tokens: 2048, n: 1, stream: true, tools }, { signal }
+            ).then(r => r, e => {
+                if (e instanceof Error) {
+                    this.extension.outputChannel.error(e, messages)
+                }
+                throw e
+            })
+            if (!stream) {
+                return { chatResponse }
+            }
+            let responseStr = ''
+            const toolCalls: ToolCall[] = []
+            for await (const fragment of chatResponse) {
+                const choice = fragment.choices[0]
+                if (choice.delta.content) {
+                    stream.markdown(choice.delta.content)
+                    responseStr += choice.delta.content
+                } else if (choice.delta.tool_calls) {
+                    for (const toolCall of choice.delta.tool_calls) {
+                        if (!toolCall.function) {
+                            continue
                         }
-                    }
+                        const { index } = toolCall
+                        if (toolCalls[index]) {
+                            toolCalls[index].function.arguments += toolCall.function.arguments
+                        } else {
+                            if (toolCall.function?.name && toolCall.id && toolCall.type) {
+                                toolCalls[index] = { function: { name: toolCall.function.name, arguments: toolCall.function.arguments ?? '' }, id: toolCall.id, type: toolCall.type }
+                            }
+                        }
 
+                    }
                 }
             }
-        }
-        if (toolCalls.length > 0) {
-            newMessages.push({ role: 'assistant', content: responseStr })
+            const toolCallResultPairs: ToolCallResultPair[] = []
+            if (toolCalls.length === 0) {
+                return
+            }
             for (const fragment of toolCalls) {
                 const frag = { function: { name: fragment.function.name, arguments: fragment.function.arguments }, id: fragment.id, type: 'function' as const }
                 const input = JSON.parse(fragment.function.arguments) as Record<string, unknown>
@@ -131,27 +135,9 @@ export class OpenAiApiChatHandler {
                 if (result === undefined) {
                     continue
                 }
-                const ret: string[] = []
-                for (const part of result.content) {
-                    if (part instanceof vscode.LanguageModelTextPart) {
-                        ret.push(part.value)
-                    } else if (part instanceof vscode.LanguageModelPromptTsxPart) {
-                        // TODO
-                    }
-                }
-                newMessages.push({ role: 'assistant', content: '', tool_calls: [frag] })
-                newMessages.push({ role: 'tool', content: ret.join(''), tool_call_id: fragment.id })
+                toolCallResultPairs.push({ toolCall: frag, toolResult: result })
             }
-            const client = await this.openAiClient.promise
-            const chatResponse2 = await client.chat.completions.create(
-                { messages: newMessages, model: 'gpt-4o-mini', max_completion_tokens: 2048, n: 1, stream: true, tools }, { signal }
-            ).then(r => r, e => {
-                if (e instanceof Error) {
-                    this.extension.outputChannel.error(e, newMessages)
-                }
-                throw e
-            })
-            await this.processOpenAiResponse(chatResponse2, newMessages, token, request, stream, tools, signal)
+            toolCallResultRounds.push({ responseStr, toolCallResultPairs })
         }
     }
 

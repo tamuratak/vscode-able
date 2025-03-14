@@ -21,7 +21,7 @@ export interface HistoryEntry {
 }
 
 export interface ToolCallResultPair {
-    toolCall: vscode.LanguageModelToolCallPart
+    toolCall: ToolCall
     toolResult: vscode.LanguageModelToolResult
 }
 
@@ -32,11 +32,9 @@ export interface ToolCallResultRoundProps extends BasePromptElementProps {
 
 export class ToolCallResultRoundElement extends PromptElement<ToolCallResultRoundProps> {
     render(): PromptPiece {
-        const assistantToolCalls: ToolCall[] = this.props.toolCallResultPairs.map((e) => e.toolCall).map(tc => (
-            { type: 'function', function: { name: tc.name, arguments: JSON.stringify(tc.input) }, id: tc.callId }
-        ))
+        const assistantToolCalls: ToolCall[] = this.props.toolCallResultPairs.map((e) => e.toolCall)
         const toolResultParts: { toolCallId: string, toolResult: vscode.LanguageModelToolResult }[] = this.props.toolCallResultPairs.map((e) => (
-            { toolCallId: e.toolCall.callId, toolResult: e.toolResult }
+            { toolCallId: e.toolCall.id, toolResult: e.toolResult }
         ))
         return (
             <>

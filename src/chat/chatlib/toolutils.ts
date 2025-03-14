@@ -1,3 +1,4 @@
+import type { ToolCall } from '@vscode/prompt-tsx'
 import * as vscode from 'vscode'
 
 export const ableTools = ['able_python', 'able_replace_text'] as const
@@ -12,4 +13,15 @@ export function getLmTools(selectedTools: readonly AbleTool[] = ableTools): vsco
         }
     }
     return tools
+}
+
+export function convertToToolCall(tc: vscode.LanguageModelToolCallPart): ToolCall {
+    return {
+        type: 'function',
+        function: {
+            name: tc.name,
+            arguments: JSON.stringify(tc.input)
+        },
+        id: tc.callId
+    }
 }
