@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FilePromptProps } from '../prompt.js'
+import { FileElementProps } from '../prompt.js'
 
 
 /** Reference id for user's current visible code, i.e. the uri of the active document and the visible range */
@@ -70,8 +70,8 @@ export function getAttachmentUris(request: vscode.ChatRequest): vscode.Uri[] {
     return uris
 }
 
-export async function getAttachmentFiles(request: vscode.ChatRequest): Promise<FilePromptProps[]> {
-    const result: FilePromptProps[] = []
+export async function getAttachmentFiles(request: vscode.ChatRequest): Promise<FileElementProps[]> {
+    const result: FileElementProps[] = []
     const attachmentUris = getAttachmentUris(request)
     for (const uri of attachmentUris) {
         const buf = await vscode.workspace.fs.readFile(uri)

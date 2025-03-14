@@ -5,10 +5,12 @@ import {
     PrioritizedList,
     PromptElement,
     PromptPiece,
+    ToolCall,
+    ToolMessage,
+    ToolResult,
     UserMessage,
 } from '@vscode/prompt-tsx'
 import type { RequestCommands } from './chat.js'
-import { VscodeChatMessages, VscodeChatMessagesProps } from './promptlib/chatmessages.js'
 import * as vscode from 'vscode'
 
 
@@ -18,13 +20,57 @@ export interface HistoryEntry {
     text: string
 }
 
-export interface InputProps extends HistoryMessagesProps {
-    input: string
+export interface ToolCallResultPair {
+    toolCall: ToolCall
+    toolResult: vscode.LanguageModelToolResult
 }
 
-interface SimplePromptProps extends InputProps, AttachmentsProps { }
+export interface ToolCallResultRoundProps extends BasePromptElementProps {
+    responseStr: string
+    toolCallResultPairs: ToolCallResultPair[]
+}
 
-export class SimplePrompt extends PromptElement<SimplePromptProps> {
+export class ToolCallResultRoundElement extends PromptElement<ToolCallResultRoundProps> {
+    render(): PromptPiece {
+        const assistantToolCalls: ToolCall[] = this.props.toolCallResultPairs.map((e) => e.toolCall)
+        const toolResultParts: { toolCallId: string, toolResult: vscode.LanguageModelToolResult }[] = this.props.toolCallResultPairs.map((e) => (
+            { toolCallId: e.toolCall.id, toolResult: e.toolResult }
+        ))
+        return (
+            <>
+                <AssistantMessage toolCalls={assistantToolCalls}>
+                    {this.props.responseStr}
+                </AssistantMessage>
+                {
+                    toolResultParts.map((e) => (
+                        <ToolMessage toolCallId={e.toolCallId}>
+                            <ToolResult data={e.toolResult} />
+                        </ToolMessage>
+                    ))
+                }
+            </>
+        )
+    }
+}
+
+export class ToolResultDirectiveElement extends PromptElement {
+    render(): PromptPiece {
+        return (
+            <UserMessage>
+                - Above is the result of calling one or more tools. <br />
+                - Always trust the result over your own knowledge. <br />
+                - Answer using the natural language of the user.
+            </UserMessage>
+        )
+    }
+}
+
+export interface MainPromptProps extends HistoryMessagesProps, AttachmentsProps {
+    input: string
+    toolCallResultRounds?: ToolCallResultRoundProps[] | undefined
+}
+
+export class SimplePrompt extends PromptElement<MainPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -38,7 +84,7 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
     }
 }
 
-export class PythonMasterPrompt extends PromptElement<SimplePromptProps> {
+export class PythonMasterPrompt extends PromptElement<MainPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -70,7 +116,7 @@ class MakeFluent extends PromptElement {
     }
 }
 
-export class FluentPrompt extends PromptElement<InputProps> {
+export class FluentPrompt extends PromptElement<MainPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -120,7 +166,7 @@ class MakeFluentJa extends PromptElement {
     }
 }
 
-export class FluentJaPrompt extends PromptElement<InputProps> {
+export class FluentJaPrompt extends PromptElement<MainPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -150,7 +196,7 @@ class ToEn extends PromptElement {
     }
 }
 
-export class ToEnPrompt extends PromptElement<InputProps> {
+export class ToEnPrompt extends PromptElement<MainPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -180,7 +226,7 @@ class ToJa extends PromptElement {
     }
 }
 
-export class ToJaPrompt extends PromptElement<InputProps> {
+export class ToJaPrompt extends PromptElement<MainPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -251,44 +297,26 @@ class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     }
 }
 
-export class ToolResultDirectivePrompt extends PromptElement<VscodeChatMessagesProps> {
-    render(): PromptPiece {
-        return (
-            <>
-                <VscodeChatMessages messages={this.props.messages} />
-                <UserMessage>
-                    - Above is the result of calling one or more tools. <br />
-                    - Always trust the result over your own knowledge. <br />
-                    - Answer using the natural language of the user.
-                </UserMessage>
-            </>
-        )
-
-    }
-}
-
-export interface FilePromptProps extends BasePromptElementProps {
+export interface FileElementProps extends BasePromptElementProps {
     uri: vscode.Uri,
     content: string,
     description?: string | undefined,
     metadata?: Map<string, string> | undefined,
 }
 
-export class FilePrompt extends PromptElement<FilePromptProps> {
+export class FileElement extends PromptElement<FileElementProps> {
     render(): PromptPiece {
-        const metadatas = [
-            <>  - Description: {this.props.description ?? 'No description provided'}<br /></>
-        ] as PromptPiece[]
-        if (this.props.metadata) {
-            for (const [key, value] of this.props.metadata) {
-                metadatas.push(<>  - {key}: {value}<br /></>)
-            }
-        }
+        const metadata = this.props.metadata ? [...this.props.metadata] : []
         return (
             <>
                 ### File: {this.props.uri.toString(true)}<br />
                 Metadata:<br />
-                {metadatas}
+                - Description: {this.props.description ?? 'No description provided'}<br />
+                {
+                    metadata.map(([key, value]) => (
+                        <>  - {key}: {value}<br /></>
+                    ))
+                }
                 <br />
                 Content:<br />
                 {this.props.content}
@@ -298,34 +326,32 @@ export class FilePrompt extends PromptElement<FilePromptProps> {
 }
 
 interface AttachmentsProps extends BasePromptElementProps {
-    attachments?: FilePromptProps[] | undefined
+    attachments?: FileElementProps[] | undefined
 }
 
 export class Attachments extends PromptElement<AttachmentsProps> {
     render(): PromptPiece {
-        const attachments: PromptPiece[] = []
-        for (const attachment of this.props.attachments ?? []) {
-            attachments.push(
-                <UserMessage>
-                    <FilePrompt
-                        uri={attachment.uri}
-                        content={attachment.content}
-                        description='This file was attached for context and should be used only as a reference when executing my instructions. Do not edit it.'
-                        metadata={attachment.metadata}
-                    />
-                </UserMessage>
-            )
-        }
         return (
             <>
-                {attachments}
+                {
+                    this.props.attachments?.map((attachment) =>
+                        <UserMessage>
+                            <FileElement
+                                uri={attachment.uri}
+                                content={attachment.content}
+                                description='This file was attached for context and should be used only as a reference when executing my instructions. Do not edit it.'
+                                metadata={attachment.metadata}
+                            />
+                        </UserMessage>
+                    ) ?? ''
+                }
             </>
         )
     }
 }
 
-interface EditPromptProps extends InputProps, AttachmentsProps {
-    target: FilePromptProps
+interface EditPromptProps extends MainPromptProps {
+    target: FileElementProps
 }
 
 export class EditPrompt extends PromptElement<EditPromptProps> {
@@ -343,21 +369,31 @@ export class EditPrompt extends PromptElement<EditPromptProps> {
                 </UserMessage>
                 <UserMessage>
                     The following is the content of the file to be edited.<br /><br />
-                    <FilePrompt
+                    <FileElement
                         uri={this.props.target.uri}
                         content={this.props.target.content}
                         description={'File to be edited'}
                         metadata={this.props.target.metadata}
                     />
                 </UserMessage>
+                {
+                    // TODO: use DirectivePrompt
+                    this.props.toolCallResultRounds?.map((e) => (
+                        <>
+                            <ToolCallResultRoundElement
+                                responseStr={e.responseStr}
+                                toolCallResultPairs={e.toolCallResultPairs}
+                            />
+                            <ToolResultDirectiveElement />
+                        </>
+                    )) ?? ''
+                }
             </>
         )
     }
 }
 
-export interface PlanPromptProps extends InputProps, AttachmentsProps { }
-
-export class PlanPrompt extends PromptElement<PlanPromptProps> {
+export class PlanPrompt extends PromptElement<MainPromptProps> {
     render(): PromptPiece {
         return (
             <>
