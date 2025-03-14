@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
-import { ToolResultDirectivePrompt } from '../prompt.js'
-import { type BasePromptElementProps, type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
+import { type MainPromptProps, ToolResultDirectivePrompt } from '../prompt.js'
+import { type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { AbleTool, getLmTools } from './tools.js'
 import type { EditTool } from '../../lmtools/edit.js'
 
@@ -13,7 +13,7 @@ export class CopilotChatHandler {
         readonly editTool: EditTool
     }) { }
 
-    async copilotChatResponse<P extends BasePromptElementProps, S>(
+    async copilotChatResponse<P extends MainPromptProps, S>(
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
         ctor: PromptElementCtor<P, S>,
@@ -51,6 +51,9 @@ export class CopilotChatHandler {
         }
     }
 
+    // TODO
+    // 以下を processChatResponse が受け取るようにする. 再帰ごとに伸びていく. 最初は空を受け取る.
+    // { responseStr, toolCallResultPairs?: {toolCallPart, toolResult}[] }[]
     private async processChatResponse(
         chatResponse: vscode.LanguageModelChatResponse,
         messages: vscode.LanguageModelChatMessage[],

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import type { HistoryEntry, InputProps } from '../prompt.js'
+import type { HistoryEntry, MainPromptProps } from '../prompt.js'
 import { type PromptElementCtor, renderPrompt, type ToolCall } from '@vscode/prompt-tsx'
 import { ExternalPromise } from '../../utils/externalpromise.js'
 import { OpenAI } from 'openai'
@@ -35,7 +35,7 @@ export class OpenAiApiChatHandler {
     async openAiGpt4oMiniResponse<S>(
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
-        ctor: PromptElementCtor<InputProps, S>,
+        ctor: PromptElementCtor<MainPromptProps, S>,
         ableHistory: HistoryEntry[],
         stream?: vscode.ChatResponseStream,
         prompt?: string

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, InputProps, PlanPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { FluentJaPrompt, FluentPrompt, HistoryEntry, MainPromptProps, PlanPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { convertHistory } from './chatlib/historyutils.js'
 import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
@@ -180,7 +180,7 @@ export class ChatHandleManager {
     private async responseWithSelection<S>(
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
-        ctor: PromptElementCtor<InputProps, S>,
+        ctor: PromptElementCtor<MainPromptProps, S>,
         ableHistory: HistoryEntry[],
         stream?: vscode.ChatResponseStream,
         model?: vscode.LanguageModelChat,
