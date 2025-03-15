@@ -3,7 +3,8 @@ import * as vscode from 'vscode'
 import { findWorkspaceFileUri } from '../utils/uri.js'
 import { buildTree } from './fslib/buildtree.js'
 import { generateAsciiTree } from '../utils/asciitree.js'
-
+import { renderElementJSON } from '@vscode/prompt-tsx'
+import { DirElement } from '../chat/fsprompts.js'
 
 interface ReadFileInput {
     file: string
@@ -61,3 +62,28 @@ export class RepositoryTreeTool implements LanguageModelTool<void> {
 
 }
 
+interface ListDirInput {
+    dir: string
+}
+
+export class ListDirTool implements LanguageModelTool<ListDirInput> {
+
+    constructor(private readonly extension: {
+        readonly outputChannel: vscode.LogOutputChannel
+    }) { }
+
+    async invoke(options: LanguageModelToolInvocationOptions<ListDirInput>) {
+        this.extension.outputChannel.debug(`ListDirTool input: ${JSON.stringify(options.input, null, 2)}`)
+        const uri = await findWorkspaceFileUri(options.input.dir)
+        if (!uri) {
+            const message = `ListDirTool uri is undefined: ${options.input.dir}`
+            this.extension.outputChannel.error(message)
+            throw new Error(message)
+        }
+        const entries = await vscode.workspace.fs.readDirectory(uri)
+        const json = await renderElementJSON(DirElement, { uri, entries }, options.tokenizationOptions )
+        const promptPart = new vscode.LanguageModelToolResult([new vscode.LanguageModelPromptTsxPart([json])])
+        return promptPart
+    }
+
+}
