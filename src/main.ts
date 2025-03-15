@@ -4,7 +4,7 @@ import { registerCommands } from './commands.js'
 import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 import { PythonTool } from './lmtools/pyodide.js'
 import { EditTool } from './lmtools/edit.js'
-import { ReadFileTool } from './lmtools/fs.js'
+import { ReadFileTool, RepositoryTreeTool } from './lmtools/fs.js'
 import { renderToolResult } from './utils/toolresult.js'
 
 
@@ -12,18 +12,18 @@ class Extension {
     readonly chatHandleManager: ChatHandleManager
     readonly editTool: EditTool
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
+    readonly readFileTool: ReadFileTool
+    readonly repositoryTreeTool: RepositoryTreeTool
 
     constructor(public readonly openAiServiceId: string) {
         this.chatHandleManager = new ChatHandleManager(openAiServiceId, this)
         this.editTool = new EditTool(this)
+        this.readFileTool = new ReadFileTool(this)
+        this.repositoryTreeTool = new RepositoryTreeTool(this)
     }
 
     getChatHandler() {
         return this.chatHandleManager.getHandler()
-    }
-
-    getEditTool() {
-        return this.editTool
     }
 
     quickPickModel() {
@@ -56,8 +56,9 @@ export function activate(context: vscode.ExtensionContext) {
             void extension.activate()
         }),
         vscode.lm.registerTool('able_python', new PythonTool()),
-        vscode.lm.registerTool('able_replace_text', extension.getEditTool()),
-        vscode.lm.registerTool('able_read_file', new ReadFileTool(extension)),
+        vscode.lm.registerTool('able_replace_text', extension.editTool),
+        vscode.lm.registerTool('able_read_file', extension.readFileTool),
+        vscode.lm.registerTool('able_repository_tree', extension.repositoryTreeTool),
         ...registerCommands()
     )
 

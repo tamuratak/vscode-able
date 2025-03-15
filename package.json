@@ -147,6 +147,14 @@
             "file"
           ]
         }
+      },
+      {
+        "name": "able_repository_tree",
+        "tags": [
+          "File System"
+        ],
+        "displayName": "Repository Tree",
+        "modelDescription": "This tool generates an ASCII representation of the file structure for the current repository."
       }
     ],
     "commands": [

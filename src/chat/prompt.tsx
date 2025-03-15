@@ -12,6 +12,7 @@ import {
 } from '@vscode/prompt-tsx'
 import type { RequestCommands } from './chat.js'
 import * as vscode from 'vscode'
+import { FileElement, FileElementProps } from './fsprompts.js'
 
 
 export interface HistoryEntry {
@@ -297,33 +298,6 @@ class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     }
 }
 
-export interface FileElementProps extends BasePromptElementProps {
-    uri: vscode.Uri,
-    content: string,
-    description?: string | undefined,
-    metadata?: Map<string, string> | undefined,
-}
-
-export class FileElement extends PromptElement<FileElementProps> {
-    render(): PromptPiece {
-        const metadata = this.props.metadata ? [...this.props.metadata] : []
-        return (
-            <>
-                ### File: {this.props.uri.toString(true)}<br />
-                Metadata:<br />
-                - Description: {this.props.description ?? 'No description provided'}<br />
-                {
-                    metadata.map(([key, value]) => (
-                        <>  - {key}: {value}<br /></>
-                    ))
-                }
-                <br />
-                Content:<br />
-                {this.props.content}
-            </>
-        )
-    }
-}
 
 interface AttachmentsProps extends BasePromptElementProps {
     attachments?: FileElementProps[] | undefined

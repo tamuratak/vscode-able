@@ -30,23 +30,16 @@ export class ReadFileTool implements LanguageModelTool<ReadFileInput> {
 
 }
 
-interface RepositoryTreeInput {
-    dir?: string | undefined
-}
-
-export class RepositoryTreeTool implements LanguageModelTool<RepositoryTreeInput | undefined> {
+export class RepositoryTreeTool implements LanguageModelTool<void> {
 
     constructor(private readonly extension: {
         readonly outputChannel: vscode.LogOutputChannel
     }) { }
 
-    async invoke(options: LanguageModelToolInvocationOptions<RepositoryTreeInput>) {
+    async invoke(options: LanguageModelToolInvocationOptions<void>) {
         this.extension.outputChannel.debug(`RepositoryTreeTool input: ${JSON.stringify(options.input, null, 2)}`)
-        let dir = options.input?.dir
-        if (!dir) {
-            const workspaceFolders = vscode.workspace.workspaceFolders?.[0]
-            dir = workspaceFolders?.uri.path
-        }
+        const workspaceFolders = vscode.workspace.workspaceFolders?.[0]
+        const dir = workspaceFolders?.uri.path
         if (!dir) {
             const message = 'RepositoryTreeTool dir is undefined'
             this.extension.outputChannel.error(message)
