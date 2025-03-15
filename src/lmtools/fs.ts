@@ -8,7 +8,7 @@ import { DirElement } from '../chat/promptlib/fsprompts.js'
 import { readDir } from '../utils/dir.js'
 
 interface ReadFileInput {
-    file: string
+    path: string
 }
 
 export class ReadFileTool implements LanguageModelTool<ReadFileInput> {
@@ -19,9 +19,9 @@ export class ReadFileTool implements LanguageModelTool<ReadFileInput> {
 
     async invoke(options: LanguageModelToolInvocationOptions<ReadFileInput>) {
         this.extension.outputChannel.debug(`ReadFileTool input: ${JSON.stringify(options.input, null, 2)}`)
-        const uri = await findWorkspaceFileUri(options.input.file)
+        const uri = await findWorkspaceFileUri(options.input.path)
         if (!uri) {
-            const message = `ReadFileTool uri is undefined: ${options.input.file}`
+            const message = `ReadFileTool uri is undefined: ${options.input.path}`
             this.extension.outputChannel.error(message)
             throw new Error(message)
         }
@@ -64,7 +64,7 @@ export class RepositoryTreeTool implements LanguageModelTool<void> {
 }
 
 interface ListDirInput {
-    dir: string
+    path: string
 }
 
 export class ListDirTool implements LanguageModelTool<ListDirInput> {
@@ -75,9 +75,9 @@ export class ListDirTool implements LanguageModelTool<ListDirInput> {
 
     async invoke(options: LanguageModelToolInvocationOptions<ListDirInput>) {
         this.extension.outputChannel.debug(`ListDirTool input: ${JSON.stringify(options.input, null, 2)}`)
-        const dirUri = await findWorkspaceFileUri(options.input.dir)
+        const dirUri = await findWorkspaceFileUri(options.input.path)
         if (!dirUri) {
-            const message = `ListDirTool uri is undefined: ${options.input.dir}`
+            const message = `ListDirTool uri is undefined: ${options.input.path}`
             this.extension.outputChannel.error(message)
             throw new Error(message)
         }
