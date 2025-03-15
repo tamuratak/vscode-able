@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { TreeNode } from '../../utils/asciitree.js'
 import { excludeIgnores } from './git.js'
-import { DirEntry } from '../../utils/dir.js'
+import { readDir } from '../../utils/dir.js'
 
 
 export async function buildTree(uri: vscode.Uri): Promise<TreeNode> {
@@ -18,11 +18,7 @@ export async function buildTree(uri: vscode.Uri): Promise<TreeNode> {
         try {
             const stat = await vscode.workspace.fs.stat(currentUri)
             if (stat.type === vscode.FileType.Directory) {
-                const entries = await vscode.workspace.fs.readDirectory(currentUri)
-                const uriEntries: DirEntry[] = entries.map(([name, fileType]) => {
-                    const childUri = vscode.Uri.joinPath(currentUri, name)
-                    return { name, fileType, uri: childUri }
-                })
+                const uriEntries = await readDir(currentUri)
                 const notIgnoredUriEntries = await excludeIgnores(uriEntries)
                 const children: TreeNode[] = []
 
