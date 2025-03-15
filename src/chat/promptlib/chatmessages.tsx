@@ -1,4 +1,4 @@
-/* eslint-disable  @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument */
+
 import {
     AssistantMessage,
     BasePromptElementProps,
@@ -10,7 +10,6 @@ import {
     UserMessage,
 } from '@vscode/prompt-tsx'
 import * as vscode from 'vscode'
-import type { BaseChatMessage } from '@vscode/prompt-tsx/dist/base/promptElements.js'
 import type { ChatCompletionContentPart, ChatCompletionContentPartRefusal, ChatCompletionMessageParam } from 'openai/resources/index.mjs'
 
 /**
@@ -24,7 +23,7 @@ export interface VscodeChatMessagesProps extends BasePromptElementProps {
 
 export class VscodeChatMessages extends PromptElement<VscodeChatMessagesProps> {
     render(): PromptPiece {
-        const messages: BaseChatMessage[] = []
+        const messages: PromptPiece[] = []
         for (const mesg of this.props.messages) {
             if (mesg.role === vscode.LanguageModelChatMessageRole.User) {
                 for (const part of mesg.content) {
@@ -75,7 +74,7 @@ interface OpenAIChatMessagesProps extends BasePromptElementProps {
 
 export class OpenAIChatMessages extends PromptElement<OpenAIChatMessagesProps> {
     render(): PromptPiece {
-        const messages: BaseChatMessage[] = []
+        const messages: PromptPiece[] = []
         for (const mesg of this.props.messages) {
             if (mesg.role === 'user') {
                 messages.push(<UserMessage name={mesg.name ?? ''}>{processContent(mesg.content)}</UserMessage>);

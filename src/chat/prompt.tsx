@@ -1,4 +1,4 @@
-/* eslint-disable  @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument */
+
 import {
     AssistantMessage,
     BasePromptElementProps,
@@ -14,6 +14,12 @@ import type { RequestCommands } from './chat.js'
 import * as vscode from 'vscode'
 import { FileElement, FileElementProps } from './fsprompts.js'
 
+/* eslint-disable  @typescript-eslint/no-namespace */
+declare global {
+    namespace JSX {
+        type Element = PromptPiece
+    }
+}
 
 export interface HistoryEntry {
     type: 'user' | 'assistant',
