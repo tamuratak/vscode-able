@@ -4,7 +4,7 @@ import { registerCommands } from './commands.js'
 import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 import { PythonTool } from './lmtools/pyodide.js'
 import { EditTool } from './lmtools/edit.js'
-import { ListDirTool, ReadFileTool, RepositoryTreeTool } from './lmtools/fs.js'
+import { ListDirTool, ReadFileTool, RepositoryTreeTool } from './lmtools/fstools.js'
 import { renderToolResult } from './utils/toolresult.js'
 
 

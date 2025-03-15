@@ -39,6 +39,9 @@ export class FileElement extends PromptElement<FileElementProps> {
 export interface DirElementProps extends BasePromptElementProps {
     uri: vscode.Uri,
     entries: DirEntry[]
+    options?: {
+        useAbsolutePath?: boolean
+    }
 }
 
 function getFileTypeString(type: vscode.FileType): string {
@@ -63,9 +66,10 @@ export class DirElement extends PromptElement<DirElementProps> {
                 ### Directory: {this.props.uri.fsPath}<br />
                 Entries:<br />
                 {
-                    this.props.entries.map(({ name, fileType }) => (
-                        <>- {name} ({getFileTypeString(fileType)})<br /></>
-                    ))
+                    this.props.entries.map(({ name, fileType, uri }) => {
+                        const entryName = this.props.options?.useAbsolutePath ? uri.fsPath : name
+                        return (<>- {entryName} ({getFileTypeString(fileType)})<br /></>)
+                    })
                 }
             </>
         )

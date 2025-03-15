@@ -32,13 +32,17 @@ export class ReadFileTool implements LanguageModelTool<ReadFileInput> {
 
 }
 
-export class RepositoryTreeTool implements LanguageModelTool<void> {
+interface RepositoryTreeInput {
+    useAbsolutePath?: boolean
+}
+
+export class RepositoryTreeTool implements LanguageModelTool<RepositoryTreeInput> {
 
     constructor(private readonly extension: {
         readonly outputChannel: vscode.LogOutputChannel
     }) { }
 
-    async invoke(options: LanguageModelToolInvocationOptions<void>) {
+    async invoke(options: LanguageModelToolInvocationOptions<RepositoryTreeInput>) {
         this.extension.outputChannel.debug(`RepositoryTreeTool input: ${JSON.stringify(options.input, null, 2)}`)
         const workspaceFolders = vscode.workspace.workspaceFolders?.[0]
         const dir = workspaceFolders?.uri.path
@@ -64,7 +68,8 @@ export class RepositoryTreeTool implements LanguageModelTool<void> {
 }
 
 interface ListDirInput {
-    path: string
+    path: string,
+    useAbsolutePath?: boolean
 }
 
 export class ListDirTool implements LanguageModelTool<ListDirInput> {
@@ -77,7 +82,7 @@ export class ListDirTool implements LanguageModelTool<ListDirInput> {
         this.extension.outputChannel.debug(`ListDirTool input: ${JSON.stringify(options.input, null, 2)}`)
         const dirUri = await findWorkspaceFileUri(options.input.path)
         if (!dirUri) {
-            const message = `ListDirTool uri is undefined: ${options.input.path}`
+            const message = `ListDirTool uri is not found: ${options.input.path}`
             this.extension.outputChannel.error(message)
             throw new Error(message)
         }
