@@ -74,14 +74,18 @@ export class ListDirTool implements LanguageModelTool<ListDirInput> {
 
     async invoke(options: LanguageModelToolInvocationOptions<ListDirInput>) {
         this.extension.outputChannel.debug(`ListDirTool input: ${JSON.stringify(options.input, null, 2)}`)
-        const uri = await findWorkspaceFileUri(options.input.dir)
-        if (!uri) {
+        const dirUri = await findWorkspaceFileUri(options.input.dir)
+        if (!dirUri) {
             const message = `ListDirTool uri is undefined: ${options.input.dir}`
             this.extension.outputChannel.error(message)
             throw new Error(message)
         }
-        const entries = await vscode.workspace.fs.readDirectory(uri)
-        const json = await renderElementJSON(DirElement, { uri, entries }, options.tokenizationOptions )
+        const dirItems = await vscode.workspace.fs.readDirectory(dirUri)
+        const entriesWithUri = dirItems.map(([name, fileType]) => {
+            const childUri = vscode.Uri.joinPath(dirUri, name)
+            return { name, fileType, uri: childUri }
+        })
+        const json = await renderElementJSON(DirElement, { uri: dirUri, entries: entriesWithUri }, options.tokenizationOptions )
         const promptPart = new vscode.LanguageModelToolResult([new vscode.LanguageModelPromptTsxPart(json)])
         return promptPart
     }

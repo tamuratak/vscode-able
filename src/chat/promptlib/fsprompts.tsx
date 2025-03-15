@@ -1,10 +1,11 @@
-/* eslint-disable  @typescript-eslint/no-unsafe-return */
+
 import {
     BasePromptElementProps,
     PromptElement,
     PromptPiece
 } from '@vscode/prompt-tsx'
 import * as vscode from 'vscode'
+import type { DirEntry } from '../../utils/dir.js'
 
 
 export interface FileElementProps extends BasePromptElementProps {
@@ -35,10 +36,9 @@ export class FileElement extends PromptElement<FileElementProps> {
     }
 }
 
-
 export interface DirElementProps extends BasePromptElementProps {
     uri: vscode.Uri,
-    entries: [string, vscode.FileType][]
+    entries: DirEntry[]
 }
 
 function getFileTypeString(type: vscode.FileType): string {
@@ -63,8 +63,8 @@ export class DirElement extends PromptElement<DirElementProps> {
                 ### Directory: {this.props.uri.fsPath}<br />
                 Entries:<br />
                 {
-                    this.props.entries.map(([name, type]) => (
-                        <>- {name} ({getFileTypeString(type)})<br /></>
+                    this.props.entries.map(({ name, fileType }) => (
+                        <>- {name} ({getFileTypeString(fileType)})<br /></>
                     ))
                 }
             </>
