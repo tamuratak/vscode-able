@@ -5,6 +5,7 @@ import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js
 import { PythonTool } from './lmtools/pyodide.js'
 import { EditTool } from './lmtools/edit.js'
 import { ReadFileTool } from './lmtools/fs.js'
+import { renderToolResult } from './utils/toolresult.js'
 
 
 class Extension {
@@ -47,6 +48,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('able.quickPickModel', () => {
             void extension.quickPickModel()
         }),
+        vscode.commands.registerCommand('able.doSomething', () => {
+            void doSomething()
+        }),
         vscode.chat.createChatParticipant('able.chatParticipant', extension.getChatHandler()),
         vscode.commands.registerCommand('able.activateCopilotChatModels', () => {
             void extension.activate()
@@ -64,4 +68,18 @@ export function activate(context: vscode.ExtensionContext) {
         context.environmentVariableCollection.replace('GIT_EDITOR', 'vscode -nw')
     }
 
+}
+
+
+async function doSomething() {
+    const tool = vscode.lm.tools.find(e => e.name === 'copilot_listDirectory')
+    if (!tool) {
+        return
+    }
+    const result = await vscode.lm.invokeTool(tool.name, {
+        toolInvocationToken: undefined,
+        input: { path: '/Users/tamura/src/github/LaTeX-Workshop' }
+    })
+    const value = await renderToolResult(result)
+    console.log(value)
 }
