@@ -1,4 +1,3 @@
-
 import {
     AssistantMessage,
     BasePromptElementProps,
@@ -12,12 +11,13 @@ import {
 } from '@vscode/prompt-tsx'
 import type { RequestCommands } from './chat.js'
 import * as vscode from 'vscode'
-import { FileElement, FileElementProps } from './fsprompts.js'
+import { FileElement, FileElementProps } from './promptlib/fsprompts.js'
 
 /* eslint-disable  @typescript-eslint/no-namespace */
 declare global {
     namespace JSX {
         type Element = PromptPiece
+        type ElementClass = PromptElement
     }
 }
 

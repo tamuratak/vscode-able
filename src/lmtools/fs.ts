@@ -4,7 +4,7 @@ import { findWorkspaceFileUri } from '../utils/uri.js'
 import { buildTree } from './fslib/buildtree.js'
 import { generateAsciiTree } from '../utils/asciitree.js'
 import { renderElementJSON } from '@vscode/prompt-tsx'
-import { DirElement } from '../chat/fsprompts.js'
+import { DirElement } from '../chat/promptlib/fsprompts.js'
 
 interface ReadFileInput {
     file: string
