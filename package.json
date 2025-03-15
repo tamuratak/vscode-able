@@ -155,6 +155,26 @@
         ],
         "displayName": "Repository Tree",
         "modelDescription": "This tool generates an ASCII representation of the file structure for the current repository."
+      },
+      {
+        "name": "able_list_dir",
+        "tags": [
+          "File System"
+        ],
+        "displayName": "List Directory",
+        "modelDescription": "This tool lists the contents of a directory in the file system, allowing users to see the files and subdirectories present.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dir": {
+              "type": "string",
+              "description": "The path of the directory to list. This should be absolute path, starting with /."
+            }
+          },
+          "required": [
+            "dir"
+          ]
+        }
       }
     ],
     "commands": [

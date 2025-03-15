@@ -82,7 +82,7 @@ export class ListDirTool implements LanguageModelTool<ListDirInput> {
         }
         const entries = await vscode.workspace.fs.readDirectory(uri)
         const json = await renderElementJSON(DirElement, { uri, entries }, options.tokenizationOptions )
-        const promptPart = new vscode.LanguageModelToolResult([new vscode.LanguageModelPromptTsxPart([json])])
+        const promptPart = new vscode.LanguageModelToolResult([new vscode.LanguageModelPromptTsxPart(json)])
         return promptPart
     }
 

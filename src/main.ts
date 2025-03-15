@@ -4,7 +4,7 @@ import { registerCommands } from './commands.js'
 import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 import { PythonTool } from './lmtools/pyodide.js'
 import { EditTool } from './lmtools/edit.js'
-import { ReadFileTool, RepositoryTreeTool } from './lmtools/fs.js'
+import { ListDirTool, ReadFileTool, RepositoryTreeTool } from './lmtools/fs.js'
 import { renderToolResult } from './utils/toolresult.js'
 
 
@@ -14,12 +14,14 @@ class Extension {
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
     readonly readFileTool: ReadFileTool
     readonly repositoryTreeTool: RepositoryTreeTool
+    readonly listDirTool: ListDirTool
 
     constructor(public readonly openAiServiceId: string) {
         this.chatHandleManager = new ChatHandleManager(openAiServiceId, this)
         this.editTool = new EditTool(this)
         this.readFileTool = new ReadFileTool(this)
         this.repositoryTreeTool = new RepositoryTreeTool(this)
+        this.listDirTool = new ListDirTool(this)
     }
 
     getChatHandler() {
@@ -59,6 +61,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_replace_text', extension.editTool),
         vscode.lm.registerTool('able_read_file', extension.readFileTool),
         vscode.lm.registerTool('able_repository_tree', extension.repositoryTreeTool),
+        vscode.lm.registerTool('able_list_dir', extension.listDirTool),
         ...registerCommands()
     )
 
@@ -73,14 +76,15 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 async function doSomething() {
-    const tool = vscode.lm.tools.find(e => e.name === 'copilot_listDirectory')
+    const tool = vscode.lm.tools.find(e => e.name === 'able_list_dir')
     if (!tool) {
         return
     }
     const result = await vscode.lm.invokeTool(tool.name, {
         toolInvocationToken: undefined,
-        input: { path: '/Users/tamura/src/github/LaTeX-Workshop' }
+        input: { dir: '/Users/tamura/src/github/LaTeX-Workshop' }
     })
+    console.log(result)
     const value = await renderToolResult(result)
     console.log(value)
 }
