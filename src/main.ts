@@ -76,13 +76,15 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 async function doSomething() {
+    const models = await vscode.lm.selectChatModels({vendor: 'copilot'})
+    console.log(JSON.stringify(models, null, 2))
     const tool = vscode.lm.tools.find(e => e.name === 'able_list_dir')
     if (!tool) {
         return
     }
     const result = await vscode.lm.invokeTool(tool.name, {
         toolInvocationToken: undefined,
-        input: { dir: '/Users/tamura/src/github/LaTeX-Workshop' }
+        input: { path: '/Users/tamura/src/github/LaTeX-Workshop' }
     })
     console.log(result)
     const value = await renderToolResult(result)

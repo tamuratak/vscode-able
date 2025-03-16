@@ -5,7 +5,7 @@ import { findWorkspaceFileUri } from '../utils/uri.js'
 
 
 interface EditInput {
-    file: string,
+    path: string,
     textToReplace: string,
     input: string
 }
@@ -53,8 +53,8 @@ export class EditTool implements LanguageModelTool<EditInput> {
                     range: undefined,
                 })
             }
-            const { file, textToReplace, input } = options.input
-            if (currentInput.file !== file || currentInput.textToReplace !== textToReplace || currentInput.input !== input) {
+            const { path: file, textToReplace, input } = options.input
+            if (currentInput.path !== file || currentInput.textToReplace !== textToReplace || currentInput.input !== input) {
                 this.extension.outputChannel.error('EditTool currentInput is not same as options.input')
                 throw new EditToolError('EditTool currentInput is not same as options.input', {
                     type: 'current_input_not_same',
@@ -86,9 +86,9 @@ export class EditTool implements LanguageModelTool<EditInput> {
     async prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<EditInput>, token: vscode.CancellationToken) {
         this.clearCurrentSession()
         this.extension.outputChannel.debug(`EditTool input: ${JSON.stringify(options.input, null, 2)}`)
-        const uri = await findWorkspaceFileUri(options.input.file)
+        const uri = await findWorkspaceFileUri(options.input.path)
         if (!uri) {
-            const message = `findWorkspaceFileUri Cannot find file: ${options.input.file}`
+            const message = `findWorkspaceFileUri Cannot find file: ${options.input.path}`
             this.extension.outputChannel.error(message)
             throw new EditToolError(message, {
                 type: 'uri_is_undefined',
@@ -154,14 +154,3 @@ export class EditTool implements LanguageModelTool<EditInput> {
     }
 
 }
-
-/*
-    "startOffset": {
-        "type": "number",
-            "description": "The start offset of the text to replace. If the range to be replaced begins at the start of the file, this should be 0. You can use able_count_characters to get the offset. This is optional."
-    },
-    "endOffset": {
-        "type": "number",
-            "description": "The end offset of the text to replace. This should reference the position after the last character that you want to replace. This is optional."
-    }
-*/
