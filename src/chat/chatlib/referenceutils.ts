@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FileElementProps } from '../prompt.js'
+import { FileElementProps } from '../promptlib/fsprompts.js'
 
 
 /** Reference id for user's current visible code, i.e. the uri of the active document and the visible range */

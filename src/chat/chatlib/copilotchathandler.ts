@@ -42,9 +42,15 @@ export class CopilotChatHandler {
                 throw new Error('Too many iterations')
             }
             count += 1
-            const { messages } = await renderPrompt(ctor, { ...props, toolCallResultRounds }, { modelMaxPromptTokens: 2048 }, model)
+            const { messages } = await renderPrompt(
+                ctor,
+                { ...props, toolCallResultRounds },
+                { modelMaxPromptTokens: model.maxInputTokens * 0.8 },
+                model // model.countTokens is used to calculate the token count of the prompt.
+            )
             this.extension.outputChannel.debug('Copilot chat response', JSON.stringify(messages, null, 2))
             const tools = getLmTools(selectedTools)
+            // Send request to the LLM.
             const chatResponse = await model.sendRequest(
                 messages, { tools }, token
             ).then(r => r, e => {
@@ -57,6 +63,7 @@ export class CopilotChatHandler {
                 return { chatResponse }
             }
             let responseStr = ''
+            // Collecting the requests of tool calling from the response.
             const toolCalls: vscode.LanguageModelToolCallPart[] = []
             for await (const fragment of chatResponse.stream) {
                 if (fragment instanceof vscode.LanguageModelTextPart) {
@@ -70,6 +77,7 @@ export class CopilotChatHandler {
             if (toolCalls.length === 0) {
                 return
             }
+            // Processing the tool calling requests.
             for (const fragment of toolCalls) {
                 const result = await vscode.lm.invokeTool(
                     fragment.name,
@@ -93,8 +101,12 @@ export class CopilotChatHandler {
                 if (result === undefined) {
                     continue
                 }
+                // Collect results after processing tool calls.
                 toolCallResultPairs.push({ toolCall: convertToToolCall(fragment), toolResult: result })
             }
+            // Save the tool calling requests and their results for the next iteration.
+            // The next iteration will be called with the tool calling requests and their results.
+            // LLM will use them to generate the next response.
             toolCallResultRounds.push({ responseStr, toolCallResultPairs })
         }
     }
