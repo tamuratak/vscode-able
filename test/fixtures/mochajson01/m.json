@@ -1,0 +1,201 @@
+
+> able@3.3.0 test:json
+> mocha --require source-map-support/register --reporter json --ui tdd out/test/unittest/**/*.js
+
+{
+  "stats": {
+    "suites": 5,
+    "tests": 9,
+    "passes": 8,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-20T06:15:17.401Z",
+    "end": "2025-03-20T06:15:17.409Z",
+    "duration": 8
+  },
+  "tests": [
+    {
+      "title": "parse mocha json output",
+      "fullTitle": "MochaTask test parse mocha json output",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/tasklib/mocha.test.js",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should generate ASCII tree for a single node",
+      "fullTitle": "ASCII Tree Utils generateAsciiTree should generate ASCII tree for a single node",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should generate ASCII tree for a simple tree with children",
+      "fullTitle": "ASCII Tree Utils generateAsciiTree should generate ASCII tree for a simple tree with children",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should generate ASCII tree for a complex nested tree",
+      "fullTitle": "ASCII Tree Utils generateAsciiTree should generate ASCII tree for a complex nested tree",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 4,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'root\\n├── folder1\\n│   ├── file1.txt\\n│   └── file2.txt\\n└── file3.txt\\n'\n- 'root\\n├── folder1\\n│   ├── fie1.txt\\n│   └── file2.txt\\n└── file3.txt\\n'\n    at Context.<anonymous> (test/unittest/utils/asciitree.test.ts:54:14)\n    at processImmediate (node:internal/timers:483:21)",
+        "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'root\\n├── folder1\\n│   ├── file1.txt\\n│   └── file2.txt\\n└── file3.txt\\n'\n- 'root\\n├── folder1\\n│   ├── fie1.txt\\n│   └── file2.txt\\n└── file3.txt\\n'",
+        "generatedMessage": true,
+        "name": "AssertionError",
+        "code": "ERR_ASSERTION",
+        "actual": "root\n├── folder1\n│   ├── file1.txt\n│   └── file2.txt\n└── file3.txt\n",
+        "expected": "root\n├── folder1\n│   ├── fie1.txt\n│   └── file2.txt\n└── file3.txt\n",
+        "operator": "strictEqual"
+      }
+    },
+    {
+      "title": "should parse ASCII tree for a single node",
+      "fullTitle": "ASCII Tree Utils parseAsciiTree should parse ASCII tree for a single node",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should parse ASCII tree for a simple tree with children",
+      "fullTitle": "ASCII Tree Utils parseAsciiTree should parse ASCII tree for a simple tree with children",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should parse ASCII tree for a complex nested tree",
+      "fullTitle": "ASCII Tree Utils parseAsciiTree should parse ASCII tree for a complex nested tree",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should generate and parse ASCII tree without data loss",
+      "fullTitle": "ASCII Tree Utils Round Trip should generate and parse ASCII tree without data loss",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should handle empty child arrays consistently",
+      "fullTitle": "ASCII Tree Utils Round Trip should handle empty child arrays consistently",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    }
+  ],
+  "pending": [],
+  "failures": [
+    {
+      "title": "should generate ASCII tree for a complex nested tree",
+      "fullTitle": "ASCII Tree Utils generateAsciiTree should generate ASCII tree for a complex nested tree",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 4,
+      "currentRetry": 0,
+      "err": {
+        "stack": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'root\\n├── folder1\\n│   ├── file1.txt\\n│   └── file2.txt\\n└── file3.txt\\n'\n- 'root\\n├── folder1\\n│   ├── fie1.txt\\n│   └── file2.txt\\n└── file3.txt\\n'\n    at Context.<anonymous> (test/unittest/utils/asciitree.test.ts:54:14)\n    at processImmediate (node:internal/timers:483:21)",
+        "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'root\\n├── folder1\\n│   ├── file1.txt\\n│   └── file2.txt\\n└── file3.txt\\n'\n- 'root\\n├── folder1\\n│   ├── fie1.txt\\n│   └── file2.txt\\n└── file3.txt\\n'",
+        "generatedMessage": true,
+        "name": "AssertionError",
+        "code": "ERR_ASSERTION",
+        "actual": "root\n├── folder1\n│   ├── file1.txt\n│   └── file2.txt\n└── file3.txt\n",
+        "expected": "root\n├── folder1\n│   ├── fie1.txt\n│   └── file2.txt\n└── file3.txt\n",
+        "operator": "strictEqual"
+      }
+    }
+  ],
+  "passes": [
+    {
+      "title": "parse mocha json output",
+      "fullTitle": "MochaTask test parse mocha json output",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/tasklib/mocha.test.js",
+      "duration": 1,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should generate ASCII tree for a single node",
+      "fullTitle": "ASCII Tree Utils generateAsciiTree should generate ASCII tree for a single node",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should generate ASCII tree for a simple tree with children",
+      "fullTitle": "ASCII Tree Utils generateAsciiTree should generate ASCII tree for a simple tree with children",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should parse ASCII tree for a single node",
+      "fullTitle": "ASCII Tree Utils parseAsciiTree should parse ASCII tree for a single node",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should parse ASCII tree for a simple tree with children",
+      "fullTitle": "ASCII Tree Utils parseAsciiTree should parse ASCII tree for a simple tree with children",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should parse ASCII tree for a complex nested tree",
+      "fullTitle": "ASCII Tree Utils parseAsciiTree should parse ASCII tree for a complex nested tree",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should generate and parse ASCII tree without data loss",
+      "fullTitle": "ASCII Tree Utils Round Trip should generate and parse ASCII tree without data loss",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    },
+    {
+      "title": "should handle empty child arrays consistently",
+      "fullTitle": "ASCII Tree Utils Round Trip should handle empty child arrays consistently",
+      "file": "/Users/tamura/src/github/vscode-able/out/test/unittest/utils/asciitree.test.js",
+      "duration": 0,
+      "currentRetry": 0,
+      "speed": "fast",
+      "err": {}
+    }
+  ]
+}
