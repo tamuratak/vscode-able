@@ -43,8 +43,9 @@ class Extension {
     }
 
     dispose() {
-        this.taskWatcher.dispose()
+        this.ableTaskProvider.dispose()
         this.outputChannel.dispose()
+        this.taskWatcher.dispose()
     }
 
 }

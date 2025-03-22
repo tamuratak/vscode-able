@@ -6,6 +6,7 @@ import { collectMochaJsonFailures } from './tasklib/mochalib/mochajson.js'
 export class AbleTaskProvider implements vscode.TaskProvider {
     static AbleTaskType = 'abletask'
     private readonly tasks: Promise<vscode.Task[]>
+    private readonly collection = vscode.languages.createDiagnosticCollection('AbleTask')
 
     constructor(private readonly extension: {
         readonly outputChannel: vscode.LogOutputChannel
@@ -25,12 +26,12 @@ export class AbleTaskProvider implements vscode.TaskProvider {
                     return Promise.resolve(
                         new SimpleTaskTerminal(async () => {
                             try {
-                                const collection = vscode.languages.createDiagnosticCollection(task.name)
+                                this.collection.clear()
                                 const output = await executeMochaCommand(task)
                                 const failures = collectMochaJsonFailures(output)
                                 const diagEntries = await convertToCollections(failures)
                                 for (const entry of diagEntries.values()) {
-                                    collection.set(entry.uri, entry.diags)
+                                    this.collection.set(entry.uri, entry.diags)
                                 }
                             } catch (error) {
                                 if (error instanceof Error) {
@@ -55,6 +56,10 @@ export class AbleTaskProvider implements vscode.TaskProvider {
 
     public resolveTask() {
         return undefined
+    }
+
+    dispose() {
+        this.collection.dispose()
     }
 
 }
