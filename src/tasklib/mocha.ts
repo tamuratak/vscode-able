@@ -71,14 +71,14 @@ interface DiagnosticEntry {
 export async function convertToCollections(failures: Failure[]) {
     const collectionMap = new Map<string, DiagnosticEntry>()
     for (const failure of failures) {
-        const { filePath, line, column } = failure
+        const { filePath, line } = failure
         const uri = await findWorkspaceFileUri(filePath)
         if (!uri) {
             continue
         }
         const range = new vscode.Range(
-            new vscode.Position(line - 1, column - 1),
-            new vscode.Position(line - 1, column + failure.failure.err.operator.length - 1)
+            new vscode.Position(line - 1, 0),
+            new vscode.Position(line - 1, 100)
         )
         const diagnostic = new vscode.Diagnostic(range, failure.failure.err.message)
         const entry = collectionMap.get(uri.toString())
