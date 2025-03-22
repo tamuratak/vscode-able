@@ -72,7 +72,8 @@
             "script": "lint:fix",
             "presentation": {
                 "reveal": "never",
-                "group": "taskTest"
+                "group": "taskTest",
+                "clear": true
             },
             "problemMatcher": [
                 {

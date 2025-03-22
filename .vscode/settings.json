@@ -5,4 +5,10 @@
     "typescript.tsdk": "./node_modules/typescript/lib",
     "typescript.preferences.importModuleSpecifier": "relative",
     "typescript.preferences.importModuleSpecifierEnding": "js",
+    "able.taskWatcher": [
+        {
+            "name": "task-lint",
+            "globPattern": "**/*.ts",
+        }
+    ]
 }
