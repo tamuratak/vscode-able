@@ -2,7 +2,7 @@ import { suite, test } from 'mocha'
 import assert, { } from 'assert'
 import { readFile } from 'fs/promises'
 import { type MochaJsonResult } from '../../../src/tasklib/mocha.js'
-import { collectMochaJsonFailues, removeBeforeFirstBrace } from '../../../src/tasklib/mochalib/mochajson.js'
+import { collectMochaJsonFailures, removeBeforeFirstBrace } from '../../../src/tasklib/mochalib/mochajson.js'
 
 
 suite('MochaTask test', () => {
@@ -19,7 +19,7 @@ suite('MochaTask test', () => {
         const buff = await readFile('test/fixtures/mochajson01/m.json')
         const decoder = new TextDecoder()
         const jsonStringWithGarbage = decoder.decode(buff)
-        const failures = collectMochaJsonFailues(jsonStringWithGarbage)
+        const failures = collectMochaJsonFailures(jsonStringWithGarbage)
         assert(failures.length > 0)
     })
 })

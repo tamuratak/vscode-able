@@ -20,7 +20,6 @@
             "label": "task-test",
             "dependsOrder": "sequence",
             "dependsOn": [
-                "task-lint",
                 "task-test-xunit",
                 "task-test-spec",
             ],
@@ -72,7 +71,6 @@
             "script": "lint:fix",
             "presentation": {
                 "reveal": "never",
-                "group": "taskTest",
                 "clear": true
             },
             "problemMatcher": [

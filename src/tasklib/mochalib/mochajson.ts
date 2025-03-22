@@ -57,14 +57,14 @@ export function parseMochaJsonOutput(output: string) {
     return mochaResult
 }
 
-interface Failure {
+export interface Failure {
     filePath: string
     line: number
     column: number
     failure: MochaTestResult<MochaTestError>
 }
 
-export function collectMochaJsonFailues(output: string) {
+export function collectMochaJsonFailures(output: string) {
     const mochaResult = parseMochaJsonOutput(output)
     const failures = mochaResult.failures
     const result: Failure[] = []

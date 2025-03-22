@@ -1,5 +1,6 @@
 import * as vscode from 'vscode'
-import { executeMochaCommand, findMochaJsonTestCommand } from './tasklib/mocha.js'
+import { convertToCollections, executeMochaCommand, findMochaJsonTestCommand } from './tasklib/mocha.js'
+import { collectMochaJsonFailures } from './tasklib/mochalib/mochajson.js'
 
 
 export class AbleTaskProvider implements vscode.TaskProvider {
@@ -22,14 +23,15 @@ export class AbleTaskProvider implements vscode.TaskProvider {
                 AbleTaskProvider.AbleTaskType,
                 new vscode.CustomExecution(() => {
                     return Promise.resolve(
-                        new SimpleTaskTerminal(async (emitter) => {
+                        new SimpleTaskTerminal(async () => {
                             try {
-//                                const collection = vscode.languages.createDiagnosticCollection(task.name)
-                                // TODO
-                                const json = await executeMochaCommand(task)
-                                const result = JSON.parse(json) as unknown
-                                emitter.fire(json)
-                                console.log('Mocha test result: ', result)
+                                const collection = vscode.languages.createDiagnosticCollection(task.name)
+                                const output = await executeMochaCommand(task)
+                                const failures = collectMochaJsonFailures(output)
+                                const diagEntries = await convertToCollections(failures)
+                                for (const entry of diagEntries.values()) {
+                                    collection.set(entry.uri, entry.diags)
+                                }
                             } catch (error) {
                                 if (error instanceof Error) {
                                     this.extension.outputChannel.error('Error executing task: ', error)
