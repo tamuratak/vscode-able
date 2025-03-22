@@ -39,6 +39,9 @@ interface MochaTestResult<T> {
 }
 
 export function removeBeforeFirstBrace(input: string): string {
+    if (input.startsWith('{')) {
+        return input
+    }
     const index = input.indexOf('\n{\n')
     if (index === -1) {
         return input
@@ -54,15 +57,26 @@ export function parseMochaJsonOutput(output: string) {
     return mochaResult
 }
 
-// TODO: return filePath, line, column, and error
+interface Failure {
+    filePath: string
+    line: number
+    column: number
+    failure: MochaTestResult<MochaTestError>
+}
+
 export function collectMochaJsonFailues(output: string) {
     const mochaResult = parseMochaJsonOutput(output)
     const failures = mochaResult.failures
-    const result: string[][] = []
+    const result: Failure[] = []
     for (const failure of failures) {
         const match = /\(([^:]+):(\d+):(\d+)\)/.exec(failure.err.stack)
         if (match) {
-            result.push([match[1], match[2], match[3]])
+            result.push({
+                filePath: match[1],
+                line: parseInt(match[2], 10),
+                column: parseInt(match[3], 10),
+                failure
+            })
         }
     }
     return result
