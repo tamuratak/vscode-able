@@ -6,6 +6,8 @@ import { PythonTool } from './lmtools/pyodide.js'
 import { EditTool } from './lmtools/edit.js'
 import { ListDirTool, ReadFileTool, RepositoryTreeTool } from './lmtools/fstools.js'
 import { renderToolResult } from './utils/toolresult.js'
+import { AbleTaskProvider } from './task.js'
+import { TaskWatcher } from './taskwatcher.js'
 
 
 class Extension {
@@ -15,6 +17,8 @@ class Extension {
     readonly readFileTool: ReadFileTool
     readonly repositoryTreeTool: RepositoryTreeTool
     readonly listDirTool: ListDirTool
+    readonly ableTaskProvider: AbleTaskProvider
+    readonly taskWatcher: TaskWatcher
 
     constructor(public readonly openAiServiceId: string) {
         this.chatHandleManager = new ChatHandleManager(openAiServiceId, this)
@@ -22,6 +26,8 @@ class Extension {
         this.readFileTool = new ReadFileTool(this)
         this.repositoryTreeTool = new RepositoryTreeTool(this)
         this.listDirTool = new ListDirTool(this)
+        this.ableTaskProvider = new AbleTaskProvider(this)
+        this.taskWatcher = new TaskWatcher(this)
     }
 
     getChatHandler() {
@@ -36,12 +42,19 @@ class Extension {
         await this.chatHandleManager.initGpt4oMini()
     }
 
+    dispose() {
+        this.taskWatcher.dispose()
+        this.outputChannel.dispose()
+    }
+
 }
+
 
 export function activate(context: vscode.ExtensionContext) {
     const openAiAuthProvider = new OpenAiApiKeyAuthenticationProvider(context.secrets)
     const extension = new Extension(openAiAuthProvider.serviceId)
     context.subscriptions.push(
+        extension,
         openAiAuthProvider,
         vscode.authentication.registerAuthenticationProvider(openAiAuthProvider.serviceId, openAiAuthProvider.label, openAiAuthProvider),
         vscode.commands.registerCommand('able.loginOpenAI', () => {
@@ -62,6 +75,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_read_file', extension.readFileTool),
         vscode.lm.registerTool('able_repository_tree', extension.repositoryTreeTool),
         vscode.lm.registerTool('able_list_dir', extension.listDirTool),
+        vscode.tasks.registerTaskProvider(AbleTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()
     )
 
@@ -76,6 +90,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 async function doSomething() {
+    const cmds0 = await vscode.tasks.fetchTasks()
+    const cmds = cmds0.map(cmd => [cmd.definition, cmd.name])
+    console.log(JSON.stringify(cmds, null, 2))
     const models = await vscode.lm.selectChatModels({vendor: 'copilot'})
     console.log(JSON.stringify(models, null, 2))
     const tool = vscode.lm.tools.find(e => e.name === 'able_list_dir')

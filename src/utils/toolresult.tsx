@@ -1,4 +1,3 @@
-/* eslint-disable  @typescript-eslint/no-unsafe-return */
 import { BasePromptElementProps, PromptElement, PromptPiece, renderPrompt, ToolMessage, ToolResult } from '@vscode/prompt-tsx'
 import * as vscode from 'vscode'
 import { Gpt4oTokenizer } from '../chat/tokenizer.js'

@@ -291,6 +291,41 @@
         "command": "-deleteAllRight",
         "when": "editorTextFocus && !editorReadonly"
       }
+    ],
+		"taskDefinitions": [
+			{
+				"type": "abletask"
+			}
+		],
+    "configuration": [
+      {
+        "title": "Able",
+        "properties": {
+          "able.taskWatcher": {
+            "type": "array",
+            "description": "The list of tasks to watch.",
+            "default": [],
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "The name of the task to watch."
+                },
+                "globPattern": {
+                  "type": "string",
+                  "description": "The glob pattern to match files."
+                }
+              },
+              "required": [
+                "name",
+                "globPattern"
+              ]
+            }
+          }
+        }
+
+      }
     ]
   },
   "activationEvents": [
@@ -334,6 +369,7 @@
     "test": "npm run test:xunit && npm run test:spec",
     "test:xunit": "mocha --require source-map-support/register --reporter xunit --ui tdd out/test/unittest/**/*.js",
     "test:spec": "mocha --require source-map-support/register --ui tdd out/test/unittest/**/*.js",
+    "test:json": "mocha --require source-map-support/register --reporter json --ui tdd out/test/unittest/**/*.js",
     "test:vscode": "node ./out/test/runvscodetest.js",
     "watch": "tsc -w -p ./"
   }
