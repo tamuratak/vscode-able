@@ -3,7 +3,7 @@ import { convertToCollections, executeMochaCommand, findMochaJsonTestCommand } f
 import { collectMochaJsonFailures } from './tasklib/mochalib/mochajson.js'
 
 
-export class AbleTaskProvider implements vscode.TaskProvider {
+export class MochaJsonTaskProvider implements vscode.TaskProvider {
     static AbleTaskType = 'abletask'
     private readonly tasks: Promise<vscode.Task[]>
     private readonly collection = vscode.languages.createDiagnosticCollection('AbleTask')
@@ -18,10 +18,10 @@ export class AbleTaskProvider implements vscode.TaskProvider {
         const mochaJsonTasks = await findMochaJsonTestCommand()
         const tasks = mochaJsonTasks.map(task => {
             return new vscode.Task(
-                { type: AbleTaskProvider.AbleTaskType },
+                { type: MochaJsonTaskProvider.AbleTaskType },
                 vscode.TaskScope.Workspace,
                 task.name,
-                AbleTaskProvider.AbleTaskType,
+                MochaJsonTaskProvider.AbleTaskType,
                 new vscode.CustomExecution(() => {
                     return Promise.resolve(
                         new SimpleTaskTerminal(async () => {

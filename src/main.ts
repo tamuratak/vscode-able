@@ -6,7 +6,7 @@ import { PythonTool } from './lmtools/pyodide.js'
 import { EditTool } from './lmtools/edit.js'
 import { ListDirTool, ReadFileTool, RepositoryTreeTool } from './lmtools/fstools.js'
 import { renderToolResult } from './utils/toolresult.js'
-import { AbleTaskProvider } from './task.js'
+import { MochaJsonTaskProvider } from './task.js'
 import { TaskWatcher } from './taskwatcher.js'
 
 
@@ -17,7 +17,7 @@ class Extension {
     readonly readFileTool: ReadFileTool
     readonly repositoryTreeTool: RepositoryTreeTool
     readonly listDirTool: ListDirTool
-    readonly ableTaskProvider: AbleTaskProvider
+    readonly ableTaskProvider: MochaJsonTaskProvider
     readonly taskWatcher: TaskWatcher
 
     constructor(public readonly openAiServiceId: string) {
@@ -26,7 +26,7 @@ class Extension {
         this.readFileTool = new ReadFileTool(this)
         this.repositoryTreeTool = new RepositoryTreeTool(this)
         this.listDirTool = new ListDirTool(this)
-        this.ableTaskProvider = new AbleTaskProvider(this)
+        this.ableTaskProvider = new MochaJsonTaskProvider(this)
         this.taskWatcher = new TaskWatcher(this)
     }
 
@@ -76,7 +76,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_read_file', extension.readFileTool),
         vscode.lm.registerTool('able_repository_tree', extension.repositoryTreeTool),
         vscode.lm.registerTool('able_list_dir', extension.listDirTool),
-        vscode.tasks.registerTaskProvider(AbleTaskProvider.AbleTaskType, extension.ableTaskProvider),
+        vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()
     )
 
