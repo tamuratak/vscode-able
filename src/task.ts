@@ -1,10 +1,12 @@
 import * as vscode from 'vscode'
-import { executeMochaCommand, findMochaJsonTestCommand } from './tasklib/mocha.js'
+import { convertToCollections, executeMochaCommand, findMochaJsonTestCommand } from './tasklib/mocha.js'
+import { collectMochaJsonFailures } from './tasklib/mochalib/mochajson.js'
 
 
-export class AbleTaskProvider implements vscode.TaskProvider {
+export class MochaJsonTaskProvider implements vscode.TaskProvider {
     static AbleTaskType = 'abletask'
     private readonly tasks: Promise<vscode.Task[]>
+    private readonly collection = vscode.languages.createDiagnosticCollection('AbleTask')
 
     constructor(private readonly extension: {
         readonly outputChannel: vscode.LogOutputChannel
@@ -16,20 +18,21 @@ export class AbleTaskProvider implements vscode.TaskProvider {
         const mochaJsonTasks = await findMochaJsonTestCommand()
         const tasks = mochaJsonTasks.map(task => {
             return new vscode.Task(
-                { type: AbleTaskProvider.AbleTaskType },
+                { type: MochaJsonTaskProvider.AbleTaskType },
                 vscode.TaskScope.Workspace,
                 task.name,
-                AbleTaskProvider.AbleTaskType,
+                MochaJsonTaskProvider.AbleTaskType,
                 new vscode.CustomExecution(() => {
                     return Promise.resolve(
-                        new SimpleTaskTerminal(async (emitter) => {
+                        new SimpleTaskTerminal(async () => {
                             try {
-//                                const collection = vscode.languages.createDiagnosticCollection(task.name)
-                                // TODO
-                                const json = await executeMochaCommand(task)
-                                const result = JSON.parse(json) as unknown
-                                emitter.fire(json)
-                                console.log('Mocha test result: ', result)
+                                this.collection.clear()
+                                const output = await executeMochaCommand(task)
+                                const failures = collectMochaJsonFailures(output)
+                                const diagEntries = await convertToCollections(failures)
+                                for (const entry of diagEntries.values()) {
+                                    this.collection.set(entry.uri, entry.diags)
+                                }
                             } catch (error) {
                                 if (error instanceof Error) {
                                     this.extension.outputChannel.error('Error executing task: ', error)
@@ -53,6 +56,10 @@ export class AbleTaskProvider implements vscode.TaskProvider {
 
     public resolveTask() {
         return undefined
+    }
+
+    dispose() {
+        this.collection.dispose()
     }
 
 }

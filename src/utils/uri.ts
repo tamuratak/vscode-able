@@ -37,7 +37,8 @@ export function toUri(file: string): vscode.Uri | undefined {
     if (path.isAbsolute(file)) {
         try {
             uri = vscode.Uri.file(file)
+            return uri
         } catch { }
     }
-    return uri
+    return undefined
 }
