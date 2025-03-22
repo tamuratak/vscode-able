@@ -39,15 +39,19 @@ export function executeMochaCommand(task: vscode.Task) {
                 throw new Error('Arguments are not all strings')
             }
         }
-        const options = task.execution.options?.cwd ? { cwd: task.execution.options.cwd } : {}
+        const env = {...process.env, 'NO_COLOR': '1'}
+        const options: cp.SpawnOptions = { env, cwd: undefined }
+        if (task.execution.options?.cwd) {
+            options.cwd = task.execution.options.cwd
+        }
         const child = cp.spawn(command, args, options)
         const resultPromise = new ExternalPromise<string>()
         let output = ''
         const decoder = new TextDecoder()
-        child.stdout.on('data', (data: Uint8Array) => {
+        child.stdout?.on('data', (data: Uint8Array) => {
             output += decoder.decode(data)
         })
-        child.stderr.on('data', (data: Uint8Array) => {
+        child.stderr?.on('data', (data: Uint8Array) => {
             console.error(`stderr: ${decoder.decode(data)}`)
         })
         child.on('close', () => {
