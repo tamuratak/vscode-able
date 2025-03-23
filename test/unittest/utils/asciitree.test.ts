@@ -1,5 +1,5 @@
 import { suite, test } from 'mocha'
-import { strict as assert } from 'assert'
+import { strict as assert } from 'node:assert'
 import { generateAsciiTree, parseAsciiTree, TreeNode } from '../../../src/utils/asciitree.js'
 
 
