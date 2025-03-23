@@ -25,7 +25,7 @@ interface MochaTestError {
     readonly code: string
     readonly actual: string
     readonly expected: string
-    readonly operator: string
+    readonly operator?: string | undefined
 }
 
 interface MochaTestResult<T> {

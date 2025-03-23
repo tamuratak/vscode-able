@@ -3,7 +3,7 @@
 /out/
 /*.vsix
 /.vscode-test/
-/.contextdir_for_llm
+/.venv/
 
 /test/fixtures/repositorytree01/ignore/
 
