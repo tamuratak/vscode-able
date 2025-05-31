@@ -17,7 +17,7 @@ export const vscodeFileId = 'vscode.file'
 
 export async function getSelectedText(request: vscode.ChatRequest) {
     for (const ref of request.references) {
-        if (ref.id === vscodeImplicitSelectionId) {
+        if ([vscodeSelectionId, vscodeImplicitSelectionId].includes(ref.id)) {
             const { uri, range } = ref.value as { uri: vscode.Uri, range: vscode.Range }
             const doc = await vscode.workspace.openTextDocument(uri)
             return doc.getText(range)
