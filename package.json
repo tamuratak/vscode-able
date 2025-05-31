@@ -337,26 +337,25 @@
     }
   },
   "dependencies": {
-    "@microsoft/tiktokenizer": "^1.0.9",
-    "@vscode/prompt-tsx": "^0.3.0-alpha.13",
-    "openai": "^4.76.0",
-    "workerpool": "^9.2.0"
+    "@microsoft/tiktokenizer": "1.0.9",
+    "@vscode/prompt-tsx": "0.3.0-alpha.13",
+    "openai": "4.76.0",
+    "workerpool": "9.2.0"
   },
   "devDependencies": {
-    "@eslint/js": "9.15.0",
-    "@types/eslint__js": "8.42.3",
-    "@types/mocha": "^10.0.10",
+    "@eslint/js": "9.28.0",
+    "@types/mocha": "10.0.10",
     "@types/node": "~20.14",
     "@types/vscode": "1.95.0",
-    "@vscode/test-electron": "^2.4.1",
-    "@vscode/vsce": "3.2.1",
-    "eslint": "9.15.0",
-    "glob": "^11.0.1",
-    "mocha": "^11.1.0",
+    "@vscode/test-electron": "2.5.2",
+    "@vscode/vsce": "3.4.2",
+    "eslint": "9.28.0",
+    "glob": "11.0.1",
+    "mocha": "11.1.0",
     "rimraf": "3.0.2",
-    "source-map-support": "^0.5.21",
+    "source-map-support": "0.5.21",
     "typescript": "5.7.2",
-    "typescript-eslint": "8.16.0"
+    "typescript-eslint": "8.33.0"
   },
   "scripts": {
     "build": "npm run compile",
