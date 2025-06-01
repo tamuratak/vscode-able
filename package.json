@@ -337,9 +337,9 @@
     }
   },
   "dependencies": {
-    "@microsoft/tiktokenizer": "1.0.9",
-    "@vscode/prompt-tsx": "0.3.0-alpha.13",
-    "openai": "4.76.0",
+    "@microsoft/tiktokenizer": "1.0.10",
+    "@vscode/prompt-tsx": "0.4.0-alpha.4",
+    "openai": "5.0.1",
     "workerpool": "9.2.0"
   },
   "devDependencies": {
