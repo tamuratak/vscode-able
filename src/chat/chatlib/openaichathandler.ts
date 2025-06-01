@@ -5,7 +5,6 @@ import { ExternalPromise } from '../../utils/externalpromise.js'
 import { OpenAI } from 'openai'
 import { Gpt4oTokenizer } from '../tokenizer.js'
 import { convertToChatCompletionMessageParams } from './historyutils.js'
-import type { ChatCompletionTool } from 'openai/resources/index.mjs'
 import { getLmTools } from './toolutils.js'
 import type { EditTool } from '../../lmtools/edit.js'
 
@@ -46,14 +45,13 @@ export class OpenAiApiChatHandler {
             { modelMaxPromptTokens: 2048 },
             this.gpt4oTokenizer,
             undefined,
-            undefined,
-            'none'
+            undefined
         )
         const messages = convertToChatCompletionMessageParams(renderResult.messages)
         const abortController = new AbortController()
         const signal = abortController.signal
         token.onCancellationRequested(() => abortController.abort())
-        const tools: ChatCompletionTool[] = []
+        const tools: OpenAI.ChatCompletionTool[] = []
         for (const tool of getLmTools()) {
             if (tool.inputSchema) {
                 tools.push({
