@@ -298,9 +298,7 @@
   },
   "dependencies": {
     "@microsoft/tiktokenizer": "1.0.10",
-    "@vscode/dts": "^0.4.1",
     "@vscode/prompt-tsx": "0.4.0-alpha.4",
-    "openai": "5.0.1",
     "workerpool": "9.2.0"
   },
   "devDependencies": {
@@ -308,6 +306,7 @@
     "@types/mocha": "10.0.10",
     "@types/node": "~20.14",
     "@types/vscode": "1.95.0",
+    "@vscode/dts": "^0.4.1",
     "@vscode/test-electron": "2.5.2",
     "@vscode/vsce": "3.4.2",
     "eslint": "9.28.0",
