@@ -27,7 +27,7 @@ class ChatSession {
 }
 
 export class ChatHandleManager {
-    private vendor = ChatVendor.Copilot
+    private readonly vendor = ChatVendor.Copilot
 
     private readonly copilotChatHandler: CopilotChatHandler
     private chatSession: ChatSession | undefined
@@ -62,53 +62,6 @@ export class ChatHandleManager {
         }
     }
 
-    async quickPickModel() {
-        try {
-            const models = await vscode.lm.selectChatModels({ vendor: 'copilot' })
-            if (models.length === 0) {
-                void vscode.window.showErrorMessage('No Copilot chat models found.')
-                return
-            }
-            const generatedItems = models.map(model => ({ label: model.family, model }))
-            const items = [{ label: 'openai-gpt-4o-mini', model: undefined }, ...generatedItems]
-
-            const quickPick = vscode.window.createQuickPick<typeof items[0]>()
-            quickPick.items = items
-            quickPick.placeholder = 'Select chat model'
-            if (this.copilotChatHandler.copilotModelFamily) {
-                quickPick.activeItems = items.filter(i => i.label === this.copilotChatHandler.copilotModelFamily)
-            }
-
-            const selectionPromise = new Promise<typeof items[0] | undefined>((resolve) => {
-                quickPick.onDidAccept(() => {
-                    resolve(quickPick.selectedItems[0])
-                    quickPick.hide()
-                })
-                quickPick.onDidHide(() => {
-                    resolve(undefined)
-                })
-            })
-            quickPick.show()
-
-            const selection = await selectionPromise
-            if (!selection) {
-                return
-            }
-            if (selection.model) {
-                this.vendor = ChatVendor.Copilot
-                this.copilotChatHandler.copilotModelFamily = selection.label
-            } else {
-                throw new Error('should not reach here')
-            }
-            this.extension.outputChannel.info(`Model selected: ${selection.label}`)
-        } catch (error) {
-            if (error instanceof Error) {
-                this.extension.outputChannel.error(error)
-            }
-            void vscode.window.showErrorMessage('Failed to select chat model.')
-        }
-    }
-
     getHandler(): vscode.ChatRequestHandler {
         return async (
             request: vscode.ChatRequest,
@@ -129,24 +82,24 @@ export class ChatHandleManager {
                         request,
                         PlanPrompt,
                         { history, input: request.prompt, attachments },
-                        stream,
                         request.model,
+                        stream,
                         [],
                     )
                 } else if (request.command === 'fluent') {
-                    const response = await this.responseWithSelection(token, request, FluentPrompt, history)
+                    const response = await this.responseWithSelection(token, request, FluentPrompt, history, request.model)
                     stream.markdown(response)
                     return
                 } else if (request.command === 'fluent_ja') {
-                    const response = await this.responseWithSelection(token, request, FluentJaPrompt, history)
+                    const response = await this.responseWithSelection(token, request, FluentJaPrompt, history, request.model)
                     stream.markdown(response)
                     return
                 } else if (request.command === 'to_en') {
-                    const response = await this.responseWithSelection(token, request, ToEnPrompt, history)
+                    const response = await this.responseWithSelection(token, request, ToEnPrompt, history, request.model)
                     stream.markdown(response)
                     return
                 } else if (request.command === 'to_ja') {
-                    const response = await this.responseWithSelection(token, request, ToJaPrompt, history)
+                    const response = await this.responseWithSelection(token, request, ToJaPrompt, history, request.model)
                     stream.markdown(response)
                     return
                 } else if (request.command === 'experiment') {
@@ -168,8 +121,8 @@ export class ChatHandleManager {
                             request,
                             SimplePrompt,
                             { history, input: request.prompt, attachments },
-                            stream,
                             request.model,
+                            stream,
                             [],
                         )
                     }
@@ -185,14 +138,14 @@ export class ChatHandleManager {
         request: vscode.ChatRequest,
         ctor: PromptElementCtor<MainPromptProps, S>,
         ableHistory: HistoryEntry[],
+        model: vscode.LanguageModelChat,
         stream?: vscode.ChatResponseStream,
-        model?: vscode.LanguageModelChat,
     ) {
         const selectedText = await getSelectedText(request)
         const input = selectedText ?? request.prompt
         let responseText = ''
         if (this.vendor === ChatVendor.Copilot) {
-            const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input }, stream, model)
+            const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input }, model, stream)
             if (ret?.chatResponse) {
                 for await (const fragment of ret.chatResponse.text) {
                     responseText += fragment

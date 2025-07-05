@@ -6,7 +6,6 @@ import type { EditTool } from '../../lmtools/edit.js'
 
 
 export class CopilotChatHandler {
-    copilotModelFamily = 'gpt-4o-mini'
 
     constructor(private readonly extension: {
         readonly outputChannel: vscode.LogOutputChannel
@@ -18,20 +17,10 @@ export class CopilotChatHandler {
         request: vscode.ChatRequest,
         ctor: PromptElementCtor<P, S>,
         props: P,
+        model: vscode.LanguageModelChat,
         stream?: vscode.ChatResponseStream,
-        model?: vscode.LanguageModelChat,
         selectedTools?: readonly AbleTool[]
     ) {
-        if (!model) {
-            [model] = await vscode.lm.selectChatModels({
-                vendor: 'copilot',
-                family: this.copilotModelFamily
-            })
-        }
-        if (!model) {
-            void vscode.window.showErrorMessage('Copilot model is not loaded. Execute the activation command.')
-            throw new Error('Copilot model is not loaded')
-        }
         // Send requests to the LLM repeatedly until there are no more tool calling requests in the LLM's response.
         // toolCallResultRounds contains the tool calling requests made up to that point and their results.
         const toolCallResultRounds: ToolCallResultRoundProps[] = []

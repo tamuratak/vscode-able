@@ -29,10 +29,6 @@ class Extension {
         return this.chatHandleManager.getHandler()
     }
 
-    quickPickModel() {
-        return this.chatHandleManager.quickPickModel()
-    }
-
     async activate() {
         await this.chatHandleManager.initGpt4oMini()
     }
@@ -50,9 +46,6 @@ export function activate(context: vscode.ExtensionContext) {
     const extension = new Extension()
     context.subscriptions.push(
         extension,
-        vscode.commands.registerCommand('able.quickPickModel', () => {
-            void extension.quickPickModel()
-        }),
         vscode.commands.registerCommand('able.doSomething', () => {
             void doSomething()
         }),

@@ -52,8 +52,8 @@ export class EditCommand {
                     },
                     attachments
                 },
-                stream,
-                request.model
+                request.model,
+                stream
             )
         }
     }
