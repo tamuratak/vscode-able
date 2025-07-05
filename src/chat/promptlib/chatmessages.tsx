@@ -1,7 +1,7 @@
-
 import {
     AssistantMessage,
     BasePromptElementProps,
+    OpenAI,
     PrioritizedList,
     PromptElement,
     PromptPiece,
@@ -10,7 +10,7 @@ import {
     UserMessage,
 } from '@vscode/prompt-tsx'
 import * as vscode from 'vscode'
-import type { ChatCompletionContentPart, ChatCompletionContentPartRefusal, ChatCompletionMessageParam } from 'openai/resources/index.mjs'
+
 
 /**
  * Utility classes to convert an array of chat messages into their corresponding @vscode/prompt-tsx components.
@@ -69,16 +69,16 @@ export class VscodeChatMessages extends PromptElement<VscodeChatMessagesProps> {
 }
 
 interface OpenAIChatMessagesProps extends BasePromptElementProps {
-    messages: ChatCompletionMessageParam[];
+    messages: OpenAI.ChatMessage[];
 }
 
 export class OpenAIChatMessages extends PromptElement<OpenAIChatMessagesProps> {
     render(): PromptPiece {
         const messages: PromptPiece[] = []
         for (const mesg of this.props.messages) {
-            if (mesg.role === 'user') {
+            if (mesg.role === OpenAI.ChatRole.User) {
                 messages.push(<UserMessage name={mesg.name ?? ''}>{processContent(mesg.content)}</UserMessage>);
-            } else if (mesg.role === 'assistant') {
+            } else if (mesg.role === OpenAI.ChatRole.Assistant) {
                 if (mesg.tool_calls && mesg.tool_calls.length > 0) {
                     messages.push(
                         <AssistantMessage name={mesg.name ?? ''} toolCalls={mesg.tool_calls}>
@@ -88,9 +88,9 @@ export class OpenAIChatMessages extends PromptElement<OpenAIChatMessagesProps> {
                 } else {
                     messages.push(<AssistantMessage name={mesg.name ?? ''}>{processContent(mesg.content)}</AssistantMessage>)
                 }
-            } else if (mesg.role === 'tool') {
-                messages.push(<ToolMessage toolCallId={mesg.tool_call_id}>{processContent(mesg.content)}</ToolMessage>)
-            } else if (mesg.role === 'system') {
+            } else if (mesg.role === OpenAI.ChatRole.Tool) {
+                messages.push(<ToolMessage toolCallId={mesg.tool_call_id ?? ''}>{processContent(mesg.content)}</ToolMessage>)
+            } else if (mesg.role === OpenAI.ChatRole.System) {
                 messages.push(<SystemMessage name={mesg.name ?? ''}>{processContent(mesg.content)}</SystemMessage>)
             }
         }
@@ -107,7 +107,7 @@ export class OpenAIChatMessages extends PromptElement<OpenAIChatMessagesProps> {
     }
 }
 
-function processContent(content: string | (ChatCompletionContentPart | ChatCompletionContentPartRefusal)[] | undefined | null): string {
+function processContent(content: string | OpenAI.ChatCompletionContentPart[] | undefined | null): string {
     if (typeof content === 'string') {
         return content
     } else if (Array.isArray(content)) {
@@ -115,8 +115,6 @@ function processContent(content: string | (ChatCompletionContentPart | ChatCompl
         for (const part of content) {
             if (part.type === 'text') {
                 result += part.text
-            } else if (part.type === 'refusal') {
-                result += part.refusal
             }
         }
         return result
