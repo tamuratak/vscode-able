@@ -3,7 +3,7 @@ import { ChatHandleManager } from './chat/chat.js'
 import { registerCommands } from './commands.js'
 import { PythonTool } from './lmtools/pyodide.js'
 import { EditTool } from './lmtools/edit.js'
-import { ListDirTool, ReadFileTool, RepositoryTreeTool } from './lmtools/fstools.js'
+import { ReadFileTool } from './lmtools/fstools.js'
 import { renderToolResult } from './utils/toolresult.js'
 import { MochaJsonTaskProvider } from './task.js'
 import { TaskWatcher } from './taskwatcher.js'
@@ -14,8 +14,6 @@ class Extension {
     readonly editTool: EditTool
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
     readonly readFileTool: ReadFileTool
-    readonly repositoryTreeTool: RepositoryTreeTool
-    readonly listDirTool: ListDirTool
     readonly ableTaskProvider: MochaJsonTaskProvider
     readonly taskWatcher: TaskWatcher
 
@@ -23,8 +21,6 @@ class Extension {
         this.chatHandleManager = new ChatHandleManager(this)
         this.editTool = new EditTool(this)
         this.readFileTool = new ReadFileTool(this)
-        this.repositoryTreeTool = new RepositoryTreeTool(this)
-        this.listDirTool = new ListDirTool(this)
         this.ableTaskProvider = new MochaJsonTaskProvider(this)
         this.taskWatcher = new TaskWatcher(this)
     }
@@ -67,8 +63,6 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.lm.registerTool('able_replace_text', extension.editTool),
         vscode.lm.registerTool('able_read_file', extension.readFileTool),
-        vscode.lm.registerTool('able_repository_tree', extension.repositoryTreeTool),
-        vscode.lm.registerTool('able_list_dir', extension.listDirTool),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()
     )

@@ -150,47 +150,6 @@
             "path"
           ]
         }
-      },
-      {
-        "name": "able_repository_tree",
-        "tags": [
-          "File System"
-        ],
-        "displayName": "Repository Tree",
-        "modelDescription": "This tool generates an ASCII representation of the file structure for the current repository.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "useAbsolutePath": {
-              "type": "boolean",
-              "description": "The option to use an absolute path for printing file names. Default is false."
-            }
-          }
-        }
-      },
-      {
-        "name": "able_list_dir",
-        "tags": [
-          "File System"
-        ],
-        "displayName": "List Directory",
-        "modelDescription": "This tool lists the contents of a directory in the file system, allowing users to see the files and subdirectories present.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "path": {
-              "type": "string",
-              "description": "The path of the directory to list. This should be absolute path, starting with /."
-            },
-            "useAbsolutePath": {
-              "type": "boolean",
-              "description": "The option to use an absolute path for printing file names. Default is false."
-            }
-          },
-          "required": [
-            "path"
-          ]
-        }
       }
     ],
     "commands": [
