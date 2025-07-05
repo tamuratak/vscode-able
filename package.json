@@ -154,16 +154,8 @@
     ],
     "commands": [
       {
-        "command": "able.activateCopilotChatModels",
-        "title": "Able: Activate Copilot Chat Models"
-      },
-      {
         "command": "able.doSomething",
         "title": "Able: Do Something"
-      },
-      {
-        "command": "able.quickPickModel",
-        "title": "Able: Select Chat Model"
       },
       {
         "command": "able.closeTerminalAndOpenSideBar",

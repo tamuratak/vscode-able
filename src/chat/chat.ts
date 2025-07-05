@@ -10,11 +10,6 @@ import { EditCommand } from './chatlib/editcommand.js'
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
 
-enum ChatVendor {
-    Copilot = 'copilot',
-    OpenAiApi = 'openai_api',
-}
-
 class ChatSession {
     readonly references: readonly vscode.ChatPromptReference[]
     readonly prompt: string
@@ -27,8 +22,6 @@ class ChatSession {
 }
 
 export class ChatHandleManager {
-    private readonly vendor = ChatVendor.Copilot
-
     private readonly copilotChatHandler: CopilotChatHandler
     private chatSession: ChatSession | undefined
     private readonly editCommand: EditCommand
@@ -46,20 +39,6 @@ export class ChatHandleManager {
 
     getChatSession() {
         return this.chatSession
-    }
-
-    async initGpt4oMini() {
-        const [mini,] = await vscode.lm.selectChatModels({
-            vendor: 'copilot',
-            family: 'gpt-4o-mini'
-        })
-        if (mini) {
-            this.extension.outputChannel.info('Successfully loaded the GPT-4o Mini model.')
-        } else {
-            const message = 'Failed to load GPT-4o Mini model.'
-            void vscode.window.showErrorMessage(message)
-            this.extension.outputChannel.error(message)
-        }
     }
 
     getHandler(): vscode.ChatRequestHandler {
@@ -114,18 +93,16 @@ export class ChatHandleManager {
                     }
                     return
                 } else {
-                    if (this.vendor === ChatVendor.Copilot) {
-                        const attachments = await getAttachmentFiles(request)
-                        await this.copilotChatHandler.copilotChatResponse(
-                            token,
-                            request,
-                            SimplePrompt,
-                            { history, input: request.prompt, attachments },
-                            request.model,
-                            stream,
-                            [],
-                        )
-                    }
+                    const attachments = await getAttachmentFiles(request)
+                    await this.copilotChatHandler.copilotChatResponse(
+                        token,
+                        request,
+                        SimplePrompt,
+                        { history, input: request.prompt, attachments },
+                        request.model,
+                        stream,
+                        [],
+                    )
                 }
             } finally {
                 this.chatSession = undefined
@@ -144,12 +121,10 @@ export class ChatHandleManager {
         const selectedText = await getSelectedText(request)
         const input = selectedText ?? request.prompt
         let responseText = ''
-        if (this.vendor === ChatVendor.Copilot) {
-            const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input }, model, stream)
-            if (ret?.chatResponse) {
-                for await (const fragment of ret.chatResponse.text) {
-                    responseText += fragment
-                }
+        const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input }, model, stream)
+        if (ret?.chatResponse) {
+            for await (const fragment of ret.chatResponse.text) {
+                responseText += fragment
             }
         }
         if (selectedText) {

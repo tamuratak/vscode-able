@@ -29,10 +29,6 @@ class Extension {
         return this.chatHandleManager.getHandler()
     }
 
-    async activate() {
-        await this.chatHandleManager.initGpt4oMini()
-    }
-
     dispose() {
         this.ableTaskProvider.dispose()
         this.outputChannel.dispose()
@@ -50,9 +46,6 @@ export function activate(context: vscode.ExtensionContext) {
             void doSomething()
         }),
         vscode.chat.createChatParticipant('able.chatParticipant', extension.getChatHandler()),
-        vscode.commands.registerCommand('able.activateCopilotChatModels', () => {
-            void extension.activate()
-        }),
         vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.lm.registerTool('able_replace_text', extension.editTool),
         vscode.lm.registerTool('able_read_file', extension.readFileTool),
