@@ -1,7 +1,6 @@
 import * as vscode from 'vscode'
 import { ChatHandleManager } from './chat/chat.js'
 import { registerCommands } from './commands.js'
-import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 import { PythonTool } from './lmtools/pyodide.js'
 import { EditTool } from './lmtools/edit.js'
 import { ListDirTool, ReadFileTool, RepositoryTreeTool } from './lmtools/fstools.js'
@@ -20,8 +19,8 @@ class Extension {
     readonly ableTaskProvider: MochaJsonTaskProvider
     readonly taskWatcher: TaskWatcher
 
-    constructor(public readonly openAiServiceId: string) {
-        this.chatHandleManager = new ChatHandleManager(openAiServiceId, this)
+    constructor() {
+        this.chatHandleManager = new ChatHandleManager(this)
         this.editTool = new EditTool(this)
         this.readFileTool = new ReadFileTool(this)
         this.repositoryTreeTool = new RepositoryTreeTool(this)
@@ -52,15 +51,9 @@ class Extension {
 
 
 export function activate(context: vscode.ExtensionContext) {
-    const openAiAuthProvider = new OpenAiApiKeyAuthenticationProvider(context.secrets)
-    const extension = new Extension(openAiAuthProvider.serviceId)
+    const extension = new Extension()
     context.subscriptions.push(
         extension,
-        openAiAuthProvider,
-        vscode.authentication.registerAuthenticationProvider(openAiAuthProvider.serviceId, openAiAuthProvider.label, openAiAuthProvider),
-        vscode.commands.registerCommand('able.loginOpenAI', () => {
-            void vscode.authentication.getSession(openAiAuthProvider.serviceId, [], { createIfNone: true })
-        }),
         vscode.commands.registerCommand('able.quickPickModel', () => {
             void extension.quickPickModel()
         }),

@@ -37,12 +37,6 @@
     "chatParticipantPrivate"
   ],
   "contributes": {
-    "authentication": [
-      {
-        "id": "openai_api",
-        "label": "OpenAI API (with Able)"
-      }
-    ],
     "chatParticipants": [
       {
         "id": "able.chatParticipant",
@@ -74,6 +68,10 @@
           {
             "name": "to_ja",
             "description": "Translate to Japanese"
+          },
+          {
+            "name": "experiment",
+            "description": "Run an experiment"
           }
         ]
       }

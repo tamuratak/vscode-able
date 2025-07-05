@@ -2,7 +2,6 @@ import * as vscode from 'vscode'
 import { FluentJaPrompt, FluentPrompt, HistoryEntry, MainPromptProps, PlanPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { convertHistory } from './chatlib/historyutils.js'
-import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import type { EditTool } from '../lmtools/edit.js'
 import { getAttachmentFiles, getSelectedText } from './chatlib/referenceutils.js'
@@ -31,18 +30,16 @@ export class ChatHandleManager {
     private vendor = ChatVendor.Copilot
 
     private readonly copilotChatHandler: CopilotChatHandler
-    private readonly openaiApiChatHandler: OpenAiApiChatHandler
     private chatSession: ChatSession | undefined
     private readonly editCommand: EditCommand
 
-    constructor(openAiServiceId: string,
+    constructor(
         private readonly extension: {
             readonly outputChannel: vscode.LogOutputChannel,
             readonly editTool: EditTool
         }
     ) {
         this.copilotChatHandler = new CopilotChatHandler(extension)
-        this.openaiApiChatHandler = new OpenAiApiChatHandler(openAiServiceId, extension)
         this.editCommand = new EditCommand({ ...extension, copilotChatHandler: this.copilotChatHandler })
         this.extension.outputChannel.info('ChatHandleManager initialized')
     }
@@ -100,9 +97,6 @@ export class ChatHandleManager {
             if (selection.model) {
                 this.vendor = ChatVendor.Copilot
                 this.copilotChatHandler.copilotModelFamily = selection.label
-            } else if (selection.label === 'openai-gpt-4o-mini') {
-                this.vendor = ChatVendor.OpenAiApi
-                await this.openaiApiChatHandler.resolveOpenAiClient()
             } else {
                 throw new Error('should not reach here')
             }
@@ -155,6 +149,17 @@ export class ChatHandleManager {
                     const response = await this.responseWithSelection(token, request, ToJaPrompt, history)
                     stream.markdown(response)
                     return
+                } else if (request.command === 'experiment') {
+                    stream.markdown('This is an experimental feature. Please wait for further updates.')
+                    const edit = new vscode.TextEdit(
+                        new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)),
+                        'This is an experimental feature. Please wait for further updates.'
+                    )
+                    const uri = vscode.window.activeTextEditor?.document.uri
+                    if (uri) {
+                        stream.textEdit(uri, edit)
+                    }
+                    return
                 } else {
                     if (this.vendor === ChatVendor.Copilot) {
                         const attachments = await getAttachmentFiles(request)
@@ -167,8 +172,6 @@ export class ChatHandleManager {
                             request.model,
                             [],
                         )
-                    } else {
-                        await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, SimplePrompt, history, stream)
                     }
                 }
             } finally {
@@ -193,13 +196,6 @@ export class ChatHandleManager {
             if (ret?.chatResponse) {
                 for await (const fragment of ret.chatResponse.text) {
                     responseText += fragment
-                }
-            }
-        } else {
-            const ret = await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, ctor, ableHistory, stream, input)
-            if (ret?.chatResponse) {
-                for await (const fragment of ret.chatResponse) {
-                    responseText += fragment.choices[0]?.delta?.content ?? ''
                 }
             }
         }
