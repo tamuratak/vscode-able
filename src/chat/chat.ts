@@ -42,7 +42,7 @@ export class ChatHandleManager {
             context: vscode.ChatContext,
             stream: vscode.ChatResponseStream,
             token: vscode.CancellationToken
-        ) => {
+        ): Promise<vscode.ChatResult | undefined> => {
             try {
                 this.extension.outputChannel.debug(JSON.stringify(request.references))
                 this.chatSession = new ChatSession(request)
@@ -58,18 +58,15 @@ export class ChatHandleManager {
                         stream,
                         [],
                     )
+                    return
                 } else if (request.command === 'fluent') {
-                    await this.responseWithSelection(token, request, FluentPrompt, history, request.model, stream)
-                    return
+                    return await this.responseWithSelection(token, request, FluentPrompt, history, request.model, stream)
                 } else if (request.command === 'fluent_ja') {
-                    await this.responseWithSelection(token, request, FluentJaPrompt, history, request.model, stream)
-                    return
+                    return await this.responseWithSelection(token, request, FluentJaPrompt, history, request.model, stream)
                 } else if (request.command === 'to_en') {
-                    await this.responseWithSelection(token, request, ToEnPrompt, history, request.model, stream)
-                    return
+                    return await this.responseWithSelection(token, request, ToEnPrompt, history, request.model, stream)
                 } else if (request.command === 'to_ja') {
-                    await this.responseWithSelection(token, request, ToJaPrompt, history, request.model, stream)
-                    return
+                    return await this.responseWithSelection(token, request, ToJaPrompt, history, request.model, stream)
                 } else if (request.command === 'experiment') {
                     stream.markdown('This is an experimental feature. Please wait for further updates.')
                     const edit = new vscode.TextEdit(
@@ -92,6 +89,7 @@ export class ChatHandleManager {
                         stream,
                         [],
                     )
+                    return
                 }
             } finally {
                 this.chatSession = undefined
@@ -106,7 +104,7 @@ export class ChatHandleManager {
         ableHistory: HistoryEntry[],
         model: vscode.LanguageModelChat,
         stream: vscode.ChatResponseStream,
-    ) {
+    ): Promise<vscode.ChatResult | undefined> {
         const selected = await getSelected(request)
         const input = selected?.text ?? request.prompt
         let responseText = ''
@@ -122,8 +120,10 @@ export class ChatHandleManager {
             const edit = new vscode.TextEdit(selected.range, responseText)
             const uri = selected.uri
             stream.textEdit(uri, edit)
+            return { metadata: { input, output: responseText } }
         } else {
             stream.markdown(responseText)
+            return
         }
     }
 
