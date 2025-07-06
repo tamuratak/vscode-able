@@ -74,6 +74,7 @@ export class ToolResultDirectiveElement extends PromptElement {
 
 export interface MainPromptProps extends HistoryMessagesProps, AttachmentsProps {
     input: string
+    userInstruction?: string | undefined
     toolCallResultRounds?: ToolCallResultRoundProps[] | undefined
 }
 
@@ -153,6 +154,9 @@ export class FluentPrompt extends PromptElement<MainPromptProps> {
                     </AssistantMessage>
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
+                <UserMessage>
+                    {this.props.userInstruction ? 'Instructions: ' + this.props.userInstruction : ''}
+                </UserMessage>
                 <MakeFluent>
                     {this.props.input}
                 </MakeFluent>
@@ -183,6 +187,9 @@ export class FluentJaPrompt extends PromptElement<MainPromptProps> {
                     元の意味や意図を損なわないようにしつつ、読みやすく丁寧な表現にしてください。
                 </UserMessage>
                 <HistoryMessages history={this.props.history} />
+                <UserMessage>
+                    {this.props.userInstruction ? '指示: ' + this.props.userInstruction : ''}
+                </UserMessage>
                 <MakeFluentJa>
                     {this.props.input}
                 </MakeFluentJa>
@@ -213,6 +220,9 @@ export class ToEnPrompt extends PromptElement<MainPromptProps> {
                     Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
                 </UserMessage>
                 <HistoryMessages history={this.props.history} />
+                <UserMessage>
+                    {this.props.userInstruction ? 'Instructions: ' + this.props.userInstruction : ''}
+                </UserMessage>
                 <ToEn>
                     {this.props.input}
                 </ToEn>
@@ -255,6 +265,9 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                     追加でキッチンの排水口のクリーニングを希望します。
                 </AssistantMessage>
                 <HistoryMessages history={this.props.history} />
+                <UserMessage>
+                    {this.props.userInstruction ? '指示: ' + this.props.userInstruction : ''}
+                </UserMessage>
                 <ToJa>
                     {this.props.input}
                 </ToJa>
@@ -324,49 +337,6 @@ export class Attachments extends PromptElement<AttachmentsProps> {
                             />
                         </UserMessage>
                     ) ?? ''
-                }
-            </>
-        )
-    }
-}
-
-interface EditPromptProps extends MainPromptProps {
-    target: FileElementProps
-}
-
-export class EditPrompt extends PromptElement<EditPromptProps> {
-    render(): PromptPiece {
-        return (
-            <>
-                <HistoryMessages history={this.props.history} />
-                <Attachments attachments={this.props.attachments} />
-                <UserMessage>
-                    Instructions:<br />
-                    - When editing a file, please use able_replace_text.
-                </UserMessage>
-                <UserMessage>
-                    {this.props.input}
-                </UserMessage>
-                <UserMessage>
-                    The following is the content of the file to be edited.<br /><br />
-                    <FileElement
-                        uri={this.props.target.uri}
-                        content={this.props.target.content}
-                        description={'File to be edited'}
-                        metadata={this.props.target.metadata}
-                    />
-                </UserMessage>
-                {
-                    // TODO: use DirectivePrompt
-                    this.props.toolCallResultRounds?.map((e) => (
-                        <>
-                            <ToolCallResultRoundElement
-                                responseStr={e.responseStr}
-                                toolCallResultPairs={e.toolCallResultPairs}
-                            />
-                            <ToolResultDirectiveElement />
-                        </>
-                    )) ?? ''
                 }
             </>
         )
