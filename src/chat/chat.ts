@@ -121,7 +121,7 @@ export class ChatHandleManager {
             const edit = new vscode.TextEdit(selected.range, responseText)
             const uri = selected.uri
             stream.textEdit(uri, edit)
-            return { metadata: { input, output: responseText } }
+            return { metadata: { input, output: responseText, selected, userInstruction } }
         } else {
             stream.markdown(responseText)
             return
