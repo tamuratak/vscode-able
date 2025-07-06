@@ -2,19 +2,11 @@ import * as vscode from 'vscode'
 import { FluentJaPrompt, FluentPrompt, HistoryEntry, MainPromptProps, PlanPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { convertHistory } from './chatlib/historyutils.js'
-import { OpenAiApiChatHandler } from './chatlib/openaichathandler.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
-import type { EditTool } from '../lmtools/edit.js'
-import { getAttachmentFiles, getSelectedText } from './chatlib/referenceutils.js'
-import { EditCommand } from './chatlib/editcommand.js'
+import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
-
-enum ChatVendor {
-    Copilot = 'copilot',
-    OpenAiApi = 'openai_api',
-}
 
 class ChatSession {
     readonly references: readonly vscode.ChatPromptReference[]
@@ -28,91 +20,20 @@ class ChatSession {
 }
 
 export class ChatHandleManager {
-    private vendor = ChatVendor.Copilot
-
     private readonly copilotChatHandler: CopilotChatHandler
-    private readonly openaiApiChatHandler: OpenAiApiChatHandler
     private chatSession: ChatSession | undefined
-    private readonly editCommand: EditCommand
 
-    constructor(openAiServiceId: string,
+    constructor(
         private readonly extension: {
             readonly outputChannel: vscode.LogOutputChannel,
-            readonly editTool: EditTool
         }
     ) {
         this.copilotChatHandler = new CopilotChatHandler(extension)
-        this.openaiApiChatHandler = new OpenAiApiChatHandler(openAiServiceId, extension)
-        this.editCommand = new EditCommand({ ...extension, copilotChatHandler: this.copilotChatHandler })
         this.extension.outputChannel.info('ChatHandleManager initialized')
     }
 
     getChatSession() {
         return this.chatSession
-    }
-
-    async initGpt4oMini() {
-        const [mini,] = await vscode.lm.selectChatModels({
-            vendor: 'copilot',
-            family: 'gpt-4o-mini'
-        })
-        if (mini) {
-            this.extension.outputChannel.info('Successfully loaded the GPT-4o Mini model.')
-        } else {
-            const message = 'Failed to load GPT-4o Mini model.'
-            void vscode.window.showErrorMessage(message)
-            this.extension.outputChannel.error(message)
-        }
-    }
-
-    async quickPickModel() {
-        try {
-            const models = await vscode.lm.selectChatModels({ vendor: 'copilot' })
-            if (models.length === 0) {
-                void vscode.window.showErrorMessage('No Copilot chat models found.')
-                return
-            }
-            const generatedItems = models.map(model => ({ label: model.family, model }))
-            const items = [{ label: 'openai-gpt-4o-mini', model: undefined }, ...generatedItems]
-
-            const quickPick = vscode.window.createQuickPick<typeof items[0]>()
-            quickPick.items = items
-            quickPick.placeholder = 'Select chat model'
-            if (this.copilotChatHandler.copilotModelFamily) {
-                quickPick.activeItems = items.filter(i => i.label === this.copilotChatHandler.copilotModelFamily)
-            }
-
-            const selectionPromise = new Promise<typeof items[0] | undefined>((resolve) => {
-                quickPick.onDidAccept(() => {
-                    resolve(quickPick.selectedItems[0])
-                    quickPick.hide()
-                })
-                quickPick.onDidHide(() => {
-                    resolve(undefined)
-                })
-            })
-            quickPick.show()
-
-            const selection = await selectionPromise
-            if (!selection) {
-                return
-            }
-            if (selection.model) {
-                this.vendor = ChatVendor.Copilot
-                this.copilotChatHandler.copilotModelFamily = selection.label
-            } else if (selection.label === 'openai-gpt-4o-mini') {
-                this.vendor = ChatVendor.OpenAiApi
-                await this.openaiApiChatHandler.resolveOpenAiClient()
-            } else {
-                throw new Error('should not reach here')
-            }
-            this.extension.outputChannel.info(`Model selected: ${selection.label}`)
-        } catch (error) {
-            if (error instanceof Error) {
-                this.extension.outputChannel.error(error)
-            }
-            void vscode.window.showErrorMessage('Failed to select chat model.')
-        }
     }
 
     getHandler(): vscode.ChatRequestHandler {
@@ -121,55 +42,43 @@ export class ChatHandleManager {
             context: vscode.ChatContext,
             stream: vscode.ChatResponseStream,
             token: vscode.CancellationToken
-        ) => {
+        ): Promise<vscode.ChatResult | undefined> => {
             try {
                 this.extension.outputChannel.debug(JSON.stringify(request.references))
                 this.chatSession = new ChatSession(request)
                 const history = convertHistory(context)
-                if (request.command === 'edit') {
-                    return await this.editCommand.runEditCommand(request, token, stream, history)
-                } else if (request.command === 'plan') {
+                if (request.command === 'plan') {
                     const attachments = await getAttachmentFiles(request)
                     await this.copilotChatHandler.copilotChatResponse(
                         token,
                         request,
                         PlanPrompt,
                         { history, input: request.prompt, attachments },
-                        stream,
                         request.model,
+                        stream,
                         [],
                     )
+                    return
                 } else if (request.command === 'fluent') {
-                    const response = await this.responseWithSelection(token, request, FluentPrompt, history)
-                    stream.markdown(response)
-                    return
+                    return await this.responseWithSelection(token, request, FluentPrompt, history, request.model, stream)
                 } else if (request.command === 'fluent_ja') {
-                    const response = await this.responseWithSelection(token, request, FluentJaPrompt, history)
-                    stream.markdown(response)
-                    return
+                    return await this.responseWithSelection(token, request, FluentJaPrompt, history, request.model, stream)
                 } else if (request.command === 'to_en') {
-                    const response = await this.responseWithSelection(token, request, ToEnPrompt, history)
-                    stream.markdown(response)
-                    return
+                    return await this.responseWithSelection(token, request, ToEnPrompt, history, request.model, stream)
                 } else if (request.command === 'to_ja') {
-                    const response = await this.responseWithSelection(token, request, ToJaPrompt, history)
-                    stream.markdown(response)
-                    return
+                    return await this.responseWithSelection(token, request, ToJaPrompt, history, request.model, stream)
                 } else {
-                    if (this.vendor === ChatVendor.Copilot) {
-                        const attachments = await getAttachmentFiles(request)
-                        await this.copilotChatHandler.copilotChatResponse(
-                            token,
-                            request,
-                            SimplePrompt,
-                            { history, input: request.prompt, attachments },
-                            stream,
-                            request.model,
-                            [],
-                        )
-                    } else {
-                        await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, SimplePrompt, history, stream)
-                    }
+                    const attachments = await getAttachmentFiles(request)
+                    await this.copilotChatHandler.copilotChatResponse(
+                        token,
+                        request,
+                        SimplePrompt,
+                        { history, input: request.prompt, attachments },
+                        request.model,
+                        stream,
+                        [],
+                    )
+                    return
                 }
             } finally {
                 this.chatSession = undefined
@@ -182,31 +91,29 @@ export class ChatHandleManager {
         request: vscode.ChatRequest,
         ctor: PromptElementCtor<MainPromptProps, S>,
         ableHistory: HistoryEntry[],
-        stream?: vscode.ChatResponseStream,
-        model?: vscode.LanguageModelChat,
-    ) {
-        const selectedText = await getSelectedText(request)
-        const input = selectedText ?? request.prompt
+        model: vscode.LanguageModelChat,
+        stream: vscode.ChatResponseStream,
+    ): Promise<vscode.ChatResult | undefined> {
+        const selected = await getSelected(request)
+        const input = selected?.text ?? request.prompt
         let responseText = ''
-        if (this.vendor === ChatVendor.Copilot) {
-            const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input }, stream, model)
-            if (ret?.chatResponse) {
-                for await (const fragment of ret.chatResponse.text) {
-                    responseText += fragment
-                }
-            }
-        } else {
-            const ret = await this.openaiApiChatHandler.openAiGpt4oMiniResponse(token, request, ctor, ableHistory, stream, input)
-            if (ret?.chatResponse) {
-                for await (const fragment of ret.chatResponse) {
-                    responseText += fragment.choices[0]?.delta?.content ?? ''
-                }
+        const userInstruction = selected ? request.prompt : undefined
+        const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input, userInstruction }, model)
+        if (ret?.chatResponse) {
+            for await (const fragment of ret.chatResponse.text) {
+                responseText += fragment
             }
         }
-        if (selectedText) {
-            return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
+        if (selected) {
+            const formattedChatOutput = '#### input\n' + input + '\n\n' + '#### output\n' + responseText
+            stream.markdown(formattedChatOutput)
+            const edit = new vscode.TextEdit(selected.range, responseText)
+            const uri = selected.uri
+            stream.textEdit(uri, edit)
+            return { metadata: { input, output: responseText, selected, userInstruction } }
         } else {
-            return responseText
+            stream.markdown(responseText)
+            return
         }
     }
 

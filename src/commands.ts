@@ -12,7 +12,6 @@ export function registerCommands() {
         ...registerShowingOffset(),
         ...registerRecenterCommand(),
         ...registerKillLinesToEndCommand(),
-        ...registerDisableInlineSuggestCommand()
     ]
 }
 
@@ -177,19 +176,6 @@ function registerKillLinesToEndCommand() {
             if (killedLines.length > 0) {
                 await vscode.env.clipboard.writeText(killedLines.join(eol))
             }
-        })
-    ]
-}
-
-function registerDisableInlineSuggestCommand() {
-    return [
-        vscode.commands.registerCommand('able.disableInlineSuggest', () => {
-            const configuration = vscode.workspace.getConfiguration('editor')
-            void configuration.update('inlineSuggest.enabled', false, vscode.ConfigurationTarget.Global)
-            void vscode.commands.executeCommand('editor.action.inlineSuggest.hide')
-            setTimeout(() => {
-                void configuration.update('inlineSuggest.enabled', true, vscode.ConfigurationTarget.Global)
-            }, 10000)
         })
     ]
 }

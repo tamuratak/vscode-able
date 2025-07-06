@@ -2,15 +2,15 @@ import {
     createByModelName,
     TikTokenizer,
 } from '@microsoft/tiktokenizer'
-import { ITokenizer } from '@vscode/prompt-tsx'
-import { BaseTokensPerMessage, BaseTokensPerName, ChatMessage, ChatRole } from '@vscode/prompt-tsx/dist/base/openai'
+import { type ITokenizer, Raw, OpenAI, OutputMode } from '@vscode/prompt-tsx'
 import { ExternalPromise } from '../utils/externalpromise.js'
 
 
-export class Gpt4oTokenizer implements ITokenizer {
+export class Gpt4oTokenizer implements ITokenizer<OutputMode.OpenAI> {
+    readonly mode = OutputMode.OpenAI
     private readonly _tokenizer = new ExternalPromise<TikTokenizer>()
-    private readonly baseTokensPerMessage = BaseTokensPerMessage
-    private readonly baseTokensPerName = BaseTokensPerName
+    private readonly baseTokensPerMessage = OpenAI.BaseTokensPerMessage
+    private readonly baseTokensPerName = OpenAI.BaseTokensPerName
 
     constructor() {
         void this.initTokenizer()
@@ -21,41 +21,64 @@ export class Gpt4oTokenizer implements ITokenizer {
         return tokenizer.encode(text)
     }
 
-    async tokenLength(text: string) {
-        if (text === '') {
+    async tokenLength(part: Raw.ChatCompletionContentPart) {
+        if (part.type === Raw.ChatCompletionContentPartKind.Text) {
+            const tokens = await this.tokenize(part.text)
+            return tokens.length
+        } else {
             return 0
         }
+    }
+
+    private async tokenLength2(part: OpenAI.ChatCompletionContentPart | string) {
+        if (typeof part === 'string') {
+            return this.getLengthAsToken(part)
+        } if (part.type === 'text') {
+            const tokens = await this.tokenize(part.text)
+            return tokens.length
+        } else {
+            return 0
+        }
+    }
+
+    private async getLengthAsToken(text: string) {
         const tokens = await this.tokenize(text)
         return tokens.length
     }
 
-    async countMessageTokens(message: ChatMessage) {
+    async countMessageTokens(message: OpenAI.ChatMessage) {
         return this.baseTokensPerMessage + await this.countObjectTokens(message)
     }
 
-    private async countObjectTokens(obj: ChatMessage) {
+    private async countObjectTokens(obj: OpenAI.ChatMessage) {
         let numTokens = 0
         switch (obj.role) {
-            case ChatRole.User:
-            case ChatRole.System:
-            case ChatRole.Function: {
-                numTokens += await this.tokenLength(obj.content)
+            case OpenAI.ChatRole.User:
+            case OpenAI.ChatRole.System:
+            case OpenAI.ChatRole.Function: {
+                for (const part of obj.content) {
+                    numTokens += await this.tokenLength2(part)
+                }
                 numTokens += obj.name ? this.baseTokensPerName : 0
                 return numTokens
             }
-            case ChatRole.Assistant: {
-                numTokens += await this.tokenLength(obj.content)
+            case OpenAI.ChatRole.Assistant: {
+                for (const part of obj.content) {
+                    numTokens += await this.getLengthAsToken(part)
+                }
                 numTokens += obj.name ? this.baseTokensPerName : 0
                 if (obj.tool_calls) {
                     for (const toolCall of obj.tool_calls) {
                         numTokens += this.baseTokensPerName
-                        numTokens += await this.tokenLength(toolCall.function.arguments)
+                        numTokens += await this.getLengthAsToken(toolCall.function.arguments)
                     }
                 }
                 return numTokens
             }
-            case ChatRole.Tool: {
-                numTokens += await this.tokenLength(obj.content)
+            case OpenAI.ChatRole.Tool: {
+                for (const part of obj.content) {
+                    numTokens += await this.tokenLength2(part)
+                }
                 numTokens += obj.tool_call_id ? this.baseTokensPerName : 0
                 return numTokens
             }

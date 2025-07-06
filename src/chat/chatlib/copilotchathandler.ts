@@ -2,15 +2,12 @@ import * as vscode from 'vscode'
 import type { MainPromptProps, ToolCallResultPair, ToolCallResultRoundProps } from '../prompt.js'
 import { type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { AbleTool, convertToToolCall, getLmTools } from './toolutils.js'
-import type { EditTool } from '../../lmtools/edit.js'
 
 
 export class CopilotChatHandler {
-    copilotModelFamily = 'gpt-4o-mini'
 
     constructor(private readonly extension: {
         readonly outputChannel: vscode.LogOutputChannel
-        readonly editTool: EditTool
     }) { }
 
     async copilotChatResponse<P extends MainPromptProps, S>(
@@ -18,20 +15,10 @@ export class CopilotChatHandler {
         request: vscode.ChatRequest,
         ctor: PromptElementCtor<P, S>,
         props: P,
+        model: vscode.LanguageModelChat,
         stream?: vscode.ChatResponseStream,
-        model?: vscode.LanguageModelChat,
         selectedTools?: readonly AbleTool[]
     ) {
-        if (!model) {
-            [model] = await vscode.lm.selectChatModels({
-                vendor: 'copilot',
-                family: this.copilotModelFamily
-            })
-        }
-        if (!model) {
-            void vscode.window.showErrorMessage('Copilot model is not loaded. Execute the activation command.')
-            throw new Error('Copilot model is not loaded')
-        }
         // Send requests to the LLM repeatedly until there are no more tool calling requests in the LLM's response.
         // toolCallResultRounds contains the tool calling requests made up to that point and their results.
         const toolCallResultRounds: ToolCallResultRoundProps[] = []
@@ -87,14 +74,6 @@ export class CopilotChatHandler {
                         this.extension.outputChannel.error(e, fragment)
                     } else {
                         this.extension.outputChannel.error('Unknown error', e, fragment)
-                    }
-                    // When edit canceled, or edit failed.
-                    if (fragment.name === 'able_replace_text') {
-                        this.extension.editTool.clearCurrentSession()
-                        // TODO
-                        // check if the error is EditToolError class
-                        // if range or uri is undefined, tell LLM to retry with a new better request. return LanguageModelToolResult.
-                        // else throw error.
                     }
                     throw e
                 })

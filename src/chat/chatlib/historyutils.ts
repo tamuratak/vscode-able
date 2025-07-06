@@ -1,7 +1,5 @@
 import * as vscode from 'vscode'
 import type { HistoryEntry } from '../prompt.js'
-import { type ChatMessage, ChatRole } from '@vscode/prompt-tsx'
-import type { ChatCompletionMessageParam } from 'openai/resources/index'
 import { vscodeImplicitSelectionId } from './referenceutils.js'
 
 
@@ -70,18 +68,4 @@ function extractInputAndOutput(str: string) {
     } else {
         return
     }
-}
-
-export function convertToChatCompletionMessageParams(messages: ChatMessage[]): ChatCompletionMessageParam[] {
-    const result: ChatCompletionMessageParam[] = []
-    for (const message of messages) {
-        if (message.role === ChatRole.Tool) {
-            if (message.tool_call_id) {
-                result.push({ role: ChatRole.Tool, tool_call_id: message.tool_call_id, content: message.content })
-            }
-        } else {
-            result.push(message)
-        }
-    }
-    return result
 }
