@@ -64,10 +64,6 @@
           {
             "name": "to_ja",
             "description": "Translate to Japanese"
-          },
-          {
-            "name": "experiment",
-            "description": "Run an experiment"
           }
         ]
       }

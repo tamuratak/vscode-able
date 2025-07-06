@@ -67,17 +67,6 @@ export class ChatHandleManager {
                     return await this.responseWithSelection(token, request, ToEnPrompt, history, request.model, stream)
                 } else if (request.command === 'to_ja') {
                     return await this.responseWithSelection(token, request, ToJaPrompt, history, request.model, stream)
-                } else if (request.command === 'experiment') {
-                    stream.markdown('This is an experimental feature. Please wait for further updates.')
-                    const edit = new vscode.TextEdit(
-                        new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)),
-                        'This is an experimental feature. Please wait for further updates.'
-                    )
-                    const uri = vscode.window.activeTextEditor?.document.uri
-                    if (uri) {
-                        stream.textEdit(uri, edit)
-                    }
-                    return
                 } else {
                     const attachments = await getAttachmentFiles(request)
                     await this.copilotChatHandler.copilotChatResponse(
