@@ -2,7 +2,6 @@ import * as vscode from 'vscode'
 import { ChatHandleManager } from './chat/chat.js'
 import { registerCommands } from './commands.js'
 import { PythonTool } from './lmtools/pyodide.js'
-import { ReadFileTool } from './lmtools/fstools.js'
 import { renderToolResult } from './utils/toolresult.js'
 import { MochaJsonTaskProvider } from './task.js'
 import { TaskWatcher } from './taskwatcher.js'
@@ -11,13 +10,11 @@ import { TaskWatcher } from './taskwatcher.js'
 class Extension {
     readonly chatHandleManager: ChatHandleManager
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
-    readonly readFileTool: ReadFileTool
     readonly ableTaskProvider: MochaJsonTaskProvider
     readonly taskWatcher: TaskWatcher
 
     constructor() {
         this.chatHandleManager = new ChatHandleManager(this)
-        this.readFileTool = new ReadFileTool(this)
         this.ableTaskProvider = new MochaJsonTaskProvider(this)
         this.taskWatcher = new TaskWatcher(this)
     }
@@ -44,7 +41,6 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.chat.createChatParticipant('able.chatParticipant', extension.getChatHandler()),
         vscode.lm.registerTool('able_python', new PythonTool()),
-        vscode.lm.registerTool('able_read_file', extension.readFileTool),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()
     )

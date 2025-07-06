@@ -96,26 +96,6 @@
             "code"
           ]
         }
-      },
-      {
-        "name": "able_read_file",
-        "tags": [
-          "File Reading"
-        ],
-        "displayName": "Read File",
-        "modelDescription": "This tool reads a file and returns its content, allowing an LLM to access and analyze file data.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "path": {
-              "type": "string",
-              "description": "The file to read. This should be absolute path, starting with /."
-            }
-          },
-          "required": [
-            "path"
-          ]
-        }
       }
     ],
     "commands": [
