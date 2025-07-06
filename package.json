@@ -32,9 +32,7 @@
     }
   },
   "enabledApiProposals": [
-    "mappedEditsProvider",
-    "chatParticipantAdditions",
-    "chatParticipantPrivate"
+    "chatParticipantAdditions"
   ],
   "contributes": {
     "chatParticipants": [
