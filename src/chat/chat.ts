@@ -3,7 +3,6 @@ import { FluentJaPrompt, FluentPrompt, HistoryEntry, MainPromptProps, PlanPrompt
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { convertHistory } from './chatlib/historyutils.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
-import type { EditTool } from '../lmtools/edit.js'
 import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
 
 
@@ -27,7 +26,6 @@ export class ChatHandleManager {
     constructor(
         private readonly extension: {
             readonly outputChannel: vscode.LogOutputChannel,
-            readonly editTool: EditTool
         }
     ) {
         this.copilotChatHandler = new CopilotChatHandler(extension)

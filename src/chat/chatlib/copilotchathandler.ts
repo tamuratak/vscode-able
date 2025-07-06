@@ -2,14 +2,12 @@ import * as vscode from 'vscode'
 import type { MainPromptProps, ToolCallResultPair, ToolCallResultRoundProps } from '../prompt.js'
 import { type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { AbleTool, convertToToolCall, getLmTools } from './toolutils.js'
-import type { EditTool } from '../../lmtools/edit.js'
 
 
 export class CopilotChatHandler {
 
     constructor(private readonly extension: {
         readonly outputChannel: vscode.LogOutputChannel
-        readonly editTool: EditTool
     }) { }
 
     async copilotChatResponse<P extends MainPromptProps, S>(
@@ -76,14 +74,6 @@ export class CopilotChatHandler {
                         this.extension.outputChannel.error(e, fragment)
                     } else {
                         this.extension.outputChannel.error('Unknown error', e, fragment)
-                    }
-                    // When edit canceled, or edit failed.
-                    if (fragment.name === 'able_replace_text') {
-                        this.extension.editTool.clearCurrentSession()
-                        // TODO
-                        // check if the error is EditToolError class
-                        // if range or uri is undefined, tell LLM to retry with a new better request. return LanguageModelToolResult.
-                        // else throw error.
                     }
                     throw e
                 })

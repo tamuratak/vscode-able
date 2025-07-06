@@ -98,36 +98,6 @@
         }
       },
       {
-        "name": "able_replace_text",
-        "tags": [
-          "Text Editing"
-        ],
-        "displayName": "Edit File",
-        "modelDescription": "This tool edits a file based on instructions, allowing an LLM to modify or enhance content. It should include the three lines before and after the changes.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "path": {
-              "type": "string",
-              "description": "The absolute path of the file to edit, starting with /."
-            },
-            "textToReplace": {
-              "type": "string",
-              "description": "The text to replace in the original text. This should include include the three lines before and after the changes. Without your comment in the code."
-            },
-            "input": {
-              "type": "string",
-              "description": "The new input text to insert into the range of the textToReplace. This should include include the three lines before and after the changes. Without your comment in the code."
-            }
-          },
-          "required": [
-            "path",
-            "textToReplace",
-            "input"
-          ]
-        }
-      },
-      {
         "name": "able_read_file",
         "tags": [
           "File Reading"
