@@ -5,7 +5,6 @@ import { convertHistory } from './chatlib/historyutils.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import type { EditTool } from '../lmtools/edit.js'
 import { getAttachmentFiles, getSelectedText } from './chatlib/referenceutils.js'
-import { EditCommand } from './chatlib/editcommand.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -24,7 +23,6 @@ class ChatSession {
 export class ChatHandleManager {
     private readonly copilotChatHandler: CopilotChatHandler
     private chatSession: ChatSession | undefined
-    private readonly editCommand: EditCommand
 
     constructor(
         private readonly extension: {
@@ -33,7 +31,6 @@ export class ChatHandleManager {
         }
     ) {
         this.copilotChatHandler = new CopilotChatHandler(extension)
-        this.editCommand = new EditCommand({ ...extension, copilotChatHandler: this.copilotChatHandler })
         this.extension.outputChannel.info('ChatHandleManager initialized')
     }
 
@@ -52,9 +49,7 @@ export class ChatHandleManager {
                 this.extension.outputChannel.debug(JSON.stringify(request.references))
                 this.chatSession = new ChatSession(request)
                 const history = convertHistory(context)
-                if (request.command === 'edit') {
-                    return await this.editCommand.runEditCommand(request, token, stream, history)
-                } else if (request.command === 'plan') {
+                if (request.command === 'plan') {
                     const attachments = await getAttachmentFiles(request)
                     await this.copilotChatHandler.copilotChatResponse(
                         token,

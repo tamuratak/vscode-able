@@ -46,10 +46,6 @@
         "isSticky": true,
         "commands": [
           {
-            "name": "edit",
-            "description": "Edit text based on instructions"
-          },
-          {
             "name": "plan",
             "description": "Plan a project"
           },
