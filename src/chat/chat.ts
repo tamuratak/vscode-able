@@ -4,7 +4,7 @@ import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { convertHistory } from './chatlib/historyutils.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import type { EditTool } from '../lmtools/edit.js'
-import { getAttachmentFiles, getSelectedText } from './chatlib/referenceutils.js'
+import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -61,20 +61,16 @@ export class ChatHandleManager {
                         [],
                     )
                 } else if (request.command === 'fluent') {
-                    const response = await this.responseWithSelection(token, request, FluentPrompt, history, request.model)
-                    stream.markdown(response)
+                    await this.responseWithSelection(token, request, FluentPrompt, history, request.model, stream)
                     return
                 } else if (request.command === 'fluent_ja') {
-                    const response = await this.responseWithSelection(token, request, FluentJaPrompt, history, request.model)
-                    stream.markdown(response)
+                    await this.responseWithSelection(token, request, FluentJaPrompt, history, request.model, stream)
                     return
                 } else if (request.command === 'to_en') {
-                    const response = await this.responseWithSelection(token, request, ToEnPrompt, history, request.model)
-                    stream.markdown(response)
+                    await this.responseWithSelection(token, request, ToEnPrompt, history, request.model, stream)
                     return
                 } else if (request.command === 'to_ja') {
-                    const response = await this.responseWithSelection(token, request, ToJaPrompt, history, request.model)
-                    stream.markdown(response)
+                    await this.responseWithSelection(token, request, ToJaPrompt, history, request.model, stream)
                     return
                 } else if (request.command === 'experiment') {
                     stream.markdown('This is an experimental feature. Please wait for further updates.')
@@ -111,21 +107,25 @@ export class ChatHandleManager {
         ctor: PromptElementCtor<MainPromptProps, S>,
         ableHistory: HistoryEntry[],
         model: vscode.LanguageModelChat,
-        stream?: vscode.ChatResponseStream,
+        stream: vscode.ChatResponseStream,
     ) {
-        const selectedText = await getSelectedText(request)
-        const input = selectedText ?? request.prompt
+        const selected = await getSelected(request)
+        const input = selected?.text ?? request.prompt
         let responseText = ''
-        const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input }, model, stream)
+        const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input }, model)
         if (ret?.chatResponse) {
             for await (const fragment of ret.chatResponse.text) {
                 responseText += fragment
             }
         }
-        if (selectedText) {
-            return '#### input\n' + input + '\n\n' + '#### output\n' + responseText
+        if (selected) {
+            const formattedChatOutput = '#### input\n' + input + '\n\n' + '#### output\n' + responseText
+            stream.markdown(formattedChatOutput)
+            const edit = new vscode.TextEdit(selected.range, responseText)
+            const uri = selected.uri
+            stream.textEdit(uri, edit)
         } else {
-            return responseText
+            stream.markdown(responseText)
         }
     }
 
