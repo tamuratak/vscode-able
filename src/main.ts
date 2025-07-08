@@ -31,6 +31,7 @@ class Extension {
 
 }
 
+export const AbleChatParticipantId = 'able.chatParticipant'
 
 export function activate(context: vscode.ExtensionContext) {
     const extension = new Extension()
@@ -39,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('able.doSomething', () => {
             void doSomething()
         }),
-        vscode.chat.createChatParticipant('able.chatParticipant', extension.getChatHandler()),
+        vscode.chat.createChatParticipant(AbleChatParticipantId, extension.getChatHandler()),
         vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()

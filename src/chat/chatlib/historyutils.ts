@@ -1,12 +1,13 @@
 import * as vscode from 'vscode'
 import type { HistoryEntry } from '../prompt.js'
 import { vscodeImplicitSelectionId } from './referenceutils.js'
+import { AbleChatParticipantId } from '../../main.js'
 
 
 export function convertHistory(context: vscode.ChatContext): HistoryEntry[] {
     const history: HistoryEntry[] = []
     for (const hist of context.history) {
-        if (hist.participant === 'able.chatParticipant') {
+        if (hist.participant === AbleChatParticipantId) {
             if (hist.command === 'fluent' || hist.command === 'fluent_ja' || hist.command === 'to_en' || hist.command === 'to_ja') {
                 if (hist instanceof vscode.ChatRequestTurn) {
                     if (!hist.references.find((ref) => ref.id === vscodeImplicitSelectionId)) {
