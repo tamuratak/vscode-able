@@ -8,20 +8,8 @@ import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
 
-class ChatSession {
-    readonly references: readonly vscode.ChatPromptReference[]
-    readonly prompt: string
-
-    constructor(request: vscode.ChatRequest) {
-        this.references = request.references
-        this.prompt = request.prompt
-    }
-
-}
-
 export class ChatHandleManager {
     private readonly copilotChatHandler: CopilotChatHandler
-    private chatSession: ChatSession | undefined
 
     constructor(
         private readonly extension: {
@@ -32,10 +20,6 @@ export class ChatHandleManager {
         this.extension.outputChannel.info('ChatHandleManager initialized')
     }
 
-    getChatSession() {
-        return this.chatSession
-    }
-
     getHandler(): vscode.ChatRequestHandler {
         return async (
             request: vscode.ChatRequest,
@@ -43,45 +27,40 @@ export class ChatHandleManager {
             stream: vscode.ChatResponseStream,
             token: vscode.CancellationToken
         ): Promise<vscode.ChatResult | undefined> => {
-            try {
-                this.extension.outputChannel.debug(JSON.stringify(request.references))
-                this.chatSession = new ChatSession(request)
-                const history = convertHistory(context)
-                if (request.command === 'plan') {
-                    const attachments = await getAttachmentFiles(request)
-                    await this.copilotChatHandler.copilotChatResponse(
-                        token,
-                        request,
-                        PlanPrompt,
-                        { history, input: request.prompt, attachments },
-                        request.model,
-                        stream,
-                        [],
-                    )
-                    return
-                } else if (request.command === 'fluent') {
-                    return await this.responseWithSelection(token, request, FluentPrompt, history, request.model, stream)
-                } else if (request.command === 'fluent_ja') {
-                    return await this.responseWithSelection(token, request, FluentJaPrompt, history, request.model, stream)
-                } else if (request.command === 'to_en') {
-                    return await this.responseWithSelection(token, request, ToEnPrompt, history, request.model, stream)
-                } else if (request.command === 'to_ja') {
-                    return await this.responseWithSelection(token, request, ToJaPrompt, history, request.model, stream)
-                } else {
-                    const attachments = await getAttachmentFiles(request)
-                    await this.copilotChatHandler.copilotChatResponse(
-                        token,
-                        request,
-                        SimplePrompt,
-                        { history, input: request.prompt, attachments },
-                        request.model,
-                        stream,
-                        [],
-                    )
-                    return
-                }
-            } finally {
-                this.chatSession = undefined
+            this.extension.outputChannel.debug(JSON.stringify(request.references))
+            const history = convertHistory(context)
+            if (request.command === 'plan') {
+                const attachments = await getAttachmentFiles(request)
+                await this.copilotChatHandler.copilotChatResponse(
+                    token,
+                    request,
+                    PlanPrompt,
+                    { history, input: request.prompt, attachments },
+                    request.model,
+                    stream,
+                    [],
+                )
+                return
+            } else if (request.command === 'fluent') {
+                return this.responseWithSelection(token, request, FluentPrompt, history, request.model, stream)
+            } else if (request.command === 'fluent_ja') {
+                return this.responseWithSelection(token, request, FluentJaPrompt, history, request.model, stream)
+            } else if (request.command === 'to_en') {
+                return this.responseWithSelection(token, request, ToEnPrompt, history, request.model, stream)
+            } else if (request.command === 'to_ja') {
+                return this.responseWithSelection(token, request, ToJaPrompt, history, request.model, stream)
+            } else {
+                const attachments = await getAttachmentFiles(request)
+                await this.copilotChatHandler.copilotChatResponse(
+                    token,
+                    request,
+                    SimplePrompt,
+                    { history, input: request.prompt, attachments },
+                    request.model,
+                    stream,
+                    [],
+                )
+                return
             }
         }
     }
