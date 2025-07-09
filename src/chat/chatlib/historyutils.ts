@@ -4,25 +4,37 @@ import { vscodeImplicitSelectionId } from './referenceutils.js'
 import { AbleChatParticipantId } from '../../main.js'
 
 
-export function convertHistory(context: vscode.ChatContext): HistoryEntry[] {
+export function extractAbleCommandHistory(context: vscode.ChatContext): HistoryEntry[] {
+    const history: HistoryEntry[] = []
+    for (const hist of context.history) {
+        if (hist.participant !== AbleChatParticipantId) {
+            continue
+        }
+        if (hist.command === 'fluent' || hist.command === 'fluent_ja' || hist.command === 'to_en' || hist.command === 'to_ja') {
+            if (hist instanceof vscode.ChatRequestTurn) {
+                if (!hist.references.find((ref) => ref.id === vscodeImplicitSelectionId)) {
+                    history.push({ type: 'user', command: hist.command, text: hist.prompt })
+                }
+            } else {
+                const response = chatResponseToString(hist)
+                const pair = extractInputAndOutput(response)
+                if (pair) {
+                    history.push({ type: 'user', command: hist.command, text: pair.input })
+                    history.push({ type: 'assistant', text: pair.output })
+                } else {
+                    history.push({ type: 'assistant', command: hist.command, text: response })
+                }
+            }
+        }
+    }
+    return history
+}
+
+export function extractHitory(context: vscode.ChatContext): HistoryEntry[] {
     const history: HistoryEntry[] = []
     for (const hist of context.history) {
         if (hist.participant === AbleChatParticipantId) {
             if (hist.command === 'fluent' || hist.command === 'fluent_ja' || hist.command === 'to_en' || hist.command === 'to_ja') {
-                if (hist instanceof vscode.ChatRequestTurn) {
-                    if (!hist.references.find((ref) => ref.id === vscodeImplicitSelectionId)) {
-                        history.push({ type: 'user', command: hist.command, text: hist.prompt })
-                    }
-                } else {
-                    const response = chatResponseToString(hist)
-                    const pair = extractInputAndOutput(response)
-                    if (pair) {
-                        history.push({ type: 'user', command: hist.command, text: pair.input })
-                        history.push({ type: 'assistant', text: pair.output })
-                    } else {
-                        history.push({ type: 'assistant', command: hist.command, text: response })
-                    }
-                }
                 continue
             }
         }
@@ -30,6 +42,8 @@ export function convertHistory(context: vscode.ChatContext): HistoryEntry[] {
             history.push({ type: 'user', text: hist.prompt })
         } else if (hist instanceof vscode.ChatResponseTurn) {
             history.push({ type: 'assistant', text: chatResponseToString(hist) })
+        } else {
+            hist satisfies never
         }
     }
     return history
