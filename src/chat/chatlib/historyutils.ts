@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import type { HistoryEntry } from '../prompt.js'
-import { vscodeImplicitSelectionId } from './referenceutils.js'
 import { AbleChatParticipantId } from '../../main.js'
+import { isAbleChatResultMetadata } from './utils.js'
 
 
 export function extractAbleCommandHistory(context: vscode.ChatContext): HistoryEntry[] {
@@ -11,18 +11,18 @@ export function extractAbleCommandHistory(context: vscode.ChatContext): HistoryE
             continue
         }
         if (hist.command === 'fluent' || hist.command === 'fluent_ja' || hist.command === 'to_en' || hist.command === 'to_ja') {
-            if (hist instanceof vscode.ChatRequestTurn) {
-                if (!hist.references.find((ref) => ref.id === vscodeImplicitSelectionId)) {
-                    history.push({ type: 'user', command: hist.command, text: hist.prompt })
-                }
-            } else {
-                const response = chatResponseToString(hist)
-                const pair = extractInputAndOutput(response)
-                if (pair) {
-                    history.push({ type: 'user', command: hist.command, text: pair.input })
-                    history.push({ type: 'assistant', text: pair.output })
-                } else {
-                    history.push({ type: 'assistant', command: hist.command, text: response })
+            if (hist instanceof vscode.ChatResponseTurn) {
+                const chatResultMetadata = hist.result.metadata
+                if (chatResultMetadata && isAbleChatResultMetadata(chatResultMetadata)) {
+                    history.push({
+                        type: 'user',
+                        command: hist.command,
+                        text: chatResultMetadata.input,
+                    })
+                    history.push({
+                        type: 'assistant',
+                        text: chatResultMetadata.output,
+                    })
                 }
             }
         }
@@ -71,16 +71,4 @@ function chatResponseToString(response: vscode.ChatResponseTurn): string {
         }
     }
     return str
-}
-
-function extractInputAndOutput(str: string) {
-    const regex = /#### input\n(.+?)\n\n#### output\n(.+)/s
-    const match = str.match(regex)
-    if (match) {
-        const input = match[1]
-        const output = match[2]
-        return { input, output }
-    } else {
-        return
-    }
 }
