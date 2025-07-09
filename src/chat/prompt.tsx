@@ -291,13 +291,26 @@ class HistoryMessages extends PromptElement<HistoryMessagesProps> {
                             {hist.text}
                         </MakeFluent>
                     )
+                } else if (hist.command === 'fluent_ja') {
+                    history.push(
+                        <MakeFluentJa>
+                            {hist.text}
+                        </MakeFluentJa>
+                    )
                 } else if (hist.command === 'to_en') {
                     history.push(
                         <ToEn>
                             {hist.text}
                         </ToEn>
                     )
+                } else if (hist.command === 'to_ja') {
+                    history.push(
+                        <ToJa>
+                            {hist.text}
+                        </ToJa>
+                    )
                 } else {
+                    hist.command satisfies undefined
                     history.push(<UserMessage>{hist.text}</UserMessage>)
                 }
             } else {
