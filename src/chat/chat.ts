@@ -4,6 +4,7 @@ import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { extractAbleCommandHistory, extractHitory } from './chatlib/historyutils.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
+import { AbleChatResultMetadata } from './chatlib/chatresultmetadata.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -98,16 +99,3 @@ export class ChatHandleManager {
     }
 
 }
-
-export interface AbleChatResultMetadata {
-    input: string;
-    output: string;
-    selected: {
-        text: string;
-        uri: vscode.Uri;
-        range: vscode.Range;
-    };
-    userInstruction: string | undefined;
-}
-
-

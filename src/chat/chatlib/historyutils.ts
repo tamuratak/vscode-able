@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import type { HistoryEntry } from '../prompt.js'
 import { AbleChatParticipantId } from '../../main.js'
-import { isAbleChatResultMetadata } from './utils.js'
+import { isAbleChatResultMetadata } from './chatresultmetadata.js'
 
 
 export function extractAbleCommandHistory(context: vscode.ChatContext): HistoryEntry[] {
