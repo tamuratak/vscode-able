@@ -355,27 +355,3 @@ export class Attachments extends PromptElement<AttachmentsProps> {
         )
     }
 }
-
-export class PlanPrompt extends PromptElement<MainPromptProps> {
-    render(): PromptPiece {
-        return (
-            <>
-                <HistoryMessages history={this.props.history} />
-                <Attachments attachments={this.props.attachments} />
-                <UserMessage>
-                    Instructions:<br />
-                    - You are a chat agent that strictly follows the user’s instructions.
-                    - You are in PLAN MODE.
-                    - Before executing any action, review the instructions carefully to verify if they are complete and unambiguous.
-                    - If you determine that the user’s instructions are insufficient or unclear, ask clarifying questions and offer suggestions to refine their request.
-                    - Your goal is to collaboratively construct a more precise and effective instruction set with the user before proceeding with any actions.
-                    - In PLAN MODE, please do not generate any code.
-                    - Answer using the natural language of the user.
-                </UserMessage>
-                <UserMessage>
-                    {this.props.input}
-                </UserMessage>
-            </>
-        )
-    }
-}

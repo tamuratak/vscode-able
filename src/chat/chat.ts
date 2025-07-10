@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, MainPromptProps, PlanPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { FluentJaPrompt, FluentPrompt, HistoryEntry, MainPromptProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { extractAbleCommandHistory, extractHitory } from './chatlib/historyutils.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
@@ -31,19 +31,7 @@ export class ChatHandleManager {
             this.extension.outputChannel.debug(JSON.stringify(request.references))
             const ableCommandHistory = extractAbleCommandHistory(context)
             const history = extractHitory(context)
-            if (request.command === 'plan') {
-                const attachments = await getAttachmentFiles(request)
-                await this.copilotChatHandler.copilotChatResponse(
-                    token,
-                    request,
-                    PlanPrompt,
-                    { history, input: request.prompt, attachments },
-                    request.model,
-                    stream,
-                    [],
-                )
-                return
-            } else if (request.command === 'fluent') {
+            if (request.command === 'fluent') {
                 return this.responseWithSelection(token, request, FluentPrompt, ableCommandHistory, request.model, stream)
             } else if (request.command === 'fluent_ja') {
                 return this.responseWithSelection(token, request, FluentJaPrompt, ableCommandHistory, request.model, stream)
