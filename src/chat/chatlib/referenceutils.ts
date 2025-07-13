@@ -26,58 +26,20 @@ export async function getSelected(request: vscode.ChatRequest) {
     return
 }
 
-interface UriReference extends vscode.ChatPromptReference {
-    value: vscode.Uri
-}
-
-export function getUriRerefences(request: vscode.ChatRequest) {
-    const refs: UriReference[] = []
-    for (const ref of request.references) {
-        if (ref.value instanceof vscode.Uri) {
-            const value = ref.value
-            refs.push({...ref, value})
-
-        }
-    }
-    return refs
-}
-
-interface LocationReference extends vscode.ChatPromptReference {
-    value: vscode.Location
-}
-
-export function getLocationReferences(request: vscode.ChatRequest) {
-    const refs: LocationReference[] = []
-    for (const ref of request.references) {
-        if (ref.value instanceof vscode.Location) {
-            const value = ref.value
-            refs.push({...ref, value})
-        }
-    }
-    return refs
-}
-
-export function getAttachmentUris(request: vscode.ChatRequest): vscode.Uri[] {
-    const uris: vscode.Uri[] = []
-    for (const ref of request.references) {
-        try {
-            const uri = vscode.Uri.parse(ref.id, true)
-            uris.push(uri)
-        } catch {
-            // ignore
-        }
-    }
-    return uris
-}
-
 export async function getAttachmentFiles(request: vscode.ChatRequest): Promise<FileElementProps[]> {
     const result: FileElementProps[] = []
-    const attachmentUris = getAttachmentUris(request)
-    for (const uri of attachmentUris) {
-        const buf = await vscode.workspace.fs.readFile(uri)
-        const decoder = new TextDecoder()
-        const content = decoder.decode(buf)
-        result.push({ uri, content })
+    for (const ref of request.references) {
+        if (ref.value instanceof vscode.Uri) {
+            const uri = ref.value
+            try {
+                const buf = await vscode.workspace.fs.readFile(uri)
+                const decoder = new TextDecoder()
+                const content = decoder.decode(buf)
+                result.push({ uri, content })
+            } catch {
+                // ignore
+            }
+        }
     }
     return result
 }
