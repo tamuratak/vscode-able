@@ -31,6 +31,9 @@ export function executeMochaCommand(task: vscode.Task) {
         if (typeof command !== 'string') {
             throw new Error('Command is not a string')
         }
+        if (task.execution.args === undefined) {
+            throw new Error('Execution args are undefined')
+        }
         const args: string[] = []
         for (const arg of task.execution.args) {
             if (typeof arg === 'string') {
