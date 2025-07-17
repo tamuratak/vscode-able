@@ -186,6 +186,14 @@ export class FluentJaPrompt extends PromptElement<MainPromptProps> {
                     <br />
                     元の意味や意図を損なわないようにしつつ、読みやすく丁寧な表現にしてください。
                 </UserMessage>
+                <PrioritizedList priority={100} descending={false}>
+                    <MakeFluentJa>
+                        複文ではなく単文で書きかつ、文は1つで書くよう命令するためのプロンプト。
+                    </MakeFluentJa>
+                    <AssistantMessage>
+                        複文ではなく単文で、しかも文を1つだけ書くよう指示するためのプロンプト。
+                    </AssistantMessage>
+                </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     {this.props.userInstruction ? '指示: ' + this.props.userInstruction : ''}
