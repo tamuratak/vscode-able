@@ -193,6 +193,18 @@ export class FluentJaPrompt extends PromptElement<MainPromptProps> {
                     <AssistantMessage>
                         複文ではなく単文で、しかも文を1つだけ書くよう指示するためのプロンプト。
                     </AssistantMessage>
+                    <MakeFluentJa>
+                        ウィーン会議後のヨーロッパ地図を検索して見つけて。英語か日本語で。
+                    </MakeFluentJa>
+                    <AssistantMessage>
+                        ウィーン会議後のヨーロッパの地図を、英語または日本語で検索して探してください。
+                    </AssistantMessage>
+                    <MakeFluentJa>
+                        文字列から部分文字列にマッチする範囲をすべて見つける。JavaScript
+                    </MakeFluentJa>
+                    <AssistantMessage>
+                        JavaScriptで、文字列から部分文字列に一致するすべての範囲を見つける。
+                    </AssistantMessage>
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
                 <UserMessage>
