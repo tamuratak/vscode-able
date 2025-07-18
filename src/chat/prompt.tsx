@@ -239,6 +239,26 @@ export class ToEnPrompt extends PromptElement<MainPromptProps> {
                     <br />
                     Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
                 </UserMessage>
+                <PrioritizedList priority={100} descending={false}>
+                    <ToEn>
+                        この症状はハードウェアのエラーの可能性があります。
+                    </ToEn>
+                    <AssistantMessage>
+                        The symptoms suggest it might be a hardware error.
+                    </AssistantMessage>
+                    <ToEn>
+                        キッチンの排水口の追加クリーニングを依頼したいです。
+                    </ToEn>
+                    <AssistantMessage>
+                        I would like to request an additional cleaning for the kitchen drain.
+                    </AssistantMessage>
+                    <ToEn>
+                        GPT 4.1 は "Implement as an extension for VS Code" という文章があるにも関わらず、意図を正しく理解し、コードを生成せず、アイディアのリストを生成していることに注意してください。
+                    </ToEn>
+                    <AssistantMessage>
+                        Please note that GPT-4.1 correctly understands the intent and generates a list of ideas rather than code, even though the prompt contains the sentence "Implement as an extension for VS Code."
+                    </AssistantMessage>
+                </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     {this.props.userInstruction ? 'Instructions: ' + this.props.userInstruction : ''}
