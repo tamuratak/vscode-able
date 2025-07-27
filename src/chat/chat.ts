@@ -58,7 +58,7 @@ export class ChatHandleManager {
                     token,
                     request,
                     GenerateCommitMessagePrompt,
-                    { history, input: request.prompt },
+                    { history, input: diff, userInstruction: request.prompt },
                     request.model,
                     stream,
                     [],
