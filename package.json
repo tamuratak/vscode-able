@@ -58,6 +58,10 @@
           {
             "name": "to_ja",
             "description": "Translate to Japanese"
+          },
+          {
+            "name": "commit_message",
+            "description": "Generate commit message"
           }
         ]
       }

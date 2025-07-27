@@ -316,6 +316,15 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
     }
 }
 
+export class GenerateCommitMessagePrompt extends PromptElement<MainPromptProps> {
+    render(): PromptPiece {
+        return (
+            <>
+            </>
+        )
+    }
+}
+
 interface HistoryMessagesProps extends BasePromptElementProps {
     history: HistoryEntry[]
 }

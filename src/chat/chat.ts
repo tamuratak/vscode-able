@@ -1,10 +1,13 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, MainPromptProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { FluentJaPrompt, FluentPrompt, GenerateCommitMessagePrompt, HistoryEntry, MainPromptProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { extractAbleCommandHistory, extractHitory } from './chatlib/historyutils.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
 import { AbleChatResultMetadata } from './chatlib/chatresultmetadata.js'
+import type { ExternalPromise } from '../utils/externalpromise.js'
+import type { GitExtension } from '../../types/git/git.js'
+import { getWorkspaceGitDiff } from '../utils/git.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -15,6 +18,7 @@ export class ChatHandleManager {
     constructor(
         private readonly extension: {
             readonly outputChannel: vscode.LogOutputChannel,
+            readonly gitExtension: ExternalPromise<GitExtension | undefined>
         }
     ) {
         this.copilotChatHandler = new CopilotChatHandler(extension)
@@ -39,6 +43,27 @@ export class ChatHandleManager {
                 return this.responseWithSelection(token, request, ToEnPrompt, ableCommandHistory, request.model, stream)
             } else if (request.command === 'to_ja') {
                 return this.responseWithSelection(token, request, ToJaPrompt, ableCommandHistory, request.model, stream)
+            } else if (request.command === 'commit_message') {
+                const gitExtension = await this.extension.gitExtension.promise
+                if (!gitExtension) {
+                    stream.markdown('Git extension is not available.')
+                    return
+                }
+                const diff = await getWorkspaceGitDiff(gitExtension)
+                if (!diff) {
+                    stream.markdown('No git diff available.')
+                    return
+                }
+                await this.copilotChatHandler.copilotChatResponse(
+                    token,
+                    request,
+                    GenerateCommitMessagePrompt,
+                    { history, input: request.prompt },
+                    request.model,
+                    stream,
+                    [],
+                )
+                return
             } else {
                 const attachments = await getAttachmentFiles(request)
                 await this.copilotChatHandler.copilotChatResponse(

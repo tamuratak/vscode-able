@@ -5,6 +5,8 @@ import { PythonTool } from './lmtools/pyodide.js'
 import { renderToolResult } from './utils/toolresult.js'
 import { MochaJsonTaskProvider } from './task.js'
 import { TaskWatcher } from './taskwatcher.js'
+import { GitExtension } from '../types/git/git.js'
+import { ExternalPromise } from './utils/externalpromise.js'
 
 
 class Extension {
@@ -12,11 +14,16 @@ class Extension {
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
     readonly ableTaskProvider: MochaJsonTaskProvider
     readonly taskWatcher: TaskWatcher
+    readonly gitExtension = new ExternalPromise<GitExtension | undefined>()
 
     constructor() {
         this.chatHandleManager = new ChatHandleManager(this)
         this.ableTaskProvider = new MochaJsonTaskProvider(this)
         this.taskWatcher = new TaskWatcher(this)
+        setTimeout(() => {
+            const gitExtension = vscode.extensions.getExtension<GitExtension>('vscode.git')
+            this.gitExtension.resolve(gitExtension?.exports)
+        }, 1000)
     }
 
     getChatHandler() {
