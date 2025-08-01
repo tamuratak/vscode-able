@@ -17,6 +17,12 @@ class Extension {
         this.chatHandleManager = new ChatHandleManager(this)
         this.ableTaskProvider = new MochaJsonTaskProvider(this)
         this.taskWatcher = new TaskWatcher(this)
+        setTimeout(async () => {
+            const result = await vscode.lm.selectChatModels({ vendor: 'copilot' })
+            this.outputChannel.info(`Available copilot chat models: ${JSON.stringify(result, null, 2)}`)
+            const result1 = await vscode.lm.selectChatModels({ vendor: 'gemini' })
+            this.outputChannel.info(`Available gemini chat models: ${JSON.stringify(result1, null, 2)}`)
+        }, 5000)
     }
 
     getChatHandler() {
