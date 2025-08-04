@@ -88,6 +88,18 @@ function registerFocusTerminalCommand() {
     ]
 }
 
+export function registerFocusChatCommand() {
+    return [
+        vscode.commands.registerCommand('able.focusChat', () => {
+            if (vscode.window.tabGroups.all.length === 1) {
+                void vscode.commands.executeCommand('workbench.action.chat.open')
+            } else {
+                return
+            }
+        })
+    ]
+}
+
 function registerShowingOffset() {
     const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100.45)
     const cursor = vscode.window.activeTextEditor?.selection.start

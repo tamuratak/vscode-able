@@ -32,7 +32,8 @@
     }
   },
   "enabledApiProposals": [
-    "chatParticipantAdditions"
+    "chatParticipantAdditions",
+    "chatTab"
   ],
   "contributes": {
     "chatParticipants": [
@@ -106,6 +107,10 @@
         "title": "Able: Focus Terminal"
       },
       {
+        "command": "able.focusChat",
+        "title": "Able: Focus Chat"
+      },
+      {
         "command": "able.killLinesToEnd",
         "title": "Able: Kill Lines To End"
       },
@@ -142,6 +147,10 @@
         "key": "ctrl+t",
         "command": "able.focusTerminal",
         "when": "!terminalFocus && !terminalEditorFocus && terminalIsOpen"
+      },
+      {
+        "key": "ctrl+y",
+        "command": "able.focusChat"
       },
       {
         "key": "ctrl+t",
