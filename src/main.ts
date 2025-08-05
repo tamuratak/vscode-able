@@ -5,7 +5,7 @@ import { PythonTool } from './lmtools/pyodide.js'
 import { renderToolResult } from './utils/toolresult.js'
 import { MochaJsonTaskProvider } from './task.js'
 import { TaskWatcher } from './taskwatcher.js'
-import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
+import { GeminiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 
 
 class Extension {
@@ -42,13 +42,13 @@ export const AbleChatParticipantId = 'able.chatParticipant'
 
 export function activate(context: vscode.ExtensionContext) {
     const extension = new Extension()
-    const openAiAuthProvider = new OpenAiApiKeyAuthenticationProvider(context.secrets)
+    const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
     context.subscriptions.push(
         extension,
-        openAiAuthProvider,
-        vscode.authentication.registerAuthenticationProvider(openAiAuthProvider.serviceId, openAiAuthProvider.label, openAiAuthProvider),
-        vscode.commands.registerCommand('able.loginOpenAI', () => {
-            void vscode.authentication.getSession(openAiAuthProvider.serviceId, [], { createIfNone: true })
+        geminiAuthProvider,
+        vscode.authentication.registerAuthenticationProvider(geminiAuthProvider.serviceId, geminiAuthProvider.label, geminiAuthProvider),
+        vscode.commands.registerCommand('able.loginGemini', () => {
+            void vscode.authentication.getSession(geminiAuthProvider.serviceId, [], { createIfNone: true })
         }),
         vscode.commands.registerCommand('able.doSomething', () => {
             void doSomething()

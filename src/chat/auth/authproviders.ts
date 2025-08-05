@@ -27,6 +27,7 @@ SOFTWARE.
 
 */
 
+import type * as vscode from 'vscode'
 import OpenAI from 'openai'
 import {
 	authentication,
@@ -59,7 +60,12 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 		return this._onDidChangeSessions.event
 	}
 
-	constructor(private readonly secretStorage: SecretStorage) { }
+	constructor(
+		protected readonly extension: {
+            readonly outputChannel: vscode.LogOutputChannel,
+        },
+		private readonly secretStorage: SecretStorage
+	) { }
 
 	dispose(): void {
 		this.initializedDisposable?.dispose()
@@ -201,15 +207,19 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 
 }
 
-export class OpenAiApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
-	readonly label = 'OpenAI API (with Able)'
-	readonly serviceId = 'openai_api'
-	protected readonly secretStoreKey = 'openai_api.secret_store_key'
+export class GeminiApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
+	readonly label = 'Gemini (with Able)'
+	readonly serviceId = 'gemini_api'
+	protected readonly secretStoreKey = 'gemini_api.secret_store_key'
 
 	protected async validateKey(apiKey: string): Promise<boolean> {
 		try {
-			const client = new OpenAI({ apiKey })
+			const client = new OpenAI({
+				apiKey,
+				baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/'
+			})
 			const result = await client.models.list()
+			this.extension.outputChannel.info(`Available Gemini (with Able) chat models: ${JSON.stringify(result, null, 2)}`)
 			if (result.data.length > 0) {
 				return true
 			} else {

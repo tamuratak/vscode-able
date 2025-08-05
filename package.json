@@ -37,8 +37,8 @@
   "contributes": {
     "authentication": [
       {
-        "id": "openai_api",
-        "label": "OpenAI API (with Able)"
+        "id": "gemini_api",
+        "label": "Gemini (with Able)"
       }
     ],
     "chatParticipants": [
@@ -116,8 +116,8 @@
         "title": "Able: Kill Lines To End"
       },
       {
-        "command": "able.loginOpenAI",
-        "title": "Able: Login to OpenAI"
+        "command": "able.loginGemini",
+        "title": "Able: Login to Gemini"
       },
       {
         "command": "able.openTerminalAndCloseSideBar",
