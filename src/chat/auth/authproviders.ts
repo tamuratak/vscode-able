@@ -221,7 +221,6 @@ export class GeminiApiKeyAuthenticationProvider extends BaseApiKeyAuthentication
 				baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/'
 			})
 			const result = await client.models.list()
-			this.extension.outputChannel.info(`Available Gemini (with Able) chat models: ${JSON.stringify(result, null, 2)}`)
 			if (result.data.length > 0) {
 				return true
 			} else {

@@ -7,6 +7,7 @@ import { MochaJsonTaskProvider } from './task.js'
 import { TaskWatcher } from './taskwatcher.js'
 import { GeminiApiKeyAuthenticationProvider, geminiAuthServiceId } from './chat/auth/authproviders.js'
 import { GoogleGenAI, Model } from '@google/genai'
+import { GeminiChatProvider } from './chat/chatprovider.js';
 
 
 class Extension {
@@ -58,6 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
     const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
     context.subscriptions.push(
         extension,
+        vscode.lm.registerChatModelProvider('gemini_with_able', new GeminiChatProvider()),
         geminiAuthProvider,
         vscode.authentication.registerAuthenticationProvider(geminiAuthProvider.serviceId, geminiAuthProvider.label, geminiAuthProvider),
         vscode.commands.registerCommand('able.loginGemini', () => {
@@ -78,7 +80,6 @@ export function activate(context: vscode.ExtensionContext) {
     } else {
         context.environmentVariableCollection.replace('GIT_EDITOR', 'vscode -nw')
     }
-
 }
 
 
