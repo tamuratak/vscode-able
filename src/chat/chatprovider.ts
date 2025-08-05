@@ -15,6 +15,15 @@ function toGeminiRole(role: LanguageModelChatMessageRole): 'user' | 'model' {
 }
 
 export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChatInformation> {
+
+    constructor(
+        private readonly extension: {
+            readonly outputChannel: vscode.LogOutputChannel,
+        }
+    ) {
+        this.extension.outputChannel.info('GeminiChatProvider initialized')
+    }
+
     async prepareLanguageModelChat(options: { silent: boolean; }, _token: CancellationToken): Promise<GeminiChatInformation[]> {
         try {
             const session = await vscode.authentication.getSession(geminiAuthServiceId, [], { silent: options.silent })
@@ -41,7 +50,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             }
             return result
         } catch (e) {
-            console.error(e)
+            this.extension.outputChannel.error(`Failed to prepare Gemini chat: ${JSON.stringify(e)}`)
             return []
         }
     }
@@ -62,13 +71,13 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
 
         const contents: Content[] = messages.map(m => {
             const parts: Part[] = []
-            if (typeof m.content === 'string') {
-                parts.push({ text: m.content })
-            } else {
-                for (const part of m.content) {
-                    if (part instanceof LanguageModelTextPart) {
-                        parts.push({ text: part.value })
-                    }
+            for (const part of m.content) {
+                if (part instanceof LanguageModelTextPart) {
+                    parts.push({ text: part.value })
+                } else if (part instanceof vscode.LanguageModelToolCallPart) {
+                    // TODO LanguageModelToolCallPart
+                } else {
+                    // TODO LanguageModelToolResultPart
                 }
             }
             return {

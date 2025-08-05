@@ -59,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
     const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
     context.subscriptions.push(
         extension,
-        vscode.lm.registerChatModelProvider('gemini_with_able', new GeminiChatProvider()),
+        vscode.lm.registerChatModelProvider('gemini_with_able', new GeminiChatProvider(extension)),
         geminiAuthProvider,
         vscode.authentication.registerAuthenticationProvider(geminiAuthProvider.serviceId, geminiAuthProvider.label, geminiAuthProvider),
         vscode.commands.registerCommand('able.loginGemini', () => {
