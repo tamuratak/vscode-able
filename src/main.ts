@@ -5,7 +5,8 @@ import { PythonTool } from './lmtools/pyodide.js'
 import { renderToolResult } from './utils/toolresult.js'
 import { MochaJsonTaskProvider } from './task.js'
 import { TaskWatcher } from './taskwatcher.js'
-import { GeminiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
+import { GeminiApiKeyAuthenticationProvider, geminiAuthServiceId } from './chat/auth/authproviders.js'
+import { GoogleGenAI, Model } from '@google/genai'
 
 
 class Extension {
@@ -22,7 +23,19 @@ class Extension {
             const result = await vscode.lm.selectChatModels({ vendor: 'copilot' })
             this.outputChannel.info(`Available copilot chat models: ${JSON.stringify(result, null, 2)}`)
             const result1 = await vscode.lm.selectChatModels({ vendor: 'gemini' })
-            this.outputChannel.info(`Available gemini chat models: ${JSON.stringify(result1, null, 2)}`)
+            this.outputChannel.info(`Available gemini BYOK chat models: ${JSON.stringify(result1, null, 2)}`)
+            try {
+                const session = await vscode.authentication.getSession(geminiAuthServiceId, [])
+                if (session) {
+                    const apiKey = session.accessToken
+                    const ai = new GoogleGenAI({apiKey})
+                    const modelList: Model[] = []
+                    for await (const model of await ai.models.list()) {
+                        modelList.push(model)
+                    }
+                    this.outputChannel.info(`Gemini (with Able) models: ${JSON.stringify(modelList, null, 2)}`)
+                }
+            } catch { }
         }, 5000)
     }
 
