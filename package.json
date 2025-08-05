@@ -116,6 +116,10 @@
         "title": "Able: Kill Lines To End"
       },
       {
+        "command": "able.loginOpenAI",
+        "title": "Able: Login to OpenAI"
+      },
+      {
         "command": "able.openTerminalAndCloseSideBar",
         "title": "Able: Open Terminal and Close Side Bar"
       },
