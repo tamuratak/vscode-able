@@ -5,6 +5,7 @@ import { PythonTool } from './lmtools/pyodide.js'
 import { renderToolResult } from './utils/toolresult.js'
 import { MochaJsonTaskProvider } from './task.js'
 import { TaskWatcher } from './taskwatcher.js'
+import { OpenAiApiKeyAuthenticationProvider } from './chat/auth/authproviders.js'
 
 
 class Extension {
@@ -41,8 +42,14 @@ export const AbleChatParticipantId = 'able.chatParticipant'
 
 export function activate(context: vscode.ExtensionContext) {
     const extension = new Extension()
+    const openAiAuthProvider = new OpenAiApiKeyAuthenticationProvider(context.secrets)
     context.subscriptions.push(
         extension,
+        openAiAuthProvider,
+        vscode.authentication.registerAuthenticationProvider(openAiAuthProvider.serviceId, openAiAuthProvider.label, openAiAuthProvider),
+        vscode.commands.registerCommand('able.loginOpenAI', () => {
+            void vscode.authentication.getSession(openAiAuthProvider.serviceId, [], { createIfNone: true })
+        }),
         vscode.commands.registerCommand('able.doSomething', () => {
             void doSomething()
         }),

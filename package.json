@@ -35,6 +35,12 @@
     "chatParticipantAdditions"
   ],
   "contributes": {
+    "authentication": [
+      {
+        "id": "openai_api",
+        "label": "OpenAI API (with Able)"
+      }
+    ],
     "chatParticipants": [
       {
         "id": "able.chatParticipant",
