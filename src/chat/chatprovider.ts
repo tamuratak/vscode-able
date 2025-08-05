@@ -84,9 +84,9 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                 if (part instanceof LanguageModelTextPart) {
                     parts.push({ text: part.value })
                 } else if (part instanceof vscode.LanguageModelToolCallPart) {
-                    // TODO LanguageModelToolCallPart
+                    // TODO LanguageModelToolCallPart -> FunctionCall へ変換
                 } else {
-                    // TODO LanguageModelToolResultPart
+                    // TODO LanguageModelToolResultPart -> FunctionResponse へ変換
                 }
             }
             return {
@@ -95,6 +95,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             }
         })
 
+        // vscode.lm.tools -> FunctionDeclaration へ変換
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream({ model: model.id, contents })
 
         for await (const chunk of result) {
