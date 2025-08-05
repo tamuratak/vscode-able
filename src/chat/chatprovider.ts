@@ -15,6 +15,11 @@ function toGeminiRole(role: LanguageModelChatMessageRole): 'user' | 'model' {
 }
 
 export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChatInformation> {
+    private readonly aiModels = [
+        'models/gemini-2.5-pro',
+        'models/gemini-2.5-flash',
+        'models/gemma-3-27b-it'
+    ]
 
     constructor(
         private readonly extension: {
@@ -34,17 +39,21 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             const ai = new GoogleGenAI({ apiKey })
             const result: GeminiChatInformation[] = []
             for await (const model of await ai.models.list()) {
-                if (!model.name) {
+                if (!model.name || !this.aiModels.includes(model.name)) {
                     continue
                 }
+                const match = model.name.match(/models\/([^-]*)-([^-]*)-([^-]*)/)
                 result.push({
                     id: model.name,
                     name: model.displayName ?? model.name,
-                    family: model.name.split('/')[0],
-                    version: model.version ?? 'unknown',
+                    family: match?.[1] ?? model.name,
+                    version: model.version ?? model.name,
                     maxInputTokens: model.inputTokenLimit ?? 0,
                     maxOutputTokens: model.outputTokenLimit ?? 0,
                     auth: true,
+                    capabilities: {
+                        toolCalling: true,
+                    },
                     model
                 })
             }

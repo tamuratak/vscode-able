@@ -70,6 +70,12 @@
         ]
       }
     ],
+    "languageModels": [
+      {
+        "vendor": "gemini_with_able",
+        "displayName": "Gemini with Able"
+      }
+    ],
     "languageModelTools": [
       {
         "name": "able_python",
