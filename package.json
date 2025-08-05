@@ -32,7 +32,9 @@
     }
   },
   "enabledApiProposals": [
-    "chatParticipantAdditions"
+    "chatParticipantAdditions",
+    "chatProvider",
+    "languageModelDataPart"
   ],
   "contributes": {
     "authentication": [
