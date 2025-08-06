@@ -234,7 +234,6 @@
     "@google/genai": "1.12.0",
     "@microsoft/tiktokenizer": "1.0.10",
     "@vscode/prompt-tsx": "0.4.0-alpha.4",
-    "openai": "5.11.0",
     "workerpool": "9.3.3"
   },
   "devDependencies": {

@@ -28,7 +28,6 @@ SOFTWARE.
 */
 
 import type * as vscode from 'vscode'
-import OpenAI from 'openai'
 import {
 	authentication,
 	AuthenticationProvider,
@@ -40,6 +39,7 @@ import {
 	SecretStorage,
 	window,
 } from 'vscode'
+import { GoogleGenAI } from '@google/genai'
 
 
 abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvider, Disposable {
@@ -216,12 +216,9 @@ export class GeminiApiKeyAuthenticationProvider extends BaseApiKeyAuthentication
 
 	protected async validateKey(apiKey: string): Promise<boolean> {
 		try {
-			const client = new OpenAI({
-				apiKey,
-				baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/'
-			})
+			const client = new GoogleGenAI({apiKey})
 			const result = await client.models.list()
-			if (result.data.length > 0) {
+			if (result.page.length > 0) {
 				return true
 			} else {
 				return false
