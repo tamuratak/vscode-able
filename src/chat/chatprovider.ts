@@ -53,7 +53,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         this.extension.outputChannel.info('GeminiChatProvider initialized')
     }
 
-    async prepareLanguageModelChat(options: { silent: boolean; }, _token: CancellationToken): Promise<GeminiChatInformation[]> {
+    async prepareLanguageModelChat(options: { silent: boolean; }): Promise<GeminiChatInformation[]> {
         try {
             const session = await vscode.authentication.getSession(geminiAuthServiceId, [], { silent: options.silent })
             if (!session) {
@@ -154,7 +154,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         }
     }
 
-    async provideTokenCount(model: GeminiChatInformation, text: string | LanguageModelChatMessage, _token: CancellationToken): Promise<number> {
+    async provideTokenCount(model: GeminiChatInformation, text: string | LanguageModelChatMessage): Promise<number> {
         const session = await vscode.authentication.getSession(geminiAuthServiceId, [], { silent: true })
         if (!session) {
             throw new Error('No authentication session found for Gemini')
