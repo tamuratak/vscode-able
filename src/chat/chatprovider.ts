@@ -71,15 +71,14 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             for await (const model of await ai.models.list()) {
                 // model.name is like 'models/gemini-2.5-pro'
                 const id = this.aiModelIds.find(m => model.name?.endsWith(m))
-                if (!model.name || !id) {
+                if (!id) {
                     continue
                 }
-                const match = model.name.match(/models\/([^-]*)-([^-]*)-([^-]*)/)
                 result.push({
                     id,
-                    name: model.displayName ?? model.name,
-                    family: match?.[1] ?? model.name,
-                    version: model.version ?? model.name,
+                    name: model.displayName ?? id,
+                    family: id,
+                    version: model.version ?? id,
                     maxInputTokens: model.inputTokenLimit ?? 0,
                     maxOutputTokens: model.outputTokenLimit ?? 0,
                     auth: true,
