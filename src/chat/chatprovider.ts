@@ -8,11 +8,34 @@ type GeminiChatInformation = LanguageModelChatInformation & {
     model: Model
 }
 
-function toGeminiRole(role: LanguageModelChatMessageRole): 'user' | 'model' {
-    if (role === LanguageModelChatMessageRole.User) {
-        return 'user'
+function convertLanguageModelChatMessageToContent(message: LanguageModelChatMessage): Content {
+    const parts: Part[] = []
+    for (const part of message.content) {
+        if (part instanceof LanguageModelTextPart) {
+            parts.push({ text: part.value })
+        } else if (part instanceof LanguageModelToolCallPart) {
+            parts.push({
+                functionCall: {
+                    id: part.callId,
+                    name: part.name,
+                    args: part.input as Record<string, unknown>
+                }
+            })
+        } else if (part instanceof LanguageModelToolResultPart) {
+            parts.push({
+                functionResponse: {
+                    id: part.callId,
+                    response: {
+                        output: part.content
+                    }
+                }
+            })
+        }
     }
-    return 'model'
+    return {
+        role: message.role === LanguageModelChatMessageRole.Assistant ? 'model' : 'user',
+        parts
+    }
 }
 
 export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChatInformation> {
@@ -68,7 +91,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
     async provideLanguageModelChatResponse(
         model: GeminiChatInformation,
         messages: LanguageModelChatMessage[],
-        _options: LanguageModelChatRequestHandleOptions,
+        options: LanguageModelChatRequestHandleOptions,
         progress: Progress<ChatResponseFragment2>,
         token: CancellationToken
     ): Promise<void> {
@@ -79,44 +102,16 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
 
-        const contents: Content[] = messages.map(m => {
-            const parts: Part[] = []
-            for (const part of m.content) {
-                if (part instanceof LanguageModelTextPart) {
-                    parts.push({ text: part.value })
-                } else if (part instanceof LanguageModelToolCallPart) {
-                    parts.push({
-                        functionCall: {
-                            id: part.callId,
-                            name: part.name,
-                            args: part.input as Record<string, unknown>
-                        }
-                    })
-                } else if (part instanceof LanguageModelToolResultPart) {
-                    parts.push({
-                        functionResponse: {
-                            id: part.callId,
-                            response: {
-                                output: part.content
-                            }
-                        }
-                    })
-                }
-            }
-            return {
-                role: toGeminiRole(m.role),
-                parts
-            }
-        })
+        const contents: Content[] = messages.map(convertLanguageModelChatMessageToContent)
 
-        const functionDeclarations: FunctionDeclaration[] = vscode.lm.tools.map(t => {
+        const functionDeclarations: FunctionDeclaration[] = options.tools?.map(t => {
             return {
                 name: t.name,
                 description: t.description,
                 parametersJsonSchema: t.inputSchema
 
             }
-        })
+        }) ?? []
         const tools: Tool[] = [{ functionDeclarations }]
 
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
@@ -162,16 +157,15 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
     async provideTokenCount(model: GeminiChatInformation, text: string | LanguageModelChatMessage, _token: CancellationToken): Promise<number> {
         const session = await vscode.authentication.getSession(geminiAuthServiceId, [], { silent: true })
         if (!session) {
-            return 0
+            throw new Error('No authentication session found for Gemini')
         }
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
-        const content = typeof text === 'string' ? text : text.content
-        if (typeof content !== 'string') {
-            // TODO: support non-string content
-            return 0
+        const contents = typeof text === 'string' ? [text] : [convertLanguageModelChatMessageToContent(text)]
+        const result = await ai.models.countTokens({ model: model.id, contents })
+        if (result.totalTokens === undefined) {
+            throw new Error('Token count not available from Gemini API')
         }
-        const result = await ai.models.countTokens({ model: model.id, contents: [{ parts: [{ text: content }], role: 'user' }] })
-        return result.totalTokens ?? 0
+        return result.totalTokens
     }
 }
