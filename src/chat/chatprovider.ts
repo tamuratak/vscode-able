@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolResultPart, LanguageModelToolCallPart } from 'vscode'
-import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, Tool } from '@google/genai'
+import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, Tool, FunctionResponse } from '@google/genai'
 import { geminiAuthServiceId } from './auth/authproviders'
 import { FunctionDeclaration } from '@google/genai'
 
@@ -8,12 +8,15 @@ type GeminiChatInformation = LanguageModelChatInformation & {
     model: Model
 }
 
+const toolCallIdNameMap = new Map<string, string>()
+
 function convertLanguageModelChatMessageToContent(message: LanguageModelChatMessage): Content {
     const parts: Part[] = []
     for (const part of message.content) {
         if (part instanceof LanguageModelTextPart) {
             parts.push({ text: part.value })
         } else if (part instanceof LanguageModelToolCallPart) {
+            toolCallIdNameMap.set(part.callId, part.name)
             parts.push({
                 functionCall: {
                     id: part.callId,
@@ -22,14 +25,17 @@ function convertLanguageModelChatMessageToContent(message: LanguageModelChatMess
                 }
             })
         } else if (part instanceof LanguageModelToolResultPart) {
-            parts.push({
-                functionResponse: {
-                    id: part.callId,
-                    response: {
-                        output: part.content
-                    }
+            const functionResponse: FunctionResponse = {
+                id: part.callId,
+                response: {
+                    output: part.content
                 }
-            })
+            }
+            const name = toolCallIdNameMap.get(part.callId)
+            if (name) {
+                functionResponse.name = name
+            }
+            parts.push({ functionResponse })
         }
     }
     return {
@@ -101,7 +107,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         }
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
-
+        toolCallIdNameMap.clear()
         const contents: Content[] = messages.map(convertLanguageModelChatMessageToContent)
 
         const functionDeclarations: FunctionDeclaration[] = options.tools?.map(t => {
