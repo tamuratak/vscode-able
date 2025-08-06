@@ -45,10 +45,10 @@ function convertLanguageModelChatMessageToContent(message: LanguageModelChatMess
 }
 
 export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChatInformation> {
-    private readonly aiModels = [
-        'models/gemini-2.5-pro',
-        'models/gemini-2.5-flash',
-        'models/gemma-3-27b-it'
+    private readonly aiModelIds = [
+        'gemini-2.5-pro',
+        'gemini-2.5-flash',
+        'gemma-3-27b-it'
     ]
 
     constructor(
@@ -69,12 +69,14 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             const ai = new GoogleGenAI({ apiKey })
             const result: GeminiChatInformation[] = []
             for await (const model of await ai.models.list()) {
-                if (!model.name || !this.aiModels.includes(model.name)) {
+                // model.name is like 'models/gemini-2.5-pro'
+                const id = this.aiModelIds.find(m => model.name?.endsWith(m))
+                if (!model.name || !id) {
                     continue
                 }
                 const match = model.name.match(/models\/([^-]*)-([^-]*)-([^-]*)/)
                 result.push({
-                    id: model.name,
+                    id,
                     name: model.displayName ?? model.name,
                     family: match?.[1] ?? model.name,
                     version: model.version ?? model.name,
