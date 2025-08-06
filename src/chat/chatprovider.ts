@@ -95,7 +95,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             }
         })
 
-        // vscode.lm.tools -> FunctionDeclaration へ変換
+        // TODO vscode.lm.tools -> FunctionDeclaration へ変換
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream({ model: model.id, contents })
 
         for await (const chunk of result) {
@@ -110,6 +110,13 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                         value: text
                     }
                 })
+            }
+            const functionCalls = chunk.functionCalls
+            if (functionCalls) {
+                for (const call of functionCalls) {
+                    console.log(call)
+                    // TODO LanguageModelToolCallPart へ変換 して progress.report を呼ぶ
+                }
             }
         }
     }
