@@ -1,8 +1,8 @@
 import * as vscode from 'vscode'
 import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolResultPart, LanguageModelToolCallPart } from 'vscode'
-import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, Tool, FunctionResponse } from '@google/genai'
+import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, Tool, FunctionResponse, FunctionDeclaration } from '@google/genai'
 import { geminiAuthServiceId } from './auth/authproviders'
-import { FunctionDeclaration } from '@google/genai'
+
 
 type GeminiChatInformation = LanguageModelChatInformation & {
     model: Model
@@ -152,7 +152,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                     }
                     progress.report({
                         index,
-                        part: new vscode.LanguageModelToolCallPart(call.id, call.name, call.args)
+                        part: new LanguageModelToolCallPart(call.id, call.name, call.args)
                     })
                     index++
                 }
