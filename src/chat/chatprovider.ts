@@ -1,7 +1,8 @@
 import * as vscode from 'vscode'
-import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation } from 'vscode'
-import { GoogleGenAI, Model, Content, Part, GenerateContentResponse } from '@google/genai'
-import { geminiAuthServiceId } from './auth/authproviders';
+import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolResultPart, LanguageModelToolCallPart } from 'vscode'
+import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, Tool } from '@google/genai'
+import { geminiAuthServiceId } from './auth/authproviders'
+import { FunctionDeclaration } from '@google/genai'
 
 type GeminiChatInformation = LanguageModelChatInformation & {
     model: Model
@@ -83,10 +84,23 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             for (const part of m.content) {
                 if (part instanceof LanguageModelTextPart) {
                     parts.push({ text: part.value })
-                } else if (part instanceof vscode.LanguageModelToolCallPart) {
-                    // TODO LanguageModelToolCallPart -> FunctionCall へ変換
-                } else {
-                    // TODO LanguageModelToolResultPart -> FunctionResponse へ変換
+                } else if (part instanceof LanguageModelToolCallPart) {
+                    parts.push({
+                        functionCall: {
+                            id: part.callId,
+                            name: part.name,
+                            args: part.input as Record<string, unknown>
+                        }
+                    })
+                } else if (part instanceof LanguageModelToolResultPart) {
+                    parts.push({
+                        functionResponse: {
+                            id: part.callId,
+                            response: {
+                                output: part.content
+                            }
+                        }
+                    })
                 }
             }
             return {
@@ -95,8 +109,25 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             }
         })
 
-        // TODO vscode.lm.tools -> FunctionDeclaration へ変換
-        const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream({ model: model.id, contents })
+        const functionDeclarations: FunctionDeclaration[] = vscode.lm.tools.map(t => {
+            return {
+                name: t.name,
+                description: t.description,
+                parametersJsonSchema: t.inputSchema
+
+            }
+        })
+        const tools: Tool[] = [{ functionDeclarations }]
+
+        const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
+            {
+                model: model.id,
+                contents,
+                config: {
+                    tools
+                }
+            }
+        )
 
         for await (const chunk of result) {
             if (token.isCancellationRequested) {
@@ -113,9 +144,16 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             }
             const functionCalls = chunk.functionCalls
             if (functionCalls) {
+                let index = 0
                 for (const call of functionCalls) {
-                    console.log(call)
-                    // TODO LanguageModelToolCallPart へ変換 して progress.report を呼ぶ
+                    if (call.id === undefined || call.name === undefined || call.args === undefined) {
+                        continue
+                    }
+                    progress.report({
+                        index,
+                        part: new vscode.LanguageModelToolCallPart(call.id, call.name, call.args)
+                    })
+                    index++
                 }
             }
         }
