@@ -81,9 +81,10 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                     version: model.version ?? id,
                     maxInputTokens: model.inputTokenLimit ?? 0,
                     maxOutputTokens: model.outputTokenLimit ?? 0,
+                    description: model.description ?? 'Gemini',
                     auth: true,
                     capabilities: {
-                        toolCalling: true,
+                        toolCalling: id.startsWith('gemini')
                     },
                     model
                 })
@@ -119,7 +120,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
 
             }
         }) ?? []
-        const tools: Tool[] = [{ functionDeclarations }]
+        const tools: Tool[] = model.capabilities?.toolCalling ? [{ functionDeclarations }] : []
 
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
             {
@@ -139,10 +140,8 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             if (text) {
                 progress.report({
                     index: 0,
-                    part: {
-                        value: text
-                    }
-                })
+                    part: new LanguageModelTextPart(text)
+                } satisfies ChatResponseFragment2)
             }
             const functionCalls = chunk.functionCalls
             if (functionCalls) {
