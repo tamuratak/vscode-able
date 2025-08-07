@@ -27,7 +27,7 @@ SOFTWARE.
 
 */
 
-import type * as vscode from 'vscode'
+import * as vscode from 'vscode'
 import {
 	authentication,
 	AuthenticationProvider,
@@ -45,7 +45,7 @@ import { GoogleGenAI } from '@google/genai'
 abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvider, Disposable {
 	abstract readonly label: string
 	abstract readonly serviceId: string
-	protected abstract readonly secretStoreKey: string
+	protected abstract readonly secretStoreKeyId: string
 
 	protected abstract validateKey(key: string): Promise<boolean>
 
@@ -62,8 +62,8 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 
 	constructor(
 		protected readonly extension: {
-            readonly outputChannel: vscode.LogOutputChannel,
-        },
+			readonly outputChannel: vscode.LogOutputChannel,
+		},
 		private readonly secretStorage: SecretStorage
 	) { }
 
@@ -79,7 +79,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 				// This onDidChange event happens when the secret storage changes in _any window_ since
 				// secrets are shared across all open windows.
 				this.secretStorage.onDidChange(e => {
-					if (e.key === this.secretStoreKey) {
+					if (e.key === this.secretStoreKeyId) {
 						void this.checkForUpdates()
 					}
 				}),
@@ -118,7 +118,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 	}
 
 	private cacheApiKeyFromStorage() {
-		this.currentApiKey = this.secretStorage.get(this.secretStoreKey)
+		this.currentApiKey = this.secretStorage.get(this.secretStoreKeyId)
 		return this.currentApiKey
 	}
 
@@ -150,7 +150,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 
 		let apiKey: string
 		try {
-			apiKey = await new Promise((resolve, reject) => {
+			apiKey = await new Promise((resolve) => {
 				const errorMessage = 'Invalid API key'
 				input.onDidAccept(async () => {
 					input.busy = true;
@@ -164,21 +164,14 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 					input.dispose()
 					resolve(input.value)
 				}, disposables)
-				input.onDidHide(async () => {
-					if (!input.value || !(await this.validateKey(input.value))) {
-						reject(new Error(errorMessage))
-					}
-				}, disposables)
 			})
 		} finally {
-			disposables.forEach(d => {
-				d.dispose()
-			})
+			vscode.Disposable.from(...disposables).dispose()
 		}
 
 		// Don't set `currentApiKey` here, since we want to fire the proper events in the `checkForUpdates` call
-		await this.secretStorage.store(this.secretStoreKey, apiKey)
-		console.log('Successfully logged in for OpenAI API (with Able).')
+		await this.secretStorage.store(this.secretStoreKeyId, apiKey)
+		this.extension.outputChannel.info('Successfully logged in for Gemini (with Able).')
 
 		return this.toAuthenticationSession(apiKey)
 	}
@@ -189,7 +182,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 		if (!apiKey) {
 			return
 		}
-		await this.secretStorage.delete(this.secretStoreKey)
+		await this.secretStorage.delete(this.secretStoreKeyId)
 		this._onDidChangeSessions.fire({ removed: [this.toAuthenticationSession(apiKey)], added: [], changed: [] })
 	}
 
@@ -212,11 +205,11 @@ export const geminiAuthServiceId = 'gemini_api'
 export class GeminiApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
 	readonly label = 'Gemini (with Able)'
 	readonly serviceId = geminiAuthServiceId
-	protected readonly secretStoreKey = 'gemini_api.secret_store_key'
+	protected readonly secretStoreKeyId = 'gemini_api.secret_store_key'
 
 	protected async validateKey(apiKey: string): Promise<boolean> {
 		try {
-			const client = new GoogleGenAI({apiKey})
+			const client = new GoogleGenAI({ apiKey })
 			const result = await client.models.list()
 			if (result.page.length > 0) {
 				return true
