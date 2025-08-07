@@ -44,6 +44,7 @@ import { GoogleGenAI } from '@google/genai'
 
 abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvider, Disposable {
 	abstract readonly label: string
+	abstract readonly accountLabel: string
 	abstract readonly serviceId: string
 	protected abstract readonly secretStoreKeyId: string
 
@@ -191,7 +192,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 			accessToken: apiKey,
 			id: this.serviceId,
 			account: {
-				label: this.label,
+				label: this.accountLabel,
 				id: this.serviceId,
 			},
 			scopes: [],
@@ -204,6 +205,7 @@ export const geminiAuthServiceId = 'gemini_api'
 
 export class GeminiApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
 	readonly label = 'Gemini (with Able)'
+	readonly accountLabel = 'Able'
 	readonly serviceId = geminiAuthServiceId
 	protected readonly secretStoreKeyId = 'gemini_api.secret_store_key'
 
