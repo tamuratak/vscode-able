@@ -18,13 +18,14 @@ async function main() {
         {
           name: 'getWeather',
           description: 'gets the weather for a requested city',
-          parameters: {
-            type: Type.OBJECT,
+          parametersJsonSchema: {
+            type: 'object',
             properties: {
               city: {
-                type: Type.STRING,
+                type: 'string',
               },
             },
+            required: ['city'],
           },
         },
       ],
@@ -95,7 +96,7 @@ I've determined that "東京" (Tokyo) is the city for which the user wants the w
       role: 'user',
       parts: [
         {
-          text: `INSERT_INPUT_HERE`,
+          text: `では大阪の天気はどうですか？`,
         },
       ],
     },
