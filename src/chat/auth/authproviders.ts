@@ -161,7 +161,6 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 						input.enabled = true
 						return
 					}
-					input.dispose()
 					resolve(input.value)
 				}, disposables)
 				input.onDidHide(() => {
@@ -169,7 +168,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 				}, disposables)
 			})
 		} finally {
-			vscode.Disposable.from(...disposables).dispose()
+			vscode.Disposable.from(input, ...disposables).dispose()
 		}
 
 		// Don't set `currentApiKey` here, since we want to fire the proper events in the `checkForUpdates` call
