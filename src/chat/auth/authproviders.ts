@@ -151,19 +151,21 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 
 		let apiKey: string
 		try {
-			apiKey = await new Promise((resolve) => {
-				const errorMessage = 'Invalid API key'
+			apiKey = await new Promise((resolve, reject) => {
 				input.onDidAccept(async () => {
 					input.busy = true;
 					input.enabled = false;
 					if (!input.value || !(await this.validateKey(input.value))) {
-						input.validationMessage = errorMessage
+						input.validationMessage = 'Invalid API key'
 						input.busy = false
 						input.enabled = true
 						return
 					}
 					input.dispose()
 					resolve(input.value)
+				}, disposables)
+				input.onDidHide(() => {
+					reject(new Error('Do not store the API key.'))
 				}, disposables)
 			})
 		} finally {
