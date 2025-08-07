@@ -104,7 +104,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
     ): Promise<void> {
         const session = await vscode.authentication.getSession(geminiAuthServiceId, [], { silent: true })
         if (!session) {
-            return
+            throw new Error('No authentication session found for Gemini (with Able)')
         }
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
@@ -164,7 +164,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
     async provideTokenCount(model: GeminiChatInformation, text: string | LanguageModelChatMessage): Promise<number> {
         const session = await vscode.authentication.getSession(geminiAuthServiceId, [], { silent: true })
         if (!session) {
-            throw new Error('No authentication session found for Gemini')
+            throw new Error('No authentication session found for Gemini (with Able)')
         }
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
