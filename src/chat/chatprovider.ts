@@ -137,7 +137,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         }
     }
 
-    async provideTokenCount(model: GeminiChatInformation, text: string | LanguageModelChatMessage): Promise<number> {
+    async provideTokenCount(model: GeminiChatInformation, text: string | LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<number> {
         const session = await vscode.authentication.getSession(geminiAuthServiceId, [], { silent: true })
         if (!session) {
             throw new Error('No authentication session found for Gemini (with Able)')
@@ -152,7 +152,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         return result.totalTokens
     }
 
-    async convertLanguageModelChatMessageToContent(message: vscode.LanguageModelChatMessage2 | vscode.LanguageModelChatMessage): Promise<Content> {
+    async convertLanguageModelChatMessageToContent(message: LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<Content> {
         const parts: Part[] = []
         for (const part of message.content) {
             if (part instanceof LanguageModelTextPart) {
