@@ -50,6 +50,11 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                 }
                 result.push({
                     id,
+                    category: {
+                        label: 'Gemini (with Able)',
+                        order: 1000
+                    },
+                    cost: 'Able',
                     name: model.displayName ?? id,
                     family: id,
                     version: model.version ?? id,
