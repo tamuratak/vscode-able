@@ -183,7 +183,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                 parts.push({ functionResponse })
             } else {
                 // TODO: LanguageModelDataPart case
-                console.log(`LanguageModelDataPart length: ${part.data.length}`)
+                this.extension.outputChannel.info(`Skipping LanguageModelDataPart length: ${part.data.length}`)
             }
         }
         return {
