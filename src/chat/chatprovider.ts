@@ -1,7 +1,8 @@
 import * as vscode from 'vscode'
-import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolResultPart, LanguageModelToolCallPart } from 'vscode'
+import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
 import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, Tool, FunctionResponse, FunctionDeclaration } from '@google/genai'
 import { geminiAuthServiceId } from './auth/authproviders'
+import { getNonce } from '../utils/getnonce.js'
 
 
 type GeminiChatInformation = LanguageModelChatInformation & {
@@ -9,8 +10,9 @@ type GeminiChatInformation = LanguageModelChatInformation & {
 }
 
 const toolCallIdNameMap = new Map<string, string>()
+const nameToolCallIdMap = new Map<string, string>()
 
-function convertLanguageModelChatMessageToContent(message: LanguageModelChatMessage): Content {
+function convertLanguageModelChatMessageToContent(message: vscode.LanguageModelChatMessage2): Content {
     const parts: Part[] = []
     for (const part of message.content) {
         if (part instanceof LanguageModelTextPart) {
@@ -24,7 +26,7 @@ function convertLanguageModelChatMessageToContent(message: LanguageModelChatMess
                     args: part.input as Record<string, unknown>
                 }
             })
-        } else if (part instanceof LanguageModelToolResultPart) {
+        } else if (part instanceof vscode.LanguageModelToolResultPart2) {
             const functionResponse: FunctionResponse = {
                 id: part.callId,
                 response: {
@@ -48,6 +50,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
     private readonly aiModelIds = [
         'gemini-2.5-pro',
         'gemini-2.5-flash',
+        'gemini-2.0-flash',
         'gemma-3-27b-it'
     ]
 
@@ -98,7 +101,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
 
     async provideLanguageModelChatResponse(
         model: GeminiChatInformation,
-        messages: LanguageModelChatMessage[],
+        messages: vscode.LanguageModelChatMessage2[],
         options: LanguageModelChatRequestHandleOptions,
         progress: Progress<ChatResponseFragment2>,
         token: CancellationToken
@@ -109,7 +112,6 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         }
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
-        toolCallIdNameMap.clear()
         const contents: Content[] = messages.map(convertLanguageModelChatMessageToContent)
 
         const functionDeclarations: FunctionDeclaration[] = options.tools?.map(t => {
@@ -122,6 +124,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         }) ?? []
         const tools: Tool[] = model.capabilities?.toolCalling ? [{ functionDeclarations }] : []
 
+        this.extension.outputChannel.debug(`Gemini chat request: ${JSON.stringify({ model: model.id, contents }, null, 2)}`)
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
             {
                 model: model.id,
@@ -133,6 +136,8 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         )
 
         for await (const chunk of result) {
+            const index = 0
+            this.extension.outputChannel.debug(`Gemini chat response chunk: ${JSON.stringify({ text: chunk.text, functionCalls: chunk.functionCalls }, null, 2)}`)
             if (token.isCancellationRequested) {
                 break
             }
@@ -145,16 +150,21 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             }
             const functionCalls = chunk.functionCalls
             if (functionCalls) {
-                let index = 0
                 for (const call of functionCalls) {
-                    if (call.id === undefined || call.name === undefined || call.args === undefined) {
+                    if (call.name === undefined || call.args === undefined) {
                         continue
                     }
+                    const callId = call.id ?? getNonce()
+                    nameToolCallIdMap.set(call.name, callId)
+                    toolCallIdNameMap.set(callId, call.name)
                     progress.report({
                         index,
-                        part: new LanguageModelToolCallPart(call.id, call.name, call.args)
+                        part: new LanguageModelTextPart('Tool call')
                     })
-                    index++
+                    progress.report({
+                        index,
+                        part: new LanguageModelToolCallPart(callId, call.name, call.args)
+                    })
                 }
             }
         }
