@@ -3,6 +3,7 @@ import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, Lan
 import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, Tool, FunctionResponse, FunctionDeclaration } from '@google/genai'
 import { geminiAuthServiceId } from './auth/authproviders'
 import { getNonce } from '../utils/getnonce.js'
+import { renderToolResult } from '../utils/toolresult.js'
 
 
 type GeminiChatInformation = LanguageModelChatInformation & {
@@ -78,7 +79,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         }
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
-        const contents: Content[] = messages.map(m => this.convertLanguageModelChatMessageToContent(m))
+        const contents: Content[] = await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToContent(m)))
 
         const functionDeclarations: FunctionDeclaration[] = options.tools?.map(t => {
             return {
@@ -143,7 +144,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         }
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
-        const contents = typeof text === 'string' ? [text] : [this.convertLanguageModelChatMessageToContent(text)]
+        const contents = typeof text === 'string' ? [text] : [await this.convertLanguageModelChatMessageToContent(text)]
         const result = await ai.models.countTokens({ model: model.id, contents })
         if (result.totalTokens === undefined) {
             throw new Error('Token count not available from Gemini API')
@@ -151,7 +152,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         return result.totalTokens
     }
 
-    convertLanguageModelChatMessageToContent(message: vscode.LanguageModelChatMessage2 | vscode.LanguageModelChatMessage): Content {
+    async convertLanguageModelChatMessageToContent(message: vscode.LanguageModelChatMessage2 | vscode.LanguageModelChatMessage): Promise<Content> {
         const parts: Part[] = []
         for (const part of message.content) {
             if (part instanceof LanguageModelTextPart) {
@@ -166,16 +167,10 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                     }
                 })
             } else if ((part instanceof vscode.LanguageModelToolResultPart2) || (part instanceof vscode.LanguageModelToolResultPart)) {
-                let output = ''
-                for (const c of part.content) {
-                    if (c instanceof LanguageModelTextPart) {
-                        output += c.value
-                    } else if (c instanceof vscode.LanguageModelPromptTsxPart) {
-                        // TODO
-                    } else {
-                        this.extension.outputChannel.error(`Unknown part type: ${JSON.stringify(c, null, 2)}`)
-                    }
-                }
+                // TODO: treat LanguageModelDataPart case
+                const contents = part.content.filter(c => c instanceof LanguageModelTextPart || c instanceof vscode.LanguageModelPromptTsxPart)
+                const toolResult = new vscode.LanguageModelToolResult(contents)
+                const output = await renderToolResult(toolResult)
                 const functionResponse: FunctionResponse = {
                     id: part.callId,
                     response: {
