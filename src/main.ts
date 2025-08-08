@@ -7,7 +7,7 @@ import { MochaJsonTaskProvider } from './task.js'
 import { TaskWatcher } from './taskwatcher.js'
 import { GeminiApiKeyAuthenticationProvider, geminiAuthServiceId } from './chat/auth/authproviders.js'
 import { GoogleGenAI, Model } from '@google/genai'
-import { GeminiChatProvider } from './chat/chatprovider.js';
+import { GeminiChatProvider } from './chat/chatprovider.js'
 
 
 class Extension {

@@ -1,1 +1,1 @@
-export { GeminiChatProvider } from './chatproviderlib/geminichatprovider.js';
+export { GeminiChatProvider } from './chatproviderlib/geminichatprovider.js'
