@@ -11,7 +11,7 @@ type GeminiChatInformation = LanguageModelChatInformation & {
 }
 
 const toolCallIdNameMap = new Map<string, string>()
-const nameToolCallIdMap = new Map<string, string>()
+
 
 export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChatInformation> {
     private readonly aiModelIds = [
@@ -27,6 +27,10 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         }
     ) {
         this.extension.outputChannel.info('GeminiChatProvider initialized')
+    }
+
+    generateCallId(): string {
+        return 'call_' + getNonce(16)
     }
 
     async prepareLanguageModelChat(options: { silent: boolean; }): Promise<GeminiChatInformation[]> {
@@ -125,8 +129,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                     if (call.name === undefined || call.args === undefined) {
                         continue
                     }
-                    const callId = call.id ?? getNonce()
-                    nameToolCallIdMap.set(call.name, callId)
+                    const callId = call.id ?? this.generateCallId()
                     toolCallIdNameMap.set(callId, call.name)
                     progress.report({
                         index: 0,
