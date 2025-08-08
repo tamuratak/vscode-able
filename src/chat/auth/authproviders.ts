@@ -203,6 +203,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 }
 
 export const geminiAuthServiceId = 'gemini_api'
+export const openaiAuthServiceId = 'openai_api'
 
 export class GeminiApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
 	readonly label = 'Gemini (with Able)'
