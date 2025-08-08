@@ -167,7 +167,6 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                     }
                 })
             } else if ((part instanceof vscode.LanguageModelToolResultPart2) || (part instanceof vscode.LanguageModelToolResultPart)) {
-                // TODO: treat LanguageModelDataPart case
                 const contents = part.content.filter(c => c instanceof LanguageModelTextPart || c instanceof vscode.LanguageModelPromptTsxPart)
                 const toolResult = new vscode.LanguageModelToolResult(contents)
                 const output = await renderToolResult(toolResult)
@@ -182,6 +181,9 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                     functionResponse.name = name
                 }
                 parts.push({ functionResponse })
+            } else {
+                // TODO: LanguageModelDataPart case
+                console.log(`LanguageModelDataPart length: ${part.data.length}`)
             }
         }
         return {
