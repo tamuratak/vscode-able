@@ -12,40 +12,6 @@ type GeminiChatInformation = LanguageModelChatInformation & {
 const toolCallIdNameMap = new Map<string, string>()
 const nameToolCallIdMap = new Map<string, string>()
 
-function convertLanguageModelChatMessageToContent(message: vscode.LanguageModelChatMessage2): Content {
-    const parts: Part[] = []
-    for (const part of message.content) {
-        if (part instanceof LanguageModelTextPart) {
-            parts.push({ text: part.value })
-        } else if (part instanceof LanguageModelToolCallPart) {
-            toolCallIdNameMap.set(part.callId, part.name)
-            parts.push({
-                functionCall: {
-                    id: part.callId,
-                    name: part.name,
-                    args: part.input as Record<string, unknown>
-                }
-            })
-        } else if (part instanceof vscode.LanguageModelToolResultPart2) {
-            const functionResponse: FunctionResponse = {
-                id: part.callId,
-                response: {
-                    output: part.content
-                }
-            }
-            const name = toolCallIdNameMap.get(part.callId)
-            if (name) {
-                functionResponse.name = name
-            }
-            parts.push({ functionResponse })
-        }
-    }
-    return {
-        role: message.role === LanguageModelChatMessageRole.Assistant ? 'model' : 'user',
-        parts
-    }
-}
-
 export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChatInformation> {
     private readonly aiModelIds = [
         'gemini-2.5-pro',
@@ -101,7 +67,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
 
     async provideLanguageModelChatResponse(
         model: GeminiChatInformation,
-        messages: vscode.LanguageModelChatMessage2[],
+        messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
         options: LanguageModelChatRequestHandleOptions,
         progress: Progress<ChatResponseFragment2>,
         token: CancellationToken
@@ -112,7 +78,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         }
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
-        const contents: Content[] = messages.map(convertLanguageModelChatMessageToContent)
+        const contents: Content[] = messages.map(m => this.convertLanguageModelChatMessageToContent(m))
 
         const functionDeclarations: FunctionDeclaration[] = options.tools?.map(t => {
             return {
@@ -177,11 +143,56 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         }
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
-        const contents = typeof text === 'string' ? [text] : [convertLanguageModelChatMessageToContent(text)]
+        const contents = typeof text === 'string' ? [text] : [this.convertLanguageModelChatMessageToContent(text)]
         const result = await ai.models.countTokens({ model: model.id, contents })
         if (result.totalTokens === undefined) {
             throw new Error('Token count not available from Gemini API')
         }
         return result.totalTokens
     }
+
+    convertLanguageModelChatMessageToContent(message: vscode.LanguageModelChatMessage2 | vscode.LanguageModelChatMessage): Content {
+        const parts: Part[] = []
+        for (const part of message.content) {
+            if (part instanceof LanguageModelTextPart) {
+                parts.push({ text: part.value })
+            } else if (part instanceof LanguageModelToolCallPart) {
+                toolCallIdNameMap.set(part.callId, part.name)
+                parts.push({
+                    functionCall: {
+                        id: part.callId,
+                        name: part.name,
+                        args: part.input as Record<string, unknown>
+                    }
+                })
+            } else if ((part instanceof vscode.LanguageModelToolResultPart2) || (part instanceof vscode.LanguageModelToolResultPart)) {
+                let output = ''
+                for (const c of part.content) {
+                    if (c instanceof LanguageModelTextPart) {
+                        output += c.value
+                    } else if (c instanceof vscode.LanguageModelPromptTsxPart) {
+                        // TODO
+                    } else {
+                        this.extension.outputChannel.error(`Unknown part type: ${JSON.stringify(c, null, 2)}`)
+                    }
+                }
+                const functionResponse: FunctionResponse = {
+                    id: part.callId,
+                    response: {
+                        output
+                    }
+                }
+                const name = toolCallIdNameMap.get(part.callId)
+                if (name) {
+                    functionResponse.name = name
+                }
+                parts.push({ functionResponse })
+            }
+        }
+        return {
+            role: message.role === LanguageModelChatMessageRole.Assistant ? 'model' : 'user',
+            parts
+        }
+    }
+
 }
