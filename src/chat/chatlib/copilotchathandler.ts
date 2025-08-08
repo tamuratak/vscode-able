@@ -35,7 +35,6 @@ export class CopilotChatHandler {
                 { modelMaxPromptTokens: model.maxInputTokens * 0.8 },
                 model // model.countTokens is used to calculate the token count of the prompt.
             )
-            this.extension.outputChannel.debug('Copilot chat response', JSON.stringify(messages, null, 2))
             const tools = getLmTools(selectedTools)
             // Send request to the LLM.
             const chatResponse = await model.sendRequest(

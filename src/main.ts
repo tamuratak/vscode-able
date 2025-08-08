@@ -5,6 +5,9 @@ import { PythonTool } from './lmtools/pyodide.js'
 import { renderToolResult } from './utils/toolresult.js'
 import { MochaJsonTaskProvider } from './task.js'
 import { TaskWatcher } from './taskwatcher.js'
+import { GeminiApiKeyAuthenticationProvider, geminiAuthServiceId } from './chat/auth/authproviders.js'
+import { GoogleGenAI, Model } from '@google/genai'
+import { GeminiChatProvider } from './chat/chatprovider.js'
 
 
 class Extension {
@@ -21,7 +24,19 @@ class Extension {
             const result = await vscode.lm.selectChatModels({ vendor: 'copilot' })
             this.outputChannel.info(`Available copilot chat models: ${JSON.stringify(result, null, 2)}`)
             const result1 = await vscode.lm.selectChatModels({ vendor: 'gemini' })
-            this.outputChannel.info(`Available gemini chat models: ${JSON.stringify(result1, null, 2)}`)
+            this.outputChannel.info(`Available gemini BYOK chat models: ${JSON.stringify(result1, null, 2)}`)
+            try {
+                const session = await vscode.authentication.getSession(geminiAuthServiceId, [])
+                if (session) {
+                    const apiKey = session.accessToken
+                    const ai = new GoogleGenAI({apiKey})
+                    const modelList: Model[] = []
+                    for await (const model of await ai.models.list()) {
+                        modelList.push(model)
+                    }
+                    this.outputChannel.info(`Gemini (with Able) models: ${JSON.stringify(modelList, null, 2)}`)
+                }
+            } catch { }
         }, 5000)
     }
 
@@ -41,8 +56,15 @@ export const AbleChatParticipantId = 'able.chatParticipant'
 
 export function activate(context: vscode.ExtensionContext) {
     const extension = new Extension()
+    const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
     context.subscriptions.push(
         extension,
+        vscode.lm.registerChatModelProvider('gemini_with_able', new GeminiChatProvider(extension)),
+        geminiAuthProvider,
+        vscode.authentication.registerAuthenticationProvider(geminiAuthProvider.serviceId, geminiAuthProvider.label, geminiAuthProvider),
+        vscode.commands.registerCommand('able.loginGemini', () => {
+            void vscode.authentication.getSession(geminiAuthProvider.serviceId, [], { createIfNone: true })
+        }),
         vscode.commands.registerCommand('able.doSomething', () => {
             void doSomething()
         }),
@@ -58,7 +80,6 @@ export function activate(context: vscode.ExtensionContext) {
     } else {
         context.environmentVariableCollection.replace('GIT_EDITOR', 'vscode -nw')
     }
-
 }
 
 

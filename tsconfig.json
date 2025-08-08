@@ -10,7 +10,7 @@
         "lib": [
             "es2022"
         ],
-        "module": "node16",
+        "module": "nodenext",
         "noFallthroughCasesInSwitch": true,
         "noImplicitOverride": true,
         "noImplicitReturns": true,

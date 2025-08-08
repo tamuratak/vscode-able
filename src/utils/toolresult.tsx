@@ -19,8 +19,17 @@ class ToolResultPrompt extends PromptElement<ToolResultProps> {
 
 export async function renderToolResult(data: vscode.LanguageModelToolResult) {
     const gpt4oTokenizer = new Gpt4oTokenizer()
-    const result = await renderPrompt(ToolResultPrompt, { data }, { modelMaxPromptTokens: 4096 }, gpt4oTokenizer)
-    const resultpart = result.messages[0].content[0] as unknown as vscode.LanguageModelToolResultPart
-    const content = resultpart.content[0] as vscode.LanguageModelTextPart
-    return content.value
+    const result = await renderPrompt(ToolResultPrompt, { data }, { modelMaxPromptTokens: 32768 }, gpt4oTokenizer)
+    const content = result.messages[0].content
+    if (typeof content === 'string') {
+        return content
+    } else {
+        let value = ''
+        for (const c of content) {
+            if (c.type === 'text') {
+                value += c.text
+            }
+        }
+        return value
+    }
 }

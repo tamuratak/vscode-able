@@ -87,6 +87,18 @@ export class SimplePrompt extends PromptElement<MainPromptProps> {
                 <UserMessage>
                     {this.props.input}
                 </UserMessage>
+                {
+                    // TODO: use DirectivePrompt
+                    this.props.toolCallResultRounds?.map((e) => (
+                        <>
+                            <ToolCallResultRoundElement
+                                responseStr={e.responseStr}
+                                toolCallResultPairs={e.toolCallResultPairs}
+                            />
+                            <ToolResultDirectiveElement />
+                        </>
+                    )) ?? ''
+                }
             </>
         )
     }

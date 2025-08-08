@@ -32,9 +32,18 @@
     }
   },
   "enabledApiProposals": [
-    "chatParticipantAdditions"
+    "chatParticipantAdditions",
+    "chatProvider",
+    "languageModelDataPart",
+    "languageModelSystem"
   ],
   "contributes": {
+    "authentication": [
+      {
+        "id": "gemini_api",
+        "label": "Gemini (with Able)"
+      }
+    ],
     "chatParticipants": [
       {
         "id": "able.chatParticipant",
@@ -60,6 +69,12 @@
             "description": "Translate to Japanese"
           }
         ]
+      }
+    ],
+    "languageModels": [
+      {
+        "vendor": "gemini_with_able",
+        "displayName": "Gemini with Able"
       }
     ],
     "languageModelTools": [
@@ -108,6 +123,10 @@
       {
         "command": "able.killLinesToEnd",
         "title": "Able: Kill Lines To End"
+      },
+      {
+        "command": "able.loginGemini",
+        "title": "Able: Login to Gemini"
       },
       {
         "command": "able.openTerminalAndCloseSideBar",
@@ -212,6 +231,7 @@
     }
   },
   "dependencies": {
+    "@google/genai": "1.12.0",
     "@microsoft/tiktokenizer": "1.0.10",
     "@vscode/prompt-tsx": "0.4.0-alpha.4",
     "workerpool": "9.3.3"
@@ -229,7 +249,7 @@
     "mocha": "11.1.0",
     "rimraf": "3.0.2",
     "source-map-support": "0.5.21",
-    "typescript": "5.7.2",
+    "typescript": "5.8.3",
     "typescript-eslint": "8.37.0"
   },
   "scripts": {
