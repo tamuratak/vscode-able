@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
-import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, Tool, FunctionResponse, FunctionDeclaration } from '@google/genai'
+import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, FunctionDeclaration, GenerateContentConfig, FunctionCallingConfigMode } from '@google/genai'
 import { geminiAuthServiceId } from './auth/authproviders'
 import { getNonce } from '../utils/getnonce.js'
 import { renderToolResult } from '../utils/toolresult.js'
@@ -89,16 +89,21 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
 
             }
         }) ?? []
-        const tools: Tool[] = model.capabilities?.toolCalling ? [{ functionDeclarations }] : []
+        const config: GenerateContentConfig = model.capabilities?.toolCalling ? {
+            tools: [{ functionDeclarations }],
+            toolConfig: {
+                functionCallingConfig: {
+                    mode: options.toolMode === vscode.LanguageModelChatToolMode.Required ? FunctionCallingConfigMode.ANY : FunctionCallingConfigMode.AUTO
+                }
+            }
+        } : {}
 
         this.extension.outputChannel.debug(`Gemini chat request: ${JSON.stringify({ model: model.id, contents }, null, 2)}`)
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
             {
                 model: model.id,
                 contents,
-                config: {
-                    tools
-                }
+                config
             }
         )
 
@@ -124,10 +129,6 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                     const callId = call.id ?? getNonce()
                     nameToolCallIdMap.set(call.name, callId)
                     toolCallIdNameMap.set(callId, call.name)
-                    progress.report({
-                        index,
-                        part: new LanguageModelTextPart('Tool call')
-                    })
                     progress.report({
                         index,
                         part: new LanguageModelToolCallPart(callId, call.name, call.args)
