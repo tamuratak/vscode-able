@@ -108,7 +108,6 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         )
 
         for await (const chunk of result) {
-            const index = 0
             this.extension.outputChannel.debug(`Gemini chat response chunk: ${JSON.stringify({ text: chunk.text, functionCalls: chunk.functionCalls }, null, 2)}`)
             if (token.isCancellationRequested) {
                 break
@@ -130,7 +129,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                     nameToolCallIdMap.set(call.name, callId)
                     toolCallIdNameMap.set(callId, call.name)
                     progress.report({
-                        index,
+                        index: 0,
                         part: new LanguageModelToolCallPart(callId, call.name, call.args)
                     })
                 }
