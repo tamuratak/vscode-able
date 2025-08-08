@@ -90,17 +90,15 @@ export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChat
         const apiKey = session.accessToken
         const openai = new OpenAI({ apiKey })
         const chatMessages: ChatCompletionMessageParam[] = messages.map(m => {
-            let role: ChatCompletionRole = 'user'
-            if (m.role === LanguageModelChatMessageRole.Assistant) { role = 'assistant' }
-            else if (m.role === LanguageModelChatMessageRole.User) { role = 'user' }
-            else if (m.role === LanguageModelChatMessageRole.System) { role = 'system' }
-            let content = ''
-            for (const part of m.content) {
-                if (part instanceof LanguageModelTextPart) {
-                    content += part.value
-                }
+            if ('role' in m && Array.isArray(m.content) && m.content.every(
+                part => part instanceof LanguageModelTextPart || part instanceof LanguageModelToolCallPart
+            )) {
+                // LanguageModelChatMessage
+                return this.convertLanguageModelChatMessageToChatCompletionMessageParam(m)
+            } else {
+                // Fallback: treat as user message with empty content
+                return { role: 'user', content: '' }
             }
-            return { role, content }
         })
         const tools: ChatCompletionTool[] | undefined = options.tools
             ? options.tools.map(t => ({
@@ -157,7 +155,6 @@ export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChat
         const tokenizer = new Gpt4oTokenizer()
         if (typeof text === 'string') {
             // Use tokenLength for string part
-            // Use the correct enum for type
             return tokenizer.tokenLength({ type: Raw.ChatCompletionContentPartKind.Text, text })
         } else {
             let content = ''
@@ -182,15 +179,26 @@ export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChat
     }
 
 
-    convertLanguageModelChatMessageToContent(message: LanguageModelChatMessage | vscode.LanguageModelChatMessage2): { role: string, content: string } {
+    convertLanguageModelChatMessageToChatCompletionMessageParam(
+        message: LanguageModelChatMessage | vscode.LanguageModelChatMessage2
+    ): ChatCompletionMessageParam {
         let content = ''
         for (const part of message.content) {
             if (part instanceof LanguageModelTextPart) {
-                content += part.value
+                const textPart: LanguageModelTextPart = part
+                content += textPart.value
             }
         }
-        const role = message.role === LanguageModelChatMessageRole.Assistant ? 'assistant' : message.role === LanguageModelChatMessageRole.User ? 'user' : 'system'
-        return { role, content }
+        let role: ChatCompletionRole = 'user'
+        if (message.role === LanguageModelChatMessageRole.Assistant) {
+            role = 'assistant'
+        } else if (message.role === LanguageModelChatMessageRole.User) {
+            role = 'user'
+        } else if (message.role === LanguageModelChatMessageRole.System) {
+            role = 'system'
+        }
+        const result: ChatCompletionMessageParam = { role, content }
+        return result
     }
 
 }
