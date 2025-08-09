@@ -2,8 +2,6 @@ import * as vscode from 'vscode'
 import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
 import OpenAI from 'openai'
 import { Stream } from 'openai/streaming.js'
-import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions/completions.js'
-import type { ChatCompletionAssistantMessageParam, ChatCompletionMessageToolCall, ChatCompletionToolMessageParam } from 'openai/resources.mjs'
 import { openaiAuthServiceId } from '../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
@@ -76,7 +74,7 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
                     maxOutputTokens: model.maxOutputTokens,
                     description: model.description ?? '',
                     auth: true,
-                    capabilities:{
+                    capabilities: {
                         toolCalling: model.capabilities?.toolCalling ?? false
                     }
                 })
@@ -101,8 +99,8 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
         }
         const apiKey = session.accessToken
         const openai = new OpenAI({ apiKey })
-        const chatMessages: ChatCompletionMessageParam[] = (await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToChatCompletionMessageParam(m)))).flat()
-        const tools: ChatCompletionTool[] | undefined = options.tools
+        const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[] = (await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToChatCompletionMessageParam(m)))).flat()
+        const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = options.tools
             ? options.tools.map(t => ({
                 type: 'function',
                 function: {
@@ -112,13 +110,17 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
                 }
             }))
             : undefined
-        const toolChoice: 'auto' | 'required' = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : 'auto'
-        const params = {
+        const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools ? 'auto' : undefined)
+        const params: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
             model: model.id,
             messages: chatMessages,
             stream: true,
-            ...(tools ? { tools } : {}),
-            tool_choice: toolChoice
+        }
+        if (tools) {
+            params.tools = tools
+            if (toolChoice) {
+                params.tool_choice = toolChoice
+            }
         }
         const stream = await openai.chat.completions.create(params)
         if (stream instanceof Stream) {
@@ -130,16 +132,8 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
                 if (!delta?.content && !delta?.tool_calls) {
                     continue
                 }
-                this.reportDelta({content: delta.content, toolCalls: delta.tool_calls ?? []}, progress)
+                this.reportDelta({ content: delta.content, toolCalls: delta.tool_calls ?? [] }, progress)
             }
-        } else {
-            const message = stream.choices[0]?.message
-            if (!message) {
-                return
-            }
-            const content = message.content
-            const toolCalls = message.tool_calls?.filter((c) => c.type === 'function') ?? []
-            this.reportDelta({ content, toolCalls }, progress)
         }
     }
 
@@ -155,9 +149,16 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
                 continue
             }
             const callId = call.id ?? this.generateCallId()
+            let args: object
+            try {
+                args = JSON.parse(call.function.arguments) as object
+            } catch (e) {
+                this.extension.outputChannel.error(`Failed to parse tool call arguments: ${call.function.arguments}. Error: ${e instanceof Error ? e.message : String(e)}`)
+                continue
+            }
             progress.report({
                 index: 0,
-                part: new LanguageModelToolCallPart(callId, call.function.name, JSON.parse(call.function.arguments) as object)
+                part: new LanguageModelToolCallPart(callId, call.function.name, args)
             })
         }
     }
@@ -213,10 +214,10 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
 
     async convertLanguageModelChatMessageToChatCompletionMessageParam(
         message: LanguageModelChatMessage | vscode.LanguageModelChatMessage2
-    ): Promise<ChatCompletionMessageParam[]> {
-        const result: ChatCompletionMessageParam[] = []
-        const assistantContent: ChatCompletionAssistantMessageParam['content'] = []
-        const toolCalls: ChatCompletionMessageToolCall[] = []
+    ): Promise<OpenAI.Chat.ChatCompletionMessageParam[]> {
+        const result: OpenAI.Chat.ChatCompletionMessageParam[] = []
+        const assistantContent: OpenAI.Chat.ChatCompletionAssistantMessageParam['content'] = []
+        const toolCalls: OpenAI.Chat.ChatCompletionMessageToolCall[] = []
         for (const part of message.content) {
             if (part instanceof LanguageModelTextPart) {
                 if (message.role === LanguageModelChatMessageRole.Assistant) {
@@ -244,7 +245,7 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
                     role: 'tool',
                     tool_call_id: part.callId,
                     content
-                } satisfies ChatCompletionToolMessageParam)
+                } satisfies OpenAI.Chat.ChatCompletionToolMessageParam)
             } else {
                 // TODO: LanguageModelDataPart case
                 this.extension.outputChannel.info(`Skipping LanguageModelDataPart length: ${part.data.length}`)
@@ -255,7 +256,7 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
                 role: 'assistant',
                 content: assistantContent,
                 tool_calls: toolCalls
-            }] satisfies ChatCompletionAssistantMessageParam[]
+            }] satisfies OpenAI.Chat.ChatCompletionAssistantMessageParam[]
         } else {
             return result
         }
