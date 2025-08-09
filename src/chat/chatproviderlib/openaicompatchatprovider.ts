@@ -5,6 +5,7 @@ import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
 import { createByModelName, TikTokenizer } from '@microsoft/tiktokenizer'
 import { ExternalPromise } from '../../utils/externalpromise.js'
+import { FunctionToolCallArgumentsDoneEvent } from 'openai/lib/ChatCompletionStream.js'
 
 
 export abstract class OpenAICompatChatProvider implements LanguageModelChatProvider2 {
@@ -129,33 +130,19 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             }
         }
         this.debug('Chat params: ', params)
-        const stream = await openai.chat.completions.create(params)
-        let toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall | undefined
-        let toolArguments = ''
+        const stream = openai.chat.completions.stream(params)
         let allContent = ''
-        for await (const chunk of stream) {
-            if (token.isCancellationRequested) {
-                stream.controller.abort()
-                return
-            }
-            const delta = chunk.choices[0]?.delta
-            if (delta) {
-                allContent += delta.content ?? ''
-                this.reportContent(delta.content, progress)
-            }
-            // Since parallel tool calls are disabled, we can assume only one tool call is present.
-            const toolCallDelta = delta.tool_calls?.[0]
-            if (toolCallDelta) {
-                toolCall = toolCall ?? toolCallDelta
-                toolArguments += toolCallDelta.function?.arguments ?? ''
-            }
-        }
-        this.debug('Chat reply: ', allContent)
-        if (toolCall && toolCall.function) {
-            toolCall.function.arguments = toolArguments
+        token.onCancellationRequested(() => stream.controller.abort())
+        stream.on('content', (content: string) => {
+            allContent += content
+            this.reportContent(content, progress)
+        })
+        stream.on('tool_calls.function.arguments.done', (toolCall) => {
             this.debug('ToolCall: ', toolCall)
             this.reportToolCall(toolCall, progress)
-        }
+        })
+        await stream.finalChatCompletion()
+        this.debug('Chat reply: ', allContent)
     }
 
     reportContent(content: string | null | undefined, progress: Progress<ChatResponseFragment2>) {
@@ -167,25 +154,22 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
-    reportToolCall(toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall, progress: Progress<ChatResponseFragment2>) {
-        if (toolCall.function === undefined || toolCall.function.name === undefined || toolCall.function.arguments === undefined) {
-            return
-        }
-        const callId = toolCall.id ?? this.generateCallId()
+    reportToolCall(toolCall: FunctionToolCallArgumentsDoneEvent, progress: Progress<ChatResponseFragment2>) {
+        const callId = this.generateCallId()
         let args: object
         try {
-            if (toolCall.function.arguments === '') {
+            if (toolCall.arguments === '') {
                 args = {}
             } else {
-                args = JSON.parse(toolCall.function.arguments) as object
+                args = JSON.parse(toolCall.arguments) as object
             }
         } catch (e) {
-            this.extension.outputChannel.error(`Failed to parse tool call arguments: ${toolCall.function.arguments}. Error: ${e instanceof Error ? e.message : String(e)}`)
+            this.extension.outputChannel.error(`Failed to parse tool call arguments: ${toolCall.arguments}. Error: ${e instanceof Error ? e.message : String(e)}`)
             return
         }
         progress.report({
             index: 0,
-            part: new LanguageModelToolCallPart(callId, toolCall.function.name, args)
+            part: new LanguageModelToolCallPart(callId, toolCall.name, args)
         })
     }
 
