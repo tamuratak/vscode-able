@@ -87,6 +87,10 @@
       {
         "vendor": "gemini_with_able",
         "displayName": "Gemini with Able"
+      },
+      {
+        "vendor": "openai_with_able",
+        "displayName": "OpenAI with Able"
       }
     ],
     "languageModelTools": [

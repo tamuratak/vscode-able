@@ -18,7 +18,9 @@ export interface FunctionToolCall {
     type?: 'function';
 }
 
-export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
+export abstract class OpenAICompatChatProvider implements LanguageModelChatProvider2 {
+    abstract readonly apiBaseUrl: string | undefined
+    abstract readonly _serviceName: string
     abstract readonly aiModelIds: LanguageModelChatInformation[]
     private readonly tokenizer = new ExternalPromise<TikTokenizer>()
 
@@ -27,9 +29,15 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
             readonly outputChannel: vscode.LogOutputChannel,
         }
     ) {
-        this.extension.outputChannel.info('OpenAIChatProvider initialized')
+        this.extension.outputChannel.info( this.serviceName + ': OpenAICompatChatProvider initialized')
         void this.initTokenizer()
     }
+
+    get serviceName(): string {
+        return this._serviceName
+    }
+
+    abstract get authServiceId(): string
 
     private async initTokenizer() {
         // The BPE rank file will be automatically downloaded and saved to node_modules/@microsoft/tiktokenizer/model if it does not exist.
@@ -47,12 +55,12 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
 
     async prepareLanguageModelChat(options: { silent: boolean; }): Promise<LanguageModelChatInformation[]> {
         try {
-            const session = await vscode.authentication.getSession(openaiAuthServiceId, [], { silent: options.silent })
+            const session = await vscode.authentication.getSession(this.authServiceId, [], { silent: options.silent })
             if (!session) {
                 return []
             }
             const apiKey = session.accessToken
-            const openai = new OpenAI({ apiKey })
+            const openai = this.apiBaseUrl ? new OpenAI({ apiKey, baseURL: this.apiBaseUrl }) : new OpenAI({ apiKey })
             const models = await openai.models.list()
             const result: LanguageModelChatInformation[] = []
             for (const modelInList of models.data) {
