@@ -122,7 +122,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             stream: true,
             parallel_tool_calls: false // Parallel tool calls are disabled
         }
-        if (tools) {
+        if (tools && tools.length > 0) {
             params.tools = tools
             if (toolChoice) {
                 params.tool_choice = toolChoice

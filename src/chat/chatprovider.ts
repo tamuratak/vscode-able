@@ -106,7 +106,7 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
 export class CerebrasChatProvider extends OpenAICompatChatProvider {
     readonly serviceName = 'CerebrasChatProvider'
     readonly categoryLabel = 'Cerebras (with Able)'
-    readonly apiBaseUrl = 'https://api.cerebras.com/openai/v1'
+    readonly apiBaseUrl = 'https://api.cerebras.ai/v1'
 
     get aiModelIds(): LanguageModelChatInformation[] {
         return [
@@ -117,6 +117,17 @@ export class CerebrasChatProvider extends OpenAICompatChatProvider {
                 maxInputTokens: 64000,
                 maxOutputTokens: 32766,
                 name: 'GPT OSS 120b',
+                capabilities: {
+                    toolCalling: false
+                }
+            },
+            {
+                id: 'qwen-3-32b',
+                family: 'qwen-3-32b',
+                version: 'qwen-3-32b',
+                maxInputTokens: 65536,
+                maxOutputTokens: 32766,
+                name: 'Qwen 3 32b',
                 capabilities: {
                     toolCalling: true
                 }
