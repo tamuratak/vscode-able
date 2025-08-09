@@ -130,7 +130,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                 params.tool_choice = toolChoice
             }
         }
-        this.extension.outputChannel.debug(`OpenAI chat params: ${JSON.stringify(params, null, 2)}`)
+        this.extension.outputChannel.debug(`Chat params: ${JSON.stringify(params, null, 2)}`)
         const stream = await openai.chat.completions.create(params)
         let toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall | undefined
         let toolArguments = ''
@@ -150,7 +150,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                 toolArguments += toolCallDelta.function?.arguments ?? ''
             }
         }
-        this.extension.outputChannel.debug('LLM Reply: ' + allContent)
+        this.extension.outputChannel.debug('Chat reply: ' + allContent)
         if (toolCall && toolCall.function) {
             toolCall.function.arguments = toolArguments
             this.extension.outputChannel.debug(`ToolCall: ${JSON.stringify(toolCall, null, 2)}`)
