@@ -1,15 +1,14 @@
 import * as vscode from 'vscode'
 import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
 import OpenAI from 'openai'
-import { Gpt4oTokenizer } from '../tokenizer.js'
-import { Raw } from '@vscode/prompt-tsx'
 import { Stream } from 'openai/streaming.js'
 import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions/completions.js'
 import type { ChatCompletionAssistantMessageParam, ChatCompletionMessageToolCall, ChatCompletionToolMessageParam } from 'openai/resources.mjs'
-import { OpenAI as PromptOpenAI } from '@vscode/prompt-tsx'
 import { openaiAuthServiceId } from '../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
+import { createByModelName, TikTokenizer } from '@microsoft/tiktokenizer'
+import { ExternalPromise } from '../../utils/externalpromise.js'
 
 
 export interface FunctionToolCall {
@@ -23,6 +22,7 @@ export interface FunctionToolCall {
 
 export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
     abstract readonly aiModelIds: LanguageModelChatInformation[]
+    private readonly tokenizer = new ExternalPromise<TikTokenizer>()
 
     constructor(
         private readonly extension: {
@@ -30,6 +30,17 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
         }
     ) {
         this.extension.outputChannel.info('OpenAIChatProvider initialized')
+        void this.initTokenizer()
+    }
+
+    private async initTokenizer() {
+        // The BPE rank file will be automatically downloaded and saved to node_modules/@microsoft/tiktokenizer/model if it does not exist.
+        this.tokenizer.resolve(await createByModelName('gpt-4o'))
+    }
+
+    private async tokenLength(text: string) {
+        const tokenizer = await this.tokenizer.promise
+        return tokenizer.encode(text).length
     }
 
     generateCallId(): string {
@@ -152,32 +163,53 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
     }
 
     async provideTokenCount(_model: LanguageModelChatInformation, text: string | LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<number> {
-        const tokenizer = new Gpt4oTokenizer()
+        const baseTokensPerName = 1
         if (typeof text === 'string') {
-            // Use tokenLength for string part
-            return tokenizer.tokenLength({ type: Raw.ChatCompletionContentPartKind.Text, text })
+            return this.tokenLength(text)
         } else {
-            let content = ''
-            for (const part of text.content) {
-                if (part instanceof LanguageModelTextPart) {
-                    content += part.value
+            let count = 0
+            const params = await this.convertLanguageModelChatMessageToChatCompletionMessageParam(text)
+            for (const param of params) {
+                if (param.role === 'user' || param.role === 'system') {
+                    if (typeof param.content === 'string') {
+                        count += await this.tokenLength(param.content)
+                    } else {
+                        for (const c of param.content) {
+                            if (c.type === 'text') {
+                                count += await this.tokenLength(c.text)
+                            }
+                        }
+                    }
+                } else if (param.role === 'assistant') {
+                    if (typeof param.content === 'string') {
+                        count += await this.tokenLength(param.content)
+                    } else if (param.content) {
+                        for (const c of param.content) {
+                            if (c.type === 'text') {
+                                count += await this.tokenLength(c.text)
+                            }
+                        }
+                    }
+                    for (const toolCalls of param.tool_calls ?? []) {
+                        if (toolCalls.type === 'function') {
+                            count += baseTokensPerName
+                            count += await this.tokenLength(toolCalls.function.arguments)
+                        }
+                    }
+                } else if (param.role === 'tool') {
+                    count += baseTokensPerName
+                    for (const c of param.content) {
+                        if (typeof c === 'string') {
+                            count += await this.tokenLength(c)
+                        } else {
+                            count += await this.tokenLength(c.text)
+                        }
+                    }
                 }
             }
-            if (text.role === LanguageModelChatMessageRole.User) {
-                const msg: import('@vscode/prompt-tsx').OpenAI.UserChatMessage = { role: PromptOpenAI.ChatRole.User, content }
-                return tokenizer.countMessageTokens(msg)
-            } else if (text.role === LanguageModelChatMessageRole.Assistant) {
-                const msg: import('@vscode/prompt-tsx').OpenAI.AssistantChatMessage = { role: PromptOpenAI.ChatRole.Assistant, content }
-                return tokenizer.countMessageTokens(msg)
-            } else if (text.role === LanguageModelChatMessageRole.System) {
-                const msg: import('@vscode/prompt-tsx').OpenAI.SystemChatMessage = { role: PromptOpenAI.ChatRole.System, content }
-                return tokenizer.countMessageTokens(msg)
-            } else {
-                return 0
-            }
+            return count
         }
     }
-
 
     async convertLanguageModelChatMessageToChatCompletionMessageParam(
         message: LanguageModelChatMessage | vscode.LanguageModelChatMessage2
