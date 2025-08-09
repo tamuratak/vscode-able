@@ -128,16 +128,11 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
                 if (token.isCancellationRequested) {
                     break
                 }
-                const delta = chunk.choices[0].delta
-                if (!delta) {
+                const delta = chunk.choices[0]?.delta
+                if (!delta?.content && !delta?.tool_calls) {
                     continue
                 }
-                if (!delta.content && !delta.tool_calls) {
-                    continue
-                }
-                const content = delta.content
-                const toolCalls = delta.tool_calls ?? []
-                this.reportDelta({content, toolCalls}, progress)
+                this.reportDelta({content: delta.content, toolCalls: delta.tool_calls ?? []}, progress)
             }
         } else {
             const message = stream.choices[0]?.message
