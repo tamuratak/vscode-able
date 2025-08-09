@@ -108,9 +108,7 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
                 function: {
                     name: t.name,
                     description: t.description,
-                    parameters: (t.inputSchema && Object.keys(t.inputSchema).length > 0
-                        ? t.inputSchema
-                        : { type: 'object', properties: {} }) as Record<string, unknown>
+                    parameters: (t.inputSchema ?? { type: 'object', properties: {} }) as Record<string, unknown>
                 }
             }))
             : undefined
@@ -152,8 +150,15 @@ export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
                 part: new LanguageModelTextPart(delta.content)
             } satisfies ChatResponseFragment2)
         }
-        if (delta?.toolCalls) {
-            // TODO
+        for (const call of delta.toolCalls) {
+            if (call.function === undefined || call.function.name === undefined || call.function.arguments === undefined) {
+                continue
+            }
+            const callId = call.id ?? this.generateCallId()
+            progress.report({
+                index: 0,
+                part: new LanguageModelToolCallPart(callId, call.function.name, JSON.parse(call.function.arguments) as object)
+            })
         }
     }
 
