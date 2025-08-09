@@ -36,8 +36,12 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         return tokenizer.encode(text).length
     }
 
-    generateCallId(): string {
+    private generateCallId(): string {
         return 'call_' + getNonce(16)
+    }
+
+    private createClient(apiKey: string) {
+        return this.apiBaseUrl ? new OpenAI({ apiKey, baseURL: this.apiBaseUrl }) : new OpenAI({ apiKey })
     }
 
     async prepareLanguageModelChat(options: { silent: boolean; }): Promise<LanguageModelChatInformation[]> {
@@ -47,7 +51,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                 return []
             }
             const apiKey = session.accessToken
-            const openai = this.apiBaseUrl ? new OpenAI({ apiKey, baseURL: this.apiBaseUrl }) : new OpenAI({ apiKey })
+            const openai = this.createClient(apiKey)
             const models = await openai.models.list()
             const result: LanguageModelChatInformation[] = []
             this.extension.outputChannel.debug(`${this.categoryLabel} available models: ${JSON.stringify(models.data, null, 2)}`)
@@ -94,7 +98,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             throw new Error('No authentication session found for ' + this.authServiceId)
         }
         const apiKey = session.accessToken
-        const openai = new OpenAI({ apiKey })
+        const openai = this.createClient(apiKey)
         const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[] = (await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToChatCompletionMessageParam(m)))).flat()
         const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = options.tools?.map(t => ({
             type: 'function',
@@ -124,7 +128,8 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         let allContent = ''
         for await (const chunk of stream) {
             if (token.isCancellationRequested) {
-                break
+                stream.controller.abort()
+                return
             }
             const delta = chunk.choices[0]?.delta
             if (delta) {
@@ -213,10 +218,10 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                     }
                 } else if (param.role === 'tool') {
                     count += baseTokensPerName
-                    for (const c of param.content) {
-                        if (typeof c === 'string') {
-                            count += await this.tokenLength(c)
-                        } else {
+                    if (typeof param.content === 'string') {
+                        count += await this.tokenLength(param.content)
+                    } else {
+                        for (const c of param.content) {
                             count += await this.tokenLength(c.text)
                         }
                     }
