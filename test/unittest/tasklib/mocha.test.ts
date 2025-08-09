@@ -1,8 +1,8 @@
 import { suite, test } from 'mocha'
 import assert from 'node:assert'
 import { readFile } from 'node:fs/promises'
-import { type MochaJsonResult } from '../../../src/tasklib/mocha.js'
-import { collectMochaJsonFailures, removeBeforeFirstBrace } from '../../../src/tasklib/mochalib/mochajson.js'
+import { type MochaJsonResult } from '../../../src/task/tasklib/mocha.js'
+import { collectMochaJsonFailures, removeBeforeFirstBrace } from '../../../src/task/tasklib/mochalib/mochajson.js'
 
 
 suite('MochaTask test', () => {

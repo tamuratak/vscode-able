@@ -40,6 +40,7 @@ import {
 	window,
 } from 'vscode'
 import { GoogleGenAI } from '@google/genai'
+import OpenAI from 'openai'
 
 
 abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvider, Disposable {
@@ -204,6 +205,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 
 export const geminiAuthServiceId = 'gemini_api'
 
+
 export class GeminiApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
 	readonly label = 'Gemini (with Able)'
 	readonly accountLabel = 'Able'
@@ -215,6 +217,78 @@ export class GeminiApiKeyAuthenticationProvider extends BaseApiKeyAuthentication
 			const client = new GoogleGenAI({ apiKey })
 			const result = await client.models.list()
 			if (result.page.length > 0) {
+				return true
+			} else {
+				return false
+			}
+		} catch {
+			return false
+		}
+	}
+
+}
+
+export const openaiAuthServiceId = 'openai_api'
+
+export class OpenAiApiAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
+	readonly label = 'OpenAI (with Able)'
+	readonly accountLabel = 'Able'
+	readonly serviceId = openaiAuthServiceId
+	protected readonly secretStoreKeyId = 'openai_api.secret_store_key'
+
+	protected async validateKey(apiKey: string) {
+		try {
+			const client = new OpenAI({ apiKey })
+			const list = await client.models.list()
+			if (list.data.length > 0) {
+				return true
+			} else {
+				return false
+			}
+		} catch {
+			return false
+		}
+	}
+
+}
+
+export const cerebrasAuthServiceId = 'cerebras_api'
+
+export class CerebrasApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
+	readonly label = 'Cerebras (with Able)'
+	readonly accountLabel = 'Able'
+	readonly serviceId = cerebrasAuthServiceId
+	protected readonly secretStoreKeyId = 'cerebras_api.secret_store_key'
+
+	protected async validateKey(apiKey: string) {
+		try {
+			const client = new OpenAI({ apiKey, baseURL: 'https://api.cerebras.ai/v1' })
+			const list = await client.models.list()
+			if (list.data.length > 0) {
+				return true
+			} else {
+				return false
+			}
+		} catch {
+			return false
+		}
+	}
+
+}
+
+export const groqAuthServiceId = 'groq_api'
+
+export class GroqApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
+	readonly label = 'Groq (with Able)'
+	readonly accountLabel = 'Able'
+	readonly serviceId = groqAuthServiceId
+	protected readonly secretStoreKeyId = 'groq_api.secret_store_key'
+
+	protected async validateKey(apiKey: string) {
+		try {
+			const client = new OpenAI({ apiKey, baseURL: 'https://api.groq.com/openai/v1' })
+			const list = await client.models.list()
+			if (list.data.length > 0) {
 				return true
 			} else {
 				return false

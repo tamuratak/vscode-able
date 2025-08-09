@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
 import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, FunctionDeclaration, GenerateContentConfig, FunctionCallingConfigMode } from '@google/genai'
-import { geminiAuthServiceId } from '../auth/authproviders.js'
+import { geminiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
 
@@ -29,6 +29,13 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         this.extension.outputChannel.info('GeminiChatProvider initialized')
     }
 
+    private debug(msg: string, obj: unknown) {
+        const logLevels = [vscode.LogLevel.Trace, vscode.LogLevel.Debug]
+        if (logLevels.includes(this.extension.outputChannel.logLevel)) {
+            this.extension.outputChannel.debug(msg + JSON.stringify(obj, null, 2))
+        }
+    }
+
     generateCallId(): string {
         return 'call_' + getNonce(16)
     }
@@ -42,7 +49,10 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             const apiKey = session.accessToken
             const ai = new GoogleGenAI({ apiKey })
             const result: GeminiChatInformation[] = []
-            for await (const model of await ai.models.list()) {
+            const list = await ai.models.list()
+            const modelList: Model[] = []
+            for await (const model of list) {
+                modelList.push(model)
                 // model.name is like 'models/gemini-2.5-pro'
                 const id = this.aiModelIds.find(m => model.name?.endsWith(m))
                 if (!id) {
@@ -68,6 +78,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                     model
                 })
             }
+            this.extension.outputChannel.info(`Gemini (with Able) available models: ${JSON.stringify(modelList, null, 2)}`)
             return result
         } catch (e) {
             this.extension.outputChannel.error(`Failed to prepare Gemini chat: ${JSON.stringify(e)}`)
@@ -107,7 +118,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             }
         } : {}
 
-        this.extension.outputChannel.debug(`Gemini chat request: ${JSON.stringify({ model: model.id, contents }, null, 2)}`)
+        this.debug('Gemini chat request: ', { model: model.id, contents })
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
             {
                 model: model.id,
@@ -117,7 +128,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         )
 
         for await (const chunk of result) {
-            this.extension.outputChannel.debug(`Gemini chat response chunk: ${JSON.stringify({ text: chunk.text, functionCalls: chunk.functionCalls }, null, 2)}`)
+            this.debug('Gemini chat response chunk: ', { text: chunk.text, functionCalls: chunk.functionCalls })
             if (token.isCancellationRequested) {
                 break
             }

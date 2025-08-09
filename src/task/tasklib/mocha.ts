@@ -1,8 +1,8 @@
 import * as cp from 'node:child_process'
 import * as vscode from 'vscode'
-import { ExternalPromise } from '../utils/externalpromise.js'
+import { ExternalPromise } from '../../utils/externalpromise.js'
 import { Failure } from './mochalib/mochajson.js'
-import { findWorkspaceFileUri } from '../utils/uri.js'
+import { findWorkspaceFileUri } from '../../utils/uri.js'
 export { type MochaJsonResult } from './mochalib/mochajson.js'
 
 /**

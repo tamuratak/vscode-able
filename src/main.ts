@@ -3,11 +3,10 @@ import { ChatHandleManager } from './chat/chat.js'
 import { registerCommands } from './commands.js'
 import { PythonTool } from './lmtools/pyodide.js'
 import { renderToolResult } from './utils/toolresult.js'
-import { MochaJsonTaskProvider } from './task.js'
-import { TaskWatcher } from './taskwatcher.js'
-import { GeminiApiKeyAuthenticationProvider, geminiAuthServiceId } from './chat/auth/authproviders.js'
-import { GoogleGenAI, Model } from '@google/genai'
-import { GeminiChatProvider } from './chat/chatprovider.js'
+import { MochaJsonTaskProvider } from './task/task.js'
+import { TaskWatcher } from './task/taskwatcher.js'
+import { CerebrasApiKeyAuthenticationProvider, GeminiApiKeyAuthenticationProvider, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
+import { CerebrasChatProvider, GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chat/chatprovider.js'
 
 
 class Extension {
@@ -22,21 +21,9 @@ class Extension {
         this.taskWatcher = new TaskWatcher(this)
         setTimeout(async () => {
             const result = await vscode.lm.selectChatModels({ vendor: 'copilot' })
-            this.outputChannel.info(`Available copilot chat models: ${JSON.stringify(result, null, 2)}`)
+            this.outputChannel.info(`GitHub Copilot Chat available models: ${JSON.stringify(result, null, 2)}`)
             const result1 = await vscode.lm.selectChatModels({ vendor: 'gemini' })
-            this.outputChannel.info(`Available gemini BYOK chat models: ${JSON.stringify(result1, null, 2)}`)
-            try {
-                const session = await vscode.authentication.getSession(geminiAuthServiceId, [])
-                if (session) {
-                    const apiKey = session.accessToken
-                    const ai = new GoogleGenAI({apiKey})
-                    const modelList: Model[] = []
-                    for await (const model of await ai.models.list()) {
-                        modelList.push(model)
-                    }
-                    this.outputChannel.info(`Gemini (with Able) models: ${JSON.stringify(modelList, null, 2)}`)
-                }
-            } catch { }
+            this.outputChannel.info(`GitHub Copilot Chat BYOK Gemini available models: ${JSON.stringify(result1, null, 2)}`)
         }, 5000)
     }
 
@@ -57,13 +44,34 @@ export const AbleChatParticipantId = 'able.chatParticipant'
 export function activate(context: vscode.ExtensionContext) {
     const extension = new Extension()
     const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
+    const openAiAuthProvider = new OpenAiApiAuthenticationProvider(extension, context.secrets)
+    const cerebrasAuthProvider = new CerebrasApiKeyAuthenticationProvider(extension, context.secrets)
+    const groqAuthProvider = new GroqApiKeyAuthenticationProvider(extension, context.secrets)
     context.subscriptions.push(
         extension,
         vscode.lm.registerChatModelProvider('gemini_with_able', new GeminiChatProvider(extension)),
+        vscode.lm.registerChatModelProvider('openai_with_able', new OpenAIChatProvider(extension)),
+        vscode.lm.registerChatModelProvider('groq_with_able', new GroqChatProvider(extension)),
+        vscode.lm.registerChatModelProvider('cerebras_with_able', new CerebrasChatProvider(extension)),
         geminiAuthProvider,
+        openAiAuthProvider,
+        cerebrasAuthProvider,
+        groqAuthProvider,
         vscode.authentication.registerAuthenticationProvider(geminiAuthProvider.serviceId, geminiAuthProvider.label, geminiAuthProvider),
+        vscode.authentication.registerAuthenticationProvider(openAiAuthProvider.serviceId, openAiAuthProvider.label, openAiAuthProvider),
+        vscode.authentication.registerAuthenticationProvider(cerebrasAuthProvider.serviceId, cerebrasAuthProvider.label, cerebrasAuthProvider),
+        vscode.authentication.registerAuthenticationProvider(groqAuthProvider.serviceId, groqAuthProvider.label, groqAuthProvider),
         vscode.commands.registerCommand('able.loginGemini', () => {
             void vscode.authentication.getSession(geminiAuthProvider.serviceId, [], { createIfNone: true })
+        }),
+        vscode.commands.registerCommand('able.loginOpenAI', () => {
+            void vscode.authentication.getSession(openAiAuthProvider.serviceId, [], { createIfNone: true })
+        }),
+        vscode.commands.registerCommand('able.loginCerebras', () => {
+            void vscode.authentication.getSession(cerebrasAuthProvider.serviceId, [], { createIfNone: true })
+        }),
+        vscode.commands.registerCommand('able.loginGroq', () => {
+            void vscode.authentication.getSession(groqAuthProvider.serviceId, [], { createIfNone: true })
         }),
         vscode.commands.registerCommand('able.doSomething', () => {
             void doSomething()
