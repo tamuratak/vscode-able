@@ -42,6 +42,18 @@
       {
         "id": "gemini_api",
         "label": "Gemini (with Able)"
+      },
+      {
+        "id": "openai_api",
+        "label": "OpenAI (with Able)"
+      },
+      {
+        "id": "cerebras_api",
+        "label": "Cerebras (with Able)"
+      },
+      {
+        "id": "groq_api",
+        "label": "Groq (with Able)"
       }
     ],
     "chatParticipants": [
@@ -127,6 +139,18 @@
       {
         "command": "able.loginGemini",
         "title": "Able: Login to Gemini"
+      },
+      {
+        "command": "able.loginOpenAI",
+        "title": "Able: Login to OpenAI"
+      },
+      {
+        "command": "able.loginCerebras",
+        "title": "Able: Login to Cerebras"
+      },
+      {
+        "command": "able.loginGroq",
+        "title": "Able: Login to Groq"
       },
       {
         "command": "able.openTerminalAndCloseSideBar",
