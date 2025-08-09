@@ -7,15 +7,6 @@ import { createByModelName, TikTokenizer } from '@microsoft/tiktokenizer'
 import { ExternalPromise } from '../../utils/externalpromise.js'
 
 
-export interface FunctionToolCall {
-    id?: string;
-    function?: {
-        arguments?: string;
-        name?: string;
-    }
-    type?: 'function';
-}
-
 export abstract class OpenAICompatChatProvider implements LanguageModelChatProvider2 {
     abstract readonly serviceName: string
     abstract readonly apiBaseUrl: string | undefined
@@ -118,7 +109,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             model: model.id,
             messages: chatMessages,
             stream: true,
-            parallel_tool_calls: false // Parallel tool calls are not supported
+            parallel_tool_calls: false // Parallel tool calls are disabled
         }
         if (tools) {
             params.tools = tools
@@ -140,6 +131,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                 allContent += delta.content ?? ''
                 this.reportContent(delta.content, progress)
             }
+            // Since parallel tool calls are disabled, we can assume only one tool call is present.
             const toolCallDelta = delta.tool_calls?.[0]
             if (toolCallDelta) {
                 toolCall = toolCall ?? toolCallDelta
@@ -163,10 +155,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
-    reportToolCall(toolCall: FunctionToolCall, progress: Progress<ChatResponseFragment2>) {
-        if (!toolCall) {
-            return
-        }
+    reportToolCall(toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall, progress: Progress<ChatResponseFragment2>) {
         if (toolCall.function === undefined || toolCall.function.name === undefined || toolCall.function.arguments === undefined) {
             return
         }
