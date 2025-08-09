@@ -7,7 +7,7 @@ import { MochaJsonTaskProvider } from './task/task.js'
 import { TaskWatcher } from './task/taskwatcher.js'
 import { CerebrasApiKeyAuthenticationProvider, GeminiApiKeyAuthenticationProvider, geminiAuthServiceId, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
 import { GoogleGenAI, Model } from '@google/genai'
-import { GeminiChatProvider, OpenAIChatProvider } from './chat/chatprovider.js'
+import { CerebrasChatProvider, GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chat/chatprovider.js'
 
 
 class Extension {
@@ -64,6 +64,8 @@ export function activate(context: vscode.ExtensionContext) {
         extension,
         vscode.lm.registerChatModelProvider('gemini_with_able', new GeminiChatProvider(extension)),
         vscode.lm.registerChatModelProvider('openai_with_able', new OpenAIChatProvider(extension)),
+        vscode.lm.registerChatModelProvider('groq_with_able', new GroqChatProvider(extension)),
+        vscode.lm.registerChatModelProvider('cerebras_with_able', new CerebrasChatProvider(extension)),
         geminiAuthProvider,
         openAiAuthProvider,
         cerebrasAuthProvider,

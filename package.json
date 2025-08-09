@@ -91,6 +91,14 @@
       {
         "vendor": "openai_with_able",
         "displayName": "OpenAI with Able"
+      },
+      {
+        "vendor": "groq_with_able",
+        "displayName": "Groq with Able"
+      },
+      {
+        "vendor": "cerebras_with_able",
+        "displayName": "Cerebras with Able"
       }
     ],
     "languageModelTools": [

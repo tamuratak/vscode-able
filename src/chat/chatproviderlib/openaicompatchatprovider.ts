@@ -18,6 +18,7 @@ export interface FunctionToolCall {
 
 export abstract class OpenAICompatChatProvider implements LanguageModelChatProvider2 {
     abstract readonly _serviceName: string
+    abstract readonly apiBaseUrl: string | undefined
 
     private readonly tokenizer = new ExternalPromise<TikTokenizer>()
 
@@ -35,7 +36,6 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     }
 
     abstract get authServiceId(): string
-    abstract get apiBaseUrl(): string | undefined
     abstract get aiModelIds(): LanguageModelChatInformation[]
     abstract get categoryLabel(): string
 
