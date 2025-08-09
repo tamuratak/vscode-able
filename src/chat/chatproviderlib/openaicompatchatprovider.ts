@@ -17,7 +17,7 @@ export interface FunctionToolCall {
 }
 
 export abstract class OpenAICompatChatProvider implements LanguageModelChatProvider2 {
-    abstract readonly _serviceName: string
+    abstract readonly serviceName: string
     abstract readonly apiBaseUrl: string | undefined
 
     private readonly tokenizer = new ExternalPromise<TikTokenizer>()
@@ -27,12 +27,8 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             readonly outputChannel: vscode.LogOutputChannel,
         }
     ) {
-        this.extension.outputChannel.info(this.serviceName + ': OpenAICompatChatProvider initialized')
+        setTimeout(() => this.extension.outputChannel.info(this.serviceName + ': OpenAICompatChatProvider initialized'), 0)
         void this.initTokenizer()
-    }
-
-    get serviceName(): string {
-        return this._serviceName
     }
 
     abstract get authServiceId(): string
@@ -63,6 +59,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             const openai = this.apiBaseUrl ? new OpenAI({ apiKey, baseURL: this.apiBaseUrl }) : new OpenAI({ apiKey })
             const models = await openai.models.list()
             const result: LanguageModelChatInformation[] = []
+            this.extension.outputChannel.debug(`${this.categoryLabel} available models: ${JSON.stringify(models.data, null, 2)}`)
             for (const modelInList of models.data) {
                 const model = this.aiModelIds.find((m) => m.id === modelInList.id)
                 if (!model) {

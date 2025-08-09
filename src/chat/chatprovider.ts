@@ -5,7 +5,7 @@ import { cerebrasAuthServiceId, groqAuthServiceId, openaiAuthServiceId } from '.
 export { GeminiChatProvider } from './chatproviderlib/geminichatprovider.js'
 
 export class OpenAIChatProvider extends OpenAICompatChatProvider {
-    readonly _serviceName = 'OpenAIChatProvider'
+    readonly serviceName = 'OpenAIChatProvider'
     readonly categoryLabel = 'OpenAI (with Able)'
     readonly apiBaseUrl = undefined
 
@@ -54,6 +54,17 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 capabilities: {
                     toolCalling: true
                 }
+            },
+            {
+                id: 'gpt-4o-mini',
+                family: 'gpt-4o-mini',
+                version: 'gpt-4o-mini',
+                maxInputTokens: 128000,
+                maxOutputTokens: 16384,
+                name: 'GPT-4o Mini',
+                capabilities: {
+                    toolCalling: true
+                }
             }
         ]
     }
@@ -65,7 +76,7 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
 }
 
 export class GroqChatProvider extends OpenAICompatChatProvider {
-    readonly _serviceName = 'GroqChatProvider'
+    readonly serviceName = 'GroqChatProvider'
     readonly categoryLabel = 'Groq (with Able)'
     readonly apiBaseUrl = 'https://api.groq.com/openai/v1'
 
@@ -93,7 +104,7 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
 }
 
 export class CerebrasChatProvider extends OpenAICompatChatProvider {
-    readonly _serviceName = 'CerebrasChatProvider'
+    readonly serviceName = 'CerebrasChatProvider'
     readonly categoryLabel = 'Cerebras (with Able)'
     readonly apiBaseUrl = 'https://api.cerebras.com/openai/v1'
 

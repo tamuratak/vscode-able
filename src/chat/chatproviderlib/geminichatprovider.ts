@@ -42,7 +42,10 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             const apiKey = session.accessToken
             const ai = new GoogleGenAI({ apiKey })
             const result: GeminiChatInformation[] = []
-            for await (const model of await ai.models.list()) {
+            const list = await ai.models.list()
+            const modelList: Model[] = []
+            for await (const model of list) {
+                modelList.push(model)
                 // model.name is like 'models/gemini-2.5-pro'
                 const id = this.aiModelIds.find(m => model.name?.endsWith(m))
                 if (!id) {
@@ -68,6 +71,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                     model
                 })
             }
+            this.extension.outputChannel.info(`Gemini (with Able) available models: ${JSON.stringify(modelList, null, 2)}`)
             return result
         } catch (e) {
             this.extension.outputChannel.error(`Failed to prepare Gemini chat: ${JSON.stringify(e)}`)

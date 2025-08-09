@@ -5,8 +5,7 @@ import { PythonTool } from './lmtools/pyodide.js'
 import { renderToolResult } from './utils/toolresult.js'
 import { MochaJsonTaskProvider } from './task/task.js'
 import { TaskWatcher } from './task/taskwatcher.js'
-import { CerebrasApiKeyAuthenticationProvider, GeminiApiKeyAuthenticationProvider, geminiAuthServiceId, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
-import { GoogleGenAI, Model } from '@google/genai'
+import { CerebrasApiKeyAuthenticationProvider, GeminiApiKeyAuthenticationProvider, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
 import { CerebrasChatProvider, GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chat/chatprovider.js'
 
 
@@ -22,21 +21,9 @@ class Extension {
         this.taskWatcher = new TaskWatcher(this)
         setTimeout(async () => {
             const result = await vscode.lm.selectChatModels({ vendor: 'copilot' })
-            this.outputChannel.info(`Available copilot chat models: ${JSON.stringify(result, null, 2)}`)
+            this.outputChannel.info(`GitHub Copilot Chat available models: ${JSON.stringify(result, null, 2)}`)
             const result1 = await vscode.lm.selectChatModels({ vendor: 'gemini' })
-            this.outputChannel.info(`Available gemini BYOK chat models: ${JSON.stringify(result1, null, 2)}`)
-            try {
-                const session = await vscode.authentication.getSession(geminiAuthServiceId, [])
-                if (session) {
-                    const apiKey = session.accessToken
-                    const ai = new GoogleGenAI({apiKey})
-                    const modelList: Model[] = []
-                    for await (const model of await ai.models.list()) {
-                        modelList.push(model)
-                    }
-                    this.outputChannel.info(`Gemini (with Able) models: ${JSON.stringify(modelList, null, 2)}`)
-                }
-            } catch { }
+            this.outputChannel.info(`GitHub Copilot Chat BYOK Gemini available models: ${JSON.stringify(result1, null, 2)}`)
         }, 5000)
     }
 
