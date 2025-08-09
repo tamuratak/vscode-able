@@ -1,5 +1,5 @@
 import { LanguageModelChatInformation } from 'vscode'
-import { OpenAICompatChatProvider } from './chatproviderlib/openaichatprovider.js'
+import { OpenAICompatChatProvider } from './chatproviderlib/openaicompatchatprovider.js'
 import { openaiAuthServiceId } from '../auth/authproviders.js'
 
 export { GeminiChatProvider } from './chatproviderlib/geminichatprovider.js'
