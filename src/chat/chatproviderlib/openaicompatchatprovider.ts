@@ -26,6 +26,13 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     abstract get aiModelIds(): LanguageModelChatInformation[]
     abstract get categoryLabel(): string
 
+    private debug(msg: string, obj: unknown) {
+        const logLevels = [vscode.LogLevel.Trace, vscode.LogLevel.Debug]
+        if (logLevels.includes(this.extension.outputChannel.logLevel)) {
+            this.extension.outputChannel.debug(msg + JSON.stringify(obj, null, 2))
+        }
+    }
+
     private async initTokenizer() {
         // The BPE rank file will be automatically downloaded and saved to node_modules/@microsoft/tiktokenizer/model if it does not exist.
         this.tokenizer.resolve(await createByModelName('gpt-4o'))
@@ -121,7 +128,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                 params.tool_choice = toolChoice
             }
         }
-        this.extension.outputChannel.debug(`Chat params: ${JSON.stringify(params, null, 2)}`)
+        this.debug('Chat params: ', params)
         const stream = await openai.chat.completions.create(params)
         let toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall | undefined
         let toolArguments = ''
@@ -143,10 +150,10 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                 toolArguments += toolCallDelta.function?.arguments ?? ''
             }
         }
-        this.extension.outputChannel.debug('Chat reply: ' + allContent)
+        this.debug('Chat reply: ', allContent)
         if (toolCall && toolCall.function) {
             toolCall.function.arguments = toolArguments
-            this.extension.outputChannel.debug(`ToolCall: ${JSON.stringify(toolCall, null, 2)}`)
+            this.debug('ToolCall: ', toolCall)
             this.reportToolCall(toolCall, progress)
         }
     }
