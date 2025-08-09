@@ -12,10 +12,6 @@ import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
 
 
-type OpenAIChatInformation = LanguageModelChatInformation & {
-    model: string
-}
-
 export interface FunctionToolCall {
     id?: string;
     function?: {
@@ -25,13 +21,8 @@ export interface FunctionToolCall {
     type?: 'function';
 }
 
-export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChatInformation> {
-    private readonly aiModelIds = [
-        'gpt-4o',
-        'gpt-4-turbo',
-        'gpt-4',
-        'gpt-3.5-turbo'
-    ]
+export abstract class OpenAIChatProvider implements LanguageModelChatProvider2 {
+    abstract readonly aiModelIds: LanguageModelChatInformation[]
 
     constructor(
         private readonly extension: {
@@ -45,7 +36,7 @@ export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChat
         return 'call_' + getNonce(16)
     }
 
-    async prepareLanguageModelChat(options: { silent: boolean; }): Promise<OpenAIChatInformation[]> {
+    async prepareLanguageModelChat(options: { silent: boolean; }): Promise<LanguageModelChatInformation[]> {
         try {
             const session = await vscode.authentication.getSession(openaiAuthServiceId, [], { silent: options.silent })
             if (!session) {
@@ -54,9 +45,10 @@ export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChat
             const apiKey = session.accessToken
             const openai = new OpenAI({ apiKey })
             const models = await openai.models.list()
-            const result: OpenAIChatInformation[] = []
-            for (const model of models.data) {
-                if (!this.aiModelIds.includes(model.id)) {
+            const result: LanguageModelChatInformation[] = []
+            for (const modelInList of models.data) {
+                const model = this.aiModelIds.find((m) => m.id === modelInList.id)
+                if (!model) {
                     continue
                 }
                 result.push({
@@ -66,17 +58,16 @@ export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChat
                         order: 1001
                     },
                     cost: 'OpenAI',
-                    name: model.id,
-                    family: model.id,
-                    version: model.id,
-                    maxInputTokens: 0,
-                    maxOutputTokens: 0,
-                    description: model.id,
+                    name: model.name,
+                    family: model.family,
+                    version: model.version,
+                    maxInputTokens: model.maxInputTokens,
+                    maxOutputTokens: model.maxOutputTokens,
+                    description: model.description ?? '',
                     auth: true,
-                    capabilities: {
-                        toolCalling: true
-                    },
-                    model: model.id
+                    capabilities:{
+                        toolCalling: model.capabilities?.toolCalling ?? false
+                    }
                 })
             }
             return result
@@ -87,7 +78,7 @@ export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChat
     }
 
     async provideLanguageModelChatResponse(
-        model: OpenAIChatInformation,
+        model: LanguageModelChatInformation,
         messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
         options: LanguageModelChatRequestHandleOptions,
         progress: Progress<ChatResponseFragment2>,
@@ -114,7 +105,7 @@ export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChat
             : undefined
         const toolChoice: 'auto' | 'required' = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : 'auto'
         const params = {
-            model: model.model,
+            model: model.id,
             messages: chatMessages,
             stream: true,
             ...(tools ? { tools } : {}),
@@ -160,7 +151,7 @@ export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChat
         }
     }
 
-    async provideTokenCount(_model: OpenAIChatInformation, text: string | LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<number> {
+    async provideTokenCount(_model: LanguageModelChatInformation, text: string | LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<number> {
         const tokenizer = new Gpt4oTokenizer()
         if (typeof text === 'string') {
             // Use tokenLength for string part
