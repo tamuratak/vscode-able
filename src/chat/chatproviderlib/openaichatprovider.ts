@@ -3,8 +3,8 @@ import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, Lan
 import OpenAI from 'openai'
 import { Gpt4oTokenizer } from '../tokenizer.js'
 import { Raw } from '@vscode/prompt-tsx'
-import type { Stream } from 'openai/streaming'
-import type { ChatCompletionChunk, ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions/completions.js'
+import { Stream } from 'openai/streaming.js'
+import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions/completions.js'
 import type { ChatCompletionAssistantMessageParam, ChatCompletionMessageToolCall, ChatCompletionToolMessageParam } from 'openai/resources.mjs'
 import { OpenAI as PromptOpenAI } from '@vscode/prompt-tsx'
 import { openaiAuthServiceId } from '../auth/authproviders.js'
@@ -16,7 +16,14 @@ type OpenAIChatInformation = LanguageModelChatInformation & {
     model: string
 }
 
-const toolCallIdNameMap = new Map<string, string>()
+export interface FunctionToolCall {
+    id?: string;
+    function?: {
+        arguments?: string;
+        name?: string;
+    }
+    type?: 'function';
+}
 
 export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChatInformation> {
     private readonly aiModelIds = [
@@ -114,33 +121,42 @@ export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChat
             tool_choice: toolChoice
         }
         const stream = await openai.chat.completions.create(params)
-        for await (const chunk of stream as Stream<ChatCompletionChunk>) {
-            if (token.isCancellationRequested) {
-                break
-            }
-            const choice = chunk.choices[0]
-            if (choice.delta?.content) {
-                progress.report({
-                    index: 0,
-                    part: new LanguageModelTextPart(choice.delta.content)
-                } satisfies ChatResponseFragment2)
-            }
-            if (choice.delta?.tool_calls) {
-                for (const call of choice.delta.tool_calls) {
-                    if (!call.function || !call.id) { continue }
-                    const callId: string = call.id ?? this.generateCallId()
-                    const callName: string = call.function?.name ?? 'unknown_function'
-                    toolCallIdNameMap.set(callId, callName)
-                    const toolArgs = call.function?.arguments ? JSON.parse(call.function.arguments) as object : undefined
-                    if (!toolArgs) {
-                        throw new Error(`Failed to parse tool arguments for call ${callId}`)
-                    }
-                    progress.report({
-                        index: 0,
-                        part: new LanguageModelToolCallPart(callId, callName, toolArgs)
-                    })
+        if (stream instanceof Stream) {
+            for await (const chunk of stream) {
+                if (token.isCancellationRequested) {
+                    break
                 }
+                const delta = chunk.choices[0].delta
+                if (!delta) {
+                    continue
+                }
+                if (!delta.content && !delta.tool_calls) {
+                    continue
+                }
+                const content = delta.content
+                const toolCalls = delta.tool_calls ?? []
+                this.reportDelta({content, toolCalls}, progress)
             }
+        } else {
+            const message = stream.choices[0]?.message
+            if (!message) {
+                return
+            }
+            const content = message.content
+            const toolCalls = message.tool_calls?.filter((c) => c.type === 'function') ?? []
+            this.reportDelta({ content, toolCalls }, progress)
+        }
+    }
+
+    reportDelta(delta: { content: string | null | undefined; toolCalls: FunctionToolCall[] }, progress: Progress<ChatResponseFragment2>) {
+        if (delta.content) {
+            progress.report({
+                index: 0,
+                part: new LanguageModelTextPart(delta.content)
+            } satisfies ChatResponseFragment2)
+        }
+        if (delta?.toolCalls) {
+            // TODO
         }
     }
 
@@ -181,7 +197,7 @@ export class OpenAIChatProvider implements LanguageModelChatProvider2<OpenAIChat
         for (const part of message.content) {
             if (part instanceof LanguageModelTextPart) {
                 if (message.role === LanguageModelChatMessageRole.Assistant) {
-                    assistantContent.push({type: 'text', text: part.value})
+                    assistantContent.push({ type: 'text', text: part.value })
                 } else {
                     result.push({
                         role: message.role === LanguageModelChatMessageRole.System ? 'system' : 'user',
