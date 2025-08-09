@@ -19,9 +19,8 @@ export interface FunctionToolCall {
 }
 
 export abstract class OpenAICompatChatProvider implements LanguageModelChatProvider2 {
-    abstract readonly apiBaseUrl: string | undefined
     abstract readonly _serviceName: string
-    abstract readonly aiModelIds: LanguageModelChatInformation[]
+
     private readonly tokenizer = new ExternalPromise<TikTokenizer>()
 
     constructor(
@@ -38,6 +37,9 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     }
 
     abstract get authServiceId(): string
+    abstract get apiBaseUrl(): string | undefined
+    abstract get aiModelIds(): LanguageModelChatInformation[]
+    abstract get categoryLabel(): string
 
     private async initTokenizer() {
         // The BPE rank file will be automatically downloaded and saved to node_modules/@microsoft/tiktokenizer/model if it does not exist.
@@ -74,7 +76,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                         label: 'OpenAI',
                         order: 1001
                     },
-                    cost: 'OpenAI',
+                    cost: 'Able',
                     name: model.name,
                     family: model.family,
                     version: model.version,

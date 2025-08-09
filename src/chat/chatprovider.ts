@@ -6,19 +6,27 @@ export { GeminiChatProvider } from './chatproviderlib/geminichatprovider.js'
 
 export class OpenAIChatProvider extends OpenAICompatChatProvider {
     readonly _serviceName = 'OpenAIChatProvider'
-    readonly aiModelIds: LanguageModelChatInformation[] = [
-        {
-            id: 'gpt-4.1-nano',
-            family: 'gpt-4.1-nano',
-            version: 'gpt-4.1-nano',
-            maxInputTokens: 1014808,
-            maxOutputTokens: 32768,
-            name: 'GPT-4.1 Nano'
-        }
-    ]
-    apiBaseUrl = undefined
+    readonly categoryLabel = 'OpenAI (with Able)'
+
+    get aiModelIds(): LanguageModelChatInformation[] {
+        return [
+            {
+                id: 'gpt-4.1-nano',
+                family: 'gpt-4.1-nano',
+                version: 'gpt-4.1-nano',
+                maxInputTokens: 1014808,
+                maxOutputTokens: 32768,
+                name: 'GPT-4.1 Nano'
+            }
+        ]
+    }
+
+    get apiBaseUrl(): string | undefined {
+        return undefined
+    }
 
     get authServiceId(): string {
         return openaiAuthServiceId
     }
+
 }
