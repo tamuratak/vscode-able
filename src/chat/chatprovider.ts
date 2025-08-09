@@ -11,6 +11,17 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
     get aiModelIds(): LanguageModelChatInformation[] {
         return [
             {
+                id: 'gpt-4.1-mini',
+                family: 'gpt-4.1-mini',
+                version: 'gpt-4.1-mini',
+                maxInputTokens: 1014808,
+                maxOutputTokens: 32768,
+                name: 'GPT-4.1 Mini',
+                capabilities: {
+                    toolCalling: true
+                }
+            },
+            {
                 id: 'gpt-4.1-nano',
                 family: 'gpt-4.1-nano',
                 version: 'gpt-4.1-nano',

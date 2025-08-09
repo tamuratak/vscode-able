@@ -1,7 +1,6 @@
 import * as vscode from 'vscode'
 import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
 import OpenAI from 'openai'
-import { Stream } from 'openai/streaming.js'
 import { openaiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
@@ -28,7 +27,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             readonly outputChannel: vscode.LogOutputChannel,
         }
     ) {
-        this.extension.outputChannel.info( this.serviceName + ': OpenAICompatChatProvider initialized')
+        this.extension.outputChannel.info(this.serviceName + ': OpenAICompatChatProvider initialized')
         void this.initTokenizer()
     }
 
@@ -110,21 +109,20 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         const apiKey = session.accessToken
         const openai = new OpenAI({ apiKey })
         const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[] = (await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToChatCompletionMessageParam(m)))).flat()
-        const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = options.tools
-            ? options.tools.map(t => ({
-                type: 'function',
-                function: {
-                    name: t.name,
-                    description: t.description,
-                    parameters: (t.inputSchema ?? { type: 'object', properties: {} }) as Record<string, unknown>
-                }
-            }))
-            : undefined
+        const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = options.tools?.map(t => ({
+            type: 'function',
+            function: {
+                name: t.name,
+                description: t.description,
+                parameters: t.inputSchema as Record<string, unknown>
+            }
+        }))
         const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools ? 'auto' : undefined)
         const params: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
             model: model.id,
             messages: chatMessages,
             stream: true,
+            parallel_tool_calls: false // Parallel tool calls are not supported
         }
         if (tools) {
             params.tools = tools
@@ -132,49 +130,66 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                 params.tool_choice = toolChoice
             }
         }
+        this.extension.outputChannel.debug(`OpenAI chat params: ${JSON.stringify(params, null, 2)}`)
         const stream = await openai.chat.completions.create(params)
-        if (stream instanceof Stream) {
-            for await (const chunk of stream) {
-                if (token.isCancellationRequested) {
-                    break
-                }
-                const delta = chunk.choices[0]?.delta
-                if (!delta?.content && !delta?.tool_calls) {
-                    continue
-                }
-                this.reportDelta({ content: delta.content, toolCalls: delta.tool_calls ?? [] }, progress)
+        let toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall | undefined
+        let toolArguments = ''
+        let allContent = ''
+        for await (const chunk of stream) {
+            if (token.isCancellationRequested) {
+                break
             }
+            const delta = chunk.choices[0]?.delta
+            if (delta) {
+                allContent += delta.content ?? ''
+                this.reportContent(delta.content, progress)
+            }
+            const toolCallDelta = delta.tool_calls?.[0]
+            if (toolCallDelta) {
+                toolCall = toolCall ?? toolCallDelta
+                toolArguments += toolCallDelta.function?.arguments ?? ''
+            }
+        }
+        this.extension.outputChannel.debug('LLM Reply: ' + allContent)
+        if (toolCall && toolCall.function) {
+            toolCall.function.arguments = toolArguments
+            this.extension.outputChannel.debug(`ToolCall: ${JSON.stringify(toolCall, null, 2)}`)
+            this.reportToolCall(toolCall, progress)
         }
     }
 
-    reportDelta(delta: { content: string | null | undefined; toolCalls: FunctionToolCall[] }, progress: Progress<ChatResponseFragment2>) {
-        if (delta.content) {
+    reportContent(content: string | null | undefined, progress: Progress<ChatResponseFragment2>) {
+        if (content) {
             progress.report({
                 index: 0,
-                part: new LanguageModelTextPart(delta.content)
+                part: new LanguageModelTextPart(content)
             } satisfies ChatResponseFragment2)
         }
-        for (const call of delta.toolCalls) {
-            if (call.function === undefined || call.function.name === undefined || call.function.arguments === undefined) {
-                continue
-            }
-            const callId = call.id ?? this.generateCallId()
-            let args: object
-            try {
-                if (call.function.arguments === '') {
-                    args = {}
-                } else {
-                    args = JSON.parse(call.function.arguments) as object
-                }
-            } catch (e) {
-                this.extension.outputChannel.error(`Failed to parse tool call arguments: ${call.function.arguments}. Error: ${e instanceof Error ? e.message : String(e)}`)
-                continue
-            }
-            progress.report({
-                index: 0,
-                part: new LanguageModelToolCallPart(callId, call.function.name, args)
-            })
+    }
+
+    reportToolCall(toolCall: FunctionToolCall, progress: Progress<ChatResponseFragment2>) {
+        if (!toolCall) {
+            return
         }
+        if (toolCall.function === undefined || toolCall.function.name === undefined || toolCall.function.arguments === undefined) {
+            return
+        }
+        const callId = toolCall.id ?? this.generateCallId()
+        let args: object
+        try {
+            if (toolCall.function.arguments === '') {
+                args = {}
+            } else {
+                args = JSON.parse(toolCall.function.arguments) as object
+            }
+        } catch (e) {
+            this.extension.outputChannel.error(`Failed to parse tool call arguments: ${toolCall.function.arguments}. Error: ${e instanceof Error ? e.message : String(e)}`)
+            return
+        }
+        progress.report({
+            index: 0,
+            part: new LanguageModelToolCallPart(callId, toolCall.function.name, args)
+        })
     }
 
     async provideTokenCount(_model: LanguageModelChatInformation, text: string | LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<number> {
