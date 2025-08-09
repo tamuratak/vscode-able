@@ -29,6 +29,13 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         this.extension.outputChannel.info('GeminiChatProvider initialized')
     }
 
+    private debug(msg: string, obj: unknown) {
+        const logLevels = [vscode.LogLevel.Trace, vscode.LogLevel.Debug]
+        if (logLevels.includes(this.extension.outputChannel.logLevel)) {
+            this.extension.outputChannel.debug(msg + JSON.stringify(obj, null, 2))
+        }
+    }
+
     generateCallId(): string {
         return 'call_' + getNonce(16)
     }
@@ -111,7 +118,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             }
         } : {}
 
-        this.extension.outputChannel.debug(`Gemini chat request: ${JSON.stringify({ model: model.id, contents }, null, 2)}`)
+        this.debug('Gemini chat request: ', { model: model.id, contents })
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
             {
                 model: model.id,
@@ -121,7 +128,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         )
 
         for await (const chunk of result) {
-            this.extension.outputChannel.debug(`Gemini chat response chunk: ${JSON.stringify({ text: chunk.text, functionCalls: chunk.functionCalls }, null, 2)}`)
+            this.debug('Gemini chat response chunk: ', { text: chunk.text, functionCalls: chunk.functionCalls })
             if (token.isCancellationRequested) {
                 break
             }
