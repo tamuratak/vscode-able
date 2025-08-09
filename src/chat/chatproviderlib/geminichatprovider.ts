@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
 import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, FunctionDeclaration, GenerateContentConfig, FunctionCallingConfigMode } from '@google/genai'
-import { geminiAuthServiceId } from '../auth/authproviders.js'
+import { geminiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
 
