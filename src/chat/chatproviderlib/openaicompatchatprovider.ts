@@ -161,7 +161,11 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             const callId = call.id ?? this.generateCallId()
             let args: object
             try {
-                args = JSON.parse(call.function.arguments) as object
+                if (call.function.arguments === '') {
+                    args = {}
+                } else {
+                    args = JSON.parse(call.function.arguments) as object
+                }
             } catch (e) {
                 this.extension.outputChannel.error(`Failed to parse tool call arguments: ${call.function.arguments}. Error: ${e instanceof Error ? e.message : String(e)}`)
                 continue
@@ -262,11 +266,18 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             }
         }
         if (message.role === LanguageModelChatMessageRole.Assistant) {
-            return [{
-                role: 'assistant',
-                content: assistantContent,
-                tool_calls: toolCalls
-            }] satisfies OpenAI.Chat.ChatCompletionAssistantMessageParam[]
+            if (toolCalls.length > 0) {
+                return [{
+                    role: 'assistant',
+                    content: assistantContent,
+                    tool_calls: toolCalls
+                }] satisfies OpenAI.Chat.ChatCompletionAssistantMessageParam[]
+            } else {
+                return [{
+                    role: 'assistant',
+                    content: assistantContent
+                }] satisfies OpenAI.Chat.ChatCompletionAssistantMessageParam[]
+            }
         } else {
             return result
         }

@@ -16,7 +16,10 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 version: 'gpt-4.1-nano',
                 maxInputTokens: 1014808,
                 maxOutputTokens: 32768,
-                name: 'GPT-4.1 Nano'
+                name: 'GPT-4.1 Nano',
+                capabilities: {
+                    toolCalling: true
+                }
             }
         ]
     }
