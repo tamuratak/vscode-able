@@ -1,7 +1,6 @@
 import * as vscode from 'vscode'
 import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
 import OpenAI from 'openai'
-import { openaiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
 import { createByModelName, TikTokenizer } from '@microsoft/tiktokenizer'
@@ -72,7 +71,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                 result.push({
                     id: model.id,
                     category: {
-                        label: 'OpenAI',
+                        label: this.categoryLabel,
                         order: 1001
                     },
                     cost: 'Able',
@@ -102,9 +101,9 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         progress: Progress<ChatResponseFragment2>,
         token: CancellationToken
     ): Promise<void> {
-        const session = await vscode.authentication.getSession(openaiAuthServiceId, [], { silent: true })
+        const session = await vscode.authentication.getSession(this.authServiceId, [], { silent: true })
         if (!session) {
-            throw new Error('No authentication session found for OpenAI')
+            throw new Error('No authentication session found for ' + this.authServiceId)
         }
         const apiKey = session.accessToken
         const openai = new OpenAI({ apiKey })
