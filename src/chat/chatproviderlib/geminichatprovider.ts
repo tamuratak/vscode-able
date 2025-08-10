@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
-import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, FunctionDeclaration, GenerateContentConfig, FunctionCallingConfigMode, FunctionCall } from '@google/genai'
+import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, GenerateContentConfig, FunctionCallingConfigMode, FunctionCall } from '@google/genai'
 import { geminiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
@@ -103,15 +103,15 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         initValidators(options.tools)
         const contents: Content[] = await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToContent(m)))
 
-        const functionDeclarations: FunctionDeclaration[] = options.tools?.map(t => {
+        const functionDeclarations = options.tools?.map(t => {
             return {
                 name: t.name,
                 description: t.description,
                 parametersJsonSchema: t.inputSchema
 
             }
-        }) ?? []
-        const config: GenerateContentConfig = model.capabilities?.toolCalling ? {
+        }) ?? undefined
+        const config: GenerateContentConfig = model.capabilities?.toolCalling && functionDeclarations ? {
             tools: [{ functionDeclarations }],
             toolConfig: {
                 functionCallingConfig: {
