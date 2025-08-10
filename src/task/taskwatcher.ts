@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import { MutexWithSizedQueue } from '../utils/mutexwithsizedqueue.js'
 
 
 interface TaskWatcherEntry {
@@ -9,7 +10,7 @@ interface TaskWatcherEntry {
 export class TaskWatcher implements vscode.Disposable {
     private watchers: vscode.FileSystemWatcher[] = []
     private readonly configToDispose: vscode.Disposable
-    private readonly executingTasks = new Set<string>()
+    private readonly mutex = new MutexWithSizedQueue(1)
 
     constructor(private readonly extension: {
         readonly outputChannel: vscode.LogOutputChannel
@@ -32,13 +33,15 @@ export class TaskWatcher implements vscode.Disposable {
             const executeTaskCb = async () => {
                 const tasks = await vscode.tasks.fetchTasks()
                 const task = tasks.find(t => t.name === entry.name && t.name !== t.definition['script'])
-                if (task && !this.executingTasks.has(task.name)) {
-                    try {
-                        this.executingTasks.add(task.name)
-                        await vscode.commands.executeCommand('workbench.action.tasks.runTask', task.name)
-                    } finally {
-                        this.executingTasks.delete(task.name)
-                    }
+                if (task) {
+                    const release = await this.mutex.acquire()
+                    const disposable = vscode.tasks.onDidEndTask((e) => {
+                        if (e.execution.task.name === task.name) {
+                            release()
+                            disposable.dispose()
+                        }
+                    })
+                    await vscode.commands.executeCommand('workbench.action.tasks.runTask', task.name)
                 }
             }
             for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
