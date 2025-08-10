@@ -95,10 +95,6 @@
       {
         "vendor": "groq_with_able",
         "displayName": "Groq with Able"
-      },
-      {
-        "vendor": "cerebras_with_able",
-        "displayName": "Cerebras with Able"
       }
     ],
     "languageModelTools": [
@@ -155,10 +151,6 @@
       {
         "command": "able.loginOpenAI",
         "title": "Able: Login to OpenAI"
-      },
-      {
-        "command": "able.loginCerebras",
-        "title": "Able: Login to Cerebras"
       },
       {
         "command": "able.loginGroq",

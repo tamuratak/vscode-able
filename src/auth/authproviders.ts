@@ -252,30 +252,6 @@ export class OpenAiApiAuthenticationProvider extends BaseApiKeyAuthenticationPro
 
 }
 
-export const cerebrasAuthServiceId = 'cerebras_api'
-
-export class CerebrasApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
-	readonly label = 'Cerebras (with Able)'
-	readonly accountLabel = 'Able'
-	readonly serviceId = cerebrasAuthServiceId
-	protected readonly secretStoreKeyId = 'cerebras_api.secret_store_key'
-
-	protected async validateKey(apiKey: string) {
-		try {
-			const client = new OpenAI({ apiKey, baseURL: 'https://api.cerebras.ai/v1' })
-			const list = await client.models.list()
-			if (list.data.length > 0) {
-				return true
-			} else {
-				return false
-			}
-		} catch {
-			return false
-		}
-	}
-
-}
-
 export const groqAuthServiceId = 'groq_api'
 
 export class GroqApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
