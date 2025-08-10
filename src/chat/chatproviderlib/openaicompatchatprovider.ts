@@ -127,7 +127,6 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                 params.tool_choice = toolChoice
             }
         }
-        this.debug('Chat params: ', params)
         if (this.streamSupported) {
             await this.createStream(openai, params, progress, token)
         } else {
@@ -142,6 +141,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         token: CancellationToken
     ) {
         const newParams = {...params, stream: true} satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
+        this.debug('Chat params: ', newParams)
         const stream = await openai.chat.completions.create(newParams)
         let toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall | undefined
         let toolArguments = ''
@@ -177,6 +177,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         progress: Progress<ChatResponseFragment2>
     ) {
         const newParams = {...params, stream: false} satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
+        this.debug('Chat params: ', newParams)
         const chatCompletion = await openai.chat.completions.create(newParams)
         const response = chatCompletion.choices[0]
         if (!response) {
@@ -185,6 +186,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         const content = response.message.content
         const toolCalls = response.message.tool_calls
         if (content) {
+            this.debug('Chat reply: ', content)
             this.reportContent(content, progress)
         }
         if (toolCalls) {

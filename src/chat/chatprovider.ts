@@ -80,7 +80,7 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
     readonly serviceName = 'GroqChatProvider'
     readonly categoryLabel = 'Groq (with Able)'
     readonly apiBaseUrl = 'https://api.groq.com/openai/v1'
-    readonly streamSupported = false
+    readonly streamSupported = true
 
 
     get aiModelIds(): LanguageModelChatInformation[] {
