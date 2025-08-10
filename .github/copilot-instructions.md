@@ -2,7 +2,7 @@
 
 - Do not add semicolons at the end of lines.
 - Please write a code in TypeScript.
-- When fixing TypeScript errors, try adding null checks instead of using a type annotation like as T.
+- When fixing TypeScript errors, consider adding null checks or using optional chaining rather than adding a type annotation such as as T.
 - All file names should be in lowercase.
 - Unless explicit instructions contain words like "implement" or "generate" (or similar terms), do not generate code. Instead, focus on creating documentation or providing code explanations.
 - Please respond in the user’s natural language, not the system’s language.
