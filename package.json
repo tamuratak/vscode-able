@@ -48,10 +48,6 @@
         "label": "OpenAI (with Able)"
       },
       {
-        "id": "cerebras_api",
-        "label": "Cerebras (with Able)"
-      },
-      {
         "id": "groq_api",
         "label": "Groq (with Able)"
       }
