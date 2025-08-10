@@ -8,7 +8,7 @@ const toolCallAjv = new Ajv()
 
 export function initValidators(tools: vscode.LanguageModelChatTool[] | undefined) {
     for (const tool of tools ?? []) {
-        if (tool.inputSchema) {
+        if (tool.inputSchema && !toolCallValidatorMap.has(tool.name)) {
             toolCallValidatorMap.set(tool.name, toolCallAjv.compile(tool.inputSchema))
         }
     }
