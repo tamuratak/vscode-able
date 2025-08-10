@@ -1,6 +1,6 @@
 import { LanguageModelChatInformation } from 'vscode'
 import { OpenAICompatChatProvider } from './chatproviderlib/openaicompatchatprovider.js'
-import { cerebrasAuthServiceId, groqAuthServiceId, openaiAuthServiceId } from '../auth/authproviders.js'
+import { groqAuthServiceId, openaiAuthServiceId } from '../auth/authproviders.js'
 
 export { GeminiChatProvider } from './chatproviderlib/geminichatprovider.js'
 
@@ -8,6 +8,7 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
     readonly serviceName = 'OpenAIChatProvider'
     readonly categoryLabel = 'OpenAI (with Able)'
     readonly apiBaseUrl = undefined
+    readonly streamSupported = true
 
     get aiModelIds(): LanguageModelChatInformation[] {
         return [
@@ -79,6 +80,7 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
     readonly serviceName = 'GroqChatProvider'
     readonly categoryLabel = 'Groq (with Able)'
     readonly apiBaseUrl = 'https://api.groq.com/openai/v1'
+    readonly streamSupported = false
 
 
     get aiModelIds(): LanguageModelChatInformation[] {
@@ -99,44 +101,6 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
 
     get authServiceId(): string {
         return groqAuthServiceId
-    }
-
-}
-
-export class CerebrasChatProvider extends OpenAICompatChatProvider {
-    readonly serviceName = 'CerebrasChatProvider'
-    readonly categoryLabel = 'Cerebras (with Able)'
-    readonly apiBaseUrl = 'https://api.cerebras.ai/v1'
-
-    get aiModelIds(): LanguageModelChatInformation[] {
-        return [
-            {
-                id: 'gpt-oss-120b',
-                family: 'gpt-oss-120b',
-                version: 'gpt-oss-120b',
-                maxInputTokens: 64000,
-                maxOutputTokens: 32766,
-                name: 'GPT OSS 120b',
-                capabilities: {
-                    toolCalling: false
-                }
-            },
-            {
-                id: 'qwen-3-32b',
-                family: 'qwen-3-32b',
-                version: 'qwen-3-32b',
-                maxInputTokens: 65536,
-                maxOutputTokens: 32766,
-                name: 'Qwen 3 32b',
-                capabilities: {
-                    toolCalling: true
-                }
-            }
-        ]
-    }
-
-    get authServiceId(): string {
-        return cerebrasAuthServiceId
     }
 
 }
