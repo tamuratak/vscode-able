@@ -187,7 +187,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
-    reportContent(content: string | null | undefined, progress: Progress<ChatResponseFragment2>) {
+    private reportContent(content: string | null | undefined, progress: Progress<ChatResponseFragment2>) {
         if (content) {
             progress.report({
                 index: 0,
@@ -196,7 +196,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
-    reportToolCall(toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function, progress: Progress<ChatResponseFragment2>) {
+    private reportToolCall(toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function, progress: Progress<ChatResponseFragment2>) {
         if (toolCall.name === undefined || toolCall.arguments === undefined) {
             return
         }

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
-import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, FunctionDeclaration, GenerateContentConfig, FunctionCallingConfigMode } from '@google/genai'
+import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, FunctionDeclaration, GenerateContentConfig, FunctionCallingConfigMode, FunctionCall } from '@google/genai'
 import { geminiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
@@ -128,7 +128,6 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                 config
             }
         )
-
         for await (const chunk of result) {
             this.debug('Gemini chat response chunk: ', { text: chunk.text, functionCalls: chunk.functionCalls })
             if (token.isCancellationRequested) {
@@ -139,31 +138,35 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                 progress.report({
                     index: 0,
                     part: new LanguageModelTextPart(text)
-                } satisfies ChatResponseFragment2)
+                })
             }
             const functionCalls = chunk.functionCalls
             if (functionCalls) {
-                for (const call of functionCalls) {
-                    if (call.name === undefined || call.args === undefined) {
-                        continue
-                    }
-                    const callId = call.id ?? this.generateCallId()
-                    toolCallIdNameMap.set(callId, call.name)
-                    const validator = getValidator(call.name)
-                    if (validator === undefined) {
-                        this.extension.outputChannel.error(`No validator found for tool call: ${call.name}`)
-                        throw new Error(`No validator found for tool call: ${call.name}`)
-                    }
-                    if (!validator(call.args)) {
-                        this.extension.outputChannel.error(`Invalid tool call arguments for ${call.name}: ${JSON.stringify(call.args)}`)
-                        throw new Error(`Invalid tool call arguments for ${call.name}: ${JSON.stringify(call.args)}`)
-                    }
-                    progress.report({
-                        index: 0,
-                        part: new LanguageModelToolCallPart(callId, call.name, call.args)
-                    })
-                }
+                this.reportToolCall(functionCalls, progress)
             }
+        }
+    }
+
+    private reportToolCall(functionCalls: FunctionCall[], progress: Progress<ChatResponseFragment2>) {
+        for (const call of functionCalls) {
+            if (call.name === undefined || call.args === undefined) {
+                continue
+            }
+            const callId = call.id ?? this.generateCallId()
+            toolCallIdNameMap.set(callId, call.name)
+            const validator = getValidator(call.name)
+            if (validator === undefined) {
+                this.extension.outputChannel.error(`No validator found for tool call: ${call.name}`)
+                throw new Error(`No validator found for tool call: ${call.name}`)
+            }
+            if (!validator(call.args)) {
+                this.extension.outputChannel.error(`Invalid tool call arguments for ${call.name}: ${JSON.stringify(call.args)}`)
+                throw new Error(`Invalid tool call arguments for ${call.name}: ${JSON.stringify(call.args)}`)
+            }
+            progress.report({
+                index: 0,
+                part: new LanguageModelToolCallPart(callId, call.name, call.args)
+            })
         }
     }
 
