@@ -4,6 +4,7 @@
 - Please write a code in TypeScript.
 - All file names should be in lowercase.
 - Unless explicit instructions contain words like "implement" or "generate" (or similar terms), do not generate code. Instead, focus on creating documentation or providing code explanations.
+- Please respond in the user’s natural language, not the system’s language.
 
 ### Instructions only in ACTION MODE
 
