@@ -8,6 +8,7 @@ import { TaskWatcher } from './task/taskwatcher.js'
 import { GeminiApiKeyAuthenticationProvider, GeminiAuthServiceId, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
 import { GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chat/chatprovider.js'
 import { GoogleGenAI } from '@google/genai'
+import { WebSearchTool } from './lmtools/websearch.js'
 
 
 class Extension {
@@ -72,6 +73,7 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.chat.createChatParticipant(AbleChatParticipantId, extension.getChatHandler()),
         vscode.lm.registerTool('able_python', new PythonTool()),
+        vscode.lm.registerTool('able_web_search', new WebSearchTool(extension)),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()
     )

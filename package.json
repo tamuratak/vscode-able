@@ -120,6 +120,7 @@
       },
       {
         "name": "able_web_search",
+        "toolReferenceName": "websearch",
         "tags": [
           "Web Search"
         ],

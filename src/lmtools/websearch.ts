@@ -2,7 +2,7 @@ import { CancellationToken, LanguageModelTextPart, LanguageModelTool, LanguageMo
 import { GoogleGenAI } from '@google/genai'
 import * as vscode from 'vscode'
 import { GeminiAuthServiceId } from '../auth/authproviders.js'
-
+import { resolveRedirectUri } from './websearchlib/utils.js'
 
 export interface WebSearchInput {
     query: string
@@ -52,7 +52,13 @@ export class WebSearchTool implements LanguageModelTool<WebSearchInput> {
         let markdown = text
         if (links.length > 0) {
             markdown += '\n\n---\n'
-            for (const link of links) {
+            // Convert all links to their redirect destinations
+            const redirectPromises = links.map(async (link) => {
+                const redirected = await resolveRedirectUri(link)
+                return redirected ?? link
+            })
+            const resolvedLinks = await Promise.all(redirectPromises)
+            for (const link of resolvedLinks) {
                 markdown += `- [source](${link})\n`
             }
         }
