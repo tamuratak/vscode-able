@@ -117,6 +117,28 @@
             "code"
           ]
         }
+      },
+      {
+        "name": "able_web_search",
+        "toolReferenceName": "websearch",
+        "tags": [
+          "Web Search"
+        ],
+        "displayName": "Web Search",
+        "canBeReferencedInPrompt": true,
+        "userDescription": "Search the web for information.",
+        "modelDescription": "This tool performs a web search using the provided query and returns the results.",
+        "icon": "globe",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The query to search the web for"
+            }            
+          },
+          "required": ["query"]
+        }
       }
     ],
     "commands": [
