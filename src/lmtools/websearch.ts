@@ -41,18 +41,12 @@ export class WebSearchTool implements LanguageModelTool<WebSearchInput> {
             throw new Error('[WebSearchTool]: No search result found')
         }
         const content = candidate?.content
-        let text = ''
-        if (content?.parts && content.parts.length > 0 && typeof content.parts[0].text === 'string') {
-            text = content.parts[0].text
-        }
-        let links: string[] = []
-        if (candidate?.groundingMetadata && Array.isArray(candidate.groundingMetadata.groundingChunks)) {
-            links = candidate.groundingMetadata.groundingChunks
-                .map((chunk) => chunk.retrievedContext?.uri ?? chunk.web?.uri)
-                .filter((uri) => typeof uri === 'string')
-        }
+        const text = content?.parts?.[0].text ?? ''
+        const links = candidate?.groundingMetadata?.groundingChunks
+            ?.map((chunk) => chunk.retrievedContext?.uri ?? chunk.web?.uri)
+            .filter((uri) => typeof uri === 'string')
         let markdown = text
-        if (links.length > 0) {
+        if (links && links.length > 0) {
             markdown += '\n\n---\n'
             // Convert all links to their redirect destinations
             const redirectPromises = links.map(async (link) => {
