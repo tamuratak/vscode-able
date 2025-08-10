@@ -237,7 +237,7 @@
                 },
                 "globPattern": {
                   "type": "string",
-                  "description": "The glob pattern to match files."
+                  "description": "The glob pattern of relative path to match files."
                 }
               },
               "required": [
