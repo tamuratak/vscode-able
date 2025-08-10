@@ -5,6 +5,7 @@ import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
 import { createByModelName, TikTokenizer } from '@microsoft/tiktokenizer'
 import { ExternalPromise } from '../../utils/externalpromise.js'
+import { getValidator, initValidators } from './toolcallargvalidator.js'
 
 
 export abstract class OpenAICompatChatProvider implements LanguageModelChatProvider2 {
@@ -107,6 +108,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
         const apiKey = session.accessToken
         const openai = this.createClient(apiKey)
+        initValidators(options.tools)
         const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[] = (await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToChatCompletionMessageParam(m)))).flat()
         const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = options.tools?.map(t => ({
             type: 'function',
@@ -185,7 +187,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
-    reportContent(content: string | null | undefined, progress: Progress<ChatResponseFragment2>) {
+    private reportContent(content: string | null | undefined, progress: Progress<ChatResponseFragment2>) {
         if (content) {
             progress.report({
                 index: 0,
@@ -194,7 +196,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
-    reportToolCall(toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function, progress: Progress<ChatResponseFragment2>) {
+    private reportToolCall(toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function, progress: Progress<ChatResponseFragment2>) {
         if (toolCall.name === undefined || toolCall.arguments === undefined) {
             return
         }
@@ -209,6 +211,15 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         } catch (e) {
             this.extension.outputChannel.error(`Failed to parse tool call arguments: ${toolCall.arguments}. Error: ${e instanceof Error ? e.message : String(e)}`)
             return
+        }
+        const validator = getValidator(toolCall.name)
+        if (validator === undefined) {
+            this.extension.outputChannel.error(`No validator found for tool call: ${toolCall.name}`)
+            throw new Error(`No validator found for tool call: ${toolCall.name}`)
+        }
+        if (!validator(args)) {
+            this.extension.outputChannel.error(`Invalid tool call arguments for ${toolCall.name}: ${JSON.stringify(args)}`)
+            throw new Error(`Invalid tool call arguments for ${toolCall.name}: ${JSON.stringify(args)}`)
         }
         progress.report({
             index: 0,

@@ -68,7 +68,7 @@
         {
             "label": "task-lint",
             "type": "npm",
-            "script": "lint:fix",
+            "script": "lint",
             "presentation": {
                 "reveal": "never",
                 "clear": true,
