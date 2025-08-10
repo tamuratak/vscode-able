@@ -26,9 +26,9 @@ export class TaskWatcher implements vscode.Disposable {
         this.resetWatchers()
         const configuration = vscode.workspace.getConfiguration('able')
         const taskWatchEntries = configuration.get('taskWatcher', []) as TaskWatcherEntry[]
+
         for (const entry of taskWatchEntries) {
-            const watcher = vscode.workspace.createFileSystemWatcher(entry.globPattern)
-            this.watchers.push(watcher)
+            const globPattern = entry.globPattern.startsWith('./') ? entry.globPattern.slice(2) : entry.globPattern
             const executeTaskCb = async () => {
                 const tasks = await vscode.tasks.fetchTasks()
                 const task = tasks.find(t => t.name === entry.name && t.name !== t.definition['script'])
@@ -41,18 +41,23 @@ export class TaskWatcher implements vscode.Disposable {
                     }
                 }
             }
-            watcher.onDidChange(async (e) => {
-                this.extension.outputChannel.debug(`File changed: ${e}`)
-                await executeTaskCb()
-            })
-            watcher.onDidCreate(async (e) => {
-                this.extension.outputChannel.debug(`File created: ${e}`)
-                await executeTaskCb()
-            })
-            watcher.onDidDelete(async (e) => {
-                this.extension.outputChannel.debug(`File deleted: ${e}`)
-                await executeTaskCb()
-            })
+            for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
+                const pattern = new vscode.RelativePattern(workspaceFolder, globPattern)
+                const watcher = vscode.workspace.createFileSystemWatcher(pattern)
+                this.watchers.push(watcher)
+                watcher.onDidChange(async (e) => {
+                    this.extension.outputChannel.debug(`File changed: ${e}`)
+                    await executeTaskCb()
+                })
+                watcher.onDidCreate(async (e) => {
+                    this.extension.outputChannel.debug(`File created: ${e}`)
+                    await executeTaskCb()
+                })
+                watcher.onDidDelete(async (e) => {
+                    this.extension.outputChannel.debug(`File deleted: ${e}`)
+                    await executeTaskCb()
+                })
+            }
         }
     }
 
