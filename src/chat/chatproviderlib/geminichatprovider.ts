@@ -128,13 +128,15 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                 config
             }
         )
+        let allContent = ''
         for await (const chunk of result) {
             this.debug('Gemini chat response chunk: ', { text: chunk.text, functionCalls: chunk.functionCalls })
             if (token.isCancellationRequested) {
                 break
             }
             const text = chunk.text
-            if (text) {
+            if (text && text.length > 0) {
+                allContent += text
                 progress.report({
                     index: 0,
                     part: new LanguageModelTextPart(text)
@@ -145,6 +147,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                 this.reportToolCall(functionCalls, progress)
             }
         }
+        this.debug('Chat reply: ', allContent)
     }
 
     private reportToolCall(functionCalls: FunctionCall[], progress: Progress<ChatResponseFragment2>) {
