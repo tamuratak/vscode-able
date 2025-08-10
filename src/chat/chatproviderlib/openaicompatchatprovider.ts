@@ -6,6 +6,7 @@ import { renderToolResult } from '../../utils/toolresult.js'
 import { createByModelName, TikTokenizer } from '@microsoft/tiktokenizer'
 import { ExternalPromise } from '../../utils/externalpromise.js'
 import { getValidator, initValidators } from './toolcallargvalidator.js'
+import { debugObj } from '../../utils/debug.js'
 
 
 export abstract class OpenAICompatChatProvider implements LanguageModelChatProvider2 {
@@ -27,13 +28,6 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     abstract get authServiceId(): string
     abstract get aiModelIds(): LanguageModelChatInformation[]
     abstract get categoryLabel(): string
-
-    private debug(msg: string, obj: unknown) {
-        const logLevels = [vscode.LogLevel.Trace, vscode.LogLevel.Debug]
-        if (logLevels.includes(this.extension.outputChannel.logLevel)) {
-            this.extension.outputChannel.debug(msg + JSON.stringify(obj, null, 2))
-        }
-    }
 
     private async initTokenizer() {
         // The BPE rank file will be automatically downloaded and saved to node_modules/@microsoft/tiktokenizer/model if it does not exist.
@@ -143,8 +137,8 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         token: CancellationToken
     ) {
         const newParams = {...params, stream: true} satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
-        this.debug('apiBaseUrl: ', this.apiBaseUrl)
-        this.debug('Chat params: ', newParams)
+        debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
+        debugObj('Chat params: ', newParams, this.extension.outputChannel)
         const stream = openai.chat.completions.stream(newParams)
         let allContent = ''
         token.onCancellationRequested(() => stream.controller.abort())
@@ -153,11 +147,11 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             this.reportContent(content, progress)
         })
         stream.on('tool_calls.function.arguments.done', (toolCall) => {
-            this.debug('ToolCall: ', toolCall)
+            debugObj('ToolCall: ', toolCall, this.extension.outputChannel)
             this.reportToolCall(toolCall, progress)
         })
         await stream.finalChatCompletion()
-        this.debug('Chat reply: ', allContent)
+        debugObj('Chat reply: ', allContent, this.extension.outputChannel)
     }
 
     async createNonStream(
@@ -166,7 +160,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         progress: Progress<ChatResponseFragment2>
     ) {
         const newParams = {...params, stream: false} satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
-        this.debug('Chat params: ', newParams)
+        debugObj('Chat params: ', newParams, this.extension.outputChannel)
         const chatCompletion = await openai.chat.completions.create(newParams)
         const response = chatCompletion.choices[0]
         if (!response) {
@@ -175,7 +169,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         const content = response.message.content
         const toolCalls = response.message.tool_calls
         if (content) {
-            this.debug('Chat reply: ', content)
+            debugObj('Chat reply: ', content, this.extension.outputChannel)
             this.reportContent(content, progress)
         }
         if (toolCalls) {

@@ -5,6 +5,7 @@ import { GeminiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
 import { getValidator, initValidators } from './toolcallargvalidator.js'
+import { debugObj } from '../../utils/debug.js'
 
 
 type GeminiChatInformation = LanguageModelChatInformation & {
@@ -28,13 +29,6 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         }
     ) {
         this.extension.outputChannel.info('GeminiChatProvider initialized')
-    }
-
-    private debug(msg: string, obj: unknown) {
-        const logLevels = [vscode.LogLevel.Trace, vscode.LogLevel.Debug]
-        if (logLevels.includes(this.extension.outputChannel.logLevel)) {
-            this.extension.outputChannel.debug(msg + JSON.stringify(obj, null, 2))
-        }
     }
 
     generateCallId(): string {
@@ -120,7 +114,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             }
         } : {}
 
-        this.debug('Gemini chat request: ', { model: model.id, contents })
+        debugObj('Gemini chat request: ', { model: model.id, contents }, this.extension.outputChannel)
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
             {
                 model: model.id,
@@ -130,7 +124,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         )
         let allContent = ''
         for await (const chunk of result) {
-            this.debug('Gemini chat response chunk: ', { text: chunk.text, functionCalls: chunk.functionCalls })
+            debugObj('Gemini chat response chunk: ', { text: chunk.text, functionCalls: chunk.functionCalls }, this.extension.outputChannel)
             if (token.isCancellationRequested) {
                 break
             }
@@ -147,7 +141,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                 this.reportToolCall(functionCalls, progress)
             }
         }
-        this.debug('Chat reply: ', allContent)
+        debugObj('Chat reply: ', allContent, this.extension.outputChannel)
     }
 
     private reportToolCall(functionCalls: FunctionCall[], progress: Progress<ChatResponseFragment2>) {

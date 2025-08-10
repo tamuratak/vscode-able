@@ -3,6 +3,7 @@ import { GoogleGenAI } from '@google/genai'
 import * as vscode from 'vscode'
 import { GeminiAuthServiceId } from '../auth/authproviders.js'
 import { resolveRedirectUri } from './websearchlib/utils.js'
+import { debugObj } from '../utils/debug.js'
 
 export interface WebSearchInput {
     query: string
@@ -33,6 +34,7 @@ export class WebSearchTool implements LanguageModelTool<WebSearchInput> {
             contents: options.input.query,
             config,
         })
+        debugObj('WebSearch response: ', response, this.extension.outputChannel)
         const candidate = response.candidates?.[0]
         if (!candidate) {
             this.extension.outputChannel.error('[WebSearchTool]: No search result found')
