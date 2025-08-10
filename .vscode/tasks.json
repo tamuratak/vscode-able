@@ -71,7 +71,8 @@
             "script": "lint:fix",
             "presentation": {
                 "reveal": "never",
-                "clear": true
+                "clear": true,
+                "close": false        
             },
             "problemMatcher": [
                 {
