@@ -9,6 +9,7 @@ import { GeminiApiKeyAuthenticationProvider, GeminiAuthServiceId, GroqApiKeyAuth
 import { GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chat/chatprovider.js'
 import { GoogleGenAI } from '@google/genai'
 import { WebSearchTool } from './lmtools/websearch.js'
+import { debugObj } from './utils/debug.js'
 
 
 class Extension {
@@ -69,7 +70,7 @@ export function activate(context: vscode.ExtensionContext) {
             void vscode.authentication.getSession(groqAuthProvider.serviceId, [], { createIfNone: true })
         }),
         vscode.commands.registerCommand('able.doSomething', () => {
-            void doSomething()
+            void doSomething(extension)
         }),
         vscode.chat.createChatParticipant(AbleChatParticipantId, extension.getChatHandler()),
         vscode.lm.registerTool('able_python', new PythonTool()),
@@ -87,7 +88,7 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 
-async function doSomething() {
+async function doSomething(extension: Extension) {
     const session = await vscode.authentication.getSession(GeminiAuthServiceId, [], { silent: true })
     if (!session) {
         return []
@@ -104,6 +105,6 @@ async function doSomething() {
         contents: 'Who won the euro 2024?',
         config,
     })
-    console.log(JSON.stringify(response, null, 2))
+    debugObj('Response: ', response, extension.outputChannel)
     return
 }
