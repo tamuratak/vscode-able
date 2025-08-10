@@ -203,13 +203,13 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 
 }
 
-export const geminiAuthServiceId = 'gemini_api'
+export const GeminiAuthServiceId = 'gemini_api'
 
 
 export class GeminiApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
 	readonly label = 'Gemini (with Able)'
 	readonly accountLabel = 'Able'
-	readonly serviceId = geminiAuthServiceId
+	readonly serviceId = GeminiAuthServiceId
 	protected readonly secretStoreKeyId = 'gemini_api.secret_store_key'
 
 	protected async validateKey(apiKey: string): Promise<boolean> {

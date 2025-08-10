@@ -2,11 +2,12 @@ import * as vscode from 'vscode'
 import { ChatHandleManager } from './chat/chat.js'
 import { registerCommands } from './commands.js'
 import { PythonTool } from './lmtools/pyodide.js'
-import { renderToolResult } from './utils/toolresult.js'
+//import { renderToolResult } from './utils/toolresult.js'
 import { MochaJsonTaskProvider } from './task/task.js'
 import { TaskWatcher } from './task/taskwatcher.js'
-import { GeminiApiKeyAuthenticationProvider, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
+import { GeminiApiKeyAuthenticationProvider, GeminiAuthServiceId, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
 import { GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chat/chatprovider.js'
+import { GoogleGenAI } from '@google/genai'
 
 
 class Extension {
@@ -85,20 +86,22 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 async function doSomething() {
-    const cmds0 = await vscode.tasks.fetchTasks()
-    const cmds = cmds0.map(cmd => [cmd.definition, cmd.name])
-    console.log(JSON.stringify(cmds, null, 2))
-    const models = await vscode.lm.selectChatModels({vendor: 'copilot'})
-    console.log(JSON.stringify(models, null, 2))
-    const tool = vscode.lm.tools.find(e => e.name === 'able_list_dir')
-    if (!tool) {
-        return
+    const session = await vscode.authentication.getSession(GeminiAuthServiceId, [], { silent: true })
+    if (!session) {
+        return []
     }
-    const result = await vscode.lm.invokeTool(tool.name, {
-        toolInvocationToken: undefined,
-        input: { path: '/Users/tamura/src/github/LaTeX-Workshop' }
+    const apiKey = session.accessToken
+    const ai = new GoogleGenAI({ apiKey })
+    const config = {
+        tools: [{
+            googleSearch: {},
+        }],
+    }
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: 'Who won the euro 2024?',
+        config,
     })
-    console.log(result)
-    const value = await renderToolResult(result)
-    console.log(value)
+    console.log(JSON.stringify(response, null, 2))
+    return
 }

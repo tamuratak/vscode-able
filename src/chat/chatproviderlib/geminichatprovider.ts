@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
 import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, GenerateContentConfig, FunctionCallingConfigMode, FunctionCall } from '@google/genai'
-import { geminiAuthServiceId } from '../../auth/authproviders.js'
+import { GeminiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresult.js'
 import { getValidator, initValidators } from './toolcallargvalidator.js'
@@ -43,7 +43,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
 
     async prepareLanguageModelChat(options: { silent: boolean; }): Promise<GeminiChatInformation[]> {
         try {
-            const session = await vscode.authentication.getSession(geminiAuthServiceId, [], { silent: options.silent })
+            const session = await vscode.authentication.getSession(GeminiAuthServiceId, [], { silent: options.silent })
             if (!session) {
                 return []
             }
@@ -94,7 +94,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         progress: Progress<ChatResponseFragment2>,
         token: CancellationToken
     ): Promise<void> {
-        const session = await vscode.authentication.getSession(geminiAuthServiceId, [], { silent: true })
+        const session = await vscode.authentication.getSession(GeminiAuthServiceId, [], { silent: true })
         if (!session) {
             throw new Error('No authentication session found for Gemini (with Able)')
         }
@@ -174,7 +174,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
     }
 
     async provideTokenCount(model: GeminiChatInformation, text: string | LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<number> {
-        const session = await vscode.authentication.getSession(geminiAuthServiceId, [], { silent: true })
+        const session = await vscode.authentication.getSession(GeminiAuthServiceId, [], { silent: true })
         if (!session) {
             throw new Error('No authentication session found for Gemini (with Able)')
         }
