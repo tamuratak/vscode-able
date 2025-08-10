@@ -141,34 +141,21 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         token: CancellationToken
     ) {
         const newParams = {...params, stream: true} satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
+        this.debug('apiBaseUrl: ', this.apiBaseUrl)
         this.debug('Chat params: ', newParams)
-        const stream = await openai.chat.completions.create(newParams)
-        let toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall | undefined
-        let toolArguments = ''
+        const stream = openai.chat.completions.stream(newParams)
         let allContent = ''
-        for await (const chunk of stream) {
-            if (token.isCancellationRequested) {
-                stream.controller.abort()
-                return
-            }
-            const delta = chunk.choices[0]?.delta
-            if (delta) {
-                allContent += delta.content ?? ''
-                this.reportContent(delta.content, progress)
-            }
-            // Since parallel tool calls are disabled, we can assume only one tool call is present.
-            const toolCallDelta = delta.tool_calls?.[0]
-            if (toolCallDelta) {
-                toolCall = toolCall ?? toolCallDelta
-                toolArguments += toolCallDelta.function?.arguments ?? ''
-            }
-        }
-        this.debug('Chat reply: ', allContent)
-        if (toolCall && toolCall.function) {
-            toolCall.function.arguments = toolArguments
+        token.onCancellationRequested(() => stream.controller.abort())
+        stream.on('content', (content) => {
+            allContent += content ?? ''
+            this.reportContent(content, progress)
+        })
+        stream.on('tool_calls.function.arguments.done', (toolCall) => {
             this.debug('ToolCall: ', toolCall)
-            this.reportToolCall(toolCall.function, progress)
-        }
+            this.reportToolCall(toolCall, progress)
+        })
+        await stream.finalChatCompletion()
+        this.debug('Chat reply: ', allContent)
     }
 
     async createNonStream(
