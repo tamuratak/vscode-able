@@ -46,8 +46,8 @@ export class WebSearchTool implements LanguageModelTool<WebSearchInput> {
         let links: string[] = []
         if (candidate?.groundingMetadata && Array.isArray(candidate.groundingMetadata.groundingChunks)) {
             links = candidate.groundingMetadata.groundingChunks
-                .map((chunk) => (chunk && typeof chunk === 'object' && chunk.web && typeof chunk.web === 'object' && typeof chunk.web.uri === 'string') ? chunk.web.uri : undefined)
-                .filter((uri): uri is string => typeof uri === 'string')
+                .map((chunk) => chunk.retrievedContext?.uri ?? chunk.web?.uri)
+                .filter((uri) => typeof uri === 'string')
         }
         let markdown = text
         if (links.length > 0) {
