@@ -34,9 +34,6 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 capabilities: {
                     toolCalling: true
                 },
-                options: {
-                    reasoningEffort: 'high'
-                }
             },
             {
                 id: 'gpt-4.1',

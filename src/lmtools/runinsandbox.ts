@@ -44,7 +44,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             throw new Error('[RunInSandbox]: sandbox-exec not found')
         }
 
-        const command = options.input.command?.trim()
+        const command = options.input.command.trim()
         if (!command) {
             this.extension.outputChannel.error('[RunInSandbox]: command is empty')
             throw new Error('[RunInSandbox]: command is empty')
@@ -53,7 +53,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         // Decide writable directories: none by default, but validate if provided via explanation string in future
         const rwritableDirs = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? undefined
 
-        if (!rwritableDirs) {
+        if (!rwritableDirs || rwritableDirs.length === 0) {
             this.extension.outputChannel.error('[RunInSandbox]: no workspace folders')
             throw new Error('[RunInSandbox]: no workspace folders')
         }
@@ -107,7 +107,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         subscription.dispose()
 
         const stdout = stdoutChunks.join('')
-        const stderr = stderrChunks.join('')
+        const stderr = stderrChunks.join('') ?? commandError?.message
 
         debugObj('RunInSandbox stdout: ', stdout, this.extension.outputChannel)
         debugObj('RunInSandbox stderr: ', stderr, this.extension.outputChannel)
