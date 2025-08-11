@@ -1,9 +1,13 @@
 import * as vscode from 'vscode'
-import { CancellationToken, LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LogOutputChannel } from 'vscode'
+import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LogOutputChannel, PreparedToolInvocation } from 'vscode'
 import { spawn } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
-// no debug import needed here
+import { debugObj } from '../utils/debug.js'
+import { decodeUtf8 } from '../utils/utf8.js'
+import { renderElementJSON } from '@vscode/prompt-tsx'
+import { CommandResultPrompt } from '../utils/toolresult.js'
+
 
 export interface RunInSandboxInput {
     command: string,
@@ -17,6 +21,15 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         }
     ) {
         this.extension.outputChannel.info('[RunInSandbox]: RunInSandbox created')
+    }
+
+    prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<RunInSandboxInput>): PreparedToolInvocation {
+        return {
+            confirmationMessages: {
+                title: 'Run command by using sandbox-exec',
+                message: options.input.explanation + '\n\n```sh\n' + options.input.command + '\n```'
+            }
+        }
     }
 
     async invoke(options: LanguageModelToolInvocationOptions<RunInSandboxInput>, token: CancellationToken) {
@@ -43,13 +56,14 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
 
         const { policy, params } = this.buildSeatbeltPolicyAndParams(rwritableDirs)
 
-        const args = ['-p', policy, ...params, '--', '/bin/bash', '-lc', command]
+        const args = ['-p', policy, ...params, '--', '/bin/zsh', '-lc', command]
 
         this.extension.outputChannel.info(`[RunInSandbox]: invoking in sandbox: ${command}`)
 
-        const stdoutChunks: Buffer[] = []
-        const stderrChunks: Buffer[] = []
+        const stdoutChunks: string[] = []
+        const stderrChunks: string[] = []
 
+        debugObj('RunInSandbox args: ', args, this.extension.outputChannel)
         const child = spawn(seatbeltPath, args, {
             stdio: ['ignore', 'pipe', 'pipe'],
             shell: false,
@@ -72,16 +86,12 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         })
 
         child.stdout?.on('data', (d: Buffer | string) => {
-            const buf = Buffer.isBuffer(d) ? d : Buffer.from(String(d))
+            const buf = typeof d === 'string' ? d : decodeUtf8(d)
             stdoutChunks.push(buf)
-            const s = buf.toString('utf8')
-            this.extension.outputChannel.append(s)
         })
         child.stderr?.on('data', (d: Buffer | string) => {
-            const buf = Buffer.isBuffer(d) ? d : Buffer.from(String(d))
+            const buf = typeof d === 'string' ? d : decodeUtf8(d)
             stderrChunks.push(buf)
-            const s = buf.toString('utf8')
-            this.extension.outputChannel.append(s)
         })
 
         const exitResult = await new Promise<{ code: number | null, signal: NodeJS.Signals | null }>((resolve, reject) => {
@@ -91,27 +101,15 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
 
         subscription.dispose()
 
-        const stdout = Buffer.concat(stdoutChunks).toString('utf8')
-        const stderr = Buffer.concat(stderrChunks).toString('utf8')
+        const stdout = stdoutChunks.join('')
+        const stderr = stderrChunks.join('')
 
-        const cancelled = token.isCancellationRequested
-        const signalInfo = exitResult.signal ? `, signal: ${exitResult.signal}` : ''
-        const exitCode = exitResult.code ?? -1
-
-        let text = ''
-        if (cancelled) {
-            text += 'Execution cancelled by user\n'
-        }
-        text += `Exit code: ${exitCode}${signalInfo}\n`
-        if (stdout) {
-            text += `\n[stdout]\n${stdout}`
-        }
-        if (stderr) {
-            text += `\n[stderr]\n${stderr}`
-        }
-
+        debugObj('RunInSandbox stdout: ', stdout, this.extension.outputChannel)
+        debugObj('RunInSandbox stderr: ', stderr, this.extension.outputChannel)
+        debugObj('RunInSandbox exit code: ', exitResult, this.extension.outputChannel)
+        const result = await renderElementJSON(CommandResultPrompt, { stdout, stderr }, options.tokenizationOptions)
         return new LanguageModelToolResult([
-            new LanguageModelTextPart(text)
+            new vscode.LanguageModelPromptTsxPart(result)
         ])
     }
 
