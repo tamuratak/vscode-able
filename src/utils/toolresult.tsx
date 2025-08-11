@@ -55,11 +55,11 @@ export class CommandResultPrompt extends PromptElement<CommandResultPromptProps>
                     {this.props.stderr}
                     <br /><br />
 
-                    ### exit code
+                    ### exit code  <br />
                     {this.props.exitCode}
                     <br /><br />
 
-                    ### exit signal
+                    ### exit signal <br />
                     {this.props.signal}
                 </TextChunk>
             </>
