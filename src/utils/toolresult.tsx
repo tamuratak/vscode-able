@@ -35,8 +35,10 @@ export async function renderToolResult(data: vscode.LanguageModelToolResult) {
 }
 
 interface CommandResultPromptProps extends BasePromptElementProps {
-    stdout: string
-    stderr: string
+    stdout: string,
+    stderr: string,
+    exitCode: number | null,
+    signal: NodeJS.Signals | null
 }
 
 export class CommandResultPrompt extends PromptElement<CommandResultPromptProps> {
@@ -51,6 +53,14 @@ export class CommandResultPrompt extends PromptElement<CommandResultPromptProps>
                 <TextChunk breakOn=' '>
                     ### stderr <br />
                     {this.props.stderr}
+                    <br /><br />
+
+                    ### exit code
+                    {this.props.exitCode}
+                    <br /><br />
+
+                    ### exit signal
+                    {this.props.signal}
                 </TextChunk>
             </>
         )

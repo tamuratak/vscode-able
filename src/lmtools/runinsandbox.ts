@@ -4,7 +4,6 @@ import { spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { debugObj } from '../utils/debug.js'
-import { decodeUtf8 } from '../utils/utf8.js'
 import { renderElementJSON } from '@vscode/prompt-tsx'
 import { CommandResultPrompt } from '../utils/toolresult.js'
 
@@ -91,20 +90,20 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             killGroup()
         })
 
-        child.stdout?.on('data', (d: Buffer | string) => {
-            const buf = typeof d === 'string' ? d : decodeUtf8(d)
+        child.stdout.setEncoding('utf8')
+        child.stdout.on('data', (buf: string) => {
             stdoutChunks.push(buf)
         })
-        child.stderr?.on('data', (d: Buffer | string) => {
-            const buf = typeof d === 'string' ? d : decodeUtf8(d)
+        child.stderr.setEncoding('utf8')
+        child.stderr.on('data', (buf: string) => {
             stderrChunks.push(buf)
         })
 
-        const exitResult = await new Promise<{ code: number | null, signal: NodeJS.Signals | null }>((resolve, reject) => {
-            child.on('error', err => reject(err))
-            child.on('close', (code, signal) => resolve({ code, signal }))
+        let commandError: Error | undefined
+        const { code: exitCode, signal } = await new Promise<{ code: number | null, signal: NodeJS.Signals | null }>((resolve) => {
+            child.on('error', err => commandError = err)
+            child.on('close', (code, sig) => resolve({ code, signal: sig }))
         })
-
         subscription.dispose()
 
         const stdout = stdoutChunks.join('')
@@ -112,8 +111,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
 
         debugObj('RunInSandbox stdout: ', stdout, this.extension.outputChannel)
         debugObj('RunInSandbox stderr: ', stderr, this.extension.outputChannel)
-        debugObj('RunInSandbox exit code: ', exitResult, this.extension.outputChannel)
-        const result = await renderElementJSON(CommandResultPrompt, { stdout, stderr }, options.tokenizationOptions)
+        debugObj('RunInSandbox exit code: ', { code: exitCode, signal, commandError }, this.extension.outputChannel)
+        const result = await renderElementJSON(CommandResultPrompt, { stdout, stderr, exitCode, signal }, options.tokenizationOptions)
         return new LanguageModelToolResult([
             new vscode.LanguageModelPromptTsxPart(result)
         ])
