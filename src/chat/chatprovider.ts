@@ -36,6 +36,21 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 },
             },
             {
+                id: 'gpt-5-mini-high',
+                family: 'gpt-5-mini',
+                version: 'gpt-5-mini',
+                maxInputTokens: 1014808,
+                maxOutputTokens: 32768,
+                name: 'GPT-5 Mini (high)',
+                description: 'GPT-5 Mini (high)',
+                capabilities: {
+                    toolCalling: true
+                },
+                options: {
+                    reasoningEffort: 'high'
+                }
+            },
+            {
                 id: 'gpt-4.1',
                 family: 'gpt-4.1',
                 version: 'gpt-4.1',

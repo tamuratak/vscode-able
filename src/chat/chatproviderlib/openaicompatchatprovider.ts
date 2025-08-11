@@ -65,22 +65,20 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             const result: ModelInformation[] = []
             debugObj(`${this.categoryLabel} available models: `, models.data, this.extension.outputChannel)
             for (const modelInList of models.data) {
-                const model = this.aiModelIds.find((m) => m.id === modelInList.id)
-                if (!model) {
-                    continue
+                for (const model of this.aiModelIds.filter((m) => m.family === modelInList.id)) {
+                    if (!model) {
+                        continue
+                    }
+                    result.push({
+                        ...model,
+                        category: {
+                            label: this.categoryLabel,
+                            order: 1001
+                        },
+                        cost: 'Able',
+                        auth: true
+                    })
                 }
-                result.push({
-                    ...model,
-                    category: {
-                        label: this.categoryLabel,
-                        order: 1001
-                    },
-                    cost: 'Able',
-                    name: model.name,
-                    family: model.family,
-                    version: model.version,
-                    auth: true
-                })
             }
             return result
         } catch (e) {
@@ -114,7 +112,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }))
         const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools ? 'auto' : undefined)
         const params: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
-            model: model.id,
+            model: model.family,
             messages: chatMessages
         }
         if (tools && tools.length > 0) {
@@ -139,7 +137,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         progress: Progress<ChatResponseFragment2>,
         token: CancellationToken
     ) {
-        const newParams = {...params, stream: true} satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
+        const newParams = { ...params, stream: true } satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
         debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
         debugObj('Chat params: ', newParams, this.extension.outputChannel)
         const stream = openai.chat.completions.stream(newParams)
@@ -163,7 +161,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         params: OpenAI.Chat.Completions.ChatCompletionCreateParams,
         progress: Progress<ChatResponseFragment2>
     ) {
-        const newParams = {...params, stream: false} satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
+        const newParams = { ...params, stream: false } satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
         debugObj('Chat params: ', newParams, this.extension.outputChannel)
         const chatCompletion = await openai.chat.completions.create(newParams)
         const response = chatCompletion.choices[0]
