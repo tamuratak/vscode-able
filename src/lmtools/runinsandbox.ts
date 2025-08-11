@@ -5,7 +5,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { debugObj } from '../utils/debug.js'
 import { renderElementJSON } from '@vscode/prompt-tsx'
-import { CommandResultPrompt } from '../utils/toolresult.js'
+import { CommandResultPrompt } from './toolresult.js'
 
 
 export interface RunInSandboxInput {

@@ -3,7 +3,7 @@ import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, Lan
 import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, GenerateContentConfig, FunctionCallingConfigMode, FunctionCall } from '@google/genai'
 import { GeminiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
-import { renderToolResult } from '../../utils/toolresult.js'
+import { renderToolResult } from '../../utils/toolresultrendering.js'
 import { getValidator, initValidators } from './toolcallargvalidator.js'
 import { debugObj } from '../../utils/debug.js'
 
