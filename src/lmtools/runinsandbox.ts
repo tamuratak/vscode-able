@@ -1,8 +1,8 @@
 import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LogOutputChannel, PreparedToolInvocation } from 'vscode'
-import { spawn } from 'child_process'
-import * as fs from 'fs'
-import * as path from 'path'
+import { spawn } from 'node:child_process'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import { debugObj } from '../utils/debug.js'
 import { decodeUtf8 } from '../utils/utf8.js'
 import { renderElementJSON } from '@vscode/prompt-tsx'
@@ -52,7 +52,12 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         }
 
         // Decide writable directories: none by default, but validate if provided via explanation string in future
-        const rwritableDirs = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? []
+        const rwritableDirs = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? undefined
+
+        if (!rwritableDirs) {
+            this.extension.outputChannel.error('[RunInSandbox]: no workspace folders')
+            throw new Error('[RunInSandbox]: no workspace folders')
+        }
 
         const { policy, params } = this.buildSeatbeltPolicyAndParams(rwritableDirs)
 
@@ -63,11 +68,12 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const stdoutChunks: string[] = []
         const stderrChunks: string[] = []
 
-        debugObj('RunInSandbox args: ', args, this.extension.outputChannel)
+        debugObj('RunInSandbox args: ', { args, cwd: rwritableDirs[0] }, this.extension.outputChannel)
         const child = spawn(seatbeltPath, args, {
             stdio: ['ignore', 'pipe', 'pipe'],
             shell: false,
             detached: true,
+            cwd: rwritableDirs[0]
         })
 
         // Wire cancellation to kill the whole process group
@@ -96,7 +102,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
 
         const exitResult = await new Promise<{ code: number | null, signal: NodeJS.Signals | null }>((resolve, reject) => {
             child.on('error', err => reject(err))
-            child.on('exit', (code, signal) => resolve({ code, signal }))
+            child.on('close', (code, signal) => resolve({ code, signal }))
         })
 
         subscription.dispose()
@@ -115,7 +121,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
 
     private buildSeatbeltPolicyAndParams(rwritableDirs: string[]) {
         for (const dir of rwritableDirs) {
-            if (!path.isAbsolute(dir)) {
+            if (!path.isAbsolute(dir) || dir === '') {
                 throw new Error(`[RunInSandbox]: -w DIR must be an absolute path. Got: ${dir}`)
             }
         }
