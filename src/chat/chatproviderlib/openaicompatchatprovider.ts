@@ -141,7 +141,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         debugObj('Chat params: ', newParams, this.extension.outputChannel)
         const stream = openai.chat.completions.stream(newParams)
         let allContent = ''
-        token.onCancellationRequested(() => stream.controller.abort())
+        const disposable = token.onCancellationRequested(() => stream.controller.abort())
         stream.on('content', (content) => {
             allContent += content ?? ''
             this.reportContent(content, progress)
@@ -151,6 +151,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             this.reportToolCall(toolCall, progress)
         })
         await stream.finalChatCompletion()
+        disposable.dispose()
         debugObj('Chat reply: ', allContent, this.extension.outputChannel)
     }
 
