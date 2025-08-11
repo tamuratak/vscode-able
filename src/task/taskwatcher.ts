@@ -1,5 +1,6 @@
 import * as vscode from 'vscode'
 import { MutexWithSizedQueue } from '../utils/mutexwithsizedqueue.js'
+import { debugObj } from '../utils/debug.js'
 
 
 interface TaskWatcherEntry {
@@ -49,15 +50,15 @@ export class TaskWatcher implements vscode.Disposable {
                 const watcher = vscode.workspace.createFileSystemWatcher(pattern)
                 this.watchers.push(watcher)
                 watcher.onDidChange(async (e) => {
-                    this.extension.outputChannel.debug(`File changed: ${e}`)
+                    debugObj('File changed: ', e, this.extension.outputChannel)
                     await executeTaskCb()
                 })
                 watcher.onDidCreate(async (e) => {
-                    this.extension.outputChannel.debug(`File created: ${e}`)
+                    debugObj('File created: ', e, this.extension.outputChannel)
                     await executeTaskCb()
                 })
                 watcher.onDidDelete(async (e) => {
-                    this.extension.outputChannel.debug(`File deleted: ${e}`)
+                    debugObj('File deleted: ', e, this.extension.outputChannel)
                     await executeTaskCb()
                 })
             }

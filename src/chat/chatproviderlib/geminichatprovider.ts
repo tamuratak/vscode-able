@@ -73,7 +73,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                     model
                 })
             }
-            this.extension.outputChannel.info(`Gemini (with Able) available models: ${JSON.stringify(modelList, null, 2)}`)
+            debugObj('Gemini (with Able) available models: ', modelList, this.extension.outputChannel)
             return result
         } catch (e) {
             this.extension.outputChannel.error(`Failed to prepare Gemini chat: ${JSON.stringify(e)}`)

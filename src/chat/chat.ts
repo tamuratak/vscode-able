@@ -5,6 +5,7 @@ import { extractAbleCommandHistory, extractHitory } from './chatlib/historyutils
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
 import { AbleChatResultMetadata } from './chatlib/chatresultmetadata.js'
+import { debugObj } from '../utils/debug.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -28,7 +29,7 @@ export class ChatHandleManager {
             stream: vscode.ChatResponseStream,
             token: vscode.CancellationToken
         ): Promise<vscode.ChatResult | undefined> => {
-            this.extension.outputChannel.debug(JSON.stringify(request.references))
+            debugObj('[Able Chat] request.references: ', request.references, this.extension.outputChannel)
             const ableCommandHistory = extractAbleCommandHistory(context)
             const history = extractHitory(context)
             if (request.command === 'fluent') {

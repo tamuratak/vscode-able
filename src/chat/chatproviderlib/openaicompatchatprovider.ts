@@ -63,7 +63,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             const openai = this.createClient(apiKey)
             const models = await openai.models.list()
             const result: ModelInformation[] = []
-            this.extension.outputChannel.debug(`${this.categoryLabel} available models: ${JSON.stringify(models.data, null, 2)}`)
+            debugObj(`${this.categoryLabel} available models: `, models.data, this.extension.outputChannel)
             for (const modelInList of models.data) {
                 const model = this.aiModelIds.find((m) => m.id === modelInList.id)
                 if (!model) {
