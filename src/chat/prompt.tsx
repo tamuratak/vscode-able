@@ -17,7 +17,7 @@ import { FileElement, FileElementProps } from './promptlib/fsprompts.js'
 declare global {
     namespace JSX {
         type Element = PromptPiece
-        type ElementClass = PromptElement
+        type ElementClass = PromptElement<BasePromptElementProps, unknown>
     }
 }
 

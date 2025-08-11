@@ -1,5 +1,5 @@
-import { readFile } from 'fs/promises'
-import * as path from 'path'
+import { readFile } from 'node:fs/promises'
+import * as path from 'node:path'
 
 async function main() {
     const args = process.argv.slice(2)

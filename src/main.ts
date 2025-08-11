@@ -10,6 +10,7 @@ import { GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chat
 import { GoogleGenAI } from '@google/genai'
 import { WebSearchTool } from './lmtools/websearch.js'
 import { debugObj } from './utils/debug.js'
+import { RunInSandbox } from './lmtools/runinsandbox.js'
 
 
 class Extension {
@@ -75,6 +76,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.chat.createChatParticipant(AbleChatParticipantId, extension.getChatHandler()),
         vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.lm.registerTool('able_web_search', new WebSearchTool(extension)),
+        vscode.lm.registerTool('able_run_in_sandbox', new RunInSandbox(extension)),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()
     )

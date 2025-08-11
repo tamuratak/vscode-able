@@ -139,6 +139,36 @@
           },
           "required": ["query"]
         }
+      },
+      {
+        "name": "able_run_in_sandbox",
+        "toolReferenceName": "runInSandbox",
+        "tags": [
+          "command"
+        ],
+        "displayName": "Run in Sandbox",
+        "canBeReferencedInPrompt": true,
+        "userDescription": "Run commands in a sandboxed environment.",
+        "modelDescription": "This tool allows you to execute shell commands.\n\nCommand Execution:\n- Supports multi-line commands\n\nDirectory Management:\n- Must use absolute paths to avoid navigation issues.\n\nProgram Execution:\n- Supports Node.js, and other executables.\n- Install dependencies via npm, cargo etc.\n\nOutput Management:\n- Output is automatically truncated if longer than 60KB to prevent context overflow\n- Use filters like 'head', 'tail', 'grep' to limit output size\n- For pager commands, disable paging: use 'git --no-pager' or add '| cat'\n\nBest Practices:\n- Be specific with commands to avoid excessive output\n- Use targeted queries instead of broad scans\n- Consider using 'wc -l' to count before listing many items",
+        "icon": "terminal",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "The command to run."
+            },
+            "explanation": {
+              "type": "string",
+              "description": "A one-sentence description of what the command does. This will be shown to the user before the command is run."
+            }
+          },
+          "required": [
+            "command",
+            "explanation"
+          ]
+        }
+
       }
     ],
     "commands": [
