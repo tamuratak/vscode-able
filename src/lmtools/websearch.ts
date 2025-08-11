@@ -1,9 +1,11 @@
-import { CancellationToken, LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LogOutputChannel } from 'vscode'
+import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LogOutputChannel } from 'vscode'
 import { GoogleGenAI } from '@google/genai'
 import * as vscode from 'vscode'
 import { GeminiAuthServiceId } from '../auth/authproviders.js'
 import { resolveRedirectUri } from './websearchlib/utils.js'
 import { debugObj } from '../utils/debug.js'
+import { renderElementJSON } from '@vscode/prompt-tsx'
+import { WebSearchResultPrompt } from './toolresult.js'
 
 export interface WebSearchInput {
     query: string
@@ -45,21 +47,21 @@ export class WebSearchTool implements LanguageModelTool<WebSearchInput> {
         const links = candidate?.groundingMetadata?.groundingChunks
             ?.map((chunk) => chunk.retrievedContext?.uri ?? chunk.web?.uri)
             .filter((uri) => typeof uri === 'string')
-        let markdown = text
+        let resolvedLinks: string[] = []
         if (links && links.length > 0) {
-            markdown += '\n\n---\n'
-            // Convert all links to their redirect destinations
             const redirectPromises = links.map(async (link) => {
-                const redirected = await resolveRedirectUri(link)
-                return redirected ?? link
+                try {
+                    const redirected = await resolveRedirectUri(link)
+                    return redirected ?? link
+                } catch {
+                    return link
+                }
             })
-            const resolvedLinks = await Promise.all(redirectPromises)
-            for (const link of resolvedLinks) {
-                markdown += `- [source](${link})\n`
-            }
+            resolvedLinks = await Promise.all(redirectPromises)
         }
+        const result = await renderElementJSON(WebSearchResultPrompt, { text, links: resolvedLinks }, options.tokenizationOptions)
         return new LanguageModelToolResult([
-            new LanguageModelTextPart(markdown)
+            new vscode.LanguageModelPromptTsxPart(result)
         ])
     }
 

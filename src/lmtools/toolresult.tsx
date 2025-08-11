@@ -33,3 +33,32 @@ export class CommandResultPrompt extends PromptElement<CommandResultPromptProps>
         )
     }
 }
+
+interface WebSearchResultPromptProps extends BasePromptElementProps {
+    text: string
+    links: string[]
+}
+
+export class WebSearchResultPrompt extends PromptElement<WebSearchResultPromptProps> {
+    render(): PromptPiece {
+        let sourcesStr = ''
+        if (this.props.links && this.props.links.length > 0) {
+            for (const l of this.props.links) {
+                sourcesStr += `- [source](${l})\n`
+            }
+        }
+        return (
+            <>
+                <TextChunk breakOn=' '>
+                    ### search result <br />
+                    {this.props.text}
+                </TextChunk>
+                <br /><br />
+                <TextChunk breakOn=' '>
+                    ### sources <br />
+                    {sourcesStr}
+                </TextChunk>
+            </>
+        )
+    }
+}
