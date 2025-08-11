@@ -1,3 +1,4 @@
+import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LogOutputChannel } from 'vscode'
 import { spawn } from 'child_process'
 import * as fs from 'fs'
@@ -37,9 +38,90 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             throw new Error('[RunInSandbox]: command is empty')
         }
 
-        // Inline port of sandbox-exec.js helpers
-        const buildSeatbeltPolicyAndParams = (rwritableDirs: string[]) => {
-            const basePolicy = `
+        // Decide writable directories: none by default, but validate if provided via explanation string in future
+        const rwritableDirs = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? []
+
+        const { policy, params } = this.buildSeatbeltPolicyAndParams(rwritableDirs)
+
+        const args = ['-p', policy, ...params, '--', '/bin/bash', '-lc', command]
+
+        this.extension.outputChannel.info(`[RunInSandbox]: invoking in sandbox: ${command}`)
+
+        const stdoutChunks: Buffer[] = []
+        const stderrChunks: Buffer[] = []
+
+        const child = spawn(seatbeltPath, args, {
+            stdio: ['ignore', 'pipe', 'pipe'],
+            shell: false,
+            detached: true,
+        })
+
+        // Wire cancellation to kill the whole process group
+        const killGroup = () => {
+            if (child.pid) {
+                try {
+                    process.kill(-child.pid, 'SIGKILL')
+                } catch {
+                    try { child.kill('SIGKILL') } catch { }
+                }
+            }
+        }
+        const subscription = token.onCancellationRequested(() => {
+            this.extension.outputChannel.warn('[RunInSandbox]: cancellation requested, killing sandboxed process group')
+            killGroup()
+        })
+
+        child.stdout?.on('data', (d: Buffer | string) => {
+            const buf = Buffer.isBuffer(d) ? d : Buffer.from(String(d))
+            stdoutChunks.push(buf)
+            const s = buf.toString('utf8')
+            this.extension.outputChannel.append(s)
+        })
+        child.stderr?.on('data', (d: Buffer | string) => {
+            const buf = Buffer.isBuffer(d) ? d : Buffer.from(String(d))
+            stderrChunks.push(buf)
+            const s = buf.toString('utf8')
+            this.extension.outputChannel.append(s)
+        })
+
+        const exitResult = await new Promise<{ code: number | null, signal: NodeJS.Signals | null }>((resolve, reject) => {
+            child.on('error', err => reject(err))
+            child.on('exit', (code, signal) => resolve({ code, signal }))
+        })
+
+        subscription.dispose()
+
+        const stdout = Buffer.concat(stdoutChunks).toString('utf8')
+        const stderr = Buffer.concat(stderrChunks).toString('utf8')
+
+        const cancelled = token.isCancellationRequested
+        const signalInfo = exitResult.signal ? `, signal: ${exitResult.signal}` : ''
+        const exitCode = exitResult.code ?? -1
+
+        let text = ''
+        if (cancelled) {
+            text += 'Execution cancelled by user\n'
+        }
+        text += `Exit code: ${exitCode}${signalInfo}\n`
+        if (stdout) {
+            text += `\n[stdout]\n${stdout}`
+        }
+        if (stderr) {
+            text += `\n[stderr]\n${stderr}`
+        }
+
+        return new LanguageModelToolResult([
+            new LanguageModelTextPart(text)
+        ])
+    }
+
+    private buildSeatbeltPolicyAndParams(rwritableDirs: string[]) {
+        for (const dir of rwritableDirs) {
+            if (!path.isAbsolute(dir)) {
+                throw new Error(`[RunInSandbox]: -w DIR must be an absolute path. Got: ${dir}`)
+            }
+        }
+        const basePolicy = `
 (version 1)
 
 ; inspired by Chrome's sandbox policy:
@@ -124,99 +206,16 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
 )
 `
 
-            const policies: string[] = []
-            const params: string[] = []
-            for (let i = 0; i < rwritableDirs.length; ++i) {
-                policies.push(`(subpath (param "RWRITABLE_ROOT_${i}"))`)
-                params.push(`-DRWRITABLE_ROOT_${i}=${rwritableDirs[i]}`)
-            }
-            let readWritePolicy = ''
-            if (policies.length > 0) {
-                readWritePolicy = `\n(allow file-read*\n${policies.join(' ')}\n)\n(allow file-write*\n${policies.join(' ')}\n)`
-            }
-            return { policy: basePolicy + readWritePolicy, params }
+        const policies: string[] = []
+        const params: string[] = []
+        for (let i = 0; i < rwritableDirs.length; ++i) {
+            policies.push(`(subpath (param "RWRITABLE_ROOT_${i}"))`)
+            params.push(`-DRWRITABLE_ROOT_${i}=${rwritableDirs[i]}`)
         }
-
-        // Decide writable directories: none by default, but validate if provided via explanation string in future
-        const writableDirs: string[] = []
-        for (const dir of writableDirs) {
-            if (!path.isAbsolute(dir)) {
-                throw new Error(`[RunInSandbox]: -w DIR must be an absolute path. Got: ${dir}`)
-            }
+        let readWritePolicy = ''
+        if (policies.length > 0) {
+            readWritePolicy = `\n(allow file-read*\n${policies.join(' ')}\n)\n(allow file-write*\n${policies.join(' ')}\n)`
         }
-
-        const { policy, params } = buildSeatbeltPolicyAndParams(writableDirs)
-
-        const args = ['-p', policy, ...params, '--', '/bin/bash', '-lc', command]
-
-        this.extension.outputChannel.info(`[RunInSandbox]: invoking in sandbox: ${command}`)
-
-        const stdoutChunks: Buffer[] = []
-        const stderrChunks: Buffer[] = []
-
-        const child = spawn(seatbeltPath, args, {
-            stdio: ['ignore', 'pipe', 'pipe'],
-            shell: false,
-            detached: true,
-        })
-
-        // Wire cancellation to kill the whole process group
-        const killGroup = () => {
-            if (child.pid) {
-                try {
-                    process.kill(-child.pid, 'SIGKILL')
-                } catch {
-                    try { child.kill('SIGKILL') } catch { }
-                }
-            }
-        }
-        const subscription = token.onCancellationRequested(() => {
-            this.extension.outputChannel.warn('[RunInSandbox]: cancellation requested, killing sandboxed process group')
-            killGroup()
-        })
-
-        child.stdout?.on('data', (d: Buffer | string) => {
-            const buf = Buffer.isBuffer(d) ? d : Buffer.from(String(d))
-            stdoutChunks.push(buf)
-            const s = buf.toString('utf8')
-            this.extension.outputChannel.append(s)
-        })
-        child.stderr?.on('data', (d: Buffer | string) => {
-            const buf = Buffer.isBuffer(d) ? d : Buffer.from(String(d))
-            stderrChunks.push(buf)
-            const s = buf.toString('utf8')
-            this.extension.outputChannel.append(s)
-        })
-
-        const exitResult = await new Promise<{ code: number | null, signal: NodeJS.Signals | null }>((resolve, reject) => {
-            child.on('error', err => reject(err))
-            child.on('exit', (code, signal) => resolve({ code, signal }))
-        })
-
-        subscription.dispose()
-
-        const stdout = Buffer.concat(stdoutChunks).toString('utf8')
-        const stderr = Buffer.concat(stderrChunks).toString('utf8')
-
-        const cancelled = token.isCancellationRequested
-        const signalInfo = exitResult.signal ? `, signal: ${exitResult.signal}` : ''
-        const exitCode = exitResult.code ?? -1
-
-        let text = ''
-        if (cancelled) {
-            text += 'Execution cancelled by user\n'
-        }
-        text += `Exit code: ${exitCode}${signalInfo}\n`
-        if (stdout) {
-            text += `\n[stdout]\n${stdout}`
-        }
-        if (stderr) {
-            text += `\n[stderr]\n${stderr}`
-        }
-
-        return new LanguageModelToolResult([
-            new LanguageModelTextPart(text)
-        ])
+        return { policy: basePolicy + readWritePolicy, params }
     }
-
 }
