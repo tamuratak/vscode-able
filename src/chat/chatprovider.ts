@@ -1,5 +1,4 @@
-import { LanguageModelChatInformation } from 'vscode'
-import { OpenAICompatChatProvider } from './chatproviderlib/openaicompatchatprovider.js'
+import { ModelInformation, OpenAICompatChatProvider } from './chatproviderlib/openaicompatchatprovider.js'
 import { groqAuthServiceId, openaiAuthServiceId } from '../auth/authproviders.js'
 
 export { GeminiChatProvider } from './chatproviderlib/geminichatprovider.js'
@@ -10,7 +9,7 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
     readonly apiBaseUrl = undefined
     readonly streamSupported = true
 
-    get aiModelIds(): LanguageModelChatInformation[] {
+    get aiModelIds(): ModelInformation[] {
         return [
             {
                 id: 'gpt-5',
@@ -34,6 +33,9 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 description: 'GPT-5 Mini',
                 capabilities: {
                     toolCalling: true
+                },
+                options: {
+                    reasoningEffort: 'high'
                 }
             },
             {
@@ -88,7 +90,7 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
     readonly streamSupported = true
 
 
-    get aiModelIds(): LanguageModelChatInformation[] {
+    get aiModelIds(): ModelInformation[] {
         return [
             {
                 id: 'openai/gpt-oss-120b',
@@ -100,6 +102,9 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
                 description: 'GPT OSS 120b',
                 capabilities: {
                     toolCalling: true
+                },
+                options: {
+                    reasoningEffort: 'high'
                 }
             }
         ]

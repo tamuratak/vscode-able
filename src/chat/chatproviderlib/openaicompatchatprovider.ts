@@ -9,6 +9,12 @@ import { getValidator, initValidators } from './toolcallargvalidator.js'
 import { debugObj } from '../../utils/debug.js'
 
 
+export interface ModelInformation extends LanguageModelChatInformation {
+    options?: {
+        readonly reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high'
+    } | undefined
+}
+
 export abstract class OpenAICompatChatProvider implements LanguageModelChatProvider2 {
     abstract readonly serviceName: string
     abstract readonly apiBaseUrl: string | undefined
@@ -26,7 +32,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     }
 
     abstract get authServiceId(): string
-    abstract get aiModelIds(): LanguageModelChatInformation[]
+    abstract get aiModelIds(): ModelInformation[]
     abstract get categoryLabel(): string
 
     private async initTokenizer() {
@@ -47,7 +53,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         return this.apiBaseUrl ? new OpenAI({ apiKey, baseURL: this.apiBaseUrl }) : new OpenAI({ apiKey })
     }
 
-    async prepareLanguageModelChat(options: { silent: boolean; }): Promise<LanguageModelChatInformation[]> {
+    async prepareLanguageModelChat(options: { silent: boolean; }): Promise<ModelInformation[]> {
         try {
             const session = await vscode.authentication.getSession(this.authServiceId, [], { silent: options.silent })
             if (!session) {
@@ -56,7 +62,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             const apiKey = session.accessToken
             const openai = this.createClient(apiKey)
             const models = await openai.models.list()
-            const result: LanguageModelChatInformation[] = []
+            const result: ModelInformation[] = []
             this.extension.outputChannel.debug(`${this.categoryLabel} available models: ${JSON.stringify(models.data, null, 2)}`)
             for (const modelInList of models.data) {
                 const model = this.aiModelIds.find((m) => m.id === modelInList.id)
@@ -64,7 +70,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                     continue
                 }
                 result.push({
-                    id: model.id,
+                    ...model,
                     category: {
                         label: this.categoryLabel,
                         order: 1001
@@ -73,13 +79,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                     name: model.name,
                     family: model.family,
                     version: model.version,
-                    maxInputTokens: model.maxInputTokens,
-                    maxOutputTokens: model.maxOutputTokens,
-                    description: model.description ?? '',
-                    auth: true,
-                    capabilities: {
-                        toolCalling: model.capabilities?.toolCalling ?? false
-                    }
+                    auth: true
                 })
             }
             return result
@@ -90,7 +90,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     }
 
     async provideLanguageModelChatResponse(
-        model: LanguageModelChatInformation,
+        model: ModelInformation,
         messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
         options: LanguageModelChatRequestHandleOptions,
         progress: Progress<ChatResponseFragment2>,
@@ -122,6 +122,9 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             if (toolChoice) {
                 params.tool_choice = toolChoice
             }
+        }
+        if (model.options?.reasoningEffort) {
+            params.reasoning_effort = model.options.reasoningEffort
         }
         if (this.streamSupported) {
             await this.createStream(openai, params, progress, token)
