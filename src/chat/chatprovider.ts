@@ -116,6 +116,21 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
                     toolCalling: true
                 },
                 options: {
+                    reasoningEffort: 'medium'
+                }
+            },
+            {
+                id: 'openai/gpt-oss-120b-high',
+                family: 'openai/gpt-oss-120b',
+                version: 'openai/gpt-oss-120b',
+                maxInputTokens: 131072,
+                maxOutputTokens: 32766,
+                name: 'GPT OSS 120b (high)',
+                description: 'GPT OSS 120b (high)',
+                capabilities: {
+                    toolCalling: true
+                },
+                options: {
                     reasoningEffort: 'high'
                 }
             }
