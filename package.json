@@ -128,7 +128,7 @@
         "canBeReferencedInPrompt": true,
         "userDescription": "Search the web for information.",
         "modelDescription": "This tool performs a web search using the provided query and returns the results.",
-        "icon": "globe",
+        "icon": "$(globe)",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -150,7 +150,7 @@
         "canBeReferencedInPrompt": true,
         "userDescription": "Run commands.",
         "modelDescription": "This tool allows you to execute shell commands.\n\nCommand Execution:\n- Supports multi-line commands\n\nDirectory Management:\n- Must use absolute paths to avoid navigation issues.\n\nProgram Execution:\n- Supports Node.js, and other executables.\n- Install dependencies via npm, cargo etc.\n\nOutput Management:\n- Use filters like 'head', 'tail', 'grep' to limit output size\n- For pager commands, disable paging: use 'git --no-pager' or add '| cat'\n\nBest Practices:\n- Be specific with commands to avoid excessive output\n- Use targeted queries instead of broad scans\n- Consider using 'wc -l' to count before listing many items",
-        "icon": "terminal",
+        "icon": "$(terminal)",
         "inputSchema": {
           "type": "object",
           "properties": {
