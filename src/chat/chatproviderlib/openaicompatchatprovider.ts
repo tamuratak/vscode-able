@@ -102,46 +102,37 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         const apiKey = session.accessToken
         const openai = this.createClient(apiKey)
         initValidators(options.tools)
-        const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[] = (await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToChatCompletionMessageParam(m)))).flat()
 
-        // If the provider supports the newer Responses API, construct a ResponseCreateParams
-        // and call createResponse which handles streaming/responses-specific events
         if (this.responseSupported) {
-            const tools: OpenAI.Responses.Tool[] | undefined = options.tools?.map(t => ({
-                // map simple function-style tool descriptions to the Responses API tool shape
-                type: 'function' as const,
+            const inputItems = (await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToResponseInputItem(m)))).flat()
+            const tools: OpenAI.Responses.FunctionTool[] | undefined = options.tools?.map(t => ({
+                type: 'function',
                 name: t.name,
                 description: t.description,
                 parameters: t.inputSchema as Record<string, unknown>,
-                // enforce strict parameter validation by default
                 strict: true
             }))
-
             const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools && tools.length > 0 ? 'auto' : undefined)
-
-            // Responses API accepts an `input` which can be an array of message-like objects.
-            // Convert our ChatCompletion message params to EasyInputMessage (role + content).
-            const input: OpenAI.Responses.EasyInputMessage[] = chatMessages.map((m: OpenAI.Chat.ChatCompletionMessageParam) => {
-                const content = typeof m.content === 'string'
-                    ? m.content
-                    : (Array.isArray(m.content) ? m.content.map(c => ((c as { text?: string }).text ?? '')).join('') : String(m.content))
-                return {
-                    role: m.role as 'user' | 'assistant' | 'system' | 'developer',
-                    content
-                }
-            })
-
-            const paramsObj = {
+            const params: OpenAI.Responses.ResponseCreateParamsStreaming = {
                 model: model.family,
-                input,
+                input: inputItems,
                 stream: true,
-                ...(tools && tools.length > 0 ? { tools, tool_choice: toolChoice as OpenAI.Responses.ToolChoiceOptions } : {}),
-                ...(model.options?.reasoningEffort ? { reasoning_effort: model.options.reasoningEffort } : {})
             }
+            if (tools && tools.length > 0) {
+                params.tools = tools
+                if (toolChoice) {
+                    params.tool_choice = toolChoice
+                }
+            }
+            if (model.options?.reasoningEffort) {
+                params.reasoning = {
+                    effort: model.options.reasoningEffort
 
-            const params = paramsObj as OpenAI.Responses.ResponseCreateParamsStreaming
+                }
+            }
             await this.createResponse(openai, params, progress, token)
         } else {
+            const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[] = (await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToChatCompletionMessageParam(m)))).flat()
             const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = options.tools?.map(t => ({
                 type: 'function',
                 function: {
@@ -174,14 +165,13 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
 
     async createResponse(
         openai: OpenAI,
-        params: OpenAI.Responses.ResponseCreateParams,
+        params: OpenAI.Responses.ResponseCreateParamsStreaming,
         progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart>,
         token: CancellationToken
     ) {
-        const newParams = { ...params, stream: true } satisfies OpenAI.Responses.ResponseCreateParamsStreaming
         debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
         debugObj('Chat params (responses): ', params, this.extension.outputChannel)
-        const stream = openai.responses.stream(newParams)
+        const stream = openai.responses.stream(params)
         let allContent = ''
         const disposable = token.onCancellationRequested(() => {
             try {
