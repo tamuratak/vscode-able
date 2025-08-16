@@ -413,4 +413,42 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
+    async convertLanguageModelChatMessageToResponseInputItem(
+        message: LanguageModelChatMessage | vscode.LanguageModelChatMessage2
+    ): Promise<OpenAI.Responses.ResponseInputItem[]> {
+        const result: OpenAI.Responses.ResponseInputItem[] = []
+
+        for (const part of message.content) {
+            if (part instanceof LanguageModelTextPart) {
+                const role = message.role === LanguageModelChatMessageRole.Assistant ? 'assistant' : 'user'
+                const easyMsg: OpenAI.Responses.EasyInputMessage = { role, content: part.value }
+                result.push(easyMsg)
+            } else if (part instanceof LanguageModelToolCallPart) {
+                const toolCall: OpenAI.Responses.ResponseFunctionToolCall = {
+                    name: part.name,
+                    call_id: part.callId,
+                    arguments: JSON.stringify(part.input),
+                    type: 'function_call'
+                }
+                result.push(toolCall)
+            } else if ((part instanceof vscode.LanguageModelToolResultPart) || (part instanceof vscode.LanguageModelToolResultPart2)) {
+                // Render tool result parts to text and include them as messages
+                const contents = part.content.filter((c): c is LanguageModelTextPart | vscode.LanguageModelPromptTsxPart =>
+                    c instanceof LanguageModelTextPart || c instanceof vscode.LanguageModelPromptTsxPart
+                )
+                const toolResult = new vscode.LanguageModelToolResult(contents)
+                const content = await renderToolResult(toolResult)
+                const functionCallOutput: OpenAI.Responses.ResponseInputItem.FunctionCallOutput = {
+                    call_id: part.callId,
+                    output: content,
+                    type: 'function_call_output'
+                }
+                result.push(functionCallOutput)
+            } else {
+                this.extension.outputChannel.info('Skipping LanguageModelDataPart length: ' + part.data.length)
+            }
+        }
+        return result
+    }
+
 }
