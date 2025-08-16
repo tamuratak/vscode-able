@@ -131,6 +131,63 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
+    async createResponse(
+        openai: OpenAI,
+        params: OpenAI.Responses.ResponseCreateParamsStreaming,
+        progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart>,
+        token: CancellationToken
+    ) {
+        debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
+        debugObj('Chat params (responses): ', params, this.extension.outputChannel)
+
+        // Get the response stream object and attach handlers
+        const stream = openai.responses.stream(params)
+        let allContent = ''
+
+        const disposable = token.onCancellationRequested(() => {
+            try {
+                stream.controller?.abort()
+            } catch (_e) {
+                // ignore abort errors
+            }
+        })
+
+        const itemIdToFunctionName = new Map<string, string | undefined>()
+
+        stream.on('response.output_item.added', (evt: OpenAI.Responses.ResponseOutputItemAddedEvent) => {
+            const item = evt.item
+            if (item?.type === 'function_call' && item.id) {
+                itemIdToFunctionName.set(item.id, item.name)
+            }
+        })
+
+        stream.on('response.output_text.delta', (evt: OpenAI.Responses.ResponseTextDeltaEvent) => {
+            const content = evt.delta
+            allContent += content ?? ''
+            this.reportContent(content, progress)
+        })
+
+        stream.on('response.function_call_arguments.done', (evt: OpenAI.Responses.ResponseFunctionCallArgumentsDoneEvent) => {
+            debugObj('ToolCall: ', evt, this.extension.outputChannel)
+            const itemId = evt.item_id
+            const fnName = itemId ? itemIdToFunctionName.get(String(itemId)) : undefined
+            if (!fnName) {
+                this.extension.outputChannel.error(`Could not determine function name for item_id: ${String(itemId)}`)
+                return
+            }
+            const toolCall = {
+                name: fnName,
+                arguments: evt.arguments ?? ''
+            }
+            this.reportToolCall(toolCall as unknown as OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function, progress)
+        })
+
+        // Await completion of the stream
+        await stream.finalResponse()
+        disposable.dispose()
+        debugObj('Chat reply (responses): ', allContent, this.extension.outputChannel)
+    }
+
     async createStream(
         openai: OpenAI,
         params: OpenAI.Chat.Completions.ChatCompletionCreateParams,
