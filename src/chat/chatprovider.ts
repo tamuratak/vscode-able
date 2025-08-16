@@ -8,6 +8,7 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
     readonly categoryLabel = 'OpenAI (with Able)'
     readonly apiBaseUrl = undefined
     readonly streamSupported = true
+    readonly responseSupported = true
 
     get aiModelIds(): ModelInformation[] {
         return [
@@ -100,6 +101,7 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
     readonly categoryLabel = 'Groq (with Able)'
     readonly apiBaseUrl = 'https://api.groq.com/openai/v1'
     readonly streamSupported = true
+    readonly responseSupported = false
 
 
     get aiModelIds(): ModelInformation[] {

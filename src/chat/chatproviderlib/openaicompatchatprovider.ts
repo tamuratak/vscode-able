@@ -19,6 +19,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     abstract readonly serviceName: string
     abstract readonly apiBaseUrl: string | undefined
     abstract readonly streamSupported: boolean
+    abstract readonly responseSupported: boolean
 
     private readonly tokenizer = new ExternalPromise<TikTokenizer>()
 
@@ -113,7 +114,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools ? 'auto' : undefined)
         const params: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
             model: model.family,
-            messages: chatMessages
+            messages: chatMessages,
         }
         if (tools && tools.length > 0) {
             params.tools = tools
@@ -133,56 +134,48 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
 
     async createResponse(
         openai: OpenAI,
-        params: OpenAI.Responses.ResponseCreateParamsStreaming,
+        params: OpenAI.Responses.ResponseCreateParams,
         progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart>,
         token: CancellationToken
     ) {
+        const newParams = { ...params, stream: true } satisfies OpenAI.Responses.ResponseCreateParamsStreaming
         debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
         debugObj('Chat params (responses): ', params, this.extension.outputChannel)
-
-        // Get the response stream object and attach handlers
-        const stream = openai.responses.stream(params)
+        const stream = openai.responses.stream(newParams)
         let allContent = ''
-
         const disposable = token.onCancellationRequested(() => {
             try {
                 stream.controller?.abort()
-            } catch (_e) {
+            } catch {
                 // ignore abort errors
             }
         })
-
-        const itemIdToFunctionName = new Map<string, string | undefined>()
-
-        stream.on('response.output_item.added', (evt: OpenAI.Responses.ResponseOutputItemAddedEvent) => {
+        const itemIdToFunctionName = new Map<string, string>()
+        stream.on('response.output_item.added', (evt) => {
             const item = evt.item
-            if (item?.type === 'function_call' && item.id) {
+            if (item.type === 'function_call' && item.id) {
                 itemIdToFunctionName.set(item.id, item.name)
             }
         })
-
-        stream.on('response.output_text.delta', (evt: OpenAI.Responses.ResponseTextDeltaEvent) => {
+        stream.on('response.output_text.delta', (evt) => {
             const content = evt.delta
             allContent += content ?? ''
             this.reportContent(content, progress)
         })
-
-        stream.on('response.function_call_arguments.done', (evt: OpenAI.Responses.ResponseFunctionCallArgumentsDoneEvent) => {
+        stream.on('response.function_call_arguments.done', (evt) => {
             debugObj('ToolCall: ', evt, this.extension.outputChannel)
             const itemId = evt.item_id
-            const fnName = itemId ? itemIdToFunctionName.get(String(itemId)) : undefined
+            const fnName = itemIdToFunctionName.get(itemId)
             if (!fnName) {
                 this.extension.outputChannel.error(`Could not determine function name for item_id: ${String(itemId)}`)
                 return
             }
             const toolCall = {
                 name: fnName,
-                arguments: evt.arguments ?? ''
+                arguments: evt.arguments
             }
-            this.reportToolCall(toolCall as unknown as OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function, progress)
+            this.reportToolCall(toolCall, progress)
         })
-
-        // Await completion of the stream
         await stream.finalResponse()
         disposable.dispose()
         debugObj('Chat reply (responses): ', allContent, this.extension.outputChannel)
@@ -240,13 +233,13 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
-    private reportContent(content: string | null | undefined, progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart>) {
+    private reportContent(content: string | null | undefined, progress: Progress<LanguageModelTextPart>) {
         if (content) {
             progress.report(new LanguageModelTextPart(content))
         }
     }
 
-    private reportToolCall(toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function, progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart>) {
+    private reportToolCall(toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function, progress: Progress<LanguageModelToolCallPart>) {
         if (toolCall.name === undefined || toolCall.arguments === undefined) {
             return
         }
