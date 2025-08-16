@@ -103,32 +103,72 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         const openai = this.createClient(apiKey)
         initValidators(options.tools)
         const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[] = (await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToChatCompletionMessageParam(m)))).flat()
-        const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = options.tools?.map(t => ({
-            type: 'function',
-            function: {
+
+        // If the provider supports the newer Responses API, construct a ResponseCreateParams
+        // and call createResponse which handles streaming/responses-specific events
+        if (this.responseSupported) {
+            const tools: OpenAI.Responses.Tool[] | undefined = options.tools?.map(t => ({
+                // map simple function-style tool descriptions to the Responses API tool shape
+                type: 'function' as const,
                 name: t.name,
                 description: t.description,
-                parameters: t.inputSchema as Record<string, unknown>
+                parameters: t.inputSchema as Record<string, unknown>,
+                // enforce strict parameter validation by default
+                strict: true
+            }))
+
+            const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools && tools.length > 0 ? 'auto' : undefined)
+
+            // Responses API accepts an `input` which can be an array of message-like objects.
+            // Convert our ChatCompletion message params to EasyInputMessage (role + content).
+            const input: OpenAI.Responses.EasyInputMessage[] = chatMessages.map((m: OpenAI.Chat.ChatCompletionMessageParam) => {
+                const content = typeof m.content === 'string'
+                    ? m.content
+                    : (Array.isArray(m.content) ? m.content.map(c => ((c as { text?: string }).text ?? '')).join('') : String(m.content))
+                return {
+                    role: m.role as 'user' | 'assistant' | 'system' | 'developer',
+                    content
+                }
+            })
+
+            const paramsObj = {
+                model: model.family,
+                input,
+                stream: true,
+                ...(tools && tools.length > 0 ? { tools, tool_choice: toolChoice as OpenAI.Responses.ToolChoiceOptions } : {}),
+                ...(model.options?.reasoningEffort ? { reasoning_effort: model.options.reasoningEffort } : {})
             }
-        }))
-        const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools ? 'auto' : undefined)
-        const params: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
-            model: model.family,
-            messages: chatMessages,
-        }
-        if (tools && tools.length > 0) {
-            params.tools = tools
-            if (toolChoice) {
-                params.tool_choice = toolChoice
-            }
-        }
-        if (model.options?.reasoningEffort) {
-            params.reasoning_effort = model.options.reasoningEffort
-        }
-        if (this.streamSupported) {
-            await this.createStream(openai, params, progress, token)
+
+            const params = paramsObj as OpenAI.Responses.ResponseCreateParamsStreaming
+            await this.createResponse(openai, params, progress, token)
         } else {
-            await this.createNonStream(openai, params, progress)
+            const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = options.tools?.map(t => ({
+                type: 'function',
+                function: {
+                    name: t.name,
+                    description: t.description,
+                    parameters: t.inputSchema as Record<string, unknown>
+                }
+            }))
+            const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools ? 'auto' : undefined)
+            const params: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
+                model: model.family,
+                messages: chatMessages,
+            }
+            if (tools && tools.length > 0) {
+                params.tools = tools
+                if (toolChoice) {
+                    params.tool_choice = toolChoice
+                }
+            }
+            if (model.options?.reasoningEffort) {
+                params.reasoning_effort = model.options.reasoningEffort
+            }
+            if (this.streamSupported) {
+                await this.createStream(openai, params, progress, token)
+            } else {
+                await this.createNonStream(openai, params, progress)
+            }
         }
     }
 
