@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
+import { CancellationToken, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatRequestHandleOptions, LanguageModelChatProvider, LanguageModelDataPart, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
 import OpenAI from 'openai'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresultrendering.js'
@@ -15,7 +15,7 @@ export interface ModelInformation extends LanguageModelChatInformation {
     } | undefined
 }
 
-export abstract class OpenAICompatChatProvider implements LanguageModelChatProvider2 {
+export abstract class OpenAICompatChatProvider implements LanguageModelChatProvider {
     abstract readonly serviceName: string
     abstract readonly apiBaseUrl: string | undefined
     abstract readonly streamSupported: boolean
@@ -53,7 +53,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         return this.apiBaseUrl ? new OpenAI({ apiKey, baseURL: this.apiBaseUrl }) : new OpenAI({ apiKey })
     }
 
-    async prepareLanguageModelChat(options: { silent: boolean; }): Promise<ModelInformation[]> {
+    async prepareLanguageModelChatInformation(options: { silent: boolean; }): Promise<ModelInformation[]> {
         try {
             const session = await vscode.authentication.getSession(this.authServiceId, [], { silent: options.silent })
             if (!session) {
@@ -75,7 +75,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                             label: this.categoryLabel,
                             order: 1001
                         },
-                        cost: 'Able',
+                        detail: 'Able',
                         auth: true
                     })
                 }
@@ -91,7 +91,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         model: ModelInformation,
         messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
         options: LanguageModelChatRequestHandleOptions,
-        progress: Progress<ChatResponseFragment2>,
+        progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>,
         token: CancellationToken
     ): Promise<void> {
         const session = await vscode.authentication.getSession(this.authServiceId, [], { silent: true })
@@ -134,7 +134,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     async createStream(
         openai: OpenAI,
         params: OpenAI.Chat.Completions.ChatCompletionCreateParams,
-        progress: Progress<ChatResponseFragment2>,
+        progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>,
         token: CancellationToken
     ) {
         const newParams = { ...params, stream: true } satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
@@ -159,7 +159,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     async createNonStream(
         openai: OpenAI,
         params: OpenAI.Chat.Completions.ChatCompletionCreateParams,
-        progress: Progress<ChatResponseFragment2>
+        progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>
     ) {
         const newParams = { ...params, stream: false } satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
         debugObj('Chat params: ', newParams, this.extension.outputChannel)
@@ -183,16 +183,13 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
-    private reportContent(content: string | null | undefined, progress: Progress<ChatResponseFragment2>) {
+    private reportContent(content: string | null | undefined, progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>) {
         if (content) {
-            progress.report({
-                index: 0,
-                part: new LanguageModelTextPart(content)
-            } satisfies ChatResponseFragment2)
+            progress.report(new LanguageModelTextPart(content))
         }
     }
 
-    private reportToolCall(toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function, progress: Progress<ChatResponseFragment2>) {
+    private reportToolCall(toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function, progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>) {
         if (toolCall.name === undefined || toolCall.arguments === undefined) {
             return
         }
@@ -217,10 +214,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             this.extension.outputChannel.error(`Invalid tool call arguments for ${toolCall.name}: ${JSON.stringify(args)}`)
             throw new Error(`Invalid tool call arguments for ${toolCall.name}: ${JSON.stringify(args)}`)
         }
-        progress.report({
-            index: 0,
-            part: new LanguageModelToolCallPart(callId, toolCall.name, args)
-        })
+        progress.report(new LanguageModelToolCallPart(callId, toolCall.name, args))
     }
 
     async provideTokenCount(_model: LanguageModelChatInformation, text: string | LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<number> {
