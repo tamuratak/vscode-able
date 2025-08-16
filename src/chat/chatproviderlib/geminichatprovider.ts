@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { CancellationToken, ChatResponseFragment2, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatProvider2, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart } from 'vscode'
+import { CancellationToken, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelDataPart, LanguageModelChatInformation, LanguageModelChatProvider, LanguageModelToolCallPart } from 'vscode'
 import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, GenerateContentConfig, FunctionCallingConfigMode, FunctionCall } from '@google/genai'
 import { GeminiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
@@ -15,7 +15,7 @@ type GeminiChatInformation = LanguageModelChatInformation & {
 const toolCallIdNameMap = new Map<string, string>()
 
 
-export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChatInformation> {
+export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatInformation> {
     private readonly aiModelIds = [
         'gemini-2.5-pro',
         'gemini-2.5-flash',
@@ -35,7 +35,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         return 'call_' + getNonce(16)
     }
 
-    async prepareLanguageModelChat(options: { silent: boolean; }): Promise<GeminiChatInformation[]> {
+    async prepareLanguageModelChatInformation(options: { silent: boolean; }): Promise<GeminiChatInformation[]> {
         try {
             const session = await vscode.authentication.getSession(GeminiAuthServiceId, [], { silent: options.silent })
             if (!session) {
@@ -59,13 +59,13 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                         label: 'Gemini (with Able)',
                         order: 1000
                     },
-                    cost: 'Able',
+                    detail: 'Able',
                     name: model.displayName ?? id,
                     family: id,
                     version: model.version ?? id,
                     maxInputTokens: model.inputTokenLimit ?? 0,
                     maxOutputTokens: model.outputTokenLimit ?? 0,
-                    description: model.description ?? 'Gemini',
+                    tooltip: model.description ?? 'Gemini',
                     auth: true,
                     capabilities: {
                         toolCalling: id.startsWith('gemini')
@@ -85,7 +85,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         model: GeminiChatInformation,
         messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
         options: LanguageModelChatRequestHandleOptions,
-        progress: Progress<ChatResponseFragment2>,
+        progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>,
         token: CancellationToken
     ): Promise<void> {
         const session = await vscode.authentication.getSession(GeminiAuthServiceId, [], { silent: true })
@@ -131,10 +131,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
             const text = chunk.text
             if (text && text.length > 0) {
                 allContent += text
-                progress.report({
-                    index: 0,
-                    part: new LanguageModelTextPart(text)
-                })
+                progress.report(new LanguageModelTextPart(text))
             }
             const functionCalls = chunk.functionCalls
             if (functionCalls) {
@@ -144,7 +141,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
         debugObj('Chat reply: ', allContent, this.extension.outputChannel)
     }
 
-    private reportToolCall(functionCalls: FunctionCall[], progress: Progress<ChatResponseFragment2>) {
+    private reportToolCall(functionCalls: FunctionCall[], progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>) {
         for (const call of functionCalls) {
             if (call.name === undefined || call.args === undefined) {
                 continue
@@ -160,10 +157,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider2<GeminiChat
                 this.extension.outputChannel.error(`Invalid tool call arguments for ${call.name}: ${JSON.stringify(call.args)}`)
                 throw new Error(`Invalid tool call arguments for ${call.name}: ${JSON.stringify(call.args)}`)
             }
-            progress.report({
-                index: 0,
-                part: new LanguageModelToolCallPart(callId, call.name, call.args)
-            })
+            progress.report(new LanguageModelToolCallPart(callId, call.name, call.args))
         }
     }
 

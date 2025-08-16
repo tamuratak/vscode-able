@@ -18,7 +18,7 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 maxInputTokens: 1014808,
                 maxOutputTokens: 32768,
                 name: 'GPT-5',
-                description: 'GPT-5',
+                tooltip: 'GPT-5',
                 capabilities: {
                     toolCalling: true
                 }
@@ -30,7 +30,7 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 maxInputTokens: 1014808,
                 maxOutputTokens: 32768,
                 name: 'GPT-5 Mini',
-                description: 'GPT-5 Mini',
+                tooltip: 'GPT-5 Mini',
                 capabilities: {
                     toolCalling: true
                 },
@@ -42,7 +42,7 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 maxInputTokens: 1014808,
                 maxOutputTokens: 32768,
                 name: 'GPT-5 Mini (high)',
-                description: 'GPT-5 Mini (high)',
+                tooltip: 'GPT-5 Mini (high)',
                 capabilities: {
                     toolCalling: true
                 },
@@ -57,7 +57,7 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 maxInputTokens: 1014808,
                 maxOutputTokens: 32768,
                 name: 'GPT-4.1',
-                description: 'GPT-4.1',
+                tooltip: 'GPT-4.1',
                 capabilities: {
                     toolCalling: true
                 }
@@ -69,7 +69,7 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 maxInputTokens: 1014808,
                 maxOutputTokens: 32768,
                 name: 'GPT-4.1 Mini',
-                description: 'GPT-4.1 Mini',
+                tooltip: 'GPT-4.1 Mini',
                 capabilities: {
                     toolCalling: true
                 }
@@ -81,7 +81,7 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 maxInputTokens: 128000,
                 maxOutputTokens: 16384,
                 name: 'GPT-4o Mini',
-                description: 'GPT-4o Mini',
+                tooltip: 'GPT-4o Mini',
                 capabilities: {
                     toolCalling: true
                 }
@@ -111,7 +111,7 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
                 maxInputTokens: 131072,
                 maxOutputTokens: 32766,
                 name: 'GPT OSS 120b',
-                description: 'GPT OSS 120b',
+                tooltip: 'GPT OSS 120b',
                 capabilities: {
                     toolCalling: true
                 },
@@ -126,7 +126,7 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
                 maxInputTokens: 131072,
                 maxOutputTokens: 32766,
                 name: 'GPT OSS 120b (high)',
-                description: 'GPT OSS 120b (high)',
+                tooltip: 'GPT OSS 120b (high)',
                 capabilities: {
                     toolCalling: true
                 },

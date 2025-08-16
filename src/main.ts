@@ -52,9 +52,9 @@ export function activate(context: vscode.ExtensionContext) {
     const groqAuthProvider = new GroqApiKeyAuthenticationProvider(extension, context.secrets)
     context.subscriptions.push(
         extension,
-        vscode.lm.registerChatModelProvider('gemini_with_able', new GeminiChatProvider(extension)),
-        vscode.lm.registerChatModelProvider('openai_with_able', new OpenAIChatProvider(extension)),
-        vscode.lm.registerChatModelProvider('groq_with_able', new GroqChatProvider(extension)),
+        vscode.lm.registerLanguageModelChatProvider('gemini_with_able', new GeminiChatProvider(extension)),
+        vscode.lm.registerLanguageModelChatProvider('openai_with_able', new OpenAIChatProvider(extension)),
+        vscode.lm.registerLanguageModelChatProvider('groq_with_able', new GroqChatProvider(extension)),
         geminiAuthProvider,
         openAiAuthProvider,
         groqAuthProvider,
