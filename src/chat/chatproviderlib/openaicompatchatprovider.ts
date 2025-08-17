@@ -5,7 +5,7 @@ import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresultrendering.js'
 import { getValidator, initValidators } from './toolcallargvalidator.js'
 import { debugObj } from '../../utils/debug.js'
-import { tokenLength } from './openaicompatchatproviderlib/toukencount.js'
+import { tokenLength } from './openaicompatchatproviderlib/tokencount.js'
 
 
 export interface ModelInformation extends LanguageModelChatInformation {

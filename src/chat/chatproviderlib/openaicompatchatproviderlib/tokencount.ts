@@ -50,5 +50,4 @@ export async function tokenLength(text: string | LanguageModelChatMessage | Lang
     return numTokens
 }
 
-
 void initTokenizer()
