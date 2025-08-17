@@ -19,11 +19,6 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         this.extension.outputChannel.info('[AnnotationTool]: AnnotationTool created')
     }
 
-    prepareInvocation(_options: vscode.LanguageModelToolInvocationPrepareOptions<AnnotationInput>, _token: CancellationToken): vscode.ProviderResult<vscode.PreparedToolInvocation> {
-        // No special prepare step for now
-        return undefined
-    }
-
     private errorResponse(message: string): LanguageModelToolResult {
         return new LanguageModelToolResult([new LanguageModelTextPart(`${annotationToolName} error: ${message}`)])
     }
