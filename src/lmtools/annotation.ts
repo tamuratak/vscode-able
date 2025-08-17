@@ -181,6 +181,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         const annotatedText = outLines.join('\n')
         this.extension.outputChannel.info('[AnnotationTool]: building annotated text complete')
 
+        this.extension.outputChannel.debug(`[AnnotationTool]: \n${annotatedText}`)
         return new LanguageModelToolResult([new LanguageModelTextPart(annotatedText)])
 
     }
