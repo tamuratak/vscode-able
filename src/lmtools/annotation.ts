@@ -230,3 +230,126 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
     }
 
 }
+
+/**
+
+# AnnotationTool — English reference (Markdown)
+
+## Purpose
+Automatically annotate a given TypeScript code fragment by appending comments that show the inferred type for each variable occurrence. The tool returns the annotated code as a string (no file writes).
+
+## Input (shape)
+- Type: object
+- Properties:
+  - `filePath`: string — absolute path to the target file
+  - `code`: string — the TypeScript code fragment to analyze (the selection)
+- Required: `filePath`, `code`
+
+(Encapsulated in the extension as `AnnotationInput`)
+
+## Output (shape)
+- A `LanguageModelToolResult` containing a single `LanguageModelTextPart` whose text is the annotated code string.
+- Annotation format appended to lines:
+  - `// <varname> satisfies <Type>`
+
+## High-level behavior
+1. Open the document at `filePath`.
+2. Split the provided `code` into lines and scan each line for variable occurrences using a set of patterns (see below).
+3. For each detected variable, map to a document position:
+   - If the provided `code` exactly occurs in the document, map lines/columns relative to that occurrence
+   - Otherwise, fallback to searching the document for the identifier occurrence (first match)
+4. Use the hover provider to obtain type info:
+   - Call `vscode.executeHoverProvider(uri, position)` to get hover items
+   - Convert hover contents to plain text
+   - Prefer patterns like `<name>: <Type>`; otherwise pick the first meaningful hover line
+5. Append comment(s) to the corresponding line in the provided `code`:
+   - Avoid duplicating identical comments
+6. Return the new annotated code as the tool result (no file edits)
+
+## Detection patterns (implemented)
+- simple declarations:
+  - `const|let|var <identifier> = ...`
+  - regex: `/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/g`
+- for-of loops:
+  - `for (const|let|var <identifier> of ...)`
+  - regex: `/\bfor\s*\(\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s+of\b/g`
+- async iteration:
+  - `for await (const|let|var <identifier> of ...)`
+  - regex: `/\bfor\s*await\s*\(\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s+of\b/g`
+- destructuring (object):
+  - `const { a, b: alias } = ...`
+  - regex: `/\b(?:const|let|var)\s*\{([^}]+)\}\s*=/g` (then split and extract identifiers)
+- destructuring (array):
+  - `const [x, , y] = ...`
+  - regex: `/\b(?:const|let|var)\s*\[([^\]]+)\]\s*=/g` (then split and extract identifiers)
+- `catch` parameter:
+  - `catch (err)` — regex: `/\bcatch\s*\(\s*([A-Za-z_$][\w$]*)\s*\)/g`
+
+Notes:
+- Destructuring extraction is text-based (comma-splitting, remove `: alias` and defaults). Nested or very complex destructuring is not fully parsed by the current implementation.
+
+## Position mapping rules
+- Preferred: find exact `code` substring in document; compute `startLine` and offset lines/columns relative to that start position
+- Fallback: regex-search the whole document for the identifier and use the first match to compute hover position
+- The hover position is placed on the identifier token (character position)
+
+## Hover extraction algorithm
+- Call `vscode.executeHoverProvider(uri, position)` → returns `Hover[]`
+- Convert each `Hover.contents` to plain text (join markdown/string parts)
+- Attempt extraction in this order:
+  1. Match `<identifier>\s*:\s*([^\n\r]*)` (prefer `name: Type`)
+  2. Match first `:\s*([^\n\r]+)` (any colon-separated type)
+  3. Otherwise take the first non-empty hover line
+- Normalize the extracted text (strip surrounding quotes/backticks)
+- If hover missing or extraction fails, use fallback tokens:
+  - `<no-hover>`, `<no-position>`, `<hover-error>`, `<unknown>`
+
+## Cancellation and logging
+- The method accepts a `CancellationToken`:
+  - If cancellation is requested during processing, the tool returns early
+- Logs progress/errors to the extension output channel (used for debugging and user feedback)
+
+## Return contract
+- Always return a `LanguageModelToolResult` wrapping a `LanguageModelTextPart` with the annotated string (even on early exit/error, it returns the original or partially annotated text inside a `LanguageModelToolResult`).
+- The caller (LLM controller) receives the string and may choose to apply it to the file or present it to the user.
+
+## Example (input → output)
+Input `code`:
+```ts
+const items = getItems()
+for (const it of items) {
+    const { id, value: v } = it
+    let count = 0
+}
+```
+
+Possible annotated output (returned string):
+```ts
+const items = getItems() // items satisfies Item[]
+for (const it of items) { // it satisfies Item
+    const { id, value: v } = it // id satisfies string // v satisfies number
+    let count = 0 // count satisfies number
+}
+```
+
+## Limitations
+- Destructuring parsing is heuristic and can miss nested destructuring or rest patterns
+- Mapping `code` to precise document position can be ambiguous if `code` occurs multiple times — implementation currently uses the first match
+- Hover content format depends on the language server and may vary; extraction falls back to the best available line
+- Performance: many hover calls for large selections; no batching/cache currently
+- Does not analyze function parameters, class fields, import bindings, or reassignments (unless added)
+
+## Suggested improvements
+- Use the TypeScript AST (Compiler API) to extract identifiers precisely (handles nested destructuring, parameters, class fields, etc.) — recommended for robustness
+- Cache hover results by identifier/position to reduce repeated calls
+- Provide an option to apply edits to the file, update existing annotations, or show a preview/diff
+- Improve position mapping to prefer matches closest to the selection or to accept more precise offsets if multiple occurrences exist
+
+## Implementation notes (where to find / key symbols)
+- File: `src/lmtools/annotation.ts`
+- Input interface: `AnnotationInput` with `filePath` and `code`
+- Main method: `async invoke(options: LanguageModelToolInvocationOptions<AnnotationInput>, token: CancellationToken)`
+- Returns: `new LanguageModelToolResult([new LanguageModelTextPart(annotatedText)])`
+- Uses `vscode.commands.executeCommand('vscode.executeHoverProvider', uri, position)` to obtain type info
+
+*/
