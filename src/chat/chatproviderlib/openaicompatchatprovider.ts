@@ -7,6 +7,7 @@ import { createByModelName, TikTokenizer } from '@microsoft/tiktokenizer'
 import { ExternalPromise } from '../../utils/externalpromise.js'
 import { getValidator, initValidators } from './toolcallargvalidator.js'
 import { debugObj } from '../../utils/debug.js'
+import { tokenLength } from './openaicompatchatproviderlib/toukencount.js'
 
 
 export interface ModelInformation extends LanguageModelChatInformation {
@@ -218,52 +219,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     }
 
     async provideTokenCount(_model: LanguageModelChatInformation, text: string | LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<number> {
-        const baseTokensPerName = 1
-        if (typeof text === 'string') {
-            return this.tokenLength(text)
-        } else {
-            let count = 0
-            const params = await this.convertLanguageModelChatMessageToChatCompletionMessageParam(text)
-            for (const param of params) {
-                if (param.role === 'user' || param.role === 'system') {
-                    if (typeof param.content === 'string') {
-                        count += await this.tokenLength(param.content)
-                    } else {
-                        for (const c of param.content) {
-                            if (c.type === 'text') {
-                                count += await this.tokenLength(c.text)
-                            }
-                        }
-                    }
-                } else if (param.role === 'assistant') {
-                    if (typeof param.content === 'string') {
-                        count += await this.tokenLength(param.content)
-                    } else if (param.content) {
-                        for (const c of param.content) {
-                            if (c.type === 'text') {
-                                count += await this.tokenLength(c.text)
-                            }
-                        }
-                    }
-                    for (const toolCalls of param.tool_calls ?? []) {
-                        if (toolCalls.type === 'function') {
-                            count += baseTokensPerName
-                            count += await this.tokenLength(toolCalls.function.arguments)
-                        }
-                    }
-                } else if (param.role === 'tool') {
-                    count += baseTokensPerName
-                    if (typeof param.content === 'string') {
-                        count += await this.tokenLength(param.content)
-                    } else {
-                        for (const c of param.content) {
-                            count += await this.tokenLength(c.text)
-                        }
-                    }
-                }
-            }
-            return count
-        }
+        return tokenLength(text)
     }
 
     async convertLanguageModelChatMessageToChatCompletionMessageParam(
