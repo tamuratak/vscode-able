@@ -5,7 +5,7 @@ import * as vscode from 'vscode'
 
 export interface AnnotationInput {
     filePath: string,
-    text: string,
+    code: string,
 }
 
 export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
@@ -24,7 +24,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
     }
 
     async invoke(options: LanguageModelToolInvocationOptions<AnnotationInput>, token: CancellationToken) {
-        const { filePath, text } = options.input
+        const { filePath, code: text } = options.input
         const uri = vscode.Uri.file(filePath)
         this.extension.outputChannel.info(`[AnnotationTool]: invoke on ${filePath}`)
 

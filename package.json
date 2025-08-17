@@ -168,7 +168,34 @@
             "explanation"
           ]
         }
-
+      },
+      {
+        "name": "able_annotation",
+        "toolReferenceName": "annotation",
+        "tags": [
+          "Annotation"
+        ],
+        "displayName": "Able: Annotation",
+        "canBeReferencedInPrompt": true,
+        "userDescription": "Annotate code with type information.",
+        "modelDescription": "Automatically adds type information as comments to variables in the specified TypeScript code fragment and returns the annotated code as a string. Each variable's type is clearly shown, making code easier to understand and maintain.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"filePath": {
+							"type": "string",
+							"description": "The absolute path to the file to annotate."
+						},
+						"code": {
+							"type": "string",
+							"description": "The TypeScript code in the file to annotate."
+						}
+					},
+					"required": [
+						"filePath",
+						"code"
+					]
+				}
       }
     ],
     "commands": [

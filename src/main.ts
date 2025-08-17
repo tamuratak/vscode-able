@@ -11,6 +11,7 @@ import { GoogleGenAI } from '@google/genai'
 import { WebSearchTool } from './lmtools/websearch.js'
 import { debugObj } from './utils/debug.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
+import { AnnotationTool } from './lmtools/annotation.js'
 
 
 class Extension {
@@ -77,6 +78,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.lm.registerTool('able_web_search', new WebSearchTool(extension)),
         vscode.lm.registerTool('able_run_in_sandbox', new RunInSandbox(extension)),
+        vscode.lm.registerTool('able_annotation', new AnnotationTool(extension)),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()
     )
