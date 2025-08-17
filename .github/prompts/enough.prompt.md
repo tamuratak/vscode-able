@@ -1,0 +1,1 @@
+You already have all the information needed to complete the task. Do not perform any searches. If asked to generate code, generate it immediately. If asked to fix a problem, fix it right away. Always prioritize execution over searching. Define the task to achieve, including specific requirements, constraints, and success criteria.

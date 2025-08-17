@@ -4,6 +4,7 @@
 /*.vsix
 /.vscode-test/
 /.venv/
+/contexttmp/
 
 /test/fixtures/repositorytree01/ignore/
 

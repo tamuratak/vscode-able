@@ -3,10 +3,9 @@ import { CancellationToken, LanguageModelChatMessage, LanguageModelChatMessageRo
 import OpenAI from 'openai'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresultrendering.js'
-import { createByModelName, TikTokenizer } from '@microsoft/tiktokenizer'
-import { ExternalPromise } from '../../utils/externalpromise.js'
 import { getValidator, initValidators } from './toolcallargvalidator.js'
 import { debugObj } from '../../utils/debug.js'
+import { tokenLength } from './openaicompatchatproviderlib/tokencount.js'
 
 
 export interface ModelInformation extends LanguageModelChatInformation {
@@ -20,30 +19,17 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     abstract readonly apiBaseUrl: string | undefined
     abstract readonly streamSupported: boolean
 
-    private readonly tokenizer = new ExternalPromise<TikTokenizer>()
-
     constructor(
         private readonly extension: {
             readonly outputChannel: vscode.LogOutputChannel,
         }
     ) {
         setTimeout(() => this.extension.outputChannel.info(this.serviceName + ': OpenAICompatChatProvider initialized'), 0)
-        void this.initTokenizer()
     }
 
     abstract get authServiceId(): string
     abstract get aiModelIds(): ModelInformation[]
     abstract get categoryLabel(): string
-
-    private async initTokenizer() {
-        // The BPE rank file will be automatically downloaded and saved to node_modules/@microsoft/tiktokenizer/model if it does not exist.
-        this.tokenizer.resolve(await createByModelName('gpt-4o'))
-    }
-
-    private async tokenLength(text: string) {
-        const tokenizer = await this.tokenizer.promise
-        return tokenizer.encode(text).length
-    }
 
     private generateCallId(): string {
         return 'call_' + getNonce(16)
@@ -218,52 +204,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     }
 
     async provideTokenCount(_model: LanguageModelChatInformation, text: string | LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<number> {
-        const baseTokensPerName = 1
-        if (typeof text === 'string') {
-            return this.tokenLength(text)
-        } else {
-            let count = 0
-            const params = await this.convertLanguageModelChatMessageToChatCompletionMessageParam(text)
-            for (const param of params) {
-                if (param.role === 'user' || param.role === 'system') {
-                    if (typeof param.content === 'string') {
-                        count += await this.tokenLength(param.content)
-                    } else {
-                        for (const c of param.content) {
-                            if (c.type === 'text') {
-                                count += await this.tokenLength(c.text)
-                            }
-                        }
-                    }
-                } else if (param.role === 'assistant') {
-                    if (typeof param.content === 'string') {
-                        count += await this.tokenLength(param.content)
-                    } else if (param.content) {
-                        for (const c of param.content) {
-                            if (c.type === 'text') {
-                                count += await this.tokenLength(c.text)
-                            }
-                        }
-                    }
-                    for (const toolCalls of param.tool_calls ?? []) {
-                        if (toolCalls.type === 'function') {
-                            count += baseTokensPerName
-                            count += await this.tokenLength(toolCalls.function.arguments)
-                        }
-                    }
-                } else if (param.role === 'tool') {
-                    count += baseTokensPerName
-                    if (typeof param.content === 'string') {
-                        count += await this.tokenLength(param.content)
-                    } else {
-                        for (const c of param.content) {
-                            count += await this.tokenLength(c.text)
-                        }
-                    }
-                }
-            }
-            return count
-        }
+        return tokenLength(text)
     }
 
     async convertLanguageModelChatMessageToChatCompletionMessageParam(

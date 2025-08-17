@@ -2,7 +2,7 @@
 
 - Do not add semicolons at the end of lines.
 - Please write a code in TypeScript.
-- When fixing TypeScript errors, consider adding null checks or using optional chaining rather than adding a type annotation such as as T.
+
 - All file names should be in lowercase.
 - Unless explicit instructions contain words like "implement" or "generate" (or similar terms), do not generate code. Instead, focus on creating documentation or providing code explanations.
 - Please respond in the user’s natural language, not the system’s language.
@@ -18,3 +18,5 @@ Please refer to the following instructions only when generating the code. Ignore
 - Use `for (const ... of ...)` instead of `Array.prototype.forEach`.
 - Avoid overusing `Array.prototype.map`.
 - Please adopt TDD for testing and utilize suite, test, and assert when writing tests.
+- When fixing TypeScript errors, always prioritize using instanceof for type narrowing. Avoid type assertions unless absolutely necessary.
+- When fixing TypeScript errors, consider adding null checks or using optional chaining rather than adding a type annotation such as as T.
