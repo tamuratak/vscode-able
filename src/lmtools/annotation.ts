@@ -7,6 +7,8 @@ interface AnnotationInput {
     code: string,
 }
 
+export const annotationToolName = 'able_annotation'
+
 export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
 
     constructor(
@@ -22,17 +24,21 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         return undefined
     }
 
+    private errorResponse(message: string): LanguageModelToolResult {
+        return new LanguageModelToolResult([new LanguageModelTextPart(`${annotationToolName} error: ${message}`)])
+    }
+
     async invoke(options: LanguageModelToolInvocationOptions<AnnotationInput>, token: CancellationToken) {
         const { filePath, code: text } = options.input
         const uri = vscode.Uri.file(filePath)
-        this.extension.outputChannel.info(`[AnnotationTool]: invoke on ${filePath}`)
+        this.extension.outputChannel.debug(`[AnnotationTool]: invoke on ${filePath}`)
 
         let doc: vscode.TextDocument
         try {
             doc = await vscode.workspace.openTextDocument(uri)
         } catch (e) {
             this.extension.outputChannel.error(`[AnnotationTool]: cannot open document: ${String(e)}`)
-            throw new Error(`[AnnotationTool]: Failed to open document at ${filePath}`)
+            return this.errorResponse(`failed to open document at ${filePath}`)
         }
 
         const docText = doc.getText()
@@ -123,23 +129,23 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         }
 
         if (matches.length === 0) {
-            this.extension.outputChannel.info('[AnnotationTool]: no variable occurrences found in provided text')
-            return new LanguageModelToolResult([new LanguageModelTextPart(text)])
+            this.extension.outputChannel.debug('[AnnotationTool]: no variable occurrences found in provided text')
+            return this.errorResponse('no variable occurrences found in provided text')
         }
 
         const textStartInDoc = docText.indexOf(text)
         if (textStartInDoc >= 0) {
-            this.extension.outputChannel.info('[AnnotationTool]: found provided text in document; using direct offsets for hover positions')
+            this.extension.outputChannel.debug('[AnnotationTool]: found provided text in document; using direct offsets for hover positions')
         } else {
-            this.extension.outputChannel.info('[AnnotationTool]: provided text not found in document; will fallback to searching variable occurrences in the document')
+            this.extension.outputChannel.debug('[AnnotationTool]: provided text not found in document; will fallback to searching variable occurrences in the document')
         }
 
         const annotationsByLine: Map<number, string[]> = new Map<number, string[]>()
 
         for (const m of matches) {
             if (token.isCancellationRequested) {
-                this.extension.outputChannel.info('[AnnotationTool]: cancelled')
-                return new LanguageModelToolResult([new LanguageModelTextPart(text)])
+                this.extension.outputChannel.debug('[AnnotationTool]: cancelled')
+                return this.errorResponse('operation cancelled')
             }
 
             let hoverPos: vscode.Position | undefined
@@ -191,7 +197,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
                     typeText = '<hover-error>'
                 }
             } else {
-                this.extension.outputChannel.info(`[AnnotationTool]: no document position found for ${m.varname}`)
+                this.extension.outputChannel.debug(`[AnnotationTool]: no document position found for ${m.varname}`)
                 typeText = '<no-position>'
             }
 
@@ -222,7 +228,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         }
 
         const annotatedText = outLines.join('\n')
-        this.extension.outputChannel.info('[AnnotationTool]: building annotated text complete')
+        this.extension.outputChannel.debug('[AnnotationTool]: building annotated text complete')
 
         this.extension.outputChannel.debug(`[AnnotationTool]: \n${annotatedText}`)
         return new LanguageModelToolResult([new LanguageModelTextPart(annotatedText)])
