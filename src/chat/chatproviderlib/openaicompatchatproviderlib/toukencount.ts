@@ -30,25 +30,22 @@ export async function tokenLength(text: string | LanguageModelChatMessage | Lang
         if (part instanceof LanguageModelTextPart) {
             numTokens += await encodeLen(part.value)
         } else if ((part instanceof LanguageModelToolResultPart) || (part instanceof LanguageModelToolResultPart2)) {
+            numTokens += tokensPerName
             const contents = part.content.filter(c => c instanceof LanguageModelTextPart || c instanceof LanguageModelPromptTsxPart)
             const toolResult = new LanguageModelToolResult(contents)
             const content = await renderToolResult(toolResult)
             numTokens += await encodeLen(content)
         } else if (part instanceof LanguageModelToolCallPart) {
             // Count callId, name and the serialized input
+            numTokens += tokensPerName
             numTokens += await encodeLen(part.callId)
+            numTokens += tokensPerName
             numTokens += await encodeLen(part.name)
-            try {
-                numTokens += await encodeLen(JSON.stringify(part.input))
-            } catch {
-                numTokens += await encodeLen(Object.prototype.toString.call(part.input))
-            }
-
+            numTokens += await encodeLen(JSON.stringify(part.input))
         } else {
             part satisfies LanguageModelDataPart
             // skip
         }
-
     }
     return numTokens
 }
