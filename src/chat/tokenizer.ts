@@ -94,3 +94,16 @@ export class Gpt4oTokenizer implements ITokenizer<OutputMode.OpenAI> {
         this._tokenizer.resolve(await createByModelName('gpt-4o'))
     }
 }
+
+/**
+ * A tokenizer that counts tokens as zero.
+ */
+export class ZeroCountTokenizer implements ITokenizer<OutputMode.OpenAI> {
+    readonly mode = OutputMode.OpenAI
+    countMessageTokens(): Promise<number> | number {
+        return 0
+    }
+    tokenLength(): Promise<number> | number {
+        return 0
+    }
+}
