@@ -5,11 +5,9 @@ import { PythonTool } from './lmtools/pyodide.js'
 //import { renderToolResult } from './utils/toolresult.js'
 import { MochaJsonTaskProvider } from './task/task.js'
 import { TaskWatcher } from './task/taskwatcher.js'
-import { GeminiApiKeyAuthenticationProvider, GeminiAuthServiceId, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
+import { GeminiApiKeyAuthenticationProvider, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
 import { GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chat/chatprovider.js'
-import { GoogleGenAI } from '@google/genai'
 import { WebSearchTool } from './lmtools/websearch.js'
-import { debugObj } from './utils/debug.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
 import { AnnotationTool } from './lmtools/annotation.js'
 
@@ -93,22 +91,18 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 async function doSomething(extension: Extension) {
-    const session = await vscode.authentication.getSession(GeminiAuthServiceId, [], { silent: true })
-    if (!session) {
-        return []
+    const activeDocument = vscode.window.activeTextEditor?.document
+    if (!activeDocument) {
+        return
     }
-    const apiKey = session.accessToken
-    const ai = new GoogleGenAI({ apiKey })
-    const config = {
-        tools: [{
-            googleSearch: {},
-        }],
-    }
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: 'Who won the euro 2024?',
-        config,
+    const code = activeDocument.getText(new vscode.Range(0, 0, 10, 0))
+    const result = await vscode.lm.invokeTool('able_annotation', {
+        toolInvocationToken: undefined,
+        input: {
+          filePath: activeDocument.uri.fsPath,
+          code
+        }
     })
-    debugObj('Response: ', response, extension.outputChannel)
+    extension.outputChannel.debug(`[doSomething]: ${JSON.stringify(result)}`)
     return
 }

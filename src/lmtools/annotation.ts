@@ -1,9 +1,8 @@
 import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LanguageModelTextPart, LogOutputChannel } from 'vscode'
 import * as vscode from 'vscode'
-// debugObj intentionally not used here
 
 
-export interface AnnotationInput {
+interface AnnotationInput {
     filePath: string,
     code: string,
 }
