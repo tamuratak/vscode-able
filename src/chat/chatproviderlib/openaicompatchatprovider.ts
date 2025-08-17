@@ -120,7 +120,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
-    async createStream(
+    private async createStream(
         openai: OpenAI,
         params: OpenAI.Chat.Completions.ChatCompletionCreateParams,
         progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>,
@@ -145,7 +145,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         debugObj('Chat reply: ', allContent, this.extension.outputChannel)
     }
 
-    async createNonStream(
+    private async createNonStream(
         openai: OpenAI,
         params: OpenAI.Chat.Completions.ChatCompletionCreateParams,
         progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>
