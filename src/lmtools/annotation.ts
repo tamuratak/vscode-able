@@ -11,6 +11,10 @@ interface AnnotationInput {
 interface Def {
     filePath: string,
     line: number
+    startLine?: number
+    endLine?: number
+    definitionText?: string
+    method?: string
 }
 
 interface AnnotationMetaEntry {
@@ -92,10 +96,35 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             try {
                 const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeTypeDefinitionProvider', uri, hoverPos)
                 for (const defLoc of defs) {
+                    let defUri: vscode.Uri | undefined
+                    let defRange: vscode.Range | undefined
                     if (defLoc instanceof vscode.Location) {
-                        const defUri = defLoc.uri
-                        const defRange = defLoc.range
-                        if (defUri && defUri.fsPath && defRange && defRange.start) {
+                        defUri = defLoc.uri
+                        defRange = defLoc.range
+                    } else if (this.isLocationLink(defLoc)) {
+                        if (defLoc.targetUri) {
+                            defUri = defLoc.targetUri
+                        }
+                        if (defLoc.targetRange) {
+                            defRange = defLoc.targetRange
+                        } else if (defLoc.targetSelectionRange) {
+                            defRange = defLoc.targetSelectionRange
+                        }
+                    }
+                    if (defUri && defUri.fsPath && defRange && defRange.start) {
+                        // try to extract full definition text using DocumentSymbolProvider
+                        try {
+                            const defInfo = await this.getDefinitionTextFromUriAtPosition(defUri, defRange.start)
+                            typeSourceDefinitions.push({
+                                filePath: defUri.fsPath,
+                                line: defRange.start.line,
+                                startLine: defInfo.startLine,
+                                endLine: defInfo.endLine,
+                                definitionText: defInfo.text,
+                                method: defInfo.method
+                            })
+                        } catch (e) {
+                            this.extension.outputChannel.debug(`[AnnotationTool]: definition text extraction failed for ${m.varname} - ${String(e)}`)
                             typeSourceDefinitions.push({
                                 filePath: defUri.fsPath,
                                 line: defRange.start.line
@@ -186,6 +215,86 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         }
         typeText = typeText.replace(/^['"`]+|['"`]+$/g, '').trim()
         return { typeText, hoverText }
+    }
+
+    private async getDefinitionTextFromUriAtPosition(defUri: vscode.Uri, pos: vscode.Position) {
+        // attempt to get document symbols for the target document
+        try {
+            const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', defUri)
+            if (symbols && symbols.length > 0) {
+                // find smallest enclosing symbol
+                let best: vscode.DocumentSymbol | undefined
+                let bestRangeSize = Number.MAX_SAFE_INTEGER
+                const visit = (sym: vscode.DocumentSymbol) => {
+                    const r = sym.range
+                    if (this.positionInRange(pos, r)) {
+                        const size = (r.end.line - r.start.line) * 1000 + (r.end.character - r.start.character)
+                        if (size < bestRangeSize) {
+                            best = sym
+                            bestRangeSize = size
+                        }
+                    }
+                    if (sym.children) {
+                        for (const c of sym.children) {
+                            visit(c)
+                        }
+                    }
+                }
+                for (const s of symbols) {
+                    visit(s)
+                }
+                if (best) {
+                    // open document and extract text for best.range
+                    const doc = await vscode.workspace.openTextDocument(defUri)
+                    const startLine = best.range.start.line
+                    const endLine = best.range.end.line
+                    let text = doc.getText(new vscode.Range(new vscode.Position(startLine, 0), new vscode.Position(endLine + 1, 0)))
+                    // trim if too large
+                    const maxLines = 40
+                    const lines = text.split(/\r?\n/)
+                    let truncated = false
+                    if (lines.length > maxLines) {
+                        text = lines.slice(0, maxLines).join('\n') + '\n// ...(truncated)'
+                        truncated = true
+                    }
+                    return { startLine, endLine, text, method: 'documentSymbol', truncated }
+                }
+            }
+        } catch (e) {
+            this.extension.outputChannel.debug(`[AnnotationTool]: executeDocumentSymbolProvider failed - ${String(e)}`)
+        }
+
+        // fallback: open document and return a small snippet around pos
+        try {
+            const doc = await vscode.workspace.openTextDocument(defUri)
+            const startLine = Math.max(0, pos.line - 2)
+            const endLine = Math.min(doc.lineCount - 1, pos.line + 20)
+            const text = doc.getText(new vscode.Range(new vscode.Position(startLine, 0), new vscode.Position(endLine + 1, 0)))
+            return { startLine, endLine, text, method: 'fallback-range' }
+        } catch (e) {
+            this.extension.outputChannel.debug(`[AnnotationTool]: openTextDocument failed for ${defUri.fsPath} - ${String(e)}`)
+            throw e
+        }
+    }
+
+    private positionInRange(pos: vscode.Position, range: vscode.Range) {
+        if (pos.line < range.start.line || pos.line > range.end.line) {
+            return false
+        }
+        if (pos.line === range.start.line && pos.character < range.start.character) {
+            return false
+        }
+        if (pos.line === range.end.line && pos.character > range.end.character) {
+            return false
+        }
+        return true
+    }
+
+    private isLocationLink(x: object | undefined): x is vscode.LocationLink {
+        if (!x || typeof x !== 'object') {
+            return false
+        }
+        return ('targetUri' in x) || ('targetRange' in x) || ('targetSelectionRange' in x)
     }
 
 }
