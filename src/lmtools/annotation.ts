@@ -1,6 +1,6 @@
 import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LanguageModelTextPart, LogOutputChannel } from 'vscode'
 import * as vscode from 'vscode'
-import { MatchInfo, parseVarMatchesFromText } from './annotationlib/annotationparser'
+import { MatchInfo, parseVarMatchesFromText } from './annotationlib/annotationparser.js'
 
 
 interface AnnotationInput {
