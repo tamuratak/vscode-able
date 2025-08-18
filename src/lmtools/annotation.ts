@@ -328,19 +328,19 @@ This file delegates identifier detection to a helper so the detection logic can 
 ## Input (shape)
 - Type: object
 - Properties:
-    - `filePath`: string — absolute path to the target file
-    - `code`: string — the code fragment to analyze (the selection)
+        - `filePath`: string — absolute path to the target file
+        - `code`: string — the code fragment to analyze (the selection)
 - Required: `filePath`, `code` (represented by the `AnnotationInput` interface)
 
 ## Output
 - Success: a `LanguageModelToolResult` containing two `LanguageModelTextPart`s in order:
-    1. The annotated source text (original lines with appended `// <varname> satisfies <Type>` comments)
-    2. A pretty-printed JSON string containing structured metadata about the annotations
+        1. The annotated source text (original lines with appended `// <varname> satisfies <Type>` comments)
+        2. A pretty-printed JSON string containing structured metadata about the annotations
 - Error / early exit: a single-part `LanguageModelToolResult` is returned containing an error message string (for example when the document cannot be opened, the provided `code` fragment is not found in the document, or the operation is cancelled).
 
 ### Annotation comment format
 - Inline comments appended to lines look like:
-            // <varname> satisfies <Type>
+                        // <varname> satisfies <Type>
 
 ### Metadata schema (JSON)
 - The second `LanguageModelTextPart` (on success) is a JSON object with this shape:
@@ -356,7 +356,12 @@ This file delegates identifier detection to a helper so the detection logic can 
             "definitions": [
                 {
                     "filePath": "/abs/path/to/def.ts",
-                    "line": 10
+                    "line": 10,
+                    "startLine": 10,
+                    "endLine": 20,
+                    "definitionText": "export interface Foo { ... }",
+                    "method": "documentSymbol",
+                    "truncated": false
                 }
             ] | undefined,
             "hoverText": "<raw hover text>" | undefined
@@ -365,19 +370,19 @@ This file delegates identifier detection to a helper so the detection logic can 
 }
 ```
 
-- `definitions`: optional array containing zero or more definition location objects discovered via `vscode.executeTypeDefinitionProvider`. Each entry currently contains an absolute `filePath` and a `line` number (the start line of the definition). If no definitions were found, the field is `undefined`.
+- `definitions`: optional array containing zero or more definition location objects discovered via `vscode.executeTypeDefinitionProvider`. Each entry contains at minimum `filePath` and `line`. If the tool successfully extracts the declaration body it will also include `startLine`, `endLine`, `definitionText`, and `method` describing how the text was obtained (`documentSymbol` or `fallback-range`). The boolean `truncated` indicates whether the returned text was truncated.
 - `hoverText`: optional string containing the concatenated hover contents. It may be an empty string or omitted (`undefined`) depending on provider results.
 
 ## High-level behavior
 1. Open the document at `filePath` via `vscode.workspace.openTextDocument`.
 2. Call `parseVarMatchesFromText(code)` to detect identifiers in the provided fragment. Returned matches contain `localLine` and `localCol` relative to the fragment.
 3. Find the fragment inside the document using `doc.getText().indexOf(code)`. If found, compute a base `start` position and map each match to a `vscode.Position`:
-     - For matches on the fragment's first line, add the document's start character offset to the match column (handles fragments that start mid-line).
-     - For other lines, use the match's `localCol` directly as the document column.
+         - For matches on the fragment's first line, add the document's start character offset to the match column (handles fragments that start mid-line).
+         - For other lines, use the match's `localCol` directly as the document column.
 4. For each identifier position:
-     - Query hover information using `vscode.executeHoverProvider(uri, position)` and convert hover contents to plain text.
-     - Infer a concise `type` string by preferring patterns like `<name>: <Type>` (matching the identifier name first), then the first `:<something>` pattern, otherwise use the first meaningful hover line. Surrounding quotes/backticks are stripped.
-     - Query type/definition locations using `vscode.executeTypeDefinitionProvider(uri, position)` and record any returned `Location` entries as `definitions` objects with `filePath` and `line` (the implementation currently only extracts `Location` and uses `range.start.line`).
+         - Query hover information using `vscode.executeHoverProvider(uri, position)` and convert hover contents to plain text.
+         - Infer a concise `type` string by preferring patterns like `<name>: <Type>` (matching the identifier name first), then the first `:<something>` pattern, otherwise use the first meaningful hover line. Surrounding quotes/backticks are stripped.
+         - Query type/definition locations using `vscode.executeTypeDefinitionProvider(uri, position)` to obtain `Location` or `LocationLink` targets. For each target the tool attempts to get the full declaration text using `vscode.executeDocumentSymbolProvider(defUri)` and by finding the smallest enclosing `DocumentSymbol` whose `range` contains the target position. If a symbol is found, its `range` is used with `vscode.workspace.openTextDocument(defUri)` and `doc.getText(range)` to extract the declaration body. If no document symbols are available, the tool falls back to any `targetRange`/`targetSelectionRange` provided by the `LocationLink`, or returns a small snippet around the target position as a last resort.
 5. Append comment(s) to the corresponding line of the fragment. Identical comments are not duplicated on the same line.
 6. Return the annotated text and the JSON metadata (two `LanguageModelTextPart`s) on success.
 
@@ -385,9 +390,9 @@ This file delegates identifier detection to a helper so the detection logic can 
 - Execute `vscode.executeHoverProvider(uri, position)` → `Hover[]`.
 - Convert each `Hover.contents` entry to plain text (join Markdown/MarkedString parts).
 - Try extraction in this order:
-    1. Match `<identifier>\s*:\s*([^\n\r]*)` (prefer `name: Type` where `name` is the identifier)
-    2. Match first `:\s*([^\n\r]+)` (any colon-separated type)
-    3. Otherwise take the first non-empty hover line
+        1. Match `<identifier>\s*:\s*([^\n\r]*)` (prefer `name: Type` where `name` is the identifier)
+        2. Match first `:\s*([^\n\r]+)` (any colon-separated type)
+        3. Otherwise take the first non-empty hover line
 - Normalize the extracted text (strip surrounding quotes/backticks) and fall back to tokens such as `<no-hover>` or `<hover-error>` when providers fail or return nothing.
 
 ## Cancellation and logging
@@ -395,23 +400,22 @@ This file delegates identifier detection to a helper so the detection logic can 
 - Progress and errors are logged to the extension output channel (`extension.outputChannel`).
 
 ## Notes / limitations
-- `parseVarMatchesFromText` is a heuristic/regex-based extractor. It handles common patterns (simple declarations, for-of loop variables, basic destructuring, `catch` parameters) but does not fully parse every complex nested destructuring or parameter pattern. For production-accurate extraction, consider using the TypeScript Compiler API.
-- The tool currently only annotates the provided fragment text; it does not edit files on disk.
+- `parseVarMatchesFromText` is a heuristic/regex-based extractor. It handles common patterns but does not fully parse every complex nested destructuring or parameter pattern. For production-accurate extraction, consider using the TypeScript Compiler API and symbol-resolution.
+- The DocumentSymbol-based extraction relies on the language server providing document symbols; if the language server does not support document symbols, the tool will fall back to smaller snippets.
 
 ## Testing
 - Unit tests should exercise `parseVarMatchesFromText` directly and assert `MatchInfo[]` shapes.
-- Integration tests can mock `vscode.workspace.openTextDocument`, hover provider, and type definition provider, then call `AnnotationTool.invoke` and verify the returned annotated text and JSON metadata.
+- Integration tests can mock `vscode.workspace.openTextDocument`, hover provider, type definition provider, and document symbol provider, then call `AnnotationTool.invoke` and verify the returned annotated text and JSON metadata include `definitionText` when available.
 
 ## Suggested improvements
-- Use TypeScript AST for robust identifier extraction
-- Cache hover/type results to avoid repeated provider calls for the same symbol/position
-- Offer an option to apply edits to the file, update existing annotations in-place, or present a preview/diff
+- Add a configuration option for the truncation limits (lines/characters) used when extracting large declaration texts.
+- Consider integrating with the TypeScript language service (tsserver) for project-aware symbol resolution when cross-file declarations must be resolved precisely.
 
 ## Implementation notes (where to find / key symbols)
 - File: `src/lmtools/annotation.ts`
 - Input interface: `AnnotationInput` with `filePath` and `code`
 - Main method: `async invoke(options: LanguageModelToolInvocationOptions<AnnotationInput>, token: CancellationToken)`
 - Success return: `new LanguageModelToolResult([new LanguageModelTextPart(annotatedText), new LanguageModelTextPart(jsonMeta)])`
-- Uses `vscode.commands.executeCommand('vscode.executeHoverProvider', uri, position)` and `vscode.commands.executeCommand('vscode.executeTypeDefinitionProvider', uri, position)` to obtain hover/type information and definitions
+- Uses `vscode.commands.executeCommand('vscode.executeHoverProvider', uri, position)`, `vscode.commands.executeCommand('vscode.executeTypeDefinitionProvider', uri, position)` and `vscode.commands.executeCommand('vscode.executeDocumentSymbolProvider', defUri)` to obtain hover/type information, definitions, and document symbols for extraction
 
 */
