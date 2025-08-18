@@ -48,12 +48,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
 
         const docText = doc.getText()
 
-        // helper to escape regex
-        const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')
-
-
         const matches: MatchInfo[] = parseVarMatchesFromText(text)
-
         const textLines = text.split(/\r?\n/)
 
         if (matches.length === 0) {
@@ -70,17 +65,6 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
 
         const annotationsByLine: Map<number, string[]> = new Map<number, string[]>()
         const metadata: { annotations: AnnotationMetaEntry[] } = { annotations: [] }
-
-        const stringifyHoverContent = (c: vscode.MarkdownString | vscode.MarkedString): string => {
-            // handle objects like MarkdownString or MarkedString
-            if (c instanceof vscode.MarkdownString) {
-                return c.value
-            } else if (typeof c === 'string') {
-                return c
-            } else {
-                return c.value
-            }
-        }
 
         for (const m of matches) {
             if (token.isCancellationRequested) {
@@ -106,66 +90,25 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
                 }
             }
 
-            let typeText = '<unknown>'
-            let hoverText = ''
-            if (hoverPos) {
-                try {
-                    const raw = await vscode.commands.executeCommand<vscode.Hover[]>('vscode.executeHoverProvider', uri, hoverPos)
-                    if (raw && raw.length > 0) {
-                        const hoverItems = raw
-                        hoverText = hoverItems.map(h => {
-                            // h.contents can be MarkedString | MarkedString[] | MarkdownString | string
-                            const rawContents = h.contents
-                            const asArray = Array.isArray(rawContents) ? rawContents : [rawContents]
-                            return asArray.map(c => stringifyHoverContent(c)).filter(s => s.length > 0).join('\n')
-                        }).join('\n---\n')
-                        const reVar = new RegExp(escapeRegex(m.varname) + '\\s*:\\s*([^\\n\\r]*)')
-                        const mv = hoverText.match(reVar)
-                        if (mv && mv[1]) {
-                            typeText = mv[1].trim()
-                        } else {
-                            const m2 = hoverText.match(/:\\s*([^\\n\\r]+)/)
-                            if (m2 && m2[1]) {
-                                typeText = m2[1].trim()
-                            } else {
-                                const firstNonEmpty = hoverText.split(/\r?\n/).map(s => s.trim()).find(s => s.length > 0)
-                                typeText = firstNonEmpty || '<unknown>'
-                            }
-                        }
-                    } else {
-                        typeText = '<no-hover>'
-                    }
-                } catch (e) {
-                    this.extension.outputChannel.error(`[AnnotationTool]: hover failed for ${m.varname} - ${String(e)}`)
-                    typeText = '<hover-error>'
-                }
-            } else {
-                this.extension.outputChannel.debug(`[AnnotationTool]: no document position found for ${m.varname}`)
-                typeText = '<no-position>'
+            if (!hoverPos) {
+                continue
             }
 
-            typeText = typeText.replace(/^['"`]+|['"`]+$/g, '').trim()
+            const { typeText, hoverText } = await this.typeTextHoverText(hoverPos, uri, m)
 
             // attempt to find definition location(s) for the identifier (absolute file path)
-            let typeSourceDefinitions: { filePath: string, line: number, character: number }[] | undefined = undefined
-            if (hoverPos) {
-                try {
-                    const defs = await vscode.commands.executeCommand<readonly vscode.Location[]>('vscode.executeDefinitionProvider', uri, hoverPos)
-                    const collected: { filePath: string, line: number, character: number }[] = []
-                    for (const defLoc of defs) {
-                        const defUri = defLoc.uri
-                        const defRange = defLoc.range
-                        if (defUri && defUri.fsPath && defRange && defRange.start) {
-                            collected.push({ filePath: defUri.fsPath, line: defRange.start.line, character: defRange.start.character })
-                        }
+            const typeSourceDefinitions: { filePath: string, line: number, character: number }[] = []
+            try {
+                const defs = await vscode.commands.executeCommand<readonly vscode.Location[]>('vscode.executeDefinitionProvider', uri, hoverPos)
+                for (const defLoc of defs) {
+                    const defUri = defLoc.uri
+                    const defRange = defLoc.range
+                    if (defUri && defUri.fsPath && defRange && defRange.start) {
+                        typeSourceDefinitions.push({ filePath: defUri.fsPath, line: defRange.start.line, character: defRange.start.character })
                     }
-                    if (collected.length > 0) {
-                        typeSourceDefinitions = collected
-                        // keep backward-compatible single typeSource as the first definition
-                    }
-                } catch (e) {
-                    this.extension.outputChannel.debug(`[AnnotationTool]: definition lookup failed for ${m.varname} - ${String(e)}`)
                 }
+            } catch (e) {
+                this.extension.outputChannel.debug(`[AnnotationTool]: definition lookup failed for ${m.varname} - ${String(e)}`)
             }
 
             const comment = `// ${m.varname} satisfies ${typeText}`
@@ -181,7 +124,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
                 localLine: m.localLine,
                 localCol: m.localCol,
                 type: typeText,
-                definitions: typeSourceDefinitions ?? undefined,
+                definitions: typeSourceDefinitions.length > 0 ? typeSourceDefinitions : undefined,
                 hoverText: hoverText || undefined
             })
         }
@@ -211,9 +154,57 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             new LanguageModelTextPart(annotatedText),
             new LanguageModelTextPart(jsonMeta)
         ])
-
     }
 
+    private async typeTextHoverText(hoverPos: vscode.Position, uri: vscode.Uri, m: MatchInfo) {
+        let typeText = '<unknown>'
+        let hoverText = ''
+        try {
+            const raw = await vscode.commands.executeCommand<vscode.Hover[]>('vscode.executeHoverProvider', uri, hoverPos)
+            if (raw && raw.length > 0) {
+                const hoverItems = raw
+                hoverText = hoverItems.map(h => {
+                    // h.contents can be MarkedString | MarkedString[] | MarkdownString | string
+                    const rawContents = h.contents
+                    const asArray = Array.isArray(rawContents) ? rawContents : [rawContents]
+                    return asArray.map(c => stringifyHoverContent(c)).filter(s => s.length > 0).join('\n')
+                }).join('\n---\n')
+                const reVar = new RegExp(escapeRegex(m.varname) + '\\s*:\\s*([^\\n\\r]*)')
+                const mv = hoverText.match(reVar)
+                if (mv && mv[1]) {
+                    typeText = mv[1].trim()
+                } else {
+                    const m2 = hoverText.match(/:\\s*([^\\n\\r]+)/)
+                    if (m2 && m2[1]) {
+                        typeText = m2[1].trim()
+                    } else {
+                        const firstNonEmpty = hoverText.split(/\r?\n/).map(s => s.trim()).find(s => s.length > 0)
+                        typeText = firstNonEmpty || '<unknown>'
+                    }
+                }
+            } else {
+                typeText = '<no-hover>'
+            }
+        } catch (e) {
+            this.extension.outputChannel.error(`[AnnotationTool]: hover failed for ${m.varname} - ${String(e)}`)
+            typeText = '<hover-error>'
+        }
+        typeText = typeText.replace(/^['"`]+|['"`]+$/g, '').trim()
+        return { typeText, hoverText }
+    }
+
+}
+
+function stringifyHoverContent(c: vscode.MarkdownString | vscode.MarkedString): string {
+    if (typeof c === 'string') {
+        return c
+    } else {
+        return c.value
+    }
+}
+
+function escapeRegex(s: string) {
+    return s.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')
 }
 
 
