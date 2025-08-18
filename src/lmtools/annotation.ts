@@ -1,7 +1,6 @@
 import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LanguageModelTextPart, LogOutputChannel } from 'vscode'
 import * as vscode from 'vscode'
 import { MatchInfo, parseVarMatchesFromText } from './annotationlib/annotationparser.js'
-import { debugObj } from '../utils/debug.js'
 
 
 interface AnnotationInput {
@@ -9,12 +8,24 @@ interface AnnotationInput {
     code: string,
 }
 
+interface Def {
+    filePath: string,
+    start: {
+        line: number,
+        character: number
+    },
+    end: {
+        line: number,
+        character: number
+    }
+}
+
 interface AnnotationMetaEntry {
     varname: string
     localLine: number
     localCol: number
     type: string
-    definitions?: { filePath: string, line: number, character: number }[] | undefined
+    definitions?: Def[] | undefined
     hoverText: string | undefined
 }
 
@@ -84,14 +95,16 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             const { typeText, hoverText } = await this.typeTextHoverText(hoverPos, uri, m)
 
             // attempt to find definition location(s) for the identifier (absolute file path)
-            const typeSourceDefinitions: { filePath: string, line: number, character: number }[] = []
+            const typeSourceDefinitions: Def[] = []
             try {
-                const defs = await vscode.commands.executeCommand<readonly vscode.Location[]>('vscode.executeDefinitionProvider', uri, hoverPos)
+                const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeTypeDefinitionProvider', uri, hoverPos)
                 for (const defLoc of defs) {
-                    const defUri = defLoc.uri
-                    const defRange = defLoc.range
-                    if (defUri && defUri.fsPath && defRange && defRange.start) {
-                        typeSourceDefinitions.push({ filePath: defUri.fsPath, line: defRange.start.line, character: defRange.start.character })
+                    if (defLoc instanceof vscode.Location) {
+                        const defUri = defLoc.uri
+                        const defRange = defLoc.range
+                        if (defUri && defUri.fsPath && defRange && defRange.start) {
+                            typeSourceDefinitions.push({ filePath: defUri.fsPath, start: defRange.start, end: defRange.end })
+                        }
                     }
                 }
             } catch (e) {
@@ -136,7 +149,9 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         this.extension.outputChannel.debug('[AnnotationTool]: building annotated text complete')
 
         const jsonMeta = JSON.stringify(metadata, null, 2)
-        debugObj('[AnnotationTool]: ', { annotatedText, metadata }, this.extension.outputChannel)
+        this.extension.outputChannel.debug('[AnnotationTool]:')
+        this.extension.outputChannel.debug(annotatedText)
+        this.extension.outputChannel.debug(jsonMeta)
         return new LanguageModelToolResult([
             new LanguageModelTextPart(annotatedText),
             new LanguageModelTextPart(jsonMeta)
