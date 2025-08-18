@@ -126,12 +126,21 @@ export function parseVarMatchesFromText(text: string): MatchInfo[] {
  * - Object destructuring: `const { a, b: alias } = ...` (alias preferred)
  * - Array destructuring: `const [x, , y] = ...`
  * - catch param: `catch (err)`
+ * - Arrow-function parameters: `(a, b) => ...` (also when nested inside calls like `v.mthd((a,b) => {...})`)
  *
  * Limitations
  * - Heuristic only: no AST parsing → misses nested destructuring, rest,
  *   computed properties, and some multi-line patterns
  * - Returns offsets relative to the provided text (caller maps to document
  *   positions if needed)
+
+ * Arrow param caveats:
+ * - The current detection looks for parenthesized parameter lists like
+ *   `(a, b) =>`. It does not detect the shorthand single-parameter form
+ *   without parentheses (e.g. `x => x + 1`).
+ * - Default values and rest parameters (e.g. `a = 1`, `...rest`) are
+ *   handled only heuristically and may yield approximate positions or
+ *   omit the parameter name in some cases.
  *
  * Example (parseVarMatchesFromText)
  * Input `text` (a code fragment):
@@ -142,6 +151,10 @@ export function parseVarMatchesFromText(text: string): MatchInfo[] {
  *     let count = 0
  * }
  * ```
+ *
+ * Additional test notes
+ * - A unit test exists for arrow-function parameters (e.g. `v.mthd((a,b) => { })`) to ensure the `params` detection works.
+ * - When adding more tests, keep in mind whitespace and tabs affect `localCol` and `localIndexInText` values; tests should assert presence and non-negativity where exact offsets are not important.
  * Output (returned MatchInfo[]):
  * ```json
  * [
