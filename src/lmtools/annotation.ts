@@ -13,11 +13,8 @@ interface AnnotationMetaEntry {
     localLine: number
     localCol: number
     type: string
-    filePath: string | null
-    line: number | null
-    character: number | null
-    definitions?: { filePath: string, line: number, character: number }[] | null
-    hoverText: string | null
+    definitions?: { filePath: string, line: number, character: number }[] | undefined
+    hoverText: string | undefined
 }
 
 export const annotationToolName = 'able_annotation'
@@ -74,41 +71,15 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         const annotationsByLine: Map<number, string[]> = new Map<number, string[]>()
         const metadata: { annotations: AnnotationMetaEntry[] } = { annotations: [] }
 
-        const stringifyHoverContent = (c: unknown): string => {
-            // handle plain strings
-            if (typeof c === 'string') {
-                return c
-            }
+        const stringifyHoverContent = (c: vscode.MarkdownString | vscode.MarkedString): string => {
             // handle objects like MarkdownString or MarkedString
-            if (c && typeof c === 'object') {
-                const r = c as Record<string, unknown>
-                // MarkdownString.value
-                if (typeof r['value'] === 'string') {
-                    return r['value']
-                }
-                // MarkedString shape: { language, value }
-                if (typeof r['language'] === 'string' && typeof r['value'] === 'string') {
-                    return String(r['value'])
-                }
-                // Some hover contents use 'contents' property (string or array)
-                const cont = r['contents']
-                if (typeof cont === 'string') {
-                    return cont
-                }
-                if (Array.isArray(cont)) {
-                    return cont.map(cc => stringifyHoverContent(cc)).filter(s => s.length > 0).join('\n')
-                }
-                // fallback: try JSON.stringify to get a useful representation
-                try {
-                    const s = JSON.stringify(c)
-                    if (typeof s === 'string' && s.length > 0 && s !== '{}' && s !== 'null') {
-                        return s
-                    }
-                } catch (_) {
-                    // ignore
-                }
+            if (c instanceof vscode.MarkdownString) {
+                return c.value
+            } else if (typeof c === 'string') {
+                return c
+            } else {
+                return c.value
             }
-            return ''
         }
 
         for (const m of matches) {
@@ -146,7 +117,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
                             // h.contents can be MarkedString | MarkedString[] | MarkdownString | string
                             const rawContents = h.contents
                             const asArray = Array.isArray(rawContents) ? rawContents : [rawContents]
-                            return (asArray as unknown[]).map(c => stringifyHoverContent(c)).filter(s => s.length > 0).join('\n')
+                            return asArray.map(c => stringifyHoverContent(c)).filter(s => s.length > 0).join('\n')
                         }).join('\n---\n')
                         const reVar = new RegExp(escapeRegex(m.varname) + '\\s*:\\s*([^\\n\\r]*)')
                         const mv = hoverText.match(reVar)
@@ -176,29 +147,21 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             typeText = typeText.replace(/^['"`]+|['"`]+$/g, '').trim()
 
             // attempt to find definition location(s) for the identifier (absolute file path)
-            let typeSource: { filePath?: string, line?: number, character?: number } | null = null
-            let typeSourceDefinitions: { filePath: string, line: number, character: number }[] | null = null
+            let typeSourceDefinitions: { filePath: string, line: number, character: number }[] | undefined = undefined
             if (hoverPos) {
                 try {
                     const defs = await vscode.commands.executeCommand<readonly vscode.Location[]>('vscode.executeDefinitionProvider', uri, hoverPos)
-                    if (Array.isArray(defs) && defs.length > 0) {
-                        const collected: { filePath: string, line: number, character: number }[] = []
-                        for (const d of defs) {
-                            const maybe = d as unknown
-                            if (maybe && typeof maybe === 'object' && 'uri' in (maybe as Record<string, unknown>) && 'range' in (maybe as Record<string, unknown>)) {
-                                const defLoc = maybe as vscode.Location
-                                const defUri = defLoc.uri
-                                const defRange = defLoc.range
-                                if (defUri && defUri.fsPath && defRange && defRange.start) {
-                                    collected.push({ filePath: defUri.fsPath, line: defRange.start.line, character: defRange.start.character })
-                                }
-                            }
+                    const collected: { filePath: string, line: number, character: number }[] = []
+                    for (const defLoc of defs) {
+                        const defUri = defLoc.uri
+                        const defRange = defLoc.range
+                        if (defUri && defUri.fsPath && defRange && defRange.start) {
+                            collected.push({ filePath: defUri.fsPath, line: defRange.start.line, character: defRange.start.character })
                         }
-                        if (collected.length > 0) {
-                            typeSourceDefinitions = collected
-                            // keep backward-compatible single typeSource as the first definition
-                            typeSource = collected[0]
-                        }
+                    }
+                    if (collected.length > 0) {
+                        typeSourceDefinitions = collected
+                        // keep backward-compatible single typeSource as the first definition
                     }
                 } catch (e) {
                     this.extension.outputChannel.debug(`[AnnotationTool]: definition lookup failed for ${m.varname} - ${String(e)}`)
@@ -218,11 +181,8 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
                 localLine: m.localLine,
                 localCol: m.localCol,
                 type: typeText,
-                filePath: typeSource?.filePath ?? null,
-                line: typeSource?.line ?? null,
-                character: typeSource?.character ?? null,
-                definitions: typeSourceDefinitions ?? null,
-                hoverText: hoverText || null
+                definitions: typeSourceDefinitions ?? undefined,
+                hoverText: hoverText || undefined
             })
         }
 
