@@ -1,6 +1,7 @@
 import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LanguageModelTextPart, LogOutputChannel } from 'vscode'
 import * as vscode from 'vscode'
 import { MatchInfo, parseVarMatchesFromText } from './annotationlib/annotationparser.js'
+import { debugObj } from '../utils/debug.js'
 
 
 interface AnnotationInput {
@@ -149,7 +150,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         this.extension.outputChannel.debug('[AnnotationTool]: building annotated text complete')
 
         const jsonMeta = JSON.stringify(metadata, null, 2)
-        this.extension.outputChannel.debug(`[AnnotationTool]: \n${annotatedText}\n${jsonMeta}`)
+        debugObj('[AnnotationTool]: ', {annotatedText, metadata}, this.extension.outputChannel)
         return new LanguageModelToolResult([
             new LanguageModelTextPart(annotatedText),
             new LanguageModelTextPart(jsonMeta)
