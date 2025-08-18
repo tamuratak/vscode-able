@@ -78,7 +78,9 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             if (textStartInDoc >= 0) {
                 const startPos = doc.positionAt(textStartInDoc)
                 const docLine = startPos.line + m.localLine
-                const docCol = m.localCol
+                // If the match is on the first line of the fragment, add the start character offset
+                // to account for the fragment starting mid-line in the document
+                const docCol = m.localLine === 0 ? startPos.character + m.localCol : m.localCol
                 hoverPos = new vscode.Position(docLine, docCol)
             } else {
                 const re = new RegExp('\\b' + escapeRegex(m.varname) + '\\b', 'g')
