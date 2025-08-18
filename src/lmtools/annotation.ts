@@ -10,14 +10,7 @@ interface AnnotationInput {
 
 interface Def {
     filePath: string,
-    start: {
-        line: number,
-        character: number
-    },
-    end: {
-        line: number,
-        character: number
-    }
+    line: number
 }
 
 interface AnnotationMetaEntry {
@@ -103,7 +96,10 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
                         const defUri = defLoc.uri
                         const defRange = defLoc.range
                         if (defUri && defUri.fsPath && defRange && defRange.start) {
-                            typeSourceDefinitions.push({ filePath: defUri.fsPath, start: defRange.start, end: defRange.end })
+                            typeSourceDefinitions.push({
+                                filePath: defUri.fsPath,
+                                line: defRange.start.line
+                            })
                         }
                     }
                 }
