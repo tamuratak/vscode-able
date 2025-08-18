@@ -17,5 +17,10 @@ Please refer to the following instructions only when generating the code. Ignore
 - Avoid overusing `Array.prototype.map`.
 - Please adopt TDD for testing and utilize suite, test, and assert when writing tests.
 - When fixing TypeScript errors, always prioritize type narrowing. Avoid type assertions unless absolutely necessary.
-- When fixing TypeScript errors, consider adding null checks or using optional chaining rather than adding a type annotation such as as T.
+- Never use property-shape checks (e.g. checking r['value'], 'value' in r, or typeof r.value) for type narrowing.
+- Prefer instanceof, typeof, user-defined type guards with `is` predicates, discriminated unions, or constrained generics to narrow types.
+- When fixing TypeScript errors, consider adding null checks or using optional chaining rather than adding a type annotation such as `as T`.
 - Use undefined instead of null for optional properties.
+- Never use `as unknown` or assertions that assert to `unknown`
+- Never define function parameters or callbacks with type `unknown`
+- Always use explicit union types or constrained generics instead of `unknown`
