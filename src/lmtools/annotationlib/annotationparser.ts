@@ -12,7 +12,7 @@ export function parseVarMatchesFromText(text: string): MatchInfo[] {
     const patterns: { regex: RegExp, kind: 'single' | 'destruct' | 'params' }[] = [
         { regex: /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/g, kind: 'single' },
         { regex: /\bfor\s*\(\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s+of\b/g, kind: 'single' },
-        { regex: /\bfor\s*await\s*\(\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s+of\b/g, kind: 'single' },
+        { regex: /\bfor\s+await\s*\(\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s+of\b/g, kind: 'single' },
         { regex: /\b(?:const|let|var)\s*\{([^}]+)\}\s*=/g, kind: 'destruct' },
         { regex: /\b(?:const|let|var)\s*\[([^\]]+)\]\s*=/g, kind: 'destruct' },
         // arrow-function parameter lists like (a, b) => or inside calls: v.mthd((a,b) => { ... })
