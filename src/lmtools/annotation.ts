@@ -207,20 +207,20 @@ function escapeRegex(s: string) {
 # AnnotationTool — English reference (Markdown)
 
 ## Purpose
-Automatically annotate a given TypeScript code fragment by appending end-of-line comments that show the inferred type for each variable occurrence. The tool does not write to disk; it returns the annotated text (and structured metadata) as the tool result.
+Automatically annotate a given TypeScript/JavaScript code fragment by appending end-of-line comments that show the inferred type for each variable occurrence. The tool does not write to disk; it returns the annotated text (and structured metadata) as the tool result.
 
-This file delegates identifier detection to an exported helper so the detection logic can be unit-tested independently:
+This file delegates identifier detection to a helper so the detection logic can be unit-tested independently:
 
-- `export interface MatchInfo` — shape of each detected identifier (line/col relative to the provided text)
-- `export function parseVarMatchesFromText(text: string): MatchInfo[]` — returns identifiers found in the text fragment
+- `MatchInfo` — shape of each detected identifier (line/col relative to the provided text)
+- `parseVarMatchesFromText(text: string): MatchInfo[]` — returns identifiers found in the text fragment (implemented in `annotationparser.js`)
 
-The `AnnotationTool` class calls `parseVarMatchesFromText` to find variable occurrences, maps those occurrences into document positions, queries VS Code hover/type providers to infer types, and builds the annotated output.
+`AnnotationTool` calls `parseVarMatchesFromText` to find variable occurrences, maps those occurrences into document positions, queries VS Code hover/type providers to infer types, and builds the annotated output and metadata.
 
 ## Input (shape)
 - Type: object
 - Properties:
     - `filePath`: string — absolute path to the target file
-    - `code`: string — the TypeScript/JavaScript code fragment to analyze (the selection)
+    - `code`: string — the code fragment to analyze (the selection)
 - Required: `filePath`, `code` (represented by the `AnnotationInput` interface)
 
 ## Output
@@ -231,7 +231,7 @@ The `AnnotationTool` class calls `parseVarMatchesFromText` to find variable occu
 
 ### Annotation comment format
 - Inline comments appended to lines look like:
-        - `// <varname> satisfies <Type>`
+            // <varname> satisfies <Type>
 
 ### Metadata schema (JSON)
 - The second `LanguageModelTextPart` (on success) is a JSON object with this shape:
@@ -247,8 +247,7 @@ The `AnnotationTool` class calls `parseVarMatchesFromText` to find variable occu
             "definitions": [
                 {
                     "filePath": "/abs/path/to/def.ts",
-                    "start": { "line": 10, "character": 4 },
-                    "end": { "line": 10, "character": 12 }
+                    "line": 10
                 }
             ] | undefined,
             "hoverText": "<raw hover text>" | undefined
@@ -257,8 +256,8 @@ The `AnnotationTool` class calls `parseVarMatchesFromText` to find variable occu
 }
 ```
 
-- `definitions`: optional array containing zero or more definition location objects discovered via the VS Code type/definition provider. Each entry contains an absolute `filePath` and `start`/`end` range objects (each with `line` and `character`). If no definitions were found, the field is `undefined`.
-- `hoverText`: optional string containing the concatenated hover contents (may be empty string)
+- `definitions`: optional array containing zero or more definition location objects discovered via `vscode.executeTypeDefinitionProvider`. Each entry currently contains an absolute `filePath` and a `line` number (the start line of the definition). If no definitions were found, the field is `undefined`.
+- `hoverText`: optional string containing the concatenated hover contents. It may be an empty string or omitted (`undefined`) depending on provider results.
 
 ## High-level behavior
 1. Open the document at `filePath` via `vscode.workspace.openTextDocument`.
@@ -268,8 +267,8 @@ The `AnnotationTool` class calls `parseVarMatchesFromText` to find variable occu
      - For other lines, use the match's `localCol` directly as the document column.
 4. For each identifier position:
      - Query hover information using `vscode.executeHoverProvider(uri, position)` and convert hover contents to plain text.
-     - Infer a concise `type` string by preferring patterns like `<name>: <Type>` or the first `: <something>`; otherwise use the first meaningful hover line. The code strips surrounding quotes/backticks.
-     - Query type/definition locations using `vscode.executeTypeDefinitionProvider(uri, position)` and record any returned `Location`/`LocationLink` ranges as `definitions`.
+     - Infer a concise `type` string by preferring patterns like `<name>: <Type>` (matching the identifier name first), then the first `:<something>` pattern, otherwise use the first meaningful hover line. Surrounding quotes/backticks are stripped.
+     - Query type/definition locations using `vscode.executeTypeDefinitionProvider(uri, position)` and record any returned `Location` entries as `definitions` objects with `filePath` and `line` (the implementation currently only extracts `Location` and uses `range.start.line`).
 5. Append comment(s) to the corresponding line of the fragment. Identical comments are not duplicated on the same line.
 6. Return the annotated text and the JSON metadata (two `LanguageModelTextPart`s) on success.
 
@@ -277,7 +276,7 @@ The `AnnotationTool` class calls `parseVarMatchesFromText` to find variable occu
 - Execute `vscode.executeHoverProvider(uri, position)` → `Hover[]`.
 - Convert each `Hover.contents` entry to plain text (join Markdown/MarkedString parts).
 - Try extraction in this order:
-    1. Match `<identifier>\s*:\s*([^\n\r]*)` (prefer `name: Type`)
+    1. Match `<identifier>\s*:\s*([^\n\r]*)` (prefer `name: Type` where `name` is the identifier)
     2. Match first `:\s*([^\n\r]+)` (any colon-separated type)
     3. Otherwise take the first non-empty hover line
 - Normalize the extracted text (strip surrounding quotes/backticks) and fall back to tokens such as `<no-hover>` or `<hover-error>` when providers fail or return nothing.
