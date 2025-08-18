@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert'
-import { parseVarMatchesFromText } from '../../../src/lmtools/annotationlib/annotationparser'
+import { parseVarMatchesFromText } from '../../../src/lmtools/annotationlib/annotationparser.js'
 
 suite('parseVarMatchesFromText', () => {
     test('extracts simple declarations', () => {
