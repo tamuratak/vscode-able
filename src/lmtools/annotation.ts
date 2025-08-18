@@ -157,7 +157,8 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
 }
 
 
-// parseVarMatchesFromText and MatchInfo are implemented in src/lmtools/annotation-parser.ts
+// parseVarMatchesFromText and MatchInfo are implemented in
+// `src/lmtools/annotationlib/annotationparser.ts`
 
 /**
 # AnnotationTool — English reference (Markdown)

@@ -87,3 +87,55 @@ export function parseVarMatchesFromText(text: string): MatchInfo[] {
 
     return matches
 }
+
+/**
+ * annotationparser.ts — concise reference
+ *
+ * What it is
+ * - A small, dependency-free parser that heuristically finds variable bindings
+ *   in a TypeScript/JavaScript code fragment and returns a list of
+ *   MatchInfo entries with positions relative to the input text.
+ *
+ * Exports
+ * - MatchInfo { varname, localLine, localCol, localIndexInText }
+ * - parseVarMatchesFromText(text: string): MatchInfo[]
+ *
+ * Detection (summary)
+ * - Simple declarations: `const|let|var name = ...`
+ * - For-of / for-await: `for (const name of ...)`, `for await (const name of ...)`
+ * - Object destructuring: `const { a, b: alias } = ...` (alias preferred)
+ * - Array destructuring: `const [x, , y] = ...`
+ * - catch param: `catch (err)`
+ *
+ * Limitations
+ * - Heuristic only: no AST parsing → misses nested destructuring, rest,
+ *   computed properties, and some multi-line patterns
+ * - Returns offsets relative to the provided text (caller maps to document
+ *   positions if needed)
+ *
+ * Example (parseVarMatchesFromText)
+ * Input `text` (a code fragment):
+ * ```ts
+ * const items = getItems()
+ * for (const it of items) {
+ *     const { id, value: v } = it
+ *     let count = 0
+ * }
+ * ```
+ * Output (returned MatchInfo[]):
+ * ```json
+ * [
+ *   { "varname": "items", "localLine": 0, "localCol": 6, "localIndexInText": 6 },
+ *   { "varname": "it", "localLine": 1, "localCol": 11, "localIndexInText": 36 },
+ *   { "varname": "id", "localLine": 2, "localCol": 12, "localIndexInText": 63 },
+ *   { "varname": "v", "localLine": 2, "localCol": 23, "localIndexInText": 74 },
+ *   { "varname": "count", "localLine": 3, "localCol": 8, "localIndexInText": 91 }
+ * ]
+ * ```
+ *
+ * Notes & next steps
+ * - Keep this module dependency-free so tests and LLMs can import it easily.
+ * - For production-grade accuracy, replace with TypeScript Compiler API
+ *   extraction (recommended as a follow-up).
+ */
+
