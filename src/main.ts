@@ -5,12 +5,11 @@ import { PythonTool } from './lmtools/pyodide.js'
 //import { renderToolResult } from './utils/toolresult.js'
 import { MochaJsonTaskProvider } from './task/task.js'
 import { TaskWatcher } from './task/taskwatcher.js'
-import { GeminiApiKeyAuthenticationProvider, GeminiAuthServiceId, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
+import { GeminiApiKeyAuthenticationProvider, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
 import { GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chat/chatprovider.js'
-import { GoogleGenAI } from '@google/genai'
 import { WebSearchTool } from './lmtools/websearch.js'
-import { debugObj } from './utils/debug.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
+import { AnnotationTool, annotationToolName } from './lmtools/annotation.js'
 
 
 class Extension {
@@ -50,11 +49,16 @@ export function activate(context: vscode.ExtensionContext) {
     const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
     const openAiAuthProvider = new OpenAiApiAuthenticationProvider(extension, context.secrets)
     const groqAuthProvider = new GroqApiKeyAuthenticationProvider(extension, context.secrets)
+    // non stable API used
+    try {
+        context.subscriptions.push(
+            vscode.lm.registerLanguageModelChatProvider('gemini_with_able', new GeminiChatProvider(extension)),
+            vscode.lm.registerLanguageModelChatProvider('openai_with_able', new OpenAIChatProvider(extension)),
+            vscode.lm.registerLanguageModelChatProvider('groq_with_able', new GroqChatProvider(extension)),
+        )
+    } catch { }
     context.subscriptions.push(
         extension,
-        vscode.lm.registerLanguageModelChatProvider('gemini_with_able', new GeminiChatProvider(extension)),
-        vscode.lm.registerLanguageModelChatProvider('openai_with_able', new OpenAIChatProvider(extension)),
-        vscode.lm.registerLanguageModelChatProvider('groq_with_able', new GroqChatProvider(extension)),
         geminiAuthProvider,
         openAiAuthProvider,
         groqAuthProvider,
@@ -77,6 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.lm.registerTool('able_web_search', new WebSearchTool(extension)),
         vscode.lm.registerTool('able_run_in_sandbox', new RunInSandbox(extension)),
+        vscode.lm.registerTool(annotationToolName, new AnnotationTool(extension)),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()
     )
@@ -91,22 +96,18 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 async function doSomething(extension: Extension) {
-    const session = await vscode.authentication.getSession(GeminiAuthServiceId, [], { silent: true })
-    if (!session) {
-        return []
+    const activeDocument = vscode.window.activeTextEditor?.document
+    if (!activeDocument) {
+        return
     }
-    const apiKey = session.accessToken
-    const ai = new GoogleGenAI({ apiKey })
-    const config = {
-        tools: [{
-            googleSearch: {},
-        }],
-    }
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: 'Who won the euro 2024?',
-        config,
+    const code = activeDocument.getText(new vscode.Range(0, 0, 10, 0))
+    const result = await vscode.lm.invokeTool('able_annotation', {
+        toolInvocationToken: undefined,
+        input: {
+          filePath: activeDocument.uri.fsPath,
+          code
+        }
     })
-    debugObj('Response: ', response, extension.outputChannel)
+    extension.outputChannel.debug(`[doSomething]: ${JSON.stringify(result)}`)
     return
 }

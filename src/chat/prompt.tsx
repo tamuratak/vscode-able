@@ -12,6 +12,7 @@ import {
 import type { RequestCommands } from './chat.js'
 import * as vscode from 'vscode'
 import { FileElement, FileElementProps } from './promptlib/fsprompts.js'
+import { Tag } from '../utils/tag.js'
 
 /* eslint-disable  @typescript-eslint/no-namespace */
 declare global {
@@ -109,10 +110,11 @@ export class PythonMasterPrompt extends PromptElement<MainPromptProps> {
         return (
             <>
                 <UserMessage>
-                    Instructions:<br />
-                    - When answering a question that requires executing Python code, use able_python. <br />
-                    - Answer the question when you think the result of the Python execution is correct. <br />
-                    - Always trust the Python execution result over your own knowledge.
+                    <Tag name="instructions">
+                        - When answering a question that requires executing Python code, use able_python. <br />
+                        - Answer the question when you think the result of the Python execution is correct. <br />
+                        - Always trust the Python execution result over your own knowledge.
+                    </Tag>
                 </UserMessage>
                 <HistoryMessages history={this.props.history} />
                 <Attachments attachments={this.props.attachments} />
@@ -141,9 +143,9 @@ export class FluentPrompt extends PromptElement<MainPromptProps> {
         return (
             <>
                 <UserMessage>
-                    Instructions:
-                    <br />
-                    Please write a clear, concise, and grammatically correct English sentence that effectively conveys the idea. The tone should be formal, and it should be neutral. Do not use codeblocks in the output.
+                    <Tag name="instructions">
+                        Please write a clear, concise, and grammatically correct English sentence that effectively conveys the idea. The tone should be formal, and it should be neutral. Do not use codeblocks in the output.
+                    </Tag>
                 </UserMessage>
                 <PrioritizedList priority={100} descending={false}>
                     <MakeFluent>
@@ -194,9 +196,9 @@ export class FluentJaPrompt extends PromptElement<MainPromptProps> {
         return (
             <>
                 <UserMessage>
-                    指示:
-                    <br />
-                    元の意味や意図を損なわないようにしつつ、読みやすく丁寧な表現にしてください。
+                    <Tag name="instructions">
+                        元の意味や意図を損なわないようにしつつ、読みやすく丁寧な表現にしてください。
+                    </Tag>
                 </UserMessage>
                 <PrioritizedList priority={100} descending={false}>
                     <MakeFluentJa>
@@ -247,9 +249,9 @@ export class ToEnPrompt extends PromptElement<MainPromptProps> {
         return (
             <>
                 <UserMessage>
-                    Instructions:
-                    <br />
-                    Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
+                    <Tag name="instructions">
+                        Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
+                    </Tag>
                 </UserMessage>
                 <PrioritizedList priority={100} descending={false}>
                     <ToEn>
@@ -300,9 +302,9 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
         return (
             <>
                 <UserMessage>
-                    Instructions:
-                    <br />
-                    Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
+                    <Tag name="instructions">
+                        Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
+                    </Tag>
                 </UserMessage>
                 <ToJa>
                     The symptoms suggest it might be a hardware error.
