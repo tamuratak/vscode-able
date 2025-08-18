@@ -46,4 +46,16 @@ suite('parseVarMatchesFromText', () => {
         const names = matches.map(m => m.varname)
         assert.deepStrictEqual(names, ['err'])
     })
+
+    test('extracts arrow-function parameters inside calls', () => {
+    const src = 'v.mthd((a,b) => { })'
+        const matches = parseVarMatchesFromText(src)
+        const names = matches.map(m => m.varname)
+        assert.deepStrictEqual(names, ['a', 'b'])
+        for (const m of matches) {
+            assert.strictEqual(m.localLine, 0)
+            assert.ok(m.localCol >= 0)
+            assert.ok(m.localIndexInText >= 0)
+        }
+    })
 })

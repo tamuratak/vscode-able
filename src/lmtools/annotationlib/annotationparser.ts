@@ -9,12 +9,14 @@ export interface MatchInfo {
 // Returned MatchInfo objects have line/column relative to the provided text.
 export function parseVarMatchesFromText(text: string): MatchInfo[] {
     // patterns to find varnames inside the provided text
-    const patterns: { regex: RegExp, kind: 'single' | 'destruct' }[] = [
+    const patterns: { regex: RegExp, kind: 'single' | 'destruct' | 'params' }[] = [
         { regex: /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/g, kind: 'single' },
         { regex: /\bfor\s*\(\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s+of\b/g, kind: 'single' },
         { regex: /\bfor\s*await\s*\(\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s+of\b/g, kind: 'single' },
         { regex: /\b(?:const|let|var)\s*\{([^}]+)\}\s*=/g, kind: 'destruct' },
         { regex: /\b(?:const|let|var)\s*\[([^\]]+)\]\s*=/g, kind: 'destruct' },
+        // arrow-function parameter lists like (a, b) => or inside calls: v.mthd((a,b) => { ... })
+        { regex: /\(\s*([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*)\s*\)\s*=>/g, kind: 'params' },
         { regex: /\bcatch\s*\(\s*([A-Za-z_$][\w$]*)\s*\)/g, kind: 'single' }
     ]
 
@@ -63,6 +65,24 @@ export function parseVarMatchesFromText(text: string): MatchInfo[] {
                         localIndexInText
                     })
                 } else if (pat.kind === 'destruct') {
+                    const list = m[1]
+                    const ids = extractIdsFromList(list)
+                    for (const id of ids) {
+                        const subIndex = line.indexOf(id, m.index)
+                        const col = subIndex >= 0 ? subIndex : m.index
+                        let indexBefore = 0
+                        for (let k = 0; k < li; k++) {
+                            indexBefore += textLines[k].length + 1
+                        }
+                        const localIndexInText = indexBefore + (subIndex >= 0 ? subIndex : m.index)
+                        matches.push({
+                            varname: id,
+                            localLine: li,
+                            localCol: col,
+                            localIndexInText
+                        })
+                    }
+                } else if (pat.kind === 'params') {
                     const list = m[1]
                     const ids = extractIdsFromList(list)
                     for (const id of ids) {
