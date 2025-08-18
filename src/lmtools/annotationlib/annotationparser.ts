@@ -35,9 +35,9 @@ export function parseVarMatchesFromText(text: string): MatchInfo[] {
                 if (m) {
                     return m[1]
                 }
-                return null
+                return
             })
-            .filter(Boolean) as string[]
+            .filter((p): p is string => !!p) satisfies string[]
     }
 
     const matches: MatchInfo[] = []

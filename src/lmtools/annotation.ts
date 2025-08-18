@@ -47,7 +47,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             return this.errorResponse(`failed to open document at ${filePath}`)
         }
 
-        const docText = doc.getText()
+        const docString = doc.getText()
 
         const matches: MatchInfo[] = parseVarMatchesFromText(text)
         const textLines = text.split(/\r?\n/)
@@ -57,11 +57,12 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             return this.errorResponse('no variable occurrences found in provided text')
         }
 
-        const textStartInDoc = docText.indexOf(text)
+        const textStartInDoc = docString.indexOf(text)
         if (textStartInDoc >= 0) {
             this.extension.outputChannel.debug('[AnnotationTool]: found provided text in document; using direct offsets for hover positions')
         } else {
-            this.extension.outputChannel.debug('[AnnotationTool]: provided text not found in document; will fallback to searching variable occurrences in the document')
+            this.extension.outputChannel.debug('[AnnotationTool]: provided text not found in document')
+            return this.errorResponse('provided text not found in document')
         }
 
         const annotationsByLine: Map<number, string[]> = new Map<number, string[]>()
@@ -73,29 +74,12 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
                 return this.errorResponse('operation cancelled')
             }
 
-            let hoverPos: vscode.Position | undefined
-
-            if (textStartInDoc >= 0) {
-                const startPos = doc.positionAt(textStartInDoc)
-                const docLine = startPos.line + m.localLine
-                // If the match is on the first line of the fragment, add the start character offset
-                // to account for the fragment starting mid-line in the document
-                const docCol = m.localLine === 0 ? startPos.character + m.localCol : m.localCol
-                hoverPos = new vscode.Position(docLine, docCol)
-            } else {
-                const re = new RegExp('\\b' + escapeRegex(m.varname) + '\\b', 'g')
-                const found = re.exec(docText)
-                if (found && typeof found.index === 'number') {
-                    const pos = doc.positionAt(found.index)
-                    hoverPos = new vscode.Position(pos.line, pos.character)
-                } else {
-                    hoverPos = undefined
-                }
-            }
-
-            if (!hoverPos) {
-                continue
-            }
+            const startPos = doc.positionAt(textStartInDoc)
+            const docLine = startPos.line + m.localLine
+            // If the match is on the first line of the fragment, add the start character offset
+            // to account for the fragment starting mid-line in the document
+            const docCol = m.localLine === 0 ? startPos.character + m.localCol : m.localCol
+            const hoverPos = new vscode.Position(docLine, docCol)
 
             const { typeText, hoverText } = await this.typeTextHoverText(hoverPos, uri, m)
 
@@ -128,7 +112,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
                 localCol: m.localCol,
                 type: typeText,
                 definitions: typeSourceDefinitions.length > 0 ? typeSourceDefinitions : undefined,
-                hoverText: hoverText || undefined
+                hoverText
             })
         }
 
@@ -152,7 +136,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         this.extension.outputChannel.debug('[AnnotationTool]: building annotated text complete')
 
         const jsonMeta = JSON.stringify(metadata, null, 2)
-        debugObj('[AnnotationTool]: ', {annotatedText, metadata}, this.extension.outputChannel)
+        debugObj('[AnnotationTool]: ', { annotatedText, metadata }, this.extension.outputChannel)
         return new LanguageModelToolResult([
             new LanguageModelTextPart(annotatedText),
             new LanguageModelTextPart(jsonMeta)
@@ -167,10 +151,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             if (raw && raw.length > 0) {
                 const hoverItems = raw
                 hoverText = hoverItems.map(h => {
-                    // h.contents can be MarkedString | MarkedString[] | MarkdownString | string
-                    const rawContents = h.contents
-                    const asArray = Array.isArray(rawContents) ? rawContents : [rawContents]
-                    return asArray.map(c => stringifyHoverContent(c)).filter(s => s.length > 0).join('\n')
+                    return h.contents.map(c => stringifyHoverContent(c)).filter(s => s.length > 0).join('\n')
                 }).join('\n---\n')
                 const reVar = new RegExp(escapeRegex(m.varname) + '\\s*:\\s*([^\\n\\r]*)')
                 const mv = hoverText.match(reVar)
