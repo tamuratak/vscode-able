@@ -253,7 +253,6 @@ The `AnnotationTool` class now calls `parseVarMatchesFromText` to obtain variabl
 2. Use `parseVarMatchesFromText(code)` to detect identifiers in the provided code fragment. That function returns identifiers with line/column offsets relative to `code`.
 3. For each detected identifier, map to a document position:
      - If the provided `code` exactly occurs in the document, map lines/columns relative to that occurrence
-     - Otherwise, fallback to searching the document for the identifier occurrence (first match)
 4. Use the hover provider to obtain type info:
      - Call `vscode.executeHoverProvider(uri, position)` to get hover items
      - Convert hover contents to plain text
@@ -281,7 +280,6 @@ Notes:
 
 ## Position mapping rules
 - Preferred: find exact `code` substring in document; compute `startLine` and offset lines/columns relative to that start position
-- Fallback: regex-search the whole document for the identifier and use the first match to compute hover position
 - The hover position is placed on the identifier token (character position)
 
 ## Hover extraction algorithm
