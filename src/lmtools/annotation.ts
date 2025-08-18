@@ -243,9 +243,35 @@ The `AnnotationTool` class now calls `parseVarMatchesFromText` to obtain variabl
 (Encapsulated in the extension as `AnnotationInput`)
 
 ## Output (shape)
-- A `LanguageModelToolResult` containing a single `LanguageModelTextPart` whose text is the annotated code string.
+-- A `LanguageModelToolResult` containing two `LanguageModelTextPart`s:
+     1. The annotated code string (comments appended inline)
+     2. A JSON string containing structured metadata about the annotations
+
 - Annotation format appended to lines:
-    - `// <varname> satisfies <Type>`
+        - `// <varname> satisfies <Type>`
+
+### Metadata schema
+- The second `LanguageModelTextPart` is a pretty-printed JSON object with the shape:
+
+```json
+{
+    "annotations": [
+        {
+            "varname": "<identifier>",
+            "localLine": 0,
+            "localCol": 0,
+            "type": "<inferred type string>",
+            "definitions": [
+                { "filePath": "/abs/path/to/def.ts", "line": 10, "character": 4 }
+            ] | undefined,
+            "hoverText": "<raw hover text>" | undefined
+        }
+    ]
+}
+```
+
+- `definitions`: optional array containing zero or more definition locations discovered via the VS Code definition provider. Each entry contains an absolute `filePath`, `line`, and `character` for the definition start. If no definitions were found, the field is `undefined`.
+- `hoverText`: optional string containing the concatenated hover contents (if any) that were used to infer the `type` value
 
 ## High-level behavior
 1. Open the document at `filePath`.
@@ -302,6 +328,8 @@ Notes:
 ## Return contract
 - Always return a `LanguageModelToolResult` wrapping a `LanguageModelTextPart` with the annotated string (even on early exit/error, it returns the original or partially annotated text inside a `LanguageModelToolResult`).
 - The caller (LLM controller) receives the string and may choose to apply it to the file or present it to the user.
+ - Always return a `LanguageModelToolResult` wrapping two `LanguageModelTextPart`s: the annotated code and a JSON metadata string. On early exit/error, the tool still returns a `LanguageModelToolResult`; the metadata part may be an empty/partial object.
+ - The caller (LLM controller) receives both the annotated text and the structured metadata and can consume the JSON programmatically (for example, to feed to an LLM or to present a richer UI).
 
 ## Example (input → output)
 Input `code`:
@@ -336,7 +364,7 @@ for (const it of items) { // it satisfies Item
 - File: `src/lmtools/annotation.ts`
 - Input interface: `AnnotationInput` with `filePath` and `code`
 - Main method: `async invoke(options: LanguageModelToolInvocationOptions<AnnotationInput>, token: CancellationToken)`
-- Returns: `new LanguageModelToolResult([new LanguageModelTextPart(annotatedText)])`
+- Returns: `new LanguageModelToolResult([new LanguageModelTextPart(annotatedText), new LanguageModelTextPart(jsonMeta)])`
 - Uses `vscode.commands.executeCommand('vscode.executeHoverProvider', uri, position)` to obtain type info
 
 */
