@@ -192,9 +192,6 @@ function escapeRegex(s: string) {
 }
 
 
-// parseVarMatchesFromText and MatchInfo are implemented in
-// `src/lmtools/annotationlib/annotationparser.ts`
-
 /**
 # AnnotationTool — English reference (Markdown)
 
