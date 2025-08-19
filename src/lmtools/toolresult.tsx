@@ -46,7 +46,8 @@ export class TypeDefinitionTag extends PromptElement<TypeDefinitionProps> {
             <Tag name='typedefinition' attrs={{
                 typename: this.props.definitionMetadata.name,
                 filePath: this.props.definitionMetadata.filePath,
-                startLine: this.props.definitionMetadata.startLine
+                startLine: this.props.definitionMetadata.startLine,
+                endLine: this.props.definitionMetadata.endLine
             }}>
                 {this.props.definitionMetadata.definitionText ?? '[fail to retrieve definition]'}
             </Tag>
