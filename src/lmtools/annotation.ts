@@ -4,30 +4,29 @@ import { MatchInfo, parseVarMatchesFromText } from './annotationlib/annotationpa
 import { getDefinitionTextFromUriAtPosition } from './annotationlib/getdefinition.js'
 
 
-interface AnnotationInput {
+interface AnnotationToolInput {
     filePath: string,
     code: string,
 }
 
-interface Def {
+interface DefinitionMetadata {
     filePath: string
     startLine: number
     endLine?: number
     definitionText?: string
 }
 
-interface AnnotationMetaEntry {
+interface AnnotationInfo {
     varname: string
     localLine: number
     localCol: number
     type: string
-    definitions?: Def[] | undefined
-    hoverText: string | undefined
+    definitions?: DefinitionMetadata[] | undefined
 }
 
 export const annotationToolName = 'able_annotation'
 
-export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
+export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
 
     constructor(
         private readonly extension: {
@@ -41,7 +40,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         return new LanguageModelToolResult([new LanguageModelTextPart(`${annotationToolName} error: ${message}`)])
     }
 
-    async invoke(options: LanguageModelToolInvocationOptions<AnnotationInput>, token: CancellationToken) {
+    async invoke(options: LanguageModelToolInvocationOptions<AnnotationToolInput>, token: CancellationToken) {
         const { filePath, code: text } = options.input
         const uri = vscode.Uri.file(filePath)
         this.extension.outputChannel.debug(`[AnnotationTool]: invoke on ${filePath}`)
@@ -68,7 +67,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         }
 
         const annotationsByLine: Map<number, string[]> = new Map<number, string[]>()
-        const metadata: { annotations: AnnotationMetaEntry[] } = { annotations: [] }
+        const annotationArray: AnnotationInfo[] = []
 
         for (const m of matches) {
             if (token.isCancellationRequested) {
@@ -83,10 +82,10 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             const docCol = m.localLine === 0 ? startPos.character + m.localCol : m.localCol
             const hoverPos = new vscode.Position(docLine, docCol)
 
-            const { typeText, hoverText } = await this.typeTextHoverText(hoverPos, uri, m)
+            const typeText = await this.extractTypeFromHoverInfo(hoverPos, uri, m)
 
             // attempt to find definition location(s) for the identifier (absolute file path)
-            const typeSourceDefinitions: Def[] = []
+            const typeSourceDefinitions: DefinitionMetadata[] = []
             try {
                 const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeTypeDefinitionProvider', uri, hoverPos)
                 for (const defLoc of defs) {
@@ -137,13 +136,12 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             }
 
             // record metadata for this identifier, include all found definitions if any
-            metadata.annotations.push({
+            annotationArray.push({
                 varname: m.varname,
                 localLine: m.localLine,
                 localCol: m.localCol,
                 type: typeText,
-                definitions: typeSourceDefinitions.length > 0 ? typeSourceDefinitions : undefined,
-                hoverText
+                definitions: typeSourceDefinitions.length > 0 ? typeSourceDefinitions : undefined
             })
         }
 
@@ -167,7 +165,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         const annotatedText = outLines.join('\n')
         this.extension.outputChannel.debug('[AnnotationTool]: building annotated text complete')
 
-        const jsonMeta = JSON.stringify(metadata, null, 2)
+        const jsonMeta = JSON.stringify(annotationArray, null, 2)
         this.extension.outputChannel.debug('[AnnotationTool]:')
         this.extension.outputChannel.debug(annotatedText)
         this.extension.outputChannel.debug(jsonMeta)
@@ -177,7 +175,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         ])
     }
 
-    private async typeTextHoverText(hoverPos: vscode.Position, uri: vscode.Uri, m: MatchInfo) {
+    private async extractTypeFromHoverInfo(hoverPos: vscode.Position, uri: vscode.Uri, m: MatchInfo) {
         let typeText = '<unknown>'
         let hoverText = ''
         try {
@@ -208,7 +206,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             typeText = '<hover-error>'
         }
         typeText = typeText.replace(/^['"`]+|['"`]+$/g, '').trim()
-        return { typeText, hoverText }
+        return typeText
     }
 
 }
