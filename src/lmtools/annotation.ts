@@ -4,6 +4,7 @@ import { MatchInfo, parseVarMatchesFromText } from './annotationlib/annotationpa
 import { getDefinitionTextFromUriAtPosition } from './annotationlib/getdefinition.js'
 import { renderElementJSON } from '@vscode/prompt-tsx'
 import { TypeDefinitionTag } from './toolresult.js'
+import * as util from 'node:util'
 
 
 interface AnnotationToolInput {
@@ -111,7 +112,6 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
                         // try to extract full definition text using DocumentSymbolProvider
                         try {
                             const defInfo = await getDefinitionTextFromUriAtPosition(defUri, defRange.start)
-                            this.extension.outputChannel.debug(`[AnnotationTool]: getDefinitionTextFromUriAtPosition extracts\n${defInfo.text}`)
                             typeSourceDefinitions.push({
                                 name: defInfo.name,
                                 filePath: defUri.fsPath,
@@ -120,7 +120,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
                                 definitionText: defInfo.text,
                             })
                         } catch (e) {
-                            this.extension.outputChannel.debug(`[AnnotationTool]: definition text extraction failed for ${m.varname} - ${String(e)}`)
+                            this.extension.outputChannel.error(`[AnnotationTool]: definition text extraction failed for ${m.varname} - ${String(e)}`)
                             typeSourceDefinitions.push({
                                 filePath: defUri.fsPath,
                                 startLine: defRange.start.line
@@ -129,7 +129,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
                     }
                 }
             } catch (e) {
-                this.extension.outputChannel.debug(`[AnnotationTool]: definition lookup failed for ${m.varname} - ${String(e)}`)
+                this.extension.outputChannel.error(`[AnnotationTool]: definition lookup failed for ${m.varname} - ${util.inspect(e)}`)
             }
 
             const comment = `// ${m.varname} satisfies ${typeText}`

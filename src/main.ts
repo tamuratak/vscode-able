@@ -112,7 +112,7 @@ async function doSomething(extension: Extension) {
             }
         })
         const ret = await renderToolResult(result)
-        extension.outputChannel.debug(`[doSomething]: result: ${JSON.stringify(ret, null, 2)}`)
+        extension.outputChannel.debug(`[doSomething]: result:\n ${ret}`)
     } catch (e) {
         if (e instanceof Error) {
             extension.outputChannel.error(`[doSomething]: error: ${JSON.stringify([e.message, e.stack], null, 2)}`)
