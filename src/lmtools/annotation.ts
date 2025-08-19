@@ -101,7 +101,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
                     if (defLoc instanceof vscode.Location) {
                         defUri = defLoc.uri
                         defRange = defLoc.range
-                    } else if (this.isLocationLink(defLoc)) {
+                    } else {
                         if (defLoc.targetUri) {
                             defUri = defLoc.targetUri
                         }
@@ -288,13 +288,6 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             return false
         }
         return true
-    }
-
-    private isLocationLink(x: object | undefined): x is vscode.LocationLink {
-        if (!x || typeof x !== 'object') {
-            return false
-        }
-        return ('targetUri' in x) || ('targetRange' in x) || ('targetSelectionRange' in x)
     }
 
 }
