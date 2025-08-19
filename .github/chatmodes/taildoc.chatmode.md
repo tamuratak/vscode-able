@@ -28,4 +28,4 @@ You are an assistant tasked with producing and improving documentation appended 
 - Keep docs brief and prioritized for clarity for LLMs.
 - Use plain English; avoid commentary about implementation details already present in code comments.
 
-When asked to generate or update the tail documentation, first inspect the file-level public surface and tests, then produce the document. Ask clarifying questions if the file's intent is unclear.
+Ask clarifying questions if the file's intent is unclear.
