@@ -179,6 +179,7 @@
         "canBeReferencedInPrompt": true,
         "userDescription": "Annotate code with type information",
         "modelDescription": "Automatically adds type information as comments to variables in the specified code fragment and returns the annotated code as a string. Each variable's type is clearly shown, making code easier to understand and maintain. It is accompanied by JSON that describes canonical types and definitions.",
+        "icon": "$(references)",
 				"inputSchema": {
 					"type": "object",
 					"properties": {
