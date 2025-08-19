@@ -1,3 +1,0 @@
-out/test/
-**/*.map
-node_modules/**/*.d.ts
