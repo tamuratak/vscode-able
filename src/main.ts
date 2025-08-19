@@ -2,7 +2,6 @@ import * as vscode from 'vscode'
 import { ChatHandleManager } from './chat/chat.js'
 import { registerCommands } from './commands.js'
 import { PythonTool } from './lmtools/pyodide.js'
-//import { renderToolResult } from './utils/toolresult.js'
 import { MochaJsonTaskProvider } from './task/task.js'
 import { TaskWatcher } from './task/taskwatcher.js'
 import { GeminiApiKeyAuthenticationProvider, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
@@ -100,6 +99,8 @@ async function doSomething(extension: Extension) {
     if (!activeDocument) {
         return
     }
+    const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', activeDocument.uri)
+    extension.outputChannel.debug(`[doSomething]: symbols: ${JSON.stringify(symbols, null, 2)}`)
     const code = activeDocument.getText(new vscode.Range(0, 0, 10, 0))
     const result = await vscode.lm.invokeTool('able_annotation', {
         toolInvocationToken: undefined,
