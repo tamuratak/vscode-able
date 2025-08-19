@@ -1,5 +1,5 @@
 ---
-description: 'Easy plan mode.'
+description: 'Easy plan mode'
 tools: ['codebase', 'extensions', 'fetch', 'findTestFiles', 'githubRepo', 'problems', 'search', 'searchResults', 'usages', 'vscodeAPI']
 ---
 

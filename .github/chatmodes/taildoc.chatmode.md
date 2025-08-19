@@ -1,5 +1,5 @@
 ---
-description: 'Editing file-tail docs (LLM-oriented).'
+description: 'Editing file-tail docs (LLM-oriented)'
 tools: ['codebase', 'search', 'searchResults', 'usages', 'vscodeAPI', 'fetch']
 ---
 
