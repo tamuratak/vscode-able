@@ -128,14 +128,19 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
             }
         }
 
+        const renderedFilePathSet = new Set<string>()
         const typeDefTags: LanguageModelPromptTsxPart[] = []
         for (const anno of annotationArray) {
             for (const def of anno.definitions || []) {
+                if (this.shouldSkip(def) || renderedFilePathSet.has(def.filePath)) {
+                    continue
+                }
                 const json = await renderElementJSON(
                     TypeDefinitionTag,
                     { definitionMetadata: def },
                     options.tokenizationOptions
                 )
+                renderedFilePathSet.add(def.filePath)
                 typeDefTags.push(new LanguageModelPromptTsxPart(json))
             }
         }
@@ -147,6 +152,9 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
         ])
     }
 
+    private shouldSkip(def: DefinitionMetadata) {
+        return def.filePath.includes('node_modules/@types/node/') || def.filePath.includes('node_modules/typescript/lib/')
+    }
     // attempt to find definition location(s) for the identifier (absolute file path)
     private async extractTypeSourceDefinitions(hoverPos: vscode.Position, uri: vscode.Uri) {
         const typeSourceDefinitions: DefinitionMetadata[] = []
