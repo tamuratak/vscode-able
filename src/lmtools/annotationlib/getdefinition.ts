@@ -61,7 +61,7 @@ export async function getDefinitionTextFromUriAtPosition(defUri: vscode.Uri, pos
     }
 }
 
-export function positionInRange(pos: vscode.Position, range: vscode.Range) {
+function positionInRange(pos: vscode.Position, range: vscode.Range) {
     if (pos.line < range.start.line || pos.line > range.end.line) {
         return false
     }
