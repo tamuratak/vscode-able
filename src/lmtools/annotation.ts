@@ -5,6 +5,7 @@ import { getDefinitionTextFromUriAtPosition } from './annotationlib/getdefinitio
 import { renderElementJSON } from '@vscode/prompt-tsx'
 import { TypeDefinitionTag } from './toolresult.js'
 import * as util from 'node:util'
+import { inspectReadable } from '../utils/inspect.js'
 
 
 interface AnnotationToolInput {
@@ -53,7 +54,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
         try {
             doc = await vscode.workspace.openTextDocument(uri)
         } catch (e) {
-            this.extension.outputChannel.error(`[AnnotationTool]: cannot open document: ${String(e)}`)
+            this.extension.outputChannel.error(`[AnnotationTool]: cannot open document: ${inspectReadable(e)}`)
             return this.errorResponse(`failed to open document at ${filePath}`)
         }
 
@@ -89,48 +90,9 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
             const typeText = await this.extractTypeFromHoverInfo(hoverPos, uri, m)
 
             // attempt to find definition location(s) for the identifier (absolute file path)
-            const typeSourceDefinitions: DefinitionMetadata[] = []
-            try {
-                const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeTypeDefinitionProvider', uri, hoverPos)
-                for (const defLoc of defs) {
-                    let defUri: vscode.Uri | undefined
-                    let defRange: vscode.Range | undefined
-                    if (defLoc instanceof vscode.Location) {
-                        defUri = defLoc.uri
-                        defRange = defLoc.range
-                    } else {
-                        if (defLoc.targetUri) {
-                            defUri = defLoc.targetUri
-                        }
-                        if (defLoc.targetRange) {
-                            defRange = defLoc.targetRange
-                        } else if (defLoc.targetSelectionRange) {
-                            defRange = defLoc.targetSelectionRange
-                        }
-                    }
-                    if (defUri && defUri.fsPath && defRange && defRange.start) {
-                        // try to extract full definition text using DocumentSymbolProvider
-                        try {
-                            const defInfo = await getDefinitionTextFromUriAtPosition(defUri, defRange.start)
-                            typeSourceDefinitions.push({
-                                name: defInfo.name,
-                                filePath: defUri.fsPath,
-                                startLine: defRange.start.line,
-                                endLine: defInfo.endLine,
-                                definitionText: defInfo.text,
-                            })
-                        } catch (e) {
-                            this.extension.outputChannel.error(`[AnnotationTool]: definition text extraction failed for ${m.varname} - ${String(e)}`)
-                            typeSourceDefinitions.push({
-                                filePath: defUri.fsPath,
-                                startLine: defRange.start.line
-                            })
-                        }
-                    }
-                }
-            } catch (e) {
+            const typeSourceDefinitions = await this.extractTypeSourceDefinitions(hoverPos, uri).catch(e =>
                 this.extension.outputChannel.error(`[AnnotationTool]: definition lookup failed for ${m.varname} - ${util.inspect(e)}`)
-            }
+            ) ?? []
 
             const comment = `// ${m.varname} satisfies ${typeText}`
             const existing = annotationsByLine.get(m.localLine) || []
@@ -185,6 +147,49 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
         ])
     }
 
+    // attempt to find definition location(s) for the identifier (absolute file path)
+    private async extractTypeSourceDefinitions(hoverPos: vscode.Position, uri: vscode.Uri) {
+        const typeSourceDefinitions: DefinitionMetadata[] = []
+        const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeTypeDefinitionProvider', uri, hoverPos)
+        for (const defLoc of defs) {
+            let defUri: vscode.Uri | undefined
+            let defRange: vscode.Range | undefined
+            if (defLoc instanceof vscode.Location) {
+                defUri = defLoc.uri
+                defRange = defLoc.range
+            } else {
+                if (defLoc.targetUri) {
+                    defUri = defLoc.targetUri
+                }
+                if (defLoc.targetRange) {
+                    defRange = defLoc.targetRange
+                } else if (defLoc.targetSelectionRange) {
+                    defRange = defLoc.targetSelectionRange
+                }
+            }
+            if (defUri && defUri.fsPath && defRange && defRange.start) {
+                // try to extract full definition text using DocumentSymbolProvider
+                try {
+                    const defInfo = await getDefinitionTextFromUriAtPosition(defUri, defRange.start)
+                    typeSourceDefinitions.push({
+                        name: defInfo.name,
+                        filePath: defUri.fsPath,
+                        startLine: defRange.start.line,
+                        endLine: defInfo.endLine,
+                        definitionText: defInfo.text,
+                    })
+                } catch (e) {
+                    this.extension.outputChannel.error(`[AnnotationTool]: definition text extraction failed: ${inspectReadable(e)}`)
+                    typeSourceDefinitions.push({
+                        filePath: defUri.fsPath,
+                        startLine: defRange.start.line
+                    })
+                }
+            }
+        }
+        return typeSourceDefinitions
+    }
+
     private async extractTypeFromHoverInfo(hoverPos: vscode.Position, uri: vscode.Uri, m: MatchInfo) {
         let typeText = '<unknown>'
         let hoverText = ''
@@ -212,7 +217,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
                 typeText = '<no-hover>'
             }
         } catch (e) {
-            this.extension.outputChannel.error(`[AnnotationTool]: hover failed for ${m.varname} - ${String(e)}`)
+            this.extension.outputChannel.error(`[AnnotationTool]: hover failed for ${m.varname} - ${inspectReadable(e)}`)
             typeText = '<hover-error>'
         }
         typeText = typeText.replace(/^['"`]+|['"`]+$/g, '').trim()
