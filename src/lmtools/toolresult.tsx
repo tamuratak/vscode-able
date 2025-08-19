@@ -37,15 +37,14 @@ export class CommandResultPrompt extends PromptElement<CommandResultPromptProps>
 }
 
 interface TypeDefinitionProps extends BasePromptElementProps {
-    type: string
     definitionMetadata: DefinitionMetadata
 }
 
 export class TypeDefinitionTag extends PromptElement<TypeDefinitionProps> {
     render(): PromptPiece {
         return (
-            <Tag name='type-definition' attrs={{
-                typename: this.props.type,
+            <Tag name='typedefinition' attrs={{
+                typename: this.props.definitionMetadata.name,
                 filePath: this.props.definitionMetadata.filePath,
                 startLine: this.props.definitionMetadata.startLine
             }}>

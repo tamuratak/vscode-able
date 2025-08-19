@@ -12,6 +12,7 @@ interface AnnotationToolInput {
 }
 
 export interface DefinitionMetadata {
+    name?: string
     filePath: string
     startLine: number
     endLine?: number
@@ -112,6 +113,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
                             const defInfo = await getDefinitionTextFromUriAtPosition(defUri, defRange.start)
                             this.extension.outputChannel.debug(`[AnnotationTool]: getDefinitionTextFromUriAtPosition extracts\n${defInfo.text}`)
                             typeSourceDefinitions.push({
+                                name: defInfo.name,
                                 filePath: defUri.fsPath,
                                 startLine: defRange.start.line,
                                 endLine: defInfo.endLine,
@@ -169,7 +171,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
             for (const def of anno.definitions || []) {
                 const json = await renderElementJSON(
                     TypeDefinitionTag,
-                    { type: anno.type, definitionMetadata: def },
+                    { definitionMetadata: def },
                     options.tokenizationOptions
                 )
                 typeDefTags.push(new LanguageModelPromptTsxPart(json))

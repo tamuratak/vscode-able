@@ -1,6 +1,7 @@
 import * as vscode from 'vscode'
 
 export interface DefinitionTextResult {
+    name: string
     startLine: number
     endLine: number
     text: string
@@ -40,7 +41,7 @@ export async function getDefinitionTextFromUriAtPosition(
             const startLine = best.range.start.line
             const endLine = best.range.end.line
             const text = doc.getText(new vscode.Range(new vscode.Position(startLine, 0), new vscode.Position(endLine + 1, 0)))
-            return { startLine, endLine, text }
+            return { startLine, endLine, text, name: best.name }
         }
     }
     throw new Error(`No suitable symbol found for position ${JSON.stringify(pos)} in document ${defUri.fsPath}`)
