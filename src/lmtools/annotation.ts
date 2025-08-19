@@ -251,53 +251,44 @@ function escapeRegex(s: string) {
 AnnotationTool — concise reference (LLM-oriented)
 
 Purpose
-Automatically annotate a provided TypeScript/JavaScript fragment by appending end-of-line comments that show the inferred type for each detected identifier. The tool returns the annotated fragment and a small JSON metadata object; it does not modify files on disk.
+Provide a compact, machine-friendly summary of the AnnotationTool: it annotates a provided TypeScript/JavaScript text fragment by appending end-of-line comments that state the inferred type for each detected identifier. The tool does not modify disk files; it returns the annotated fragment and optional structured metadata for use by LLMs or tooling.
 
-Input
-- Type: object (see `AnnotationInput`)
+Inputs
+- Type: object
 - Properties:
-    - `filePath`: string — absolute path to the document that contains the fragment
-    - `code`: string — the text fragment to analyze (selection)
+    - `filePath`: string — absolute path to the containing document
+    - `code`: string — the exact text fragment (selection) present inside that document
 
-Output
-- On success: a `LanguageModelToolResult` with two `LanguageModelTextPart`s in order:
-    1) Annotated source text (original lines with appended comments like `// <varname> satisfies <Type>`)
-    2) JSON metadata (pretty-printed) with an `annotations` array describing each identifier
-- On failure or early exit: a single-part `LanguageModelToolResult` containing an error string
+Outputs
+- Success: a LanguageModelToolResult whose first part is the annotated source text (original lines with appended comments, e.g. `// x satisfies number`) and subsequent parts are optional serialized TypeDefinition entries (TSX prompt parts) for discovered definitions
+- Failure: a single-part LanguageModelToolResult containing an error string
 
-Metadata (summary)
-- Each annotation entry includes:
-    - `varname`: identifier string
-    - `localLine`, `localCol`: position inside the provided fragment (0-based)
-    - `type`: short inferred type text (extracted from hover when available)
-    - `definitions` (optional): array of objects with at least `filePath` and `startLine`; may include `endLine` and `definitionText` when the declaration body was extracted
-    - `hoverText` (optional): concatenated hover provider contents
+Annotation metadata (per-identifier)
+- `varname`: identifier name
+- `localLine`, `localCol`: 0-based position inside the provided `code` fragment
+- `type`: concise inferred type string (extracted from hover provider when available)
+- `definitions` (optional): array of objects with at minimum `{ filePath, startLine }` and optionally `{ endLine, name, definitionText }`
 
-High-level behavior
-1. Open the document at `filePath` and locate the provided `code` fragment inside it
-2. Use `parseVarMatchesFromText(code)` to locate identifier occurrences (returns `MatchInfo[]` with local line/col)
-3. Map each match to a `vscode.Position` in the document (first-line matches take the fragment's starting character into account)
-4. For each position:
-     - Query hover via `vscode.executeHoverProvider` and extract a concise `type` string (prefer `name: Type`, fallback to first `: Type` or first non-empty hover line)
-        - Query type/definition locations via `vscode.executeTypeDefinitionProvider` and, when possible, attempt to extract the declaration body using document symbols or by using the provided target range
-            (this extraction is performed by `getDefinitionTextFromUriAtPosition` in `src/lmtools/annotationlib/getdefinition.js`).
-5. Append unique annotation comments to corresponding fragment lines and collect structured metadata
+Minimal behaviour summary
+1) Open `filePath` and locate the exact `code` fragment inside the document
+2) Extract identifier matches with `parseVarMatchesFromText(code)` (returns MatchInfo[] containing local line/col)
+3) Convert each match to a document `vscode.Position` and request hover information (`vscode.executeHoverProvider`) to derive a short `type` string
+4) Request type/definition locations (`vscode.executeTypeDefinitionProvider`) and, when possible, extract the full declaration text using document symbols via `getDefinitionTextFromUriAtPosition`
+5) Produce annotated lines (append unique `// <var> satisfies <Type>` comments) and return structured metadata plus any serialized type-definition prompt parts
 
-Assumptions & limitations
-- Identifier detection is heuristic and delegated to `parseVarMatchesFromText`; it is not a full TypeScript AST parse
-- Declaration extraction relies on language server support for document symbols; when unavailable, the tool falls back to smaller target ranges or omits the declaration text
-- The tool requires the exact `code` fragment to appear in the opened document so positions can be computed by direct offset
+Assumptions and limitations
+- Identifier detection is heuristic (not a full AST) and depends on `annotationparser.js`
+- Declaration extraction depends on language-server support for document symbols and type-definition providers; missing support reduces metadata richness
+- The provided `code` must match text in the opened document for positions to be computed accurately
 
-Example usage (conceptual)
-// input: { filePath: '/proj/src/foo.ts', code: 'const x = 1\nconsole.log(x)'}
-// output part 1: annotated text with comments
-// output part 2: JSON metadata with one annotation for `x`
+Example (conceptual)
+Input: { filePath: '/proj/src/foo.ts', code: 'const x = 1\nconsole.log(x)' }
+Output part 1: annotated text with `// x satisfies number` appended to the console line
+Output part 2: optional serialized type-definition entries for discovered symbols
 
-Where to look
+Where to inspect implementation
 - Implementation: `src/lmtools/annotation.ts`
 - Identifier parser: `src/lmtools/annotationlib/annotationparser.js`
-- Declaration text helper: `src/lmtools/annotationlib/getdefinition.js`
+- Declaration extractor: `src/lmtools/annotationlib/getdefinition.js`
 
-Notes for LLMs
-- This document emphasises intent, input/output shape, and the provider-based inference strategy rather than implementation minutiae. Use the metadata schema and example to construct tool prompts or tests.
 */
