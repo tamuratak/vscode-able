@@ -11,11 +11,9 @@ interface AnnotationInput {
 
 interface Def {
     filePath: string
-    line: number
-    startLine?: number
+    startLine: number
     endLine?: number
     definitionText?: string
-    method?: 'documentSymbol' | 'fallback-range'
 }
 
 interface AnnotationMetaEntry {
@@ -115,20 +113,19 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
                     if (defUri && defUri.fsPath && defRange && defRange.start) {
                         // try to extract full definition text using DocumentSymbolProvider
                         try {
-                            const defInfo = await getDefinitionTextFromUriAtPosition(defUri, defRange.start, this.extension.outputChannel)
+                            const defInfo = await getDefinitionTextFromUriAtPosition(defUri, defRange.start)
+                            this.extension.outputChannel.debug(`[AnnotationTool]: getDefinitionTextFromUriAtPosition extracts\n${defInfo.text}`)
                             typeSourceDefinitions.push({
                                 filePath: defUri.fsPath,
-                                line: defRange.start.line,
-                                startLine: defInfo.startLine,
+                                startLine: defRange.start.line,
                                 endLine: defInfo.endLine,
                                 definitionText: defInfo.text,
-                                method: defInfo.method
                             })
                         } catch (e) {
                             this.extension.outputChannel.debug(`[AnnotationTool]: definition text extraction failed for ${m.varname} - ${String(e)}`)
                             typeSourceDefinitions.push({
                                 filePath: defUri.fsPath,
-                                line: defRange.start.line
+                                startLine: defRange.start.line
                             })
                         }
                     }
