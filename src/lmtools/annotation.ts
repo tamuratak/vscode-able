@@ -6,6 +6,7 @@ import { renderElementJSON } from '@vscode/prompt-tsx'
 import { TypeDefinitionTag } from './toolresult.js'
 import * as util from 'node:util'
 import { inspectReadable } from '../utils/inspect.js'
+import { createLanguageModelPromptTsxPart } from '../utils/prompttsxhelper.js'
 
 
 interface AnnotationToolInput {
@@ -141,7 +142,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
                     options.tokenizationOptions
                 )
                 renderedFilePathSet.add(def.filePath)
-                typeDefTags.push(new LanguageModelPromptTsxPart(json))
+                typeDefTags.push(createLanguageModelPromptTsxPart(json))
             }
         }
 

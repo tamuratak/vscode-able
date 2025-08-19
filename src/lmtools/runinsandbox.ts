@@ -6,6 +6,7 @@ import * as path from 'node:path'
 import { debugObj } from '../utils/debug.js'
 import { renderElementJSON } from '@vscode/prompt-tsx'
 import { CommandResultPrompt } from './toolresult.js'
+import { createLanguageModelPromptTsxPart } from '../utils/prompttsxhelper.js'
 
 
 export interface RunInSandboxInput {
@@ -114,7 +115,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         debugObj('RunInSandbox exit code: ', { code: exitCode, signal, commandError }, this.extension.outputChannel)
         const result = await renderElementJSON(CommandResultPrompt, { stdout, stderr, exitCode, signal }, options.tokenizationOptions)
         return new LanguageModelToolResult([
-            new vscode.LanguageModelPromptTsxPart(result)
+            createLanguageModelPromptTsxPart(result)
         ])
     }
 
