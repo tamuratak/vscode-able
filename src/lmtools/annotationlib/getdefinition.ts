@@ -1,7 +1,18 @@
 import * as vscode from 'vscode'
 
+export interface DefinitionTextResult {
+    startLine: number
+    endLine: number
+    text: string
+    method: 'documentSymbol' | 'fallback-range'
+    truncated?: boolean
+}
 
-export async function getDefinitionTextFromUriAtPosition(defUri: vscode.Uri, pos: vscode.Position, outputChannel: vscode.LogOutputChannel) {
+export async function getDefinitionTextFromUriAtPosition(
+    defUri: vscode.Uri,
+    pos: vscode.Position,
+    outputChannel: vscode.LogOutputChannel
+): Promise<DefinitionTextResult> {
     // attempt to get document symbols for the target document
     try {
         const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', defUri)

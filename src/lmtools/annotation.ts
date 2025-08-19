@@ -10,12 +10,12 @@ interface AnnotationInput {
 }
 
 interface Def {
-    filePath: string,
+    filePath: string
     line: number
     startLine?: number
     endLine?: number
     definitionText?: string
-    method?: string
+    method?: 'documentSymbol' | 'fallback-range'
 }
 
 interface AnnotationMetaEntry {
