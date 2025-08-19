@@ -54,20 +54,15 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             return this.errorResponse(`failed to open document at ${filePath}`)
         }
 
-        const docString = doc.getText()
-
         const matches: MatchInfo[] = parseVarMatchesFromText(text)
-        const textLines = text.split(/\r?\n/)
-
         if (matches.length === 0) {
             this.extension.outputChannel.debug('[AnnotationTool]: no variable occurrences found in provided text')
             return this.errorResponse('no variable occurrences found in provided text')
         }
 
+        const docString = doc.getText()
         const textStartInDoc = docString.indexOf(text)
-        if (textStartInDoc >= 0) {
-            this.extension.outputChannel.debug('[AnnotationTool]: found provided text in document; using direct offsets for hover positions')
-        } else {
+        if (textStartInDoc < 0) {
             this.extension.outputChannel.debug('[AnnotationTool]: provided text not found in document')
             return this.errorResponse('provided text not found in document')
         }
@@ -78,7 +73,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         for (const m of matches) {
             if (token.isCancellationRequested) {
                 this.extension.outputChannel.debug('[AnnotationTool]: cancelled')
-                return this.errorResponse('operation cancelled')
+                throw new Error('operation cancelled')
             }
 
             const startPos = doc.positionAt(textStartInDoc)
@@ -152,6 +147,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             })
         }
 
+        const textLines = text.split(/\r?\n/)
         const outLines: string[] = []
         for (let li = 0; li < textLines.length; li++) {
             const original = textLines[li]
