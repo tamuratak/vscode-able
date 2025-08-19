@@ -1,7 +1,9 @@
-import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LanguageModelTextPart, LogOutputChannel } from 'vscode'
 import * as vscode from 'vscode'
+import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LanguageModelTextPart, LogOutputChannel, LanguageModelPromptTsxPart } from 'vscode'
 import { MatchInfo, parseVarMatchesFromText } from './annotationlib/annotationparser.js'
 import { getDefinitionTextFromUriAtPosition } from './annotationlib/getdefinition.js'
+import { renderElementJSON } from '@vscode/prompt-tsx'
+import { TypeDefinitionTag } from './toolresult.js'
 
 
 interface AnnotationToolInput {
@@ -9,7 +11,7 @@ interface AnnotationToolInput {
     code: string,
 }
 
-interface DefinitionMetadata {
+export interface DefinitionMetadata {
     filePath: string
     startLine: number
     endLine?: number
@@ -162,16 +164,22 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
             }
         }
 
-        const annotatedText = outLines.join('\n')
-        this.extension.outputChannel.debug('[AnnotationTool]: building annotated text complete')
+        const typeDefTags: LanguageModelPromptTsxPart[] = []
+        for (const anno of annotationArray) {
+            for (const def of anno.definitions || []) {
+                const json = await renderElementJSON(
+                    TypeDefinitionTag,
+                    { type: anno.type, definitionMetadata: def },
+                    options.tokenizationOptions
+                )
+                typeDefTags.push(new LanguageModelPromptTsxPart(json))
+            }
+        }
 
-        const jsonMeta = JSON.stringify(annotationArray, null, 2)
-        this.extension.outputChannel.debug('[AnnotationTool]:')
-        this.extension.outputChannel.debug(annotatedText)
-        this.extension.outputChannel.debug(jsonMeta)
+        const annotatedText = outLines.join('\n')
         return new LanguageModelToolResult([
             new LanguageModelTextPart(annotatedText),
-            new LanguageModelTextPart(jsonMeta)
+            ...typeDefTags
         ])
     }
 
