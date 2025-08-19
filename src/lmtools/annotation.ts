@@ -158,7 +158,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
     // attempt to find definition location(s) for the identifier (absolute file path)
     private async extractTypeSourceDefinitions(hoverPos: vscode.Position, uri: vscode.Uri) {
         const typeSourceDefinitions: DefinitionMetadata[] = []
-        const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeTypeDefinitionProvider', uri, hoverPos)
+        const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeTypeDefinitionProvider', uri, hoverPos) ?? []
         for (const defLoc of defs) {
             let defUri: vscode.Uri | undefined
             let defRange: vscode.Range | undefined
