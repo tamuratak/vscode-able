@@ -6,6 +6,7 @@ import { getValidator, initValidators } from './toolcallargvalidator.js'
 import { debugObj } from '../../utils/debug.js'
 import { tokenLength } from './openaicompatchatproviderlib/tokencount.js'
 import { Converter } from './openaicompatchatproviderlib/converter.js'
+import { inspectReadable } from '../../utils/inspect.js'
 
 
 export interface ModelInformation extends LanguageModelChatInformation {
@@ -191,7 +192,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                 args = JSON.parse(toolCall.arguments) as object
             }
         } catch (e) {
-            this.extension.outputChannel.error(`Failed to parse tool call arguments: ${toolCall.arguments}. Error: ${e instanceof Error ? e.message : String(e)}`)
+            this.extension.outputChannel.error(`Failed to parse tool call arguments: ${toolCall.arguments}. Error: ${e instanceof Error ? e.message : inspectReadable(e)}`)
             return
         }
         const validator = getValidator(toolCall.name)

@@ -9,6 +9,7 @@ import { GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chat
 import { WebSearchTool } from './lmtools/websearch.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
 import { AnnotationTool, annotationToolName } from './lmtools/annotation.js'
+import { renderToolResult } from './utils/toolresultrendering.js'
 
 
 class Extension {
@@ -102,13 +103,19 @@ async function doSomething(extension: Extension) {
     const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', activeDocument.uri)
     extension.outputChannel.debug(`[doSomething]: symbols: ${JSON.stringify(symbols, null, 2)}`)
     const code = activeDocument.getText(new vscode.Range(0, 0, 10, 0))
-    const result = await vscode.lm.invokeTool('able_annotation', {
-        toolInvocationToken: undefined,
-        input: {
-          filePath: activeDocument.uri.fsPath,
-          code
+    try {
+        const result = await vscode.lm.invokeTool('able_annotation', {
+            toolInvocationToken: undefined,
+            input: {
+                filePath: activeDocument.uri.fsPath,
+                code
+            }
+        })
+        const ret = await renderToolResult(result)
+        extension.outputChannel.debug(`[doSomething]: result:\n ${ret}`)
+    } catch (e) {
+        if (e instanceof Error) {
+            extension.outputChannel.error(`[doSomething]: error: ${JSON.stringify([e.message, e.stack], null, 2)}`)
         }
-    })
-    extension.outputChannel.debug(`[doSomething]: ${JSON.stringify(result)}`)
-    return
+    }
 }

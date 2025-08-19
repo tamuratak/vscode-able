@@ -1,33 +1,37 @@
-import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LanguageModelTextPart, LogOutputChannel } from 'vscode'
 import * as vscode from 'vscode'
+import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LanguageModelTextPart, LogOutputChannel, LanguageModelPromptTsxPart } from 'vscode'
 import { MatchInfo, parseVarMatchesFromText } from './annotationlib/annotationparser.js'
 import { getDefinitionTextFromUriAtPosition } from './annotationlib/getdefinition.js'
+import { renderElementJSON } from '@vscode/prompt-tsx'
+import { TypeDefinitionTag } from './toolresult.js'
+import * as util from 'node:util'
+import { inspectReadable } from '../utils/inspect.js'
 
 
-interface AnnotationInput {
+interface AnnotationToolInput {
     filePath: string,
     code: string,
 }
 
-interface Def {
+export interface DefinitionMetadata {
+    name?: string
     filePath: string
     startLine: number
     endLine?: number
     definitionText?: string
 }
 
-interface AnnotationMetaEntry {
+interface AnnotationInfo {
     varname: string
     localLine: number
     localCol: number
     type: string
-    definitions?: Def[] | undefined
-    hoverText: string | undefined
+    definitions?: DefinitionMetadata[] | undefined
 }
 
 export const annotationToolName = 'able_annotation'
 
-export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
+export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
 
     constructor(
         private readonly extension: {
@@ -41,7 +45,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         return new LanguageModelToolResult([new LanguageModelTextPart(`${annotationToolName} error: ${message}`)])
     }
 
-    async invoke(options: LanguageModelToolInvocationOptions<AnnotationInput>, token: CancellationToken) {
+    async invoke(options: LanguageModelToolInvocationOptions<AnnotationToolInput>, token: CancellationToken) {
         const { filePath, code: text } = options.input
         const uri = vscode.Uri.file(filePath)
         this.extension.outputChannel.debug(`[AnnotationTool]: invoke on ${filePath}`)
@@ -50,7 +54,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         try {
             doc = await vscode.workspace.openTextDocument(uri)
         } catch (e) {
-            this.extension.outputChannel.error(`[AnnotationTool]: cannot open document: ${String(e)}`)
+            this.extension.outputChannel.error(`[AnnotationTool]: cannot open document: ${inspectReadable(e)}`)
             return this.errorResponse(`failed to open document at ${filePath}`)
         }
 
@@ -68,7 +72,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
         }
 
         const annotationsByLine: Map<number, string[]> = new Map<number, string[]>()
-        const metadata: { annotations: AnnotationMetaEntry[] } = { annotations: [] }
+        const annotationArray: AnnotationInfo[] = []
 
         for (const m of matches) {
             if (token.isCancellationRequested) {
@@ -83,51 +87,12 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             const docCol = m.localLine === 0 ? startPos.character + m.localCol : m.localCol
             const hoverPos = new vscode.Position(docLine, docCol)
 
-            const { typeText, hoverText } = await this.typeTextHoverText(hoverPos, uri, m)
+            const typeText = await this.extractTypeFromHoverInfo(hoverPos, uri, m)
 
             // attempt to find definition location(s) for the identifier (absolute file path)
-            const typeSourceDefinitions: Def[] = []
-            try {
-                const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeTypeDefinitionProvider', uri, hoverPos)
-                for (const defLoc of defs) {
-                    let defUri: vscode.Uri | undefined
-                    let defRange: vscode.Range | undefined
-                    if (defLoc instanceof vscode.Location) {
-                        defUri = defLoc.uri
-                        defRange = defLoc.range
-                    } else {
-                        if (defLoc.targetUri) {
-                            defUri = defLoc.targetUri
-                        }
-                        if (defLoc.targetRange) {
-                            defRange = defLoc.targetRange
-                        } else if (defLoc.targetSelectionRange) {
-                            defRange = defLoc.targetSelectionRange
-                        }
-                    }
-                    if (defUri && defUri.fsPath && defRange && defRange.start) {
-                        // try to extract full definition text using DocumentSymbolProvider
-                        try {
-                            const defInfo = await getDefinitionTextFromUriAtPosition(defUri, defRange.start)
-                            this.extension.outputChannel.debug(`[AnnotationTool]: getDefinitionTextFromUriAtPosition extracts\n${defInfo.text}`)
-                            typeSourceDefinitions.push({
-                                filePath: defUri.fsPath,
-                                startLine: defRange.start.line,
-                                endLine: defInfo.endLine,
-                                definitionText: defInfo.text,
-                            })
-                        } catch (e) {
-                            this.extension.outputChannel.debug(`[AnnotationTool]: definition text extraction failed for ${m.varname} - ${String(e)}`)
-                            typeSourceDefinitions.push({
-                                filePath: defUri.fsPath,
-                                startLine: defRange.start.line
-                            })
-                        }
-                    }
-                }
-            } catch (e) {
-                this.extension.outputChannel.debug(`[AnnotationTool]: definition lookup failed for ${m.varname} - ${String(e)}`)
-            }
+            const typeSourceDefinitions = await this.extractTypeSourceDefinitions(hoverPos, uri).catch(e =>
+                this.extension.outputChannel.error(`[AnnotationTool]: definition lookup failed for ${m.varname} - ${util.inspect(e)}`)
+            ) ?? []
 
             const comment = `// ${m.varname} satisfies ${typeText}`
             const existing = annotationsByLine.get(m.localLine) || []
@@ -137,13 +102,12 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             }
 
             // record metadata for this identifier, include all found definitions if any
-            metadata.annotations.push({
+            annotationArray.push({
                 varname: m.varname,
                 localLine: m.localLine,
                 localCol: m.localCol,
                 type: typeText,
-                definitions: typeSourceDefinitions.length > 0 ? typeSourceDefinitions : undefined,
-                hoverText
+                definitions: typeSourceDefinitions.length > 0 ? typeSourceDefinitions : undefined
             })
         }
 
@@ -164,20 +128,77 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
             }
         }
 
-        const annotatedText = outLines.join('\n')
-        this.extension.outputChannel.debug('[AnnotationTool]: building annotated text complete')
+        const renderedFilePathSet = new Set<string>()
+        const typeDefTags: LanguageModelPromptTsxPart[] = []
+        for (const anno of annotationArray) {
+            for (const def of anno.definitions || []) {
+                if (this.shouldSkip(def) || renderedFilePathSet.has(def.filePath)) {
+                    continue
+                }
+                const json = await renderElementJSON(
+                    TypeDefinitionTag,
+                    { definitionMetadata: def },
+                    options.tokenizationOptions
+                )
+                renderedFilePathSet.add(def.filePath)
+                typeDefTags.push(new LanguageModelPromptTsxPart(json))
+            }
+        }
 
-        const jsonMeta = JSON.stringify(metadata, null, 2)
-        this.extension.outputChannel.debug('[AnnotationTool]:')
-        this.extension.outputChannel.debug(annotatedText)
-        this.extension.outputChannel.debug(jsonMeta)
+        const annotatedText = outLines.join('\n')
         return new LanguageModelToolResult([
             new LanguageModelTextPart(annotatedText),
-            new LanguageModelTextPart(jsonMeta)
+            ...typeDefTags
         ])
     }
 
-    private async typeTextHoverText(hoverPos: vscode.Position, uri: vscode.Uri, m: MatchInfo) {
+    private shouldSkip(def: DefinitionMetadata) {
+        return def.filePath.includes('node_modules/@types/node/') || def.filePath.includes('node_modules/typescript/lib/')
+    }
+    // attempt to find definition location(s) for the identifier (absolute file path)
+    private async extractTypeSourceDefinitions(hoverPos: vscode.Position, uri: vscode.Uri) {
+        const typeSourceDefinitions: DefinitionMetadata[] = []
+        const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeTypeDefinitionProvider', uri, hoverPos)
+        for (const defLoc of defs) {
+            let defUri: vscode.Uri | undefined
+            let defRange: vscode.Range | undefined
+            if (defLoc instanceof vscode.Location) {
+                defUri = defLoc.uri
+                defRange = defLoc.range
+            } else {
+                if (defLoc.targetUri) {
+                    defUri = defLoc.targetUri
+                }
+                if (defLoc.targetRange) {
+                    defRange = defLoc.targetRange
+                } else if (defLoc.targetSelectionRange) {
+                    defRange = defLoc.targetSelectionRange
+                }
+            }
+            if (defUri && defUri.fsPath && defRange && defRange.start) {
+                // try to extract full definition text using DocumentSymbolProvider
+                try {
+                    const defInfo = await getDefinitionTextFromUriAtPosition(defUri, defRange.start)
+                    typeSourceDefinitions.push({
+                        name: defInfo.name,
+                        filePath: defUri.fsPath,
+                        startLine: defRange.start.line,
+                        endLine: defInfo.endLine,
+                        definitionText: defInfo.text,
+                    })
+                } catch (e) {
+                    this.extension.outputChannel.error(`[AnnotationTool]: definition text extraction failed: ${inspectReadable(e)}`)
+                    typeSourceDefinitions.push({
+                        filePath: defUri.fsPath,
+                        startLine: defRange.start.line
+                    })
+                }
+            }
+        }
+        return typeSourceDefinitions
+    }
+
+    private async extractTypeFromHoverInfo(hoverPos: vscode.Position, uri: vscode.Uri, m: MatchInfo) {
         let typeText = '<unknown>'
         let hoverText = ''
         try {
@@ -204,11 +225,11 @@ export class AnnotationTool implements LanguageModelTool<AnnotationInput> {
                 typeText = '<no-hover>'
             }
         } catch (e) {
-            this.extension.outputChannel.error(`[AnnotationTool]: hover failed for ${m.varname} - ${String(e)}`)
+            this.extension.outputChannel.error(`[AnnotationTool]: hover failed for ${m.varname} - ${inspectReadable(e)}`)
             typeText = '<hover-error>'
         }
         typeText = typeText.replace(/^['"`]+|['"`]+$/g, '').trim()
-        return { typeText, hoverText }
+        return typeText
     }
 
 }
@@ -230,53 +251,44 @@ function escapeRegex(s: string) {
 AnnotationTool — concise reference (LLM-oriented)
 
 Purpose
-Automatically annotate a provided TypeScript/JavaScript fragment by appending end-of-line comments that show the inferred type for each detected identifier. The tool returns the annotated fragment and a small JSON metadata object; it does not modify files on disk.
+Provide a compact, machine-friendly summary of the AnnotationTool: it annotates a provided TypeScript/JavaScript text fragment by appending end-of-line comments that state the inferred type for each detected identifier. The tool does not modify disk files; it returns the annotated fragment and optional structured metadata for use by LLMs or tooling.
 
-Input
-- Type: object (see `AnnotationInput`)
+Inputs
+- Type: object
 - Properties:
-    - `filePath`: string — absolute path to the document that contains the fragment
-    - `code`: string — the text fragment to analyze (selection)
+    - `filePath`: string — absolute path to the containing document
+    - `code`: string — the exact text fragment (selection) present inside that document
 
-Output
-- On success: a `LanguageModelToolResult` with two `LanguageModelTextPart`s in order:
-    1) Annotated source text (original lines with appended comments like `// <varname> satisfies <Type>`)
-    2) JSON metadata (pretty-printed) with an `annotations` array describing each identifier
-- On failure or early exit: a single-part `LanguageModelToolResult` containing an error string
+Outputs
+- Success: a LanguageModelToolResult whose first part is the annotated source text (original lines with appended comments, e.g. `// x satisfies number`) and subsequent parts are optional serialized TypeDefinition entries (TSX prompt parts) for discovered definitions
+- Failure: a single-part LanguageModelToolResult containing an error string
 
-Metadata (summary)
-- Each annotation entry includes:
-    - `varname`: identifier string
-    - `localLine`, `localCol`: position inside the provided fragment (0-based)
-    - `type`: short inferred type text (extracted from hover when available)
-    - `definitions` (optional): array of objects with at least `filePath` and `startLine`; may include `endLine` and `definitionText` when the declaration body was extracted
-    - `hoverText` (optional): concatenated hover provider contents
+Annotation metadata (per-identifier)
+- `varname`: identifier name
+- `localLine`, `localCol`: 0-based position inside the provided `code` fragment
+- `type`: concise inferred type string (extracted from hover provider when available)
+- `definitions` (optional): array of objects with at minimum `{ filePath, startLine }` and optionally `{ endLine, name, definitionText }`
 
-High-level behavior
-1. Open the document at `filePath` and locate the provided `code` fragment inside it
-2. Use `parseVarMatchesFromText(code)` to locate identifier occurrences (returns `MatchInfo[]` with local line/col)
-3. Map each match to a `vscode.Position` in the document (first-line matches take the fragment's starting character into account)
-4. For each position:
-     - Query hover via `vscode.executeHoverProvider` and extract a concise `type` string (prefer `name: Type`, fallback to first `: Type` or first non-empty hover line)
-        - Query type/definition locations via `vscode.executeTypeDefinitionProvider` and, when possible, attempt to extract the declaration body using document symbols or by using the provided target range
-            (this extraction is performed by `getDefinitionTextFromUriAtPosition` in `src/lmtools/annotationlib/getdefinition.js`).
-5. Append unique annotation comments to corresponding fragment lines and collect structured metadata
+Minimal behaviour summary
+1) Open `filePath` and locate the exact `code` fragment inside the document
+2) Extract identifier matches with `parseVarMatchesFromText(code)` (returns MatchInfo[] containing local line/col)
+3) Convert each match to a document `vscode.Position` and request hover information (`vscode.executeHoverProvider`) to derive a short `type` string
+4) Request type/definition locations (`vscode.executeTypeDefinitionProvider`) and, when possible, extract the full declaration text using document symbols via `getDefinitionTextFromUriAtPosition`
+5) Produce annotated lines (append unique `// <var> satisfies <Type>` comments) and return structured metadata plus any serialized type-definition prompt parts
 
-Assumptions & limitations
-- Identifier detection is heuristic and delegated to `parseVarMatchesFromText`; it is not a full TypeScript AST parse
-- Declaration extraction relies on language server support for document symbols; when unavailable, the tool falls back to smaller target ranges or omits the declaration text
-- The tool requires the exact `code` fragment to appear in the opened document so positions can be computed by direct offset
+Assumptions and limitations
+- Identifier detection is heuristic (not a full AST) and depends on `annotationparser.js`
+- Declaration extraction depends on language-server support for document symbols and type-definition providers; missing support reduces metadata richness
+- The provided `code` must match text in the opened document for positions to be computed accurately
 
-Example usage (conceptual)
-// input: { filePath: '/proj/src/foo.ts', code: 'const x = 1\nconsole.log(x)'}
-// output part 1: annotated text with comments
-// output part 2: JSON metadata with one annotation for `x`
+Example (conceptual)
+Input: { filePath: '/proj/src/foo.ts', code: 'const x = 1\nconsole.log(x)' }
+Output part 1: annotated text with `// x satisfies number` appended to the console line
+Output part 2: optional serialized type-definition entries for discovered symbols
 
-Where to look
+Where to inspect implementation
 - Implementation: `src/lmtools/annotation.ts`
 - Identifier parser: `src/lmtools/annotationlib/annotationparser.js`
-- Declaration text helper: `src/lmtools/annotationlib/getdefinition.js`
+- Declaration extractor: `src/lmtools/annotationlib/getdefinition.js`
 
-Notes for LLMs
-- This document emphasises intent, input/output shape, and the provider-based inference strategy rather than implementation minutiae. Use the metadata schema and example to construct tool prompts or tests.
 */
