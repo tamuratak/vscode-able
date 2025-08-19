@@ -178,7 +178,7 @@
         "displayName": "Inspect Code",
         "canBeReferencedInPrompt": true,
         "userDescription": "Inspect code for type information",
-        "modelDescription": "Inspects the specified code fragment to determine type information and returns an annotated copy as a string. Each variable's inferred type is included as a comment to help the LLM resolve errors. The response is accompanied by JSON that describes canonical types and definitions.",
+        "modelDescription": "Inspects the specified code fragment to determine type information and returns an annotated copy as a string. Each variable's inferred type is included as a comment to help the LLM resolve errors. The response is accompanied by type definitions.",
         "icon": "$(references)",
 				"inputSchema": {
 					"type": "object",
