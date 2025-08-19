@@ -58,4 +58,16 @@ suite('parseVarMatchesFromText', () => {
             assert.ok(m.localIndexInText >= 0)
         }
     })
+
+    test('extracts single-parameter arrow function without parens', () => {
+    const src = 'v.mthd(x => x)'
+        const matches = parseVarMatchesFromText(src)
+        const names = matches.map(m => m.varname)
+        assert.deepStrictEqual(names, ['x'])
+        for (const m of matches) {
+            assert.strictEqual(m.localLine, 0)
+            assert.ok(m.localCol >= 0)
+            assert.ok(m.localIndexInText >= 0)
+        }
+    })
 })

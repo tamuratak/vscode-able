@@ -17,6 +17,8 @@ export function parseVarMatchesFromText(text: string): MatchInfo[] {
         { regex: /\b(?:const|let|var)\s*\[([^\]]+)\]\s*=/g, kind: 'destruct' },
         // arrow-function parameter lists like (a, b) => or inside calls: v.mthd((a,b) => { ... })
         { regex: /\(\s*([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*)\s*\)\s*=>/g, kind: 'params' },
+        // single-parameter arrow functions without parens, e.g. `x => x`
+        { regex: /([A-Za-z_$][\w$]*)\s*=>/g, kind: 'params' },
         { regex: /\bcatch\s*\(\s*([A-Za-z_$][\w$]*)\s*\)/g, kind: 'single' }
     ]
 
@@ -135,9 +137,9 @@ export function parseVarMatchesFromText(text: string): MatchInfo[] {
  *   positions if needed)
 
  * Arrow param caveats:
- * - The current detection looks for parenthesized parameter lists like
- *   `(a, b) =>`. It does not detect the shorthand single-parameter form
- *   without parentheses (e.g. `x => x + 1`).
+ * - The detection now covers both parenthesized parameter lists like
+ *   `(a, b) =>` and the shorthand single-parameter form without
+ *   parentheses (e.g. `x => x + 1`).
  * - Default values and rest parameters (e.g. `a = 1`, `...rest`) are
  *   handled only heuristically and may yield approximate positions or
  *   omit the parameter name in some cases.
