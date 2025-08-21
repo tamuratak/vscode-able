@@ -322,6 +322,15 @@
               ]
             }
           }
+        ,
+          "able.runInSandbox.denyFileReadDirectories": {
+            "type": "array",
+            "description": "Array of absolute paths that will be denied for file-read in sandbox-exec. Each entry must be an absolute path.",
+            "default": [],
+            "items": {
+              "type": "string"
+            }
+          }
         }
       }
     ]

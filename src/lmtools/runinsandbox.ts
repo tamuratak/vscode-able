@@ -59,7 +59,9 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             throw new Error('[RunInSandbox]: no workspace folders')
         }
 
-        const { policy, params } = this.buildSeatbeltPolicyAndParams(rwritableDirs)
+        // Read deny list from user settings and validate
+        const userDenyList = this.getConfiguredDenyFileReadDirectories()
+        const { policy, params } = this.buildSeatbeltPolicyAndParams(rwritableDirs, userDenyList)
 
         const args = ['-p', policy, ...params, '--', '/bin/zsh', '-lc', command]
 
@@ -119,7 +121,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         ])
     }
 
-    private buildSeatbeltPolicyAndParams(rwritableDirs: string[]) {
+    private buildSeatbeltPolicyAndParams(rwritableDirs: string[], configuredDeny?: string[]) {
         for (const dir of rwritableDirs) {
             if (!path.isAbsolute(dir) || dir === '') {
                 throw new Error(`[RunInSandbox]: -w DIR must be an absolute path. Got: ${dir}`)
@@ -137,18 +139,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
 
 ; allow read-only file operations
 (allow file-read*)
-(deny file-read*
-  (subpath "/Users/")
-)
-(allow file-read*
-  (subpath "/Users/tamura/.npm/")
-  (subpath "/Users/tamura/.yarn/")
-  (subpath "/Users/tamura/.cargo/")
-  (subpath "/Users/tamura/.rustup/")
-  (subpath "/Users/tamura/.cache/")
-  (subpath "/Users/tamura/Library/org.swift.swiftpm/")
-  (subpath "/Users/tamura/Library/Caches/org.swift.swiftpm/")
-)
+
 (allow file-write*
   (subpath "/private/var/folders")
   (subpath "/Users/tamura/Library/org.swift.swiftpm/")
@@ -209,7 +200,19 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
   (sysctl-name-prefix "hw.perflevel")
 )
 `
+        // Build deny file-read entries: start with the hardcoded list
+        const denyEntries: string[] = []
+        // Append user-configured deny entries (validated already by caller)
+        if (configuredDeny && configuredDeny.length > 0) {
+            for (const p of configuredDeny) {
+                if (typeof p === 'string' && p !== '') {
+                    denyEntries.push(p)
+                }
+            }
+        }
 
+        // Compose deny file-read block
+        const denyBlock = `\n(deny file-read*\n  ${denyEntries.map(p => `(subpath "${p}")`).join('\n  ')}\n)\n`;
         const policies: string[] = []
         const params: string[] = []
         for (let i = 0; i < rwritableDirs.length; ++i) {
@@ -220,6 +223,40 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         if (policies.length > 0) {
             readWritePolicy = `\n(allow file-read*\n${policies.join(' ')}\n)\n(allow file-write*\n${policies.join(' ')}\n)`
         }
-        return { policy: basePolicy + readWritePolicy, params }
+        return { policy: basePolicy + denyBlock + readWritePolicy, params }
+    }
+
+    private getConfiguredDenyFileReadDirectories(): string[] | undefined {
+        try {
+            const cfg = vscode.workspace.getConfiguration('able')
+            const raw = cfg.get<string[]>('runInSandbox.denyFileReadDirectories')
+            if (!raw || !Array.isArray(raw)) {
+                return undefined
+            }
+            const valid: string[] = []
+            for (const entry of raw) {
+                if (typeof entry !== 'string') {
+                    this.extension.outputChannel.warn('[RunInSandbox]: ignoring non-string entry in denyFileReadDirectories')
+                    continue
+                }
+                if (entry === '') {
+                    this.extension.outputChannel.warn('[RunInSandbox]: ignoring empty string in denyFileReadDirectories')
+                    continue
+                }
+                if (!path.isAbsolute(entry)) {
+                    this.extension.outputChannel.warn(`[RunInSandbox]: ignoring non-absolute path in denyFileReadDirectories: ${entry}`)
+                    continue
+                }
+                valid.push(entry)
+            }
+            if (valid.length > 0) {
+                this.extension.outputChannel.info(`[RunInSandbox]: configured denyFileReadDirectories: ${valid.join(', ')}`)
+                return valid
+            }
+            return undefined
+        } catch {
+            this.extension.outputChannel.warn('[RunInSandbox]: failed to read configured denyFileReadDirectories')
+            return undefined
+        }
     }
 }
