@@ -51,9 +51,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             throw new Error('[RunInSandbox]: command is empty')
         }
 
-        // Decide writable directories: none by default, but validate if provided via explanation string in future
         const rwritableDirs = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? undefined
-
         if (!rwritableDirs || rwritableDirs.length === 0) {
             this.extension.outputChannel.error('[RunInSandbox]: no workspace folders')
             throw new Error('[RunInSandbox]: no workspace folders')
@@ -62,6 +60,11 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         // Read deny list and allowed read/write list from user settings and validate
         const userDenyList = this.getConfiguredDenyFileReadDirectories()
         const userAllowedRW = this.getConfiguredAllowedReadWriteDirectories()
+
+        if (!userDenyList || userDenyList.length === 0) {
+            this.extension.outputChannel.error('[RunInSandbox]: failed to read user deny directories')
+            throw new Error('[RunInSandbox]: failed to read user deny directories')
+        }
 
         // Merge workspace writable dirs with user allowed read/write directories (user entries must be absolute)
         const mergedWritable = [ ...rwritableDirs ]
@@ -135,7 +138,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         ])
     }
 
-    private buildSeatbeltPolicyAndParams(rwritableDirs: string[], configuredDeny?: string[]) {
+    private buildSeatbeltPolicyAndParams(rwritableDirs: string[], userDenyList?: string[]) {
         for (const dir of rwritableDirs) {
             if (!path.isAbsolute(dir) || dir === '') {
                 throw new Error(`[RunInSandbox]: -w DIR must be an absolute path. Got: ${dir}`)
@@ -153,12 +156,6 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
 
 ; allow read-only file operations
 (allow file-read*)
-
-(allow file-write*
-  (subpath "/private/var/folders")
-  (subpath "/Users/tamura/Library/org.swift.swiftpm/")
-  (subpath "/Users/tamura/Library/Caches/org.swift.swiftpm/")
-)
 
 ; child processes inherit the policy of their parent
 (allow process-exec)
@@ -217,8 +214,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
     // Build deny file-read entries: start with the hardcoded list
     const denyEntries: string[] = []
         // Append user-configured deny entries (validated already by caller)
-        if (configuredDeny && configuredDeny.length > 0) {
-            for (const p of configuredDeny) {
+        if (userDenyList && userDenyList.length > 0) {
+            for (const p of userDenyList) {
                 if (typeof p === 'string' && p !== '') {
                     denyEntries.push(p)
                 }
@@ -263,11 +260,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
                 }
                 valid.push(entry)
             }
-            if (valid.length > 0) {
-                this.extension.outputChannel.info(`[RunInSandbox]: configured denyFileReadDirectories: ${valid.join(', ')}`)
-                return valid
-            }
-            return undefined
+            return valid
         } catch {
             this.extension.outputChannel.warn('[RunInSandbox]: failed to read configured denyFileReadDirectories')
             return undefined
@@ -297,11 +290,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
                 }
                 valid.push(entry)
             }
-            if (valid.length > 0) {
-                this.extension.outputChannel.info(`[RunInSandbox]: configured allowedReadWriteDirectories: ${valid.join(', ')}`)
-                return valid
-            }
-            return undefined
+            return valid
         } catch {
             this.extension.outputChannel.warn('[RunInSandbox]: failed to read configured allowedReadWriteDirectories')
             return undefined
