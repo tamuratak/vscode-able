@@ -331,6 +331,15 @@
               "type": "string"
             }
           }
+          ,
+          "able.runInSandbox.allowedReadWriteDirectories": {
+            "type": "array",
+            "description": "Array of absolute paths that will be allowed for read/write in sandbox-exec in addition to workspace folders. Each entry must be an absolute path.",
+            "default": [],
+            "items": {
+              "type": "string"
+            }
+          }
         }
       }
     ]

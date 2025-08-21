@@ -59,9 +59,23 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             throw new Error('[RunInSandbox]: no workspace folders')
         }
 
-        // Read deny list from user settings and validate
+        // Read deny list and allowed read/write list from user settings and validate
         const userDenyList = this.getConfiguredDenyFileReadDirectories()
-        const { policy, params } = this.buildSeatbeltPolicyAndParams(rwritableDirs, userDenyList)
+        const userAllowedRW = this.getConfiguredAllowedReadWriteDirectories()
+
+        // Merge workspace writable dirs with user allowed read/write directories (user entries must be absolute)
+        const mergedWritable = [ ...rwritableDirs ]
+        if (userAllowedRW && userAllowedRW.length > 0) {
+            for (const p of userAllowedRW) {
+                if (typeof p === 'string' && p !== '') {
+                    if (!mergedWritable.includes(p)) {
+                        mergedWritable.push(p)
+                    }
+                }
+            }
+        }
+
+        const { policy, params } = this.buildSeatbeltPolicyAndParams(mergedWritable, userDenyList)
 
         const args = ['-p', policy, ...params, '--', '/bin/zsh', '-lc', command]
 
@@ -200,8 +214,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
   (sysctl-name-prefix "hw.perflevel")
 )
 `
-        // Build deny file-read entries: start with the hardcoded list
-        const denyEntries: string[] = []
+    // Build deny file-read entries: start with the hardcoded list
+    const denyEntries: string[] = []
         // Append user-configured deny entries (validated already by caller)
         if (configuredDeny && configuredDeny.length > 0) {
             for (const p of configuredDeny) {
@@ -211,8 +225,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             }
         }
 
-        // Compose deny file-read block
-        const denyBlock = `\n(deny file-read*\n  ${denyEntries.map(p => `(subpath "${p}")`).join('\n  ')}\n)\n`;
+    // Compose deny file-read block
+    const denyBlock = `\n(deny file-read*\n  ${denyEntries.map(p => `(subpath "${p}")`).join('\n  ')}\n)\n`;
         const policies: string[] = []
         const params: string[] = []
         for (let i = 0; i < rwritableDirs.length; ++i) {
@@ -256,6 +270,40 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             return undefined
         } catch {
             this.extension.outputChannel.warn('[RunInSandbox]: failed to read configured denyFileReadDirectories')
+            return undefined
+        }
+    }
+
+    private getConfiguredAllowedReadWriteDirectories(): string[] | undefined {
+        try {
+            const cfg = vscode.workspace.getConfiguration('able')
+            const raw = cfg.get<string[]>('runInSandbox.allowedReadWriteDirectories')
+            if (!raw || !Array.isArray(raw)) {
+                return undefined
+            }
+            const valid: string[] = []
+            for (const entry of raw) {
+                if (typeof entry !== 'string') {
+                    this.extension.outputChannel.warn('[RunInSandbox]: ignoring non-string entry in allowedReadWriteDirectories')
+                    continue
+                }
+                if (entry === '') {
+                    this.extension.outputChannel.warn('[RunInSandbox]: ignoring empty string in allowedReadWriteDirectories')
+                    continue
+                }
+                if (!path.isAbsolute(entry)) {
+                    this.extension.outputChannel.warn(`[RunInSandbox]: ignoring non-absolute path in allowedReadWriteDirectories: ${entry}`)
+                    continue
+                }
+                valid.push(entry)
+            }
+            if (valid.length > 0) {
+                this.extension.outputChannel.info(`[RunInSandbox]: configured allowedReadWriteDirectories: ${valid.join(', ')}`)
+                return valid
+            }
+            return undefined
+        } catch {
+            this.extension.outputChannel.warn('[RunInSandbox]: failed to read configured allowedReadWriteDirectories')
             return undefined
         }
     }
