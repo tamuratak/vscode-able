@@ -1,6 +1,6 @@
 ---
 description: 'Easy plan mode'
-tools: ['codebase', 'fetch', 'findTestFiles', 'githubRepo', 'problems', 'search', 'searchResults', 'usages', 'vscodeAPI']
+tools: ['codebase', 'fetch', 'findTestFiles', 'githubRepo', 'problems', 'search', 'searchResults', 'usages', 'vscodeAPI', 'websearch']
 ---
 
 # PLAN MODE - Agent Instructions
