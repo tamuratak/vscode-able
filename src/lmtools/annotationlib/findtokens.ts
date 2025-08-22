@@ -11,18 +11,10 @@ export interface ExtractedToken {
 }
 
 /**
- * Extract tokens whose tokenType is 'declaration' and which have the
+ * Extract tokens whose tokenType is 'variable' and which have the
  * 'declaration' tokenModifier set from semantic tokens for the given range.
- *
- * Algorithm:
- *  - call the VS Code commands to get the legend and semantic tokens for the range
- *  - decode the uint32 token stream according to the semantic token spec
- *  - map tokenType index -> name using legend.tokenTypes
- *  - expand modifier bits using legend.tokenModifiers
- *  - filter tokens where tokenType === 'declaration' && modifiers includes 'declaration'
- *  - read the token text from the document and return an array of ExtractedToken
  */
-export async function extractDeclarationTokens(document: vscode.TextDocument, range: vscode.Range, token?: vscode.CancellationToken): Promise<ExtractedToken[]> {
+export async function extractVariableDeclarationTokens(document: vscode.TextDocument, range: vscode.Range, token?: vscode.CancellationToken): Promise<ExtractedToken[]> {
     if (token?.isCancellationRequested) {
         throw new vscode.CancellationError()
     }
@@ -132,6 +124,6 @@ export async function extractDeclarationsFromUriCode(uri: vscode.Uri, code: stri
     const endPos = document.positionAt(idx + code.length)
     const range = new vscode.Range(startPos, endPos)
 
-    const tokens = await extractDeclarationTokens(document, range, token)
+    const tokens = await extractVariableDeclarationTokens(document, range, token)
     return tokens
 }

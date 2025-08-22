@@ -10,7 +10,8 @@ import { WebSearchTool } from './lmtools/websearch.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
 import { AnnotationTool, annotationToolName } from './lmtools/annotation.js'
 // import { renderToolResult } from './utils/toolresultrendering.js'
-import { extractDeclarationsFromUriCode } from './lmtools/annotationlib/findtokens.js'
+// import { extractDeclarationsFromUriCode } from './lmtools/annotationlib/findtokens.js'
+import { renderToolResult } from './utils/toolresultrendering.js'
 
 
 class Extension {
@@ -106,6 +107,24 @@ async function doSomething(extension: Extension) {
         return
     }
     const code = activeDocument.getText(range)
-    const result = await extractDeclarationsFromUriCode(activeDocument.uri, code)
-    extension.outputChannel.debug(`[doSomething]: result: ${JSON.stringify(result, null, 2)}`)
+    //    const result = await extractDeclarationsFromUriCode(activeDocument.uri, code)
+    //    extension.outputChannel.debug(`[doSomething]: result: ${JSON.stringify(result, null, 2)}`)
+    const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', activeDocument.uri)
+    extension.outputChannel.debug(`[doSomething]: symbols: ${JSON.stringify(symbols, null, 2)}`)
+    try {
+        const result = await vscode.lm.invokeTool('able_annotation', {
+            toolInvocationToken: undefined,
+            input: {
+                filePath: activeDocument.uri.fsPath,
+                code
+            }
+        })
+        const ret = await renderToolResult(result)
+        extension.outputChannel.debug(`[doSomething]: result:\n ${ret}`)
+    } catch (e) {
+        if (e instanceof Error) {
+            extension.outputChannel.error(`[doSomething]: error: ${JSON.stringify([e.message, e.stack], null, 2)}`)
+        }
+    }
+
 }
