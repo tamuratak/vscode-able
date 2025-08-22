@@ -5,7 +5,7 @@ import { debugObj } from '../utils/debug.js'
 
 interface TaskWatcherEntry {
     name?: string | undefined, // e.g. "task-lint"
-    globPattern: string
+    globPattern: string[]
 }
 
 export class TaskWatcher implements vscode.Disposable {
@@ -30,37 +30,39 @@ export class TaskWatcher implements vscode.Disposable {
         const taskWatchEntries = configuration.get('taskWatcher', []) as TaskWatcherEntry[]
 
         for (const entry of taskWatchEntries) {
-            const globPattern = entry.globPattern.startsWith('./') ? entry.globPattern.slice(2) : entry.globPattern
-            const executeTaskCb = async () => {
-                const tasks = await vscode.tasks.fetchTasks()
-                const task = tasks.find(t => t.name === entry.name && t.name !== t.definition['script'])
-                if (task) {
-                    const release = await this.mutex.acquire()
-                    const disposable = vscode.tasks.onDidEndTask((e) => {
-                        if (e.execution.task.name === task.name) {
-                            release()
-                            disposable.dispose()
-                        }
-                    })
-                    await vscode.commands.executeCommand('workbench.action.tasks.runTask', task.name)
+            for (const entryGlobPattern of entry.globPattern) {
+                const globPattern = entryGlobPattern.startsWith('./') ? entryGlobPattern.slice(2) : entryGlobPattern
+                const executeTaskCb = async () => {
+                    const tasks = await vscode.tasks.fetchTasks()
+                    const task = tasks.find(t => t.name === entry.name && t.name !== t.definition['script'])
+                    if (task) {
+                        const release = await this.mutex.acquire()
+                        const disposable = vscode.tasks.onDidEndTask((e) => {
+                            if (e.execution.task.name === task.name) {
+                                release()
+                                disposable.dispose()
+                            }
+                        })
+                        await vscode.commands.executeCommand('workbench.action.tasks.runTask', task.name)
+                    }
                 }
-            }
-            for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
-                const pattern = new vscode.RelativePattern(workspaceFolder, globPattern)
-                const watcher = vscode.workspace.createFileSystemWatcher(pattern)
-                this.watchers.push(watcher)
-                watcher.onDidChange(async (e) => {
-                    debugObj('File changed: ', e, this.extension.outputChannel)
-                    await executeTaskCb()
-                })
-                watcher.onDidCreate(async (e) => {
-                    debugObj('File created: ', e, this.extension.outputChannel)
-                    await executeTaskCb()
-                })
-                watcher.onDidDelete(async (e) => {
-                    debugObj('File deleted: ', e, this.extension.outputChannel)
-                    await executeTaskCb()
-                })
+                for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
+                    const pattern = new vscode.RelativePattern(workspaceFolder, globPattern)
+                    const watcher = vscode.workspace.createFileSystemWatcher(pattern)
+                    this.watchers.push(watcher)
+                    watcher.onDidChange(async (e) => {
+                        debugObj('File changed: ', e, this.extension.outputChannel)
+                        await executeTaskCb()
+                    })
+                    watcher.onDidCreate(async (e) => {
+                        debugObj('File created: ', e, this.extension.outputChannel)
+                        await executeTaskCb()
+                    })
+                    watcher.onDidDelete(async (e) => {
+                        debugObj('File deleted: ', e, this.extension.outputChannel)
+                        await executeTaskCb()
+                    })
+                }
             }
         }
     }

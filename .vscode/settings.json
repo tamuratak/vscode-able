@@ -8,7 +8,7 @@
     "able.taskWatcher": [
         {
             "name": "task-lint",
-            "globPattern": "src/**/*.ts",
+            "globPattern": ["src/**/*.ts"],
         }
     ]
 }

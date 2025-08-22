@@ -312,8 +312,13 @@
                   "description": "The name of the task to watch."
                 },
                 "globPattern": {
-                  "type": "string",
-                  "description": "The glob pattern of relative path to match files."
+                  "type": "array",
+                  "description": "The array of the glob pattern.",
+                  "default": [],
+                  "items": {
+                    "type": "string",
+                    "description": "The glob pattern of relative path to match files."
+                  }
                 }
               },
               "required": [
