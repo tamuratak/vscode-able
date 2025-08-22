@@ -1,69 +1,48 @@
 // See https://go.microsoft.com/fwlink/?LinkId=733558
 // for the documentation about the tasks.json format
 {
-    "version":"2.0.0",
-    "tasks":[
+    "version": "2.0.0",
+    "tasks": [
         {
-            "type":"npm",
-            "script":"watch",
-            "problemMatcher":"$tsc-watch",
-            "isBackground":true,
-            "presentation":{
-                "reveal":"never"
+            "type": "npm",
+            "script": "watch",
+            "problemMatcher": "$tsc-watch",
+            "isBackground": true,
+            "presentation": {
+                "reveal": "never"
             },
-            "group":{
-                "kind":"build",
-                "isDefault":true
+            "group": {
+                "kind": "build",
+                "isDefault": true
             }
         },
         {
             "label": "task-test",
-            "dependsOrder": "sequence",
-            "dependsOn": [
-                "task-test-xunit",
-                "task-test-spec",
-            ],
+            "type": "npm",
+            "script": "test:witsandbox",
             "group": {
                 "kind": "test",
                 "isDefault": true
             },
-            "problemMatcher": []
-        },
-        {
-            "label": "task-test-xunit",
-            "type": "npm",
-            "script": "test:xunit",
-            "group": {
-                "kind": "test"
-            },
             "presentation": {
-                "reveal": "never",
-                "group": "taskTest"
+                "reveal": "silent",
+                "clear": true,
+                "close": false
             },
             "problemMatcher": [
                 {
-                    "pattern": {
-                        "regexp": "(test/unittest/.*/.*.test.ts):(\\d+):(\\d+)",
-                        "file": 1,
-                        "location": 2,
-                        "message": 3
-                    },
-                    "owner": "task-test-xunit"
+                    "owner": "javascript",
+                    "fileLocation": "relative",
+                    "pattern": [
+                        {
+                            "regexp": "(test/unittest/.*/.*\\.test\\.ts):(\\d+):(\\d+)",
+                            "file": 1,
+                            "location": 2,
+                            "message": 3
+                        }
+                    ]
                 }
             ]
-        },
-        {
-            "label": "task-test-spec",
-            "type": "npm",
-            "script": "test:spec",
-            "group": {
-                "kind": "test"
-            },
-            "presentation": {
-                "reveal": "silent",
-                "group": "taskTest"
-            },
-            "problemMatcher": []
         },
         {
             "label": "task-lint",
@@ -72,28 +51,28 @@
             "presentation": {
                 "reveal": "never",
                 "clear": true,
-                "close": false        
+                "close": false
             },
             "problemMatcher": [
                 {
                     "owner": "javascript",
                     "fileLocation": "absolute",
                     "pattern": [
-                      {
-                        "regexp": "^([^\\s].*)$",
-                        "file": 1
-                      },
-                      {
-                        "regexp": "^\\s+(\\d+):(\\d+)\\s+(error|warning|info)\\s+(.*)\\s\\s+(.*)$",
-                        "line": 1,
-                        "column": 2,
-                        "severity": 3,
-                        "message": 4,
-                        "code": 5,
-                        "loop": true
-                      }
+                        {
+                            "regexp": "^([^\\s].*)$",
+                            "file": 1
+                        },
+                        {
+                            "regexp": "^\\s+(\\d+):(\\d+)\\s+(error|warning|info)\\s+(.*)\\s\\s+(.*)$",
+                            "line": 1,
+                            "column": 2,
+                            "severity": 3,
+                            "message": 4,
+                            "code": 5,
+                            "loop": true
+                        }
                     ]
-                  }
+                }
             ]
         }
     ]

@@ -6,6 +6,7 @@ import * as path from 'node:path'
 import { debugObj } from '../utils/debug.js'
 import { renderElementJSON } from '@vscode/prompt-tsx'
 import { CommandResultPrompt } from './toolresult.js'
+import { createLanguageModelPromptTsxPart } from '../utils/prompttsxhelper.js'
 
 
 export interface RunInSandboxInput {
@@ -50,15 +51,34 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             throw new Error('[RunInSandbox]: command is empty')
         }
 
-        // Decide writable directories: none by default, but validate if provided via explanation string in future
         const rwritableDirs = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? undefined
-
         if (!rwritableDirs || rwritableDirs.length === 0) {
             this.extension.outputChannel.error('[RunInSandbox]: no workspace folders')
             throw new Error('[RunInSandbox]: no workspace folders')
         }
 
-        const { policy, params } = this.buildSeatbeltPolicyAndParams(rwritableDirs)
+        // Read deny list and allowed read/write list from user settings and validate
+        const userDenyList = this.getConfiguredDenyFileReadDirectories()
+        const userAllowedRW = this.getConfiguredAllowedReadWriteDirectories()
+
+        if (!userDenyList || userDenyList.length === 0) {
+            this.extension.outputChannel.error('[RunInSandbox]: failed to read user deny directories')
+            throw new Error('[RunInSandbox]: failed to read user deny directories')
+        }
+
+        // Merge workspace writable dirs with user allowed read/write directories (user entries must be absolute)
+        const mergedWritable = [...rwritableDirs]
+        if (userAllowedRW && userAllowedRW.length > 0) {
+            for (const p of userAllowedRW) {
+                if (typeof p === 'string' && p !== '') {
+                    if (!mergedWritable.includes(p)) {
+                        mergedWritable.push(p)
+                    }
+                }
+            }
+        }
+
+        const { policy, params } = this.buildSeatbeltPolicyAndParams(mergedWritable, userDenyList)
 
         const args = ['-p', policy, ...params, '--', '/bin/zsh', '-lc', command]
 
@@ -114,11 +134,11 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         debugObj('RunInSandbox exit code: ', { code: exitCode, signal, commandError }, this.extension.outputChannel)
         const result = await renderElementJSON(CommandResultPrompt, { stdout, stderr, exitCode, signal }, options.tokenizationOptions)
         return new LanguageModelToolResult([
-            new vscode.LanguageModelPromptTsxPart(result)
+            createLanguageModelPromptTsxPart(result)
         ])
     }
 
-    private buildSeatbeltPolicyAndParams(rwritableDirs: string[]) {
+    private buildSeatbeltPolicyAndParams(rwritableDirs: string[], userDenyList?: string[]) {
         for (const dir of rwritableDirs) {
             if (!path.isAbsolute(dir) || dir === '') {
                 throw new Error(`[RunInSandbox]: -w DIR must be an absolute path. Got: ${dir}`)
@@ -136,23 +156,6 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
 
 ; allow read-only file operations
 (allow file-read*)
-(deny file-read*
-  (subpath "/Users/")
-)
-(allow file-read*
-  (subpath "/Users/tamura/.npm/")
-  (subpath "/Users/tamura/.yarn/")
-  (subpath "/Users/tamura/.cargo/")
-  (subpath "/Users/tamura/.rustup/")
-  (subpath "/Users/tamura/.cache/")
-  (subpath "/Users/tamura/Library/org.swift.swiftpm/")
-  (subpath "/Users/tamura/Library/Caches/org.swift.swiftpm/")
-)
-(allow file-write*
-  (subpath "/private/var/folders")
-  (subpath "/Users/tamura/Library/org.swift.swiftpm/")
-  (subpath "/Users/tamura/Library/Caches/org.swift.swiftpm/")
-)
 
 ; child processes inherit the policy of their parent
 (allow process-exec)
@@ -208,17 +211,108 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
   (sysctl-name-prefix "hw.perflevel")
 )
 `
+        // Build deny file-read entries: start with the hardcoded list
+        const denyEntries: string[] = []
+        // Append user-configured deny entries (validated already by caller)
+        if (userDenyList && userDenyList.length > 0) {
+            for (const p of userDenyList) {
+                if (typeof p === 'string' && p !== '') {
+                    denyEntries.push(p)
+                }
+            }
+        }
 
-        const policies: string[] = []
-        const params: string[] = []
+        if (!denyEntries || denyEntries.length === 0) {
+            this.extension.outputChannel.error('[RunInSandbox]: no deny entries configured')
+            throw new Error('[RunInSandbox]: no deny entries configured')
+        }
+
+        // Compose deny file-read block
+        const denyReadPolicies: string[] = []
+        const denyReadParams: string[] = []
+        // Build deny policies and params from denyEntries.
+        // Each denied path becomes a param DENY_ROOT_i and a subpath policy using that param.
+        for (let i = 0; i < denyEntries.length; ++i) {
+            denyReadPolicies.push(`(subpath (param "DENY_ROOT_${i}"))`)
+            denyReadParams.push(`-DDENY_ROOT_${i}=${denyEntries[i]}`)
+        }
+        let denyReadPolicy = ''
+        if (denyReadPolicies.length > 0) {
+            denyReadPolicy = `\n(deny file-read*\n${denyReadPolicies.join(' ')}\n)\n`
+        }
+
+        const rwPolicies: string[] = []
+        const rwParams: string[] = []
         for (let i = 0; i < rwritableDirs.length; ++i) {
-            policies.push(`(subpath (param "RWRITABLE_ROOT_${i}"))`)
-            params.push(`-DRWRITABLE_ROOT_${i}=${rwritableDirs[i]}`)
+            rwPolicies.push(`(subpath (param "RWRITABLE_ROOT_${i}"))`)
+            rwParams.push(`-DRWRITABLE_ROOT_${i}=${rwritableDirs[i]}`)
         }
         let readWritePolicy = ''
-        if (policies.length > 0) {
-            readWritePolicy = `\n(allow file-read*\n${policies.join(' ')}\n)\n(allow file-write*\n${policies.join(' ')}\n)`
+        if (rwPolicies.length > 0) {
+            readWritePolicy = `\n(allow file-read*\n${rwPolicies.join(' ')}\n)\n(allow file-write*\n${rwPolicies.join(' ')}\n)`
         }
-        return { policy: basePolicy + readWritePolicy, params }
+        // Combine deny params (for denied paths) with rw params (allowed read/write roots)
+        const params = [...denyReadParams, ...rwParams]
+        return { policy: basePolicy + denyReadPolicy + readWritePolicy, params }
+    }
+
+    private getConfiguredDenyFileReadDirectories(): string[] | undefined {
+        try {
+            const cfg = vscode.workspace.getConfiguration('able')
+            const raw = cfg.get<string[]>('runInSandbox.denyFileReadDirectories')
+            if (!raw || !Array.isArray(raw)) {
+                return undefined
+            }
+            const valid: string[] = []
+            for (const entry of raw) {
+                if (typeof entry !== 'string') {
+                    this.extension.outputChannel.warn('[RunInSandbox]: ignoring non-string entry in denyFileReadDirectories')
+                    continue
+                }
+                if (entry === '') {
+                    this.extension.outputChannel.warn('[RunInSandbox]: ignoring empty string in denyFileReadDirectories')
+                    continue
+                }
+                if (!path.isAbsolute(entry)) {
+                    this.extension.outputChannel.warn(`[RunInSandbox]: ignoring non-absolute path in denyFileReadDirectories: ${entry}`)
+                    continue
+                }
+                valid.push(entry)
+            }
+            return valid
+        } catch {
+            this.extension.outputChannel.warn('[RunInSandbox]: failed to read configured denyFileReadDirectories')
+            return undefined
+        }
+    }
+
+    private getConfiguredAllowedReadWriteDirectories(): string[] | undefined {
+        try {
+            const cfg = vscode.workspace.getConfiguration('able')
+            const raw = cfg.get<string[]>('runInSandbox.allowedReadWriteDirectories')
+            if (!raw || !Array.isArray(raw)) {
+                return undefined
+            }
+            const valid: string[] = []
+            for (const entry of raw) {
+                if (typeof entry !== 'string') {
+                    this.extension.outputChannel.warn('[RunInSandbox]: ignoring non-string entry in allowedReadWriteDirectories')
+                    continue
+                }
+                if (entry === '') {
+                    this.extension.outputChannel.warn('[RunInSandbox]: ignoring empty string in allowedReadWriteDirectories')
+                    continue
+                }
+                if (!path.isAbsolute(entry)) {
+                    this.extension.outputChannel.warn(`[RunInSandbox]: ignoring non-absolute path in allowedReadWriteDirectories: ${entry}`)
+                    continue
+                }
+                valid.push(entry)
+            }
+            return valid
+        } catch {
+            this.extension.outputChannel.warn('[RunInSandbox]: failed to read configured allowedReadWriteDirectories')
+            return undefined
+        }
     }
 }

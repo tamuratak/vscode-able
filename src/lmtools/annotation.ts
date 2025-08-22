@@ -6,6 +6,7 @@ import { renderElementJSON } from '@vscode/prompt-tsx'
 import { TypeDefinitionTag } from './toolresult.js'
 import * as util from 'node:util'
 import { inspectReadable } from '../utils/inspect.js'
+import { createLanguageModelPromptTsxPart } from '../utils/prompttsxhelper.js'
 
 
 interface AnnotationToolInput {
@@ -141,7 +142,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
                     options.tokenizationOptions
                 )
                 renderedFilePathSet.add(def.filePath)
-                typeDefTags.push(new LanguageModelPromptTsxPart(json))
+                typeDefTags.push(createLanguageModelPromptTsxPart(json))
             }
         }
 
@@ -158,7 +159,7 @@ export class AnnotationTool implements LanguageModelTool<AnnotationToolInput> {
     // attempt to find definition location(s) for the identifier (absolute file path)
     private async extractTypeSourceDefinitions(hoverPos: vscode.Position, uri: vscode.Uri) {
         const typeSourceDefinitions: DefinitionMetadata[] = []
-        const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeTypeDefinitionProvider', uri, hoverPos)
+        const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeTypeDefinitionProvider', uri, hoverPos) ?? []
         for (const defLoc of defs) {
             let defUri: vscode.Uri | undefined
             let defRange: vscode.Range | undefined
