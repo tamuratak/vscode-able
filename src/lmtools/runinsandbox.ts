@@ -228,18 +228,32 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         }
 
         // Compose deny file-read block
-        const denyBlock = `\n(deny file-read*\n  ${denyEntries.map(p => `(subpath "${p}")`).join('\n  ')}\n)\n`
-        const policies: string[] = []
-        const params: string[] = []
+        const denyReadPolicies: string[] = []
+        const denyReadParams: string[] = []
+        // Build deny policies and params from denyEntries.
+        // Each denied path becomes a param DENY_ROOT_i and a subpath policy using that param.
+        for (let i = 0; i < denyEntries.length; ++i) {
+            denyReadPolicies.push(`(subpath (param "DENY_ROOT_${i}"))`)
+            denyReadParams.push(`-DDENY_ROOT_${i}=${denyEntries[i]}`)
+        }
+        let denyReadPolicy = ''
+        if (denyReadPolicies.length > 0) {
+            denyReadPolicy = `\n(deny file-read*\n${denyReadPolicies.join(' ')}\n)\n`
+        }
+
+        const rwPolicies: string[] = []
+        const rwParams: string[] = []
         for (let i = 0; i < rwritableDirs.length; ++i) {
-            policies.push(`(subpath (param "RWRITABLE_ROOT_${i}"))`)
-            params.push(`-DRWRITABLE_ROOT_${i}=${rwritableDirs[i]}`)
+            rwPolicies.push(`(subpath (param "RWRITABLE_ROOT_${i}"))`)
+            rwParams.push(`-DRWRITABLE_ROOT_${i}=${rwritableDirs[i]}`)
         }
         let readWritePolicy = ''
-        if (policies.length > 0) {
-            readWritePolicy = `\n(allow file-read*\n${policies.join(' ')}\n)\n(allow file-write*\n${policies.join(' ')}\n)`
+        if (rwPolicies.length > 0) {
+            readWritePolicy = `\n(allow file-read*\n${rwPolicies.join(' ')}\n)\n(allow file-write*\n${rwPolicies.join(' ')}\n)`
         }
-        return { policy: basePolicy + denyBlock + readWritePolicy, params }
+        // Combine deny params (for denied paths) with rw params (allowed read/write roots)
+        const params = [...denyReadParams, ...rwParams]
+        return { policy: basePolicy + denyReadPolicy + readWritePolicy, params }
     }
 
     private getConfiguredDenyFileReadDirectories(): string[] | undefined {
