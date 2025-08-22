@@ -67,7 +67,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         }
 
         // Merge workspace writable dirs with user allowed read/write directories (user entries must be absolute)
-        const mergedWritable = [ ...rwritableDirs ]
+        const mergedWritable = [...rwritableDirs]
         if (userAllowedRW && userAllowedRW.length > 0) {
             for (const p of userAllowedRW) {
                 if (typeof p === 'string' && p !== '') {
@@ -211,8 +211,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
   (sysctl-name-prefix "hw.perflevel")
 )
 `
-    // Build deny file-read entries: start with the hardcoded list
-    const denyEntries: string[] = []
+        // Build deny file-read entries: start with the hardcoded list
+        const denyEntries: string[] = []
         // Append user-configured deny entries (validated already by caller)
         if (userDenyList && userDenyList.length > 0) {
             for (const p of userDenyList) {
@@ -222,8 +222,13 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             }
         }
 
-    // Compose deny file-read block
-    const denyBlock = `\n(deny file-read*\n  ${denyEntries.map(p => `(subpath "${p}")`).join('\n  ')}\n)\n`;
+        if (!denyEntries || denyEntries.length === 0) {
+            this.extension.outputChannel.error('[RunInSandbox]: no deny entries configured')
+            throw new Error('[RunInSandbox]: no deny entries configured')
+        }
+
+        // Compose deny file-read block
+        const denyBlock = `\n(deny file-read*\n  ${denyEntries.map(p => `(subpath "${p}")`).join('\n  ')}\n)\n`
         const policies: string[] = []
         const params: string[] = []
         for (let i = 0; i < rwritableDirs.length; ++i) {
