@@ -384,10 +384,8 @@
     "lint": "eslint --cache .",
     "lint:fix": "eslint --fix --cache .",
     "release": "npm run clean && npm run lint && npm run compile && vsce package",
-    "test": "npm run test:xunit && npm run test:spec",
-    "test:xunit": "sandbox-exec.js -c -- mocha --require source-map-support/register --reporter xunit --ui tdd out/test/unittest/**/*.js",
-    "test:spec": "sandbox-exec.js -c -- mocha --require source-map-support/register --ui tdd out/test/unittest/**/*.js",
-    "test:json": "sandbox-exec.js -c -- mocha --require source-map-support/register --reporter json --ui tdd out/test/unittest/**/*.js",
+    "test": "mocha --require source-map-support/register --ui tdd out/test/unittest/**/*.js",
+    "test:witsandbox": "sandbox-exec.js -c -- mocha --require source-map-support/register --ui tdd out/test/unittest/**/*.js",
     "test:vscode": "node ./out/test/runvscodetest.js",
     "watch": "tsc -w -p ./"
   }
