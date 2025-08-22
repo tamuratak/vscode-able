@@ -7,7 +7,7 @@ export interface ExtractedToken {
     length: number
     tokenType: string
     modifiers: string[]
-    variableName: string
+    varname: string
 }
 
 /**
@@ -92,13 +92,13 @@ export async function extractDeclarationTokens(document: vscode.TextDocument, ra
         // filter: require tokenType === 'variable' and modifiers includes 'declaration'
         if (tokenType === 'variable' && modifiers.includes('declaration')) {
             // read token text from document
-            let variableName = ''
+            let varname = ''
             try {
                 const startPos = new vscode.Position(absoluteLine, absoluteCharacter)
                 const endPos = new vscode.Position(absoluteLine, absoluteCharacter + length)
-                variableName = document.getText(new vscode.Range(startPos, endPos))
+                varname = document.getText(new vscode.Range(startPos, endPos))
             } catch {
-                variableName = ''
+                varname = ''
             }
             results.push({
                 uri: document.uri,
@@ -107,7 +107,7 @@ export async function extractDeclarationTokens(document: vscode.TextDocument, ra
                 length,
                 tokenType,
                 modifiers,
-                variableName
+                varname
             })
         }
     }
