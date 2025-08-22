@@ -89,8 +89,8 @@ export async function extractDeclarationTokens(document: vscode.TextDocument, ra
             }
         }
 
-        // filter: require tokenType === 'declaration' and modifiers includes 'declaration'
-        if (tokenType === 'declaration' && modifiers.includes('declaration')) {
+        // filter: require tokenType === 'variable' and modifiers includes 'declaration'
+        if (tokenType === 'variable' && modifiers.includes('declaration')) {
             // read token text from document
             let text = ''
             try {
