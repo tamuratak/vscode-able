@@ -7,7 +7,7 @@ export interface ExtractedToken {
     length: number
     tokenType: string
     modifiers: string[]
-    text: string
+    variableName: string
 }
 
 /**
@@ -73,8 +73,8 @@ export async function extractDeclarationTokens(document: vscode.TextDocument, ra
         }
 
         // map to document absolute coordinates
-        const absoluteLine = range.start.line + curLine
-        const absoluteCharacter = (curLine === 0) ? range.start.character + curStart : curStart
+        const absoluteLine = curLine
+        const absoluteCharacter = curStart
 
         prevLine = curLine
         prevStart = curStart
@@ -92,13 +92,13 @@ export async function extractDeclarationTokens(document: vscode.TextDocument, ra
         // filter: require tokenType === 'variable' and modifiers includes 'declaration'
         if (tokenType === 'variable' && modifiers.includes('declaration')) {
             // read token text from document
-            let text = ''
+            let variableName = ''
             try {
                 const startPos = new vscode.Position(absoluteLine, absoluteCharacter)
                 const endPos = new vscode.Position(absoluteLine, absoluteCharacter + length)
-                text = document.getText(new vscode.Range(startPos, endPos))
+                variableName = document.getText(new vscode.Range(startPos, endPos))
             } catch {
-                text = ''
+                variableName = ''
             }
             results.push({
                 uri: document.uri,
@@ -107,10 +107,31 @@ export async function extractDeclarationTokens(document: vscode.TextDocument, ra
                 length,
                 tokenType,
                 modifiers,
-                text
+                variableName
             })
         }
     }
 
     return results
+}
+
+/**
+ * Given a document URI and a code snippet string, find the first matching range
+ * inside the document, call `extractDeclarationTokens` on that range and return
+ * both the extracted tokens and a deduplicated list of variable names.
+ */
+export async function extractDeclarationsFromUriCode(uri: vscode.Uri, code: string, token?: vscode.CancellationToken) {
+    const document = await vscode.workspace.openTextDocument(uri)
+    const full = document.getText()
+    const idx = full.indexOf(code)
+    if (idx === -1) {
+        return { tokens: [] as ExtractedToken[], names: [] as string[] }
+    }
+
+    const startPos = document.positionAt(idx)
+    const endPos = document.positionAt(idx + code.length)
+    const range = new vscode.Range(startPos, endPos)
+
+    const tokens = await extractDeclarationTokens(document, range, token)
+    return tokens
 }
