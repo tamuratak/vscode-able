@@ -66,7 +66,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                     maxInputTokens: model.inputTokenLimit ?? 0,
                     maxOutputTokens: model.outputTokenLimit ?? 0,
                     tooltip: model.description ?? 'Gemini',
-                    auth: true,
+                    requiresAuthorization: true,
                     capabilities: {
                         toolCalling: id.startsWith('gemini')
                     },

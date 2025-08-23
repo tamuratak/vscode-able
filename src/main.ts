@@ -9,9 +9,8 @@ import { GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chat
 import { WebSearchTool } from './lmtools/websearch.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
 import { AnnotationTool, annotationToolName } from './lmtools/annotation.js'
-// import { renderToolResult } from './utils/toolresultrendering.js'
-// import { extractDeclarationsFromUriCode } from './lmtools/annotationlib/findtokens.js'
 import { renderToolResult } from './utils/toolresultrendering.js'
+import { FetchWebPageTool } from './lmtools/fetchwebpage.js'
 
 
 class Extension {
@@ -81,6 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.chat.createChatParticipant(AbleChatParticipantId, extension.getChatHandler()),
         vscode.lm.registerTool('able_python', new PythonTool()),
+        vscode.lm.registerTool('able_fetch_webpage', new FetchWebPageTool(extension)),
         vscode.lm.registerTool('able_web_search', new WebSearchTool(extension)),
         vscode.lm.registerTool('able_run_in_sandbox', new RunInSandbox(extension)),
         vscode.lm.registerTool(annotationToolName, new AnnotationTool(extension)),
@@ -98,6 +98,21 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 async function doSomething(extension: Extension) {
+    try { // vscode_fetchWebPage_internal // copilot_fetchWebPage
+        const result = await vscode.lm.invokeTool('able_fetch_webpage', {
+            toolInvocationToken: undefined,
+            input: {
+                url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions'
+            }
+        })
+        const ret = await renderToolResult(result)
+        extension.outputChannel.debug(`[doSomething]: result:\n ${ret}`)
+    } catch (e) {
+        if (e instanceof Error) {
+            extension.outputChannel.error(`[doSomething]: error: ${JSON.stringify([e.message, e.stack], null, 2)}`)
+        }
+    }
+
     const activeDocument = vscode.window.activeTextEditor?.document
     if (!activeDocument) {
         return

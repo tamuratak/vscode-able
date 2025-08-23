@@ -32,6 +32,7 @@
     }
   },
   "enabledApiProposals": [
+    "embeddings",
     "chatParticipantAdditions",
     "chatProvider",
     "languageModelDataPart",
@@ -119,6 +120,28 @@
         }
       },
       {
+        "name": "able_fetch_webpage",
+        "toolReferenceName": "fetchwebpage",
+        "tags": [],
+        "displayName": "Fetch Webpage",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(globe)",
+        "userDescription": "Fetch the main content from a web page. You should include the URL of the page you want to fetch.",
+        "modelDescription": "Fetches the main content from a web page. This tool is useful for summarizing or analyzing the content of a webpage. You should use this tool when you think the user is looking for information from a specific webpage.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "The URL to fetch content from."
+            }
+          },
+          "required": [
+            "url"
+          ]
+        }
+      },
+      {
         "name": "able_web_search",
         "toolReferenceName": "websearch",
         "tags": [
@@ -135,9 +158,11 @@
             "query": {
               "type": "string",
               "description": "The query to search the web for"
-            }            
+            }
           },
-          "required": ["query"]
+          "required": [
+            "query"
+          ]
         }
       },
       {
@@ -180,23 +205,23 @@
         "userDescription": "Inspect code for type information",
         "modelDescription": "Inspects the specified code fragment to determine type information and returns an annotated copy as a string. Each variable's inferred type is included as a comment to help the LLM resolve errors. The response is accompanied by type definitions.",
         "icon": "$(references)",
-				"inputSchema": {
-					"type": "object",
-					"properties": {
-						"filePath": {
-							"type": "string",
-							"description": "The absolute path to the file to inspect."
-						},
-						"code": {
-							"type": "string",
-							"description": "The code in the file to inspect."
-						}
-					},
-					"required": [
-						"filePath",
-						"code"
-					]
-				}
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "The absolute path to the file to inspect."
+            },
+            "code": {
+              "type": "string",
+              "description": "The code in the file to inspect."
+            }
+          },
+          "required": [
+            "filePath",
+            "code"
+          ]
+        }
       }
     ],
     "commands": [
@@ -326,8 +351,7 @@
                 "globPattern"
               ]
             }
-          }
-        ,
+          },
           "able.runInSandbox.denyFileReadDirectories": {
             "type": "array",
             "description": "Array of absolute paths that will be denied for file-read in sandbox-exec. Each entry must be an absolute path.",
@@ -335,8 +359,7 @@
             "items": {
               "type": "string"
             }
-          }
-          ,
+          },
           "able.runInSandbox.allowedReadWriteDirectories": {
             "type": "array",
             "description": "Array of absolute paths that will be allowed for read/write in sandbox-exec in addition to workspace folders. Each entry must be an absolute path.",
