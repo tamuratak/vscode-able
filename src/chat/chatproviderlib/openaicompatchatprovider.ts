@@ -65,7 +65,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                             order: 1001
                         },
                         detail: 'Able',
-                        auth: true
+                        requiresAuthorization: true
                     })
                 }
             }

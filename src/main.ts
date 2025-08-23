@@ -12,6 +12,7 @@ import { AnnotationTool, annotationToolName } from './lmtools/annotation.js'
 // import { renderToolResult } from './utils/toolresultrendering.js'
 // import { extractDeclarationsFromUriCode } from './lmtools/annotationlib/findtokens.js'
 import { renderToolResult } from './utils/toolresultrendering.js'
+import { inspectReadable } from './utils/inspect.js'
 
 
 class Extension {
@@ -98,6 +99,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 async function doSomething(extension: Extension) {
+    extension.outputChannel.info(`[doSomething]: embeddingModels: ${inspectReadable(vscode.lm.embeddingModels)}`)
     const activeDocument = vscode.window.activeTextEditor?.document
     if (!activeDocument) {
         return

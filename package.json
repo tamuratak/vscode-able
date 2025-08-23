@@ -32,6 +32,7 @@
     }
   },
   "enabledApiProposals": [
+    "embeddings",
     "chatParticipantAdditions",
     "chatProvider",
     "languageModelDataPart",

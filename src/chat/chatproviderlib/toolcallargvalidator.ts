@@ -6,7 +6,7 @@ type Cb = (obj: unknown) => boolean
 const toolCallValidatorMap = new Map<string, Cb>()
 const toolCallAjv = new Ajv()
 
-export function initValidators(tools: vscode.LanguageModelChatTool[] | undefined) {
+export function initValidators(tools: readonly vscode.LanguageModelChatTool[] | undefined) {
     for (const tool of tools ?? []) {
         if (tool.inputSchema && !toolCallValidatorMap.has(tool.name)) {
             toolCallValidatorMap.set(tool.name, toolCallAjv.compile(tool.inputSchema))
