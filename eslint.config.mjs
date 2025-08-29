@@ -112,7 +112,8 @@ export default tseslint.config(
             "pyodide*/",
             "**/vscode.*.d.ts",
             ".*/",
-            "src/lib"
+            "src/lib",
+            "src/vscode.d.ts"
         ],
     },
     eslint.configs.recommended,
