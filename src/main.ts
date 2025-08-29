@@ -106,7 +106,7 @@ async function doSomething(extension: Extension) {
             }
         })
         const ret = await renderToolResult(result)
-        extension.outputChannel.debug(`[doSomething]: result:\n ${ret}`)
+        extension.outputChannel.info(`[doSomething]: result:\n ${ret}`)
     } catch (e) {
         if (e instanceof Error) {
             extension.outputChannel.error(`[doSomething]: error: ${JSON.stringify([e.message, e.stack], null, 2)}`)
@@ -125,7 +125,7 @@ async function doSomething(extension: Extension) {
     //    const result = await extractDeclarationsFromUriCode(activeDocument.uri, code)
     //    extension.outputChannel.debug(`[doSomething]: result: ${JSON.stringify(result, null, 2)}`)
     const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', activeDocument.uri)
-    extension.outputChannel.debug(`[doSomething]: symbols: ${JSON.stringify(symbols, null, 2)}`)
+    extension.outputChannel.info(`[doSomething]: symbols: ${JSON.stringify(symbols, null, 2)}`)
     try {
         const result = await vscode.lm.invokeTool('able_annotation', {
             toolInvocationToken: undefined,
@@ -135,7 +135,7 @@ async function doSomething(extension: Extension) {
             }
         })
         const ret = await renderToolResult(result)
-        extension.outputChannel.debug(`[doSomething]: result:\n ${ret}`)
+        extension.outputChannel.info(`[doSomething]: result:\n ${ret}`)
     } catch (e) {
         if (e instanceof Error) {
             extension.outputChannel.error(`[doSomething]: error: ${JSON.stringify([e.message, e.stack], null, 2)}`)

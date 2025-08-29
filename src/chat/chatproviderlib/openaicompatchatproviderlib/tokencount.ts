@@ -1,4 +1,4 @@
-import { LanguageModelChatMessage, LanguageModelChatMessage2, LanguageModelTextPart, LanguageModelToolCallPart, LanguageModelToolResultPart, LanguageModelToolResultPart2, LanguageModelDataPart, LanguageModelPromptTsxPart, LanguageModelToolResult } from 'vscode'
+import { LanguageModelChatMessage, LanguageModelChatMessage2, LanguageModelTextPart, LanguageModelToolCallPart, LanguageModelToolResultPart, LanguageModelToolResultPart2, LanguageModelDataPart, LanguageModelPromptTsxPart, LanguageModelToolResult, LanguageModelThinkingPart } from 'vscode'
 import { createByModelName, TikTokenizer } from '@microsoft/tiktokenizer'
 import { ExternalPromise } from '../../../utils/externalpromise.js'
 import { renderToolResult } from '../../../utils/toolresultrendering.js'
@@ -43,7 +43,7 @@ export async function tokenLength(text: string | LanguageModelChatMessage | Lang
             numTokens += await encodeLen(part.name)
             numTokens += await encodeLen(JSON.stringify(part.input))
         } else {
-            part satisfies LanguageModelDataPart
+            part satisfies LanguageModelDataPart | LanguageModelThinkingPart
             // skip
         }
     }

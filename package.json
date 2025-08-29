@@ -36,7 +36,8 @@
     "chatParticipantAdditions",
     "chatProvider",
     "languageModelDataPart",
-    "languageModelSystem"
+    "languageModelSystem",
+    "languageModelThinkingPart"
   ],
   "contributes": {
     "authentication": [
@@ -80,7 +81,7 @@
         ]
       }
     ],
-    "languageModels": [
+    "languageModelChatProviders": [
       {
         "vendor": "gemini_with_able",
         "displayName": "Gemini with Able"

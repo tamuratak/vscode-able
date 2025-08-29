@@ -85,7 +85,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
         model: GeminiChatInformation,
         messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
         options: LanguageModelChatRequestHandleOptions,
-        progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>,
+        progress: Progress<vscode.LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
         const session = await vscode.authentication.getSession(GeminiAuthServiceId, [], { silent: true })
@@ -207,7 +207,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                 parts.push({ functionResponse })
             } else {
                 // TODO: LanguageModelDataPart case
-                this.extension.outputChannel.info(`Skipping LanguageModelDataPart length: ${part.data.length}`)
+                this.extension.outputChannel.info('Skipping LanguageModelDataPart or LanguageModelThinkingPart')
             }
         }
         return {

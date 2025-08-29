@@ -47,7 +47,7 @@ export class Converter {
                 } satisfies OpenAI.Chat.ChatCompletionToolMessageParam)
             } else {
                 // TODO: LanguageModelDataPart case
-                this.extension.outputChannel.info(`Skipping LanguageModelDataPart length: ${part.data.length}`)
+                this.extension.outputChannel.info('Skipping LanguageModelDataPart or LanguageModelThinkingPart')
             }
         }
         if (message.role === LanguageModelChatMessageRole.Assistant) {
