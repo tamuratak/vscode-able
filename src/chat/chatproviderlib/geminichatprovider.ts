@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { CancellationToken, LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelChatRequestHandleOptions, Progress, LanguageModelTextPart, LanguageModelDataPart, LanguageModelChatInformation, LanguageModelChatProvider, LanguageModelToolCallPart } from 'vscode'
+import { CancellationToken, LanguageModelChatMessage, LanguageModelChatMessageRole, ProvideLanguageModelChatResponseOptions, Progress, LanguageModelTextPart, LanguageModelDataPart, LanguageModelChatInformation, LanguageModelChatProvider, LanguageModelToolCallPart } from 'vscode'
 import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, GenerateContentConfig, FunctionCallingConfigMode, FunctionCall } from '@google/genai'
 import { GeminiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
@@ -35,7 +35,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
         return 'call_' + getNonce(16)
     }
 
-    async prepareLanguageModelChatInformation(options: { silent: boolean; }): Promise<GeminiChatInformation[]> {
+    async provideLanguageModelChatInformation(options: { silent: boolean; }): Promise<GeminiChatInformation[]> {
         try {
             const session = await vscode.authentication.getSession(GeminiAuthServiceId, [], { silent: options.silent })
             if (!session) {
@@ -84,7 +84,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
     async provideLanguageModelChatResponse(
         model: GeminiChatInformation,
         messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
-        options: LanguageModelChatRequestHandleOptions,
+        options: ProvideLanguageModelChatResponseOptions,
         progress: Progress<vscode.LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
