@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import { Browser } from 'playwright'
 
 export interface GetAXOptions {
