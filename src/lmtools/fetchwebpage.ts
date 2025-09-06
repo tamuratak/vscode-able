@@ -46,7 +46,7 @@ export class FetchWebPageToolAutoApprove implements LanguageModelTool<FetchWebPa
     async invoke(options: LanguageModelToolInvocationOptions<FetchWebPageInput>) {
         const browser = await this.browserPromise
         const result = await getFullAXTree(browser, options.input.url)
-        const md = convertAXTreeToMarkdown(vscode.Uri.parse(options.input.url, true), result.nodes as AXNode[])
+        const md = convertAXTreeToMarkdown(vscode.Uri.parse(options.input.url, true), result.nodes as unknown as AXNode[])
         return new LanguageModelToolResult2([new LanguageModelTextPart(md)])
     }
 
