@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { CancellationToken, LanguageModelChatMessage, LanguageModelChatRequestHandleOptions, LanguageModelChatProvider, LanguageModelDataPart, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart, LanguageModelResponsePart2 } from 'vscode'
+import { CancellationToken, LanguageModelChatMessage, LanguageModelChatProvider, LanguageModelDataPart, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart, LanguageModelResponsePart2 } from 'vscode'
 import OpenAI from 'openai'
 import { getNonce } from '../../utils/getnonce.js'
 import { getValidator, initValidators } from './toolcallargvalidator.js'
@@ -42,7 +42,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         return this.apiBaseUrl ? new OpenAI({ apiKey, baseURL: this.apiBaseUrl }) : new OpenAI({ apiKey })
     }
 
-    async prepareLanguageModelChatInformation(options: { silent: boolean; }): Promise<ModelInformation[]> {
+    async provideLanguageModelChatInformation(options: { silent: boolean; }): Promise<ModelInformation[]> {
         try {
             const session = await vscode.authentication.getSession(this.authServiceId, [], { silent: options.silent })
             if (!session) {
@@ -79,7 +79,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     async provideLanguageModelChatResponse(
         model: ModelInformation,
         messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
-        options: LanguageModelChatRequestHandleOptions,
+        options: vscode.ProvideLanguageModelChatResponseOptions,
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
