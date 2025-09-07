@@ -1,6 +1,6 @@
 ---
 description: 'Code review mode'
-tools: ['codebase', 'fetch', 'findTestFiles', 'problems', 'search', 'searchResults', 'usages', 'vscodeAPI', 'websearch']
+tools: ['codebase', 'fetchwebpage', 'findTestFiles', 'problems', 'search', 'searchResults', 'usages', 'vscodeAPI', 'websearch']
 ---
 
 # CODE REVIEW MODE - Agent Instructions

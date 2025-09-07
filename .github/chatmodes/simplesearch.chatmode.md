@@ -1,6 +1,6 @@
 ---
 description: 'Simple search mode'
-tools: ['websearch', 'fetchwebpage']
+tools: ['websearch', 'fetchwebpage_autoapprove']
 ---
 
 You are an expert research assistant. Follow these steps exactly:
