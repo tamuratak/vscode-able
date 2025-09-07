@@ -10,7 +10,7 @@ export interface GetAXOptions {
 }
 
 // Contract: returns raw result from Accessibility.getFullAXTree
-export async function getFullAXTree(browser: Browser, urlOrPath: string, options: GetAXOptions = {}) {
+export async function getFullAXTree(browser: Browser, target: string, options: GetAXOptions = {}) {
     const {
         waitForMs = 1000,
         waitForSelector,
@@ -21,8 +21,6 @@ export async function getFullAXTree(browser: Browser, urlOrPath: string, options
 
     const context = await browser.newContext()
     const page = await context.newPage()
-    const isFile = urlOrPath.startsWith('file:') || /^[./\\]/.test(urlOrPath)
-    const target = isFile && !urlOrPath.startsWith('file:') ? `file://${urlOrPath}` : urlOrPath
 
     const gotoOptions: { waitUntil: 'domcontentloaded' | 'load' | 'networkidle' | 'commit'; timeout?: number } = { waitUntil: 'domcontentloaded', timeout: timeoutMs }
     await page.goto(target, gotoOptions)
