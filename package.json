@@ -142,6 +142,28 @@
           ]
         }
       },
+            {
+        "name": "able_fetch_webpage_autoapprove",
+        "toolReferenceName": "fetchwebpage_autoapprove",
+        "tags": [],
+        "displayName": "Fetch Webpage (Auto Approve)",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(globe)",
+        "userDescription": "Fetch the main content from a web page. You should include the URL of the page you want to fetch.",
+        "modelDescription": "Fetches the main content from a web page. This tool is useful for summarizing or analyzing the content of a webpage. You should use this tool when you think the user is looking for information from a specific webpage.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "The URL to fetch content from."
+            }
+          },
+          "required": [
+            "url"
+          ]
+        }
+      },
       {
         "name": "able_web_search",
         "toolReferenceName": "websearch",
@@ -387,6 +409,7 @@
     "@vscode/prompt-tsx": "0.4.0-alpha.4",
     "ajv": "8.17.1",
     "openai": "5.12.2",
+    "playwright": "1.55.0",
     "workerpool": "9.3.3"
   },
   "devDependencies": {
