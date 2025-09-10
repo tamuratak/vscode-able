@@ -78,7 +78,7 @@ export class LatexInstructions extends PromptElement {
         return (
             <UserMessage>
                 <Tag name="instructions">
-                    - Do not modify { '\\begin{align}' } or any other LaTeX math environment commands. Leave them exactly as they are. <br />
+                    - Do not modify {'\\begin{align}'} or any other LaTeX math environment commands. Leave them exactly as they are. <br />
                     - Do not alter math equations. Preserve them unchanged.
                 </Tag>
             </UserMessage>
@@ -179,6 +179,18 @@ export class FluentPrompt extends PromptElement<MainPromptProps> {
                     </MakeFluent>
                     <AssistantMessage>
                         The position of the IME widget is not ideal at the end of a long line.
+                    </AssistantMessage>
+                    <MakeFluent>
+                        From assumption, we have<br />
+                        {'\\begin{align*}'}<br />
+                        a^2 + b^2 = c^2.<br />
+                        {'\\end{align*}'}
+                    </MakeFluent>
+                    <AssistantMessage>
+                        From the assumption, we obtain<br />
+                        {'\\begin{align*}'}<br />
+                        a^2 + b^2 = c^2.<br />
+                        {'\\end{align*}'}
                     </AssistantMessage>
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
@@ -286,6 +298,18 @@ export class ToEnPrompt extends PromptElement<MainPromptProps> {
                     </ToEn>
                     <AssistantMessage>
                         Please note that GPT-4.1 correctly understands the intent and generates a list of ideas rather than code, even though the prompt contains the sentence "Implement as an extension for VS Code."
+                    </AssistantMessage>
+                    <ToEn>
+                        仮定より次を得る<br />
+                        {'\\begin{align*}'}<br />
+                        a^2 + b^2 = c^2.<br />
+                        {'\\end{align*}'}
+                    </ToEn>
+                    <AssistantMessage>
+                        From the assumption, we obtain<br />
+                        {'\\begin{align*}'}<br />
+                        a^2 + b^2 = c^2.<br />
+                        {'\\end{align*}'}
                     </AssistantMessage>
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
