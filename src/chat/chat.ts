@@ -6,6 +6,7 @@ import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
 import { AbleChatResultMetadata } from './chatlib/chatresultmetadata.js'
 import { debugObj } from '../utils/debug.js'
+import { convertMathEnv } from './chatlib/latex.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -75,7 +76,7 @@ export class ChatHandleManager {
             }
         }
         if (selected) {
-            const formattedChatOutput = '#### input\n' + input + '\n\n' + '#### output\n' + responseText
+            const formattedChatOutput = '#### input\n' + this.tweakResponse(input) + '\n\n' + '#### output\n' + this.tweakResponse(responseText)
             stream.markdown(formattedChatOutput)
             const edit = new vscode.TextEdit(selected.range, responseText)
             const uri = selected.uri
@@ -85,6 +86,10 @@ export class ChatHandleManager {
             stream.markdown(responseText)
             return
         }
+    }
+
+    private tweakResponse(text: string): string {
+        return convertMathEnv(text)
     }
 
 }
