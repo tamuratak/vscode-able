@@ -73,6 +73,18 @@ export class ToolResultDirectiveElement extends PromptElement {
     }
 }
 
+export class LatexInstructions extends PromptElement {
+    render(): PromptPiece {
+        return (
+            <UserMessage>
+                <Tag name="instructions">
+                    - Don't change { '\\begin{align}' } and other LaTex math environment commands. Leave them as they are.
+                </Tag>
+            </UserMessage>
+        )
+    }
+}
+
 export interface MainPromptProps extends HistoryMessagesProps, AttachmentsProps {
     input: string
     userInstruction?: string | undefined
@@ -147,6 +159,7 @@ export class FluentPrompt extends PromptElement<MainPromptProps> {
                         Please write a clear, concise, and grammatically correct English sentence that effectively conveys the idea. The tone should be formal, and it should be neutral. Do not use codeblocks in the output.
                     </Tag>
                 </UserMessage>
+                <LatexInstructions />
                 <PrioritizedList priority={100} descending={false}>
                     <MakeFluent>
                         The following error message pops up. The message doesn't mention that  the terminal launch attempt from the `tasks.json` file has failed. Users cannot tell which configuration is wrong.
@@ -253,6 +266,7 @@ export class ToEnPrompt extends PromptElement<MainPromptProps> {
                         Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
                     </Tag>
                 </UserMessage>
+                <LatexInstructions />
                 <PrioritizedList priority={100} descending={false}>
                     <ToEn>
                         この症状はハードウェアのエラーの可能性があります。
