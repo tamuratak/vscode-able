@@ -78,7 +78,7 @@ export class LatexInstructions extends PromptElement {
         return (
             <UserMessage>
                 <Tag name="instructions">
-                    - Do not modify { '\\begin{align}' } or any other LaTeX math environment commands. Leave them exactly as they are.
+                    - Do not modify { '\\begin{align}' } or any other LaTeX math environment commands. Leave them exactly as they are. <br />
                     - Do not alter math equations. Preserve them unchanged.
                 </Tag>
             </UserMessage>
