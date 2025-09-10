@@ -4,3 +4,7 @@ export function convertMathEnv(text: string) {
         .replace(/\\begin{(align|equation)\*?}/g, '$$')
         .replace(/\\end{(align|equation)\*?}/g, '$$')
 }
+
+export function removeLabel(text: string) {
+    return text.replace(/\\label\{[^}]+\}/g, '')
+}

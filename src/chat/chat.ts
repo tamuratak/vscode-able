@@ -6,7 +6,7 @@ import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
 import { AbleChatResultMetadata } from './chatlib/chatresultmetadata.js'
 import { debugObj } from '../utils/debug.js'
-import { convertMathEnv } from './chatlib/latex.js'
+import { convertMathEnv, removeLabel } from './chatlib/latex.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -89,7 +89,9 @@ export class ChatHandleManager {
     }
 
     private tweakResponse(text: string): string {
-        return convertMathEnv(text)
+        text = convertMathEnv(text)
+        text = removeLabel(text)
+        return text
     }
 
 }
