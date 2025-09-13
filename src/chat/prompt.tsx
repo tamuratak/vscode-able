@@ -342,7 +342,8 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
             <>
                 <UserMessage>
                     <Tag name="instructions">
-                        Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
+                        - Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.<br />
+                        - Preserve the original paragraph structure in the translation. Do not insert extra line breaks; keep the paragraphs exactly as in the source text.
                     </Tag>
                 </UserMessage>
                 <ToJa>
@@ -356,6 +357,12 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                 </ToJa>
                 <AssistantMessage>
                     追加でキッチンの排水口のクリーニングを希望します。
+                </AssistantMessage>
+                <ToJa>
+                    John looked at Mary and said, "It’s getting late, shall we go?" She smiled and replied, "Yes, but let’s grab some coffee first."
+                </ToJa>
+                <AssistantMessage>
+                    ジョンはメアリーを見て言いました。「もう遅くなってきたね、行こうか？」彼女は微笑んで答えました。「うん、でもその前にコーヒーを飲もうよ。」
                 </AssistantMessage>
                 <HistoryMessages history={this.props.history} />
                 <UserMessage>
