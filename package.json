@@ -12,7 +12,7 @@
     "url": "https://github.com/tamuratak/vscode-able.git"
   },
   "engines": {
-    "vscode": "^1.102.0"
+    "vscode": "^1.104.0"
   },
   "files": [
     "pyodide/pyodide/*.json",
@@ -416,7 +416,7 @@
     "@eslint/js": "9.31.0",
     "@types/mocha": "10.0.10",
     "@types/node": "~22.15",
-    "@types/vscode": "1.102.0",
+    "@types/vscode": "1.104.0",
     "@vscode/dts": "0.4.1",
     "@vscode/test-electron": "2.5.2",
     "@vscode/vsce": "3.6.0",
