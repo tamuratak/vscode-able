@@ -365,7 +365,18 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                 <AssistantMessage>
                     ジョンはメアリーを見て言いました。「もう遅くなってきたね、行こうか？」彼女は微笑んで答えました。「うん、でもその前にコーヒーを飲もうよ。」
                 </AssistantMessage>
-                <HistoryMessages history={this.props.history} />
+                <ToJa>
+                    As the epidemic grew, hospitals became overcrowded.
+                </ToJa>
+                <AssistantMessage>
+                    流行が拡大するにつれて、病院は過密状態になった。
+                </AssistantMessage>
+                <ToJa>
+                    The local bakery didn’t want the new supermarket to cut into their business.
+                </ToJa>
+                <AssistantMessage>
+                    地元のパン屋は、新しいスーパーマーケットに商売を奪われたくなかった。
+                </AssistantMessage>
                 <UserMessage>
                     {this.props.userInstruction ? '指示: ' + this.props.userInstruction : ''}
                 </UserMessage>
