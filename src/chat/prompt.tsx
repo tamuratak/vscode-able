@@ -343,9 +343,10 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                 <UserMessage>
                     <Tag name="instructions">
                         - You are an excellent translator between English and Japanese. <br />
-                        - Please translate the following text into natural and fluent Japanese:<br />
+                        - Please translate into natural and fluent Japanese:<br />
                         - Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.<br />
-                        - Preserve the original paragraph structure in the translation. Do not insert extra line breaks; keep the paragraphs exactly as in the source text.
+                        - Preserve the original paragraph structure in the Japanese translation. Do not insert extra line breaks.
+                        - 地の文の日本語はですます調に統一してください。会話文の日本語はですます調に限らない適切なトーンを選んでください。
                     </Tag>
                 </UserMessage>
                 <ToJa>
@@ -370,13 +371,13 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                     As the epidemic grew, hospitals became overcrowded.
                 </ToJa>
                 <AssistantMessage>
-                    流行が拡大するにつれて、病院は過密状態になった。
+                    流行が拡大するにつれて、病院は過密状態になりました。
                 </AssistantMessage>
                 <ToJa>
                     The local bakery didn’t want the new supermarket to cut into their business.
                 </ToJa>
                 <AssistantMessage>
-                    地元のパン屋は、新しいスーパーマーケットに商売を奪われたくなかった。
+                    地元のパン屋は、新しいスーパーマーケットに商売を奪われたくなかったのです。
                 </AssistantMessage>
                 <UserMessage>
                     {this.props.userInstruction ? '指示: ' + this.props.userInstruction : ''}
