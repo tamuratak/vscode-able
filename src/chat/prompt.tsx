@@ -194,9 +194,7 @@ export class FluentPrompt extends PromptElement<MainPromptProps> {
                     </AssistantMessage>
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
-                <UserMessage>
-                    {this.props.userInstruction ? 'Instructions: ' + this.props.userInstruction : ''}
-                </UserMessage>
+                { this.props.userInstruction && <UserMessage> Instructions:  {this.props.userInstruction} </UserMessage> }
                 <MakeFluent>
                     {this.props.input}
                 </MakeFluent>
@@ -247,9 +245,7 @@ export class FluentJaPrompt extends PromptElement<MainPromptProps> {
                     </AssistantMessage>
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
-                <UserMessage>
-                    {this.props.userInstruction ? '指示: ' + this.props.userInstruction : ''}
-                </UserMessage>
+                { this.props.userInstruction && <UserMessage> 指示:  {this.props.userInstruction} </UserMessage> }
                 <MakeFluentJa>
                     {this.props.input}
                 </MakeFluentJa>
@@ -313,9 +309,7 @@ export class ToEnPrompt extends PromptElement<MainPromptProps> {
                     </AssistantMessage>
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
-                <UserMessage>
-                    {this.props.userInstruction ? 'Instructions: ' + this.props.userInstruction : ''}
-                </UserMessage>
+                { this.props.userInstruction && <UserMessage> Instructions:  {this.props.userInstruction} </UserMessage> }
                 <ToEn>
                     {this.props.input}
                 </ToEn>
@@ -398,9 +392,7 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
 
                     エマ: そうですか。まあ、戻ってきてくれて嬉しいです。
                 </AssistantMessage>
-                <UserMessage>
-                    {this.props.userInstruction ? '指示: ' + this.props.userInstruction : ''}
-                </UserMessage>
+                { this.props.userInstruction && <UserMessage> 指示:  {this.props.userInstruction} </UserMessage> }
                 <ToJa>
                     {this.props.input}
                 </ToJa>
