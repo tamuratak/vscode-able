@@ -375,6 +375,12 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                     地元のパン屋は、新しいスーパーマーケットに商売を奪われたくなかったのです。
                 </AssistantMessage>
                 <ToJa>
+                    Some YouTubers can earn upward of $10,000 for a single video if it goes viral.
+                </ToJa>
+                <AssistantMessage>
+                    一部のユーチューバーは、動画がバズれば1本で1万ドル以上稼ぐことができる。
+                </AssistantMessage>
+                <ToJa>
                     Emma: I didn’t expect to see you here today. <br /><br />
                     I thought you were still out of town. <br /><br />
 
