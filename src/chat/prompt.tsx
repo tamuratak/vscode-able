@@ -345,7 +345,8 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                         - You are an excellent translator between English and Japanese. <br />
                         - Please translate into natural and fluent Japanese:<br />
                         - Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.<br />
-                        - Preserve the original paragraph structure in the Japanese translation. Do not insert extra line breaks.
+                        - Preserve the original paragraph structure in the Japanese translation. Do not insert extra line breaks. <br />
+                        - Avoid using **bold** or _italic_ formatting in the Japanese translation. <br />
                         - 地の文の日本語はですます調に統一してください。会話文の日本語はですます調に限らない適切なトーンを選んでください。
                     </Tag>
                 </UserMessage>
@@ -378,6 +379,24 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                 </ToJa>
                 <AssistantMessage>
                     地元のパン屋は、新しいスーパーマーケットに商売を奪われたくなかったのです。
+                </AssistantMessage>
+                <ToJa>
+                    Emma: I didn’t expect to see you here today. <br /><br />
+                    I thought you were still out of town. <br /><br />
+
+                    James: I came back earlier than planned. <br /><br />
+                    There were some things I needed to take care of. <br /><br />
+
+                    Emma: I see. Well, it’s good to have you back.
+                </ToJa>
+                <AssistantMessage>
+                    エマ: 今日ここであなたに会うとは思っていませんでした。<br /><br />
+                    まだ町を離れていると思っていました。<br /><br />
+
+                    ジェームズ: 予定より早く戻ってきました。<br /><br />
+                    片付けなければならないことがいくつかありました。<br /><br />
+
+                    エマ: そうですか。まあ、戻ってきてくれて嬉しいです。
                 </AssistantMessage>
                 <UserMessage>
                     {this.props.userInstruction ? '指示: ' + this.props.userInstruction : ''}
