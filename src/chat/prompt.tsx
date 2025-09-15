@@ -378,7 +378,7 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                     Some YouTubers can earn upward of $10,000 for a single video if it goes viral.
                 </ToJa>
                 <AssistantMessage>
-                    一部のユーチューバーは、動画がバズれば1本で1万ドル以上稼ぐことができる。
+                    一部のユーチューバーは、動画がバズれば1本で1万ドル以上稼ぐことができます。
                 </AssistantMessage>
                 <ToJa>
                     Emma: I didn’t expect to see you here today. <br /><br />
