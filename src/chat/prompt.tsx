@@ -323,9 +323,10 @@ class ToJa extends PromptElement {
     render(): PromptPiece {
         return (
             <UserMessage>
-                Please translate the following text into natural and fluent Japanese:
-                <br />
-                {this.props.children}
+                Please translate the following text into natural and fluent Japanese: <br />
+                <Tag name='source_text'>
+                    {this.props.children}
+                </Tag>
             </UserMessage>
         )
     }
