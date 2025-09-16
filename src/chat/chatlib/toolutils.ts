@@ -1,7 +1,7 @@
 import type { ToolCall } from '@vscode/prompt-tsx'
 import * as vscode from 'vscode'
 
-export const ableTools = ['able_python', 'able_replace_text'] as const
+export const ableTools = [] as const
 export type AbleTool = typeof ableTools[number]
 
 export function getLmTools(selectedTools: readonly AbleTool[] = ableTools): vscode.LanguageModelChatTool[] {
