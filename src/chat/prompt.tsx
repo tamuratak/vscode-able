@@ -338,8 +338,8 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
             <>
                 <UserMessage>
                     <Tag name="instructions">
-                        - You are an excellent translator between English and Japanese. <br />
-                        - Please translate into natural and fluent Japanese:<br />
+                        - You are an excellent translator between English and Japanese.<br />
+                        - Please translate into natural and fluent Japanese.<br />
                         - Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.<br />
                         - Preserve the original paragraph structure in the Japanese translation. Do not insert extra line breaks. <br />
                         - Avoid using **bold** or _italic_ formatting in the Japanese translation. <br />
