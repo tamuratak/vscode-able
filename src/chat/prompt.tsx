@@ -157,7 +157,8 @@ export class FluentPrompt extends PromptElement<MainPromptProps> {
             <>
                 <UserMessage>
                     <Tag name="instructions">
-                        Please write a clear, concise, and grammatically correct English sentence that effectively conveys the idea. The tone should be formal, and it should be neutral. Do not use codeblocks in the output.
+                        - Please write a clear, concise, and grammatically correct English sentence that effectively conveys the idea. The tone should be formal, and it should be neutral. Do not use codeblocks in the output. <br />
+                        {this.props.userInstruction && '- ' + this.props.userInstruction}
                     </Tag>
                 </UserMessage>
                 <LatexInstructions />
@@ -194,7 +195,6 @@ export class FluentPrompt extends PromptElement<MainPromptProps> {
                     </AssistantMessage>
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
-                { this.props.userInstruction && <UserMessage> Instructions:  {this.props.userInstruction} </UserMessage> }
                 <MakeFluent>
                     {this.props.input}
                 </MakeFluent>
@@ -221,7 +221,8 @@ export class FluentJaPrompt extends PromptElement<MainPromptProps> {
             <>
                 <UserMessage>
                     <Tag name="instructions">
-                        元の意味や意図を損なわないようにしつつ、読みやすく丁寧な表現にしてください。
+                        - 元の意味や意図を損なわないようにしつつ、読みやすく丁寧な表現にしてください。<br />
+                        {this.props.userInstruction && '- ' + this.props.userInstruction}
                     </Tag>
                 </UserMessage>
                 <PrioritizedList priority={100} descending={false}>
@@ -245,7 +246,6 @@ export class FluentJaPrompt extends PromptElement<MainPromptProps> {
                     </AssistantMessage>
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
-                { this.props.userInstruction && <UserMessage> 指示:  {this.props.userInstruction} </UserMessage> }
                 <MakeFluentJa>
                     {this.props.input}
                 </MakeFluentJa>
@@ -258,9 +258,10 @@ class ToEn extends PromptElement {
     render(): PromptPiece {
         return (
             <UserMessage>
-                Translate the following sentence literally into natural English:
-                <br />
-                {this.props.children}
+                Translate the following sentence literally into natural English: <br />
+                <Tag name='source_text'>
+                    {this.props.children}
+                </Tag>
             </UserMessage>
         )
     }
@@ -272,7 +273,8 @@ export class ToEnPrompt extends PromptElement<MainPromptProps> {
             <>
                 <UserMessage>
                     <Tag name="instructions">
-                        Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.
+                        - Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate. <br />
+                        {this.props.userInstruction && '- ' + this.props.userInstruction}
                     </Tag>
                 </UserMessage>
                 <LatexInstructions />
@@ -309,7 +311,6 @@ export class ToEnPrompt extends PromptElement<MainPromptProps> {
                     </AssistantMessage>
                 </PrioritizedList>
                 <HistoryMessages history={this.props.history} />
-                { this.props.userInstruction && <UserMessage> Instructions:  {this.props.userInstruction} </UserMessage> }
                 <ToEn>
                     {this.props.input}
                 </ToEn>
@@ -322,9 +323,10 @@ class ToJa extends PromptElement {
     render(): PromptPiece {
         return (
             <UserMessage>
-                Please translate the following text into natural and fluent Japanese:
-                <br />
-                {this.props.children}
+                Please translate the following text into natural and fluent Japanese: <br />
+                <Tag name='source_text'>
+                    {this.props.children}
+                </Tag>
             </UserMessage>
         )
     }
@@ -341,7 +343,8 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                         - Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.<br />
                         - Preserve the original paragraph structure in the Japanese translation. Do not insert extra line breaks. <br />
                         - Avoid using **bold** or _italic_ formatting in the Japanese translation. <br />
-                        - 地の文の日本語はですます調に統一してください。会話文の日本語はですます調に限らない適切なトーンを選んでください。
+                        - 地の文の日本語はですます調に統一してください。会話文の日本語はですます調に限らない適切なトーンを選んでください。<br />
+                        {this.props.userInstruction && '- ' + this.props.userInstruction}
                     </Tag>
                 </UserMessage>
                 <ToJa>
@@ -398,7 +401,6 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
 
                     エマ: そうですか。まあ、戻ってきてくれて嬉しいです。
                 </AssistantMessage>
-                { this.props.userInstruction && <UserMessage> 指示:  {this.props.userInstruction} </UserMessage> }
                 <ToJa>
                     {this.props.input}
                 </ToJa>
