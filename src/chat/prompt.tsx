@@ -143,9 +143,10 @@ class MakeFluent extends PromptElement {
     render(): PromptPiece {
         return (
             <UserMessage>
-                Make fluent:
-                <br />
-                {this.props.children}
+                Make fluent: <br />
+                <Tag name='source_text'>
+                    {this.props.children}
+                </Tag>
             </UserMessage>
         )
     }
@@ -162,39 +163,36 @@ export class FluentPrompt extends PromptElement<MainPromptProps> {
                     </Tag>
                 </UserMessage>
                 <LatexInstructions />
-                <PrioritizedList priority={100} descending={false}>
-                    <MakeFluent>
-                        The following error message pops up. The message doesn't mention that  the terminal launch attempt from the `tasks.json` file has failed. Users cannot tell which configuration is wrong.
-                    </MakeFluent>
-                    <AssistantMessage>
-                        The following error message appears, but it doesn't indicate that the terminal launch attempt from the `tasks.json` file has failed. As a result, users are unable to identify which configuration is incorrect.
-                    </AssistantMessage>
-                    <MakeFluent>
-                        Users are unable to identify that the terminal launch attempt from the `tasks.json` file has failed.
-                    </MakeFluent>
-                    <AssistantMessage>
-                        Users cannot recognize that the terminal launch attempt from the `tasks.json` file has failed.
-                    </AssistantMessage>
-                    <MakeFluent>
-                        The position of the IME widget is not good at the last of a long line.
-                    </MakeFluent>
-                    <AssistantMessage>
-                        The position of the IME widget is not ideal at the end of a long line.
-                    </AssistantMessage>
-                    <MakeFluent>
-                        From assumption, we have<br />
-                        {'\\begin{align*}'}<br />
-                        a^2 + b^2 = c^2.<br />
-                        {'\\end{align*}'}
-                    </MakeFluent>
-                    <AssistantMessage>
-                        From the assumption, we obtain<br />
-                        {'\\begin{align*}'}<br />
-                        a^2 + b^2 = c^2.<br />
-                        {'\\end{align*}'}
-                    </AssistantMessage>
-                </PrioritizedList>
-                <HistoryMessages history={this.props.history} />
+                <MakeFluent>
+                    The following error message pops up. The message doesn't mention that  the terminal launch attempt from the `tasks.json` file has failed. Users cannot tell which configuration is wrong.
+                </MakeFluent>
+                <AssistantMessage>
+                    The following error message appears, but it doesn't indicate that the terminal launch attempt from the `tasks.json` file has failed. As a result, users are unable to identify which configuration is incorrect.
+                </AssistantMessage>
+                <MakeFluent>
+                    Users are unable to identify that the terminal launch attempt from the `tasks.json` file has failed.
+                </MakeFluent>
+                <AssistantMessage>
+                    Users cannot recognize that the terminal launch attempt from the `tasks.json` file has failed.
+                </AssistantMessage>
+                <MakeFluent>
+                    The position of the IME widget is not good at the last of a long line.
+                </MakeFluent>
+                <AssistantMessage>
+                    The position of the IME widget is not ideal at the end of a long line.
+                </AssistantMessage>
+                <MakeFluent>
+                    From assumption, we have<br />
+                    {'\\begin{align*}'}<br />
+                    a^2 + b^2 = c^2.<br />
+                    {'\\end{align*}'}
+                </MakeFluent>
+                <AssistantMessage>
+                    From the assumption, we obtain<br />
+                    {'\\begin{align*}'}<br />
+                    a^2 + b^2 = c^2.<br />
+                    {'\\end{align*}'}
+                </AssistantMessage>
                 <MakeFluent>
                     {this.props.input}
                 </MakeFluent>
@@ -207,9 +205,10 @@ class MakeFluentJa extends PromptElement {
     render(): PromptPiece {
         return (
             <UserMessage>
-                以下の文章を、自然で流暢な日本語に書き換えてください:
-                <br />
-                {this.props.children}
+                以下の文章を、自然で流暢な日本語に書き換えてください:<br />
+                <Tag name='source_text'>
+                    {this.props.children}
+                </Tag>
             </UserMessage>
         )
     }
@@ -225,27 +224,24 @@ export class FluentJaPrompt extends PromptElement<MainPromptProps> {
                         {this.props.userInstruction && '- ' + this.props.userInstruction}
                     </Tag>
                 </UserMessage>
-                <PrioritizedList priority={100} descending={false}>
-                    <MakeFluentJa>
-                        複文ではなく単文で書きかつ、文は1つで書くよう命令するためのプロンプト。
-                    </MakeFluentJa>
-                    <AssistantMessage>
-                        複文ではなく単文で、しかも文を1つだけ書くよう指示するためのプロンプト。
-                    </AssistantMessage>
-                    <MakeFluentJa>
-                        ウィーン会議後のヨーロッパ地図を検索して見つけて。英語か日本語で。
-                    </MakeFluentJa>
-                    <AssistantMessage>
-                        ウィーン会議後のヨーロッパの地図を、英語または日本語で検索して探してください。
-                    </AssistantMessage>
-                    <MakeFluentJa>
-                        文字列から部分文字列にマッチする範囲をすべて見つける。JavaScript
-                    </MakeFluentJa>
-                    <AssistantMessage>
-                        JavaScriptで、文字列から部分文字列に一致するすべての範囲を見つける。
-                    </AssistantMessage>
-                </PrioritizedList>
-                <HistoryMessages history={this.props.history} />
+                <MakeFluentJa>
+                    複文ではなく単文で書きかつ、文は1つで書くよう命令するためのプロンプト。
+                </MakeFluentJa>
+                <AssistantMessage>
+                    複文ではなく単文で、しかも文を1つだけ書くよう指示するためのプロンプト。
+                </AssistantMessage>
+                <MakeFluentJa>
+                    ウィーン会議後のヨーロッパ地図を検索して見つけて。英語か日本語で。
+                </MakeFluentJa>
+                <AssistantMessage>
+                    ウィーン会議後のヨーロッパの地図を、英語または日本語で検索して探してください。
+                </AssistantMessage>
+                <MakeFluentJa>
+                    文字列から部分文字列にマッチする範囲をすべて見つける。JavaScript
+                </MakeFluentJa>
+                <AssistantMessage>
+                    JavaScriptで、文字列から部分文字列に一致するすべての範囲を見つける。
+                </AssistantMessage>
                 <MakeFluentJa>
                     {this.props.input}
                 </MakeFluentJa>
@@ -278,39 +274,36 @@ export class ToEnPrompt extends PromptElement<MainPromptProps> {
                     </Tag>
                 </UserMessage>
                 <LatexInstructions />
-                <PrioritizedList priority={100} descending={false}>
-                    <ToEn>
-                        この症状はハードウェアのエラーの可能性があります。
-                    </ToEn>
-                    <AssistantMessage>
-                        The symptoms suggest it might be a hardware error.
-                    </AssistantMessage>
-                    <ToEn>
-                        キッチンの排水口の追加クリーニングを依頼したいです。
-                    </ToEn>
-                    <AssistantMessage>
-                        I would like to request an additional cleaning for the kitchen drain.
-                    </AssistantMessage>
-                    <ToEn>
-                        GPT 4.1 は "Implement as an extension for VS Code" という文章があるにも関わらず、意図を正しく理解し、コードを生成せず、アイディアのリストを生成していることに注意してください。
-                    </ToEn>
-                    <AssistantMessage>
-                        Please note that GPT-4.1 correctly understands the intent and generates a list of ideas rather than code, even though the prompt contains the sentence "Implement as an extension for VS Code."
-                    </AssistantMessage>
-                    <ToEn>
-                        仮定より次を得る<br />
-                        {'\\begin{align*}'}<br />
-                        a^2 + b^2 = c^2.<br />
-                        {'\\end{align*}'}
-                    </ToEn>
-                    <AssistantMessage>
-                        From the assumption, we obtain<br />
-                        {'\\begin{align*}'}<br />
-                        a^2 + b^2 = c^2.<br />
-                        {'\\end{align*}'}
-                    </AssistantMessage>
-                </PrioritizedList>
-                <HistoryMessages history={this.props.history} />
+                <ToEn>
+                    この症状はハードウェアのエラーの可能性があります。
+                </ToEn>
+                <AssistantMessage>
+                    The symptoms suggest it might be a hardware error.
+                </AssistantMessage>
+                <ToEn>
+                    キッチンの排水口の追加クリーニングを依頼したいです。
+                </ToEn>
+                <AssistantMessage>
+                    I would like to request an additional cleaning for the kitchen drain.
+                </AssistantMessage>
+                <ToEn>
+                    GPT 4.1 は "Implement as an extension for VS Code" という文章があるにも関わらず、意図を正しく理解し、コードを生成せず、アイディアのリストを生成していることに注意してください。
+                </ToEn>
+                <AssistantMessage>
+                    Please note that GPT-4.1 correctly understands the intent and generates a list of ideas rather than code, even though the prompt contains the sentence "Implement as an extension for VS Code."
+                </AssistantMessage>
+                <ToEn>
+                    仮定より次を得る<br />
+                    {'\\begin{align*}'}<br />
+                    a^2 + b^2 = c^2.<br />
+                    {'\\end{align*}'}
+                </ToEn>
+                <AssistantMessage>
+                    From the assumption, we obtain<br />
+                    {'\\begin{align*}'}<br />
+                    a^2 + b^2 = c^2.<br />
+                    {'\\end{align*}'}
+                </AssistantMessage>
                 <ToEn>
                     {this.props.input}
                 </ToEn>
