@@ -69,23 +69,30 @@ export class ChatHandleManager {
         const input = selected?.text ?? request.prompt
         let responseText = ''
         const userInstruction = selected ? request.prompt : undefined
-        const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input, userInstruction }, model)
-        if (ret?.chatResponse) {
-            for await (const fragment of ret.chatResponse.text) {
-                responseText += fragment
+        for (const inputChunk of input.split('\n\n')) {
+            const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input: inputChunk, userInstruction }, model)
+            let responseChunk = ''
+            if (ret?.chatResponse) {
+                for await (const fragment of ret.chatResponse.text) {
+                    responseChunk += fragment
+                }
             }
+            if (selected) {
+                const formattedChatOutput = '#### input\n' + this.tweakResponse(inputChunk) + '\n\n' + '#### output\n' + this.tweakResponse(responseChunk) + '\n\n'
+                stream.markdown(formattedChatOutput)
+            } else {
+                stream.markdown(responseChunk)
+                stream.markdown('\n\n')
+            }
+            responseText += responseChunk + '\n\n'
         }
         if (selected) {
-            const formattedChatOutput = '#### input\n' + this.tweakResponse(input) + '\n\n' + '#### output\n' + this.tweakResponse(responseText)
-            stream.markdown(formattedChatOutput)
             const edit = new vscode.TextEdit(selected.range, responseText)
             const uri = selected.uri
             stream.textEdit(uri, edit)
             return { metadata: { input, output: responseText, selected, userInstruction } } satisfies { metadata: AbleChatResultMetadata }
-        } else {
-            stream.markdown(responseText)
-            return
         }
+        return
     }
 
     private tweakResponse(text: string): string {
