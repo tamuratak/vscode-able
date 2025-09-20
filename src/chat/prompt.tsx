@@ -403,13 +403,13 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
 }
 
 interface HistoryMessagesProps extends BasePromptElementProps {
-    history: HistoryEntry[]
+    history?: HistoryEntry[] | undefined
 }
 
 class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     render(): PromptPiece {
         const history: PromptPiece[] = []
-        for (const hist of this.props.history) {
+        for (const hist of this.props.history ?? []) {
             if (hist.type === 'user') {
                 if (hist.command === 'fluent') {
                     history.push(

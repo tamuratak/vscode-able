@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, HistoryEntry, MainPromptProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { FluentJaPrompt, FluentPrompt, MainPromptProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
-import { extractAbleCommandHistory, extractHitory } from './chatlib/historyutils.js'
+import { extractHitory } from './chatlib/historyutils.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
 import { AbleChatResultMetadata } from './chatlib/chatresultmetadata.js'
@@ -31,16 +31,15 @@ export class ChatHandleManager {
             token: vscode.CancellationToken
         ): Promise<vscode.ChatResult | undefined> => {
             debugObj('[Able Chat] request.references: ', request.references, this.extension.outputChannel)
-            const ableCommandHistory = extractAbleCommandHistory(context)
             const history = extractHitory(context)
             if (request.command === 'fluent') {
-                return this.responseWithSelection(token, request, FluentPrompt, ableCommandHistory, request.model, stream)
+                return this.responseWithSelection(token, request, FluentPrompt, request.model, stream)
             } else if (request.command === 'fluent_ja') {
-                return this.responseWithSelection(token, request, FluentJaPrompt, ableCommandHistory, request.model, stream)
+                return this.responseWithSelection(token, request, FluentJaPrompt, request.model, stream)
             } else if (request.command === 'to_en') {
-                return this.responseWithSelection(token, request, ToEnPrompt, ableCommandHistory, request.model, stream)
+                return this.responseWithSelection(token, request, ToEnPrompt, request.model, stream)
             } else if (request.command === 'to_ja') {
-                return this.responseWithSelection(token, request, ToJaPrompt, ableCommandHistory, request.model, stream)
+                return this.responseWithSelection(token, request, ToJaPrompt, request.model, stream)
             } else {
                 const attachments = await getAttachmentFiles(request)
                 await this.copilotChatHandler.copilotChatResponse(
@@ -61,7 +60,6 @@ export class ChatHandleManager {
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
         ctor: PromptElementCtor<MainPromptProps, S>,
-        ableHistory: HistoryEntry[],
         model: vscode.LanguageModelChat,
         stream: vscode.ChatResponseStream,
     ): Promise<vscode.ChatResult | undefined> {
@@ -70,7 +68,7 @@ export class ChatHandleManager {
         let responseText = ''
         const userInstruction = selected ? request.prompt : undefined
         for (const inputChunk of input.split('\n\n')) {
-            const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { history: ableHistory, input: inputChunk, userInstruction }, model)
+            const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { input: inputChunk, userInstruction }, model)
             let responseChunk = ''
             if (ret?.chatResponse) {
                 for await (const fragment of ret.chatResponse.text) {
