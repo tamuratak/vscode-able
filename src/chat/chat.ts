@@ -7,6 +7,7 @@ import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
 import { AbleChatResultMetadata } from './chatlib/chatresultmetadata.js'
 import { debugObj } from '../utils/debug.js'
 import { convertMathEnv, removeLabel } from './chatlib/latex.js'
+import { toCunks } from './chatlib/chunk.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -67,7 +68,8 @@ export class ChatHandleManager {
         const input = selected?.text ?? request.prompt
         let responseText = ''
         const userInstruction = selected ? request.prompt : undefined
-        for (const inputChunk of input.split('\n\n')) {
+        const chunks = toCunks(input, 1024)
+        for (const inputChunk of chunks) {
             const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { input: inputChunk, userInstruction }, model)
             let responseChunk = ''
             if (ret?.chatResponse) {
