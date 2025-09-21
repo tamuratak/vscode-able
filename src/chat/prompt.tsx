@@ -336,7 +336,7 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                         - Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.<br />
                         - Preserve the original paragraph structure in the Japanese translation. Do not insert extra line breaks. <br />
                         - Avoid using **bold** or _italic_ formatting in the Japanese translation. <br />
-                        - 地の文の日本語はですます調に統一してください。会話文の日本語はですます調に限らない適切なトーンを選んでください。<br />
+                        - 地の文は必ず「です・ます調」で統一してください。会話文は「です・ます調」に限らず、文脈に応じて自然で適切な口調を用いてください。<br />
                         {this.props.userInstruction && '- ' + this.props.userInstruction}
                     </Tag>
                 </UserMessage>
