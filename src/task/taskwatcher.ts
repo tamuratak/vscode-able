@@ -34,7 +34,7 @@ export class TaskWatcher implements vscode.Disposable {
                 const globPattern = entryGlobPattern.startsWith('./') ? entryGlobPattern.slice(2) : entryGlobPattern
                 const executeTaskCb = async () => {
                     const tasks = await vscode.tasks.fetchTasks()
-                    debugObj('Fetched tasks: ', tasks, this.extension.outputChannel)
+                    debugObj('Fetched tasks: ', tasks.map(t => ({ name: t.name, definition: t.definition })), this.extension.outputChannel)
                     const task = tasks.find(t => t.name === entry.name && t.name !== t.definition['script'])
                     if (task) {
                         const release = await this.mutex.acquire()
