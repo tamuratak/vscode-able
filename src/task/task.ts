@@ -20,7 +20,7 @@ export class MochaJsonTaskProvider implements vscode.TaskProvider {
             return new vscode.Task(
                 { type: MochaJsonTaskProvider.AbleTaskType },
                 vscode.TaskScope.Workspace,
-                task.name,
+                `${MochaJsonTaskProvider.AbleTaskType}-${task.name}`,
                 MochaJsonTaskProvider.AbleTaskType,
                 new vscode.CustomExecution(() => {
                     return Promise.resolve(
