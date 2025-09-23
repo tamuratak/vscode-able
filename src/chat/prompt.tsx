@@ -347,10 +347,10 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                     症状からすると、ハードウェアのエラーの可能性があります。
                 </AssistantMessage>
                 <ToJa>
-                    I would like to request an additional cleaning for the kitchen drain.
+                    The prosecutor asked the police department to assign a detective to the case, and Lt. Harris agreed immediately.
                 </ToJa>
                 <AssistantMessage>
-                    追加でキッチンの排水口のクリーニングを希望します。
+                    検察官は警察署にその事件を担当する刑事を割り当てるよう求め、ハリス警部補はすぐに同意しました。
                 </AssistantMessage>
                 <ToJa>
                     John looked at Mary and said, "It’s getting late, shall we go?" She smiled and replied, "Yes, but let’s grab some coffee first."
