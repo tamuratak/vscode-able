@@ -9,6 +9,10 @@
         {
             "name": "task-lint",
             "globPattern": ["src/**/*.ts"],
+        },
+        {
+            "name": "task-test",
+            "globPattern": ["src/**/*.ts", "test/**/*.ts"],
         }
     ]
 }

@@ -25,24 +25,11 @@
                 "isDefault": true
             },
             "presentation": {
-                "reveal": "silent",
+                "reveal": "never",
                 "clear": true,
                 "close": false
             },
-            "problemMatcher": [
-                {
-                    "owner": "javascript",
-                    "fileLocation": "relative",
-                    "pattern": [
-                        {
-                            "regexp": "(test/unittest/.*/.*\\.test\\.ts):(\\d+):(\\d+)",
-                            "file": 1,
-                            "location": 2,
-                            "message": 3
-                        }
-                    ]
-                }
-            ]
+            "problemMatcher": []
         },
         {
             "label": "task-lint",
