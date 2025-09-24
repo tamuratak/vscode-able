@@ -1,5 +1,4 @@
 import * as vscode from 'vscode'
-import { MutexWithSizedQueue } from '../utils/mutexwithsizedqueue.js'
 import { debugObj } from '../utils/debug.js'
 
 
@@ -11,7 +10,6 @@ interface TaskWatcherEntry {
 export class TaskWatcher implements vscode.Disposable {
     private watchers: vscode.FileSystemWatcher[] = []
     private readonly configToDispose: vscode.Disposable
-    private readonly mutex = new MutexWithSizedQueue(1)
 
     constructor(private readonly extension: {
         readonly outputChannel: vscode.LogOutputChannel
@@ -37,14 +35,6 @@ export class TaskWatcher implements vscode.Disposable {
                     debugObj('Fetched tasks: ', tasks.filter(t => !t.definition['path']).map(t => ({ name: t.name, definition: t.definition })), this.extension.outputChannel)
                     const task = tasks.find(t => t.name === entry.name && t.name !== t.definition['script'])
                     if (task) {
-                        const release = await this.mutex.acquire()
-                        const disposable = vscode.tasks.onDidEndTask((e) => {
-                            debugObj('Task ended: ', { name: e.execution.task.name, definition: e.execution.task.definition }, this.extension.outputChannel)
-                            if (e.execution.task.name === task.name && e.execution.task.definition.type === task.definition.type) {
-                                release()
-                                disposable.dispose()
-                            }
-                        })
                         await vscode.commands.executeCommand('workbench.action.tasks.runTask', { type: task.definition.type, name: task.name })
                         debugObj('Executed task: ', { name: task.name, type: task.definition.type }, this.extension.outputChannel)
                     }
