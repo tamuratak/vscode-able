@@ -2,11 +2,12 @@ import { strict as assert } from 'assert'
 import { extractProperNouns } from '../../../src/chat/chatlib/nlp'
 
 suite('nlp.extractProperNouns', () => {
-		test('basic single proper noun', () => {
-			const txt = 'Alice went to London.'
-			const res = extractProperNouns(txt)
-			assert.deepEqual(res, ['Alice', 'London'])
-		})
+
+	test('basic single proper noun', () => {
+		const txt = 'Alice went to London.'
+		const res = extractProperNouns(txt)
+		assert.deepEqual(res, ['Alice', 'London'])
+	})
 
 	test('compound names are excluded', () => {
 		const txt = 'Alice visited New York City.'
@@ -15,12 +16,12 @@ suite('nlp.extractProperNouns', () => {
 		assert.deepEqual(res, ['Alice', 'City'])
 	})
 
-		test('exclude abbreviations and honorifics', () => {
-			const txt = 'Mr. Smith met Dr. Jones. NASA launched a rocket.'
-			const res = extractProperNouns(txt)
-			// Mr., Dr., NASA excluded; Smith remains (Jones part of compound with Dr.?)
-			assert.deepEqual(res, ['Smith', 'Jones'])
-		})
+	test('exclude abbreviations and honorifics', () => {
+		const txt = 'Mr. Smith met Dr. Jones. NASA launched a rocket.'
+		const res = extractProperNouns(txt)
+		// Mr., Dr., NASA excluded; Smith remains (Jones part of compound with Dr.?)
+		assert.deepEqual(res, ['Smith', 'Jones'])
+	})
 
 	test('allow hyphen and apostrophe names', () => {
 		const txt = "O'Connor met Jean-Paul in Paris."
@@ -41,5 +42,5 @@ suite('nlp.extractProperNouns', () => {
 		const res = extractProperNouns(txt)
 		assert.deepEqual(res, ['Alice', 'Bob'])
 	})
-})
 
+})
