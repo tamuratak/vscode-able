@@ -6,7 +6,7 @@
 - All file names should be in lowercase.
 - All file names should not include hyphens, spaces, nor underscores.
 - Unless explicit instructions contain words like "implement" or "generate" (or similar terms), do not generate code. Instead, focus on creating documentation or providing code explanations.
-- After editing files using tools like `copilot_insertEdit`, `apply_patch`, or `insert_edit_into_file`, please check for any new errors caused by your changes by running `copilot_getErrors`.
+- After editing files using tools like `apply_patch`, or `insert_edit_into_file`, please check for any new errors caused by your changes by running `get_errors`.
 
 
 ### Instructions only in ACTION MODE
