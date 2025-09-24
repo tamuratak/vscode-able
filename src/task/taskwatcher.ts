@@ -39,12 +39,14 @@ export class TaskWatcher implements vscode.Disposable {
                     if (task) {
                         const release = await this.mutex.acquire()
                         const disposable = vscode.tasks.onDidEndTask((e) => {
-                            if (e.execution.task.name === task.name) {
+                            debugObj('Task ended: ', { name: e.execution.task.name, definition: e.execution.task.definition }, this.extension.outputChannel)
+                            if (e.execution.task.name === task.name && e.execution.task.definition.type === task.definition.type) {
                                 release()
                                 disposable.dispose()
                             }
                         })
-                        await vscode.commands.executeCommand('workbench.action.tasks.runTask', task.name)
+                        await vscode.commands.executeCommand('workbench.action.tasks.runTask', { type: task.definition.type, name: task.name })
+                        debugObj('Executed task: ', { name: task.name, type: task.definition.type }, this.extension.outputChannel)
                     }
                 }
                 for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
