@@ -402,6 +402,52 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
     }
 }
 
+class ProperNouns extends PromptElement {
+    render(): PromptPiece {
+        return (
+            <UserMessage>
+                Please extract only proper nouns from the following text and translate them into Japanese in the order they appear. <br />
+                <Tag name='source_text'>
+                    {this.props.children}
+                </Tag>
+            </UserMessage>
+        )
+    }
+}
+
+export class ProperNounsPrompt extends PromptElement<MainPromptProps> {
+    render(): PromptPiece {
+        return (
+            <>
+                <UserMessage>
+                    <Tag name="instructions">
+                        - You are an excellent translator between English and Japanese.<br />
+                        - Please extract only proper nouns from the following text and translate them into Japanese in the order they appear. <br />
+                    </Tag>
+                </UserMessage>
+                <ProperNouns>
+                    - Alice
+                    - But
+                    - London
+                </ProperNouns>
+                <AssistantMessage>
+                    - Alice: アリス
+                    - London: ロンドン
+                </AssistantMessage>
+                <ProperNouns>
+                    - Smith
+                    - Jones
+                    - Always
+                </ProperNouns>
+                <AssistantMessage>
+                    - Smith: スミス
+                    - Jones: ジョーンズ
+                </AssistantMessage>
+            </>
+        )
+    }
+}
+
 interface HistoryMessagesProps extends BasePromptElementProps {
     history?: HistoryEntry[] | undefined
 }
