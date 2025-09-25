@@ -41,22 +41,25 @@ export class TaskWatcher implements vscode.Disposable {
                     const task = tasks.find(t => t.name === entry.name && t.name !== t.definition['script'])
                     if (task) {
                         const release = await this.mutex.acquire()
-                        const disposable = vscode.tasks.onDidEndTask((e) => {
-                            debugObj('Task ended: ', { name: e.execution.task.name, definition: e.execution.task.definition }, this.extension.outputChannel)
-                            if (e.execution.task.name === task.name && e.execution.task.definition.type === task.definition.type) {
-                                release()
-                                disposable.dispose()
-                            }
-                        })
-                        setTimeout(() => {
+                        const timeout = setTimeout(() => {
                             debugObj('Timeout reached, releasing mutex for task: ', { name: task.name, definition: task.definition }, this.extension.outputChannel)
                             release()
                             disposable.dispose()
                         }, 10 * 1000) // 10 seconds timeout
+                        const disposable = vscode.tasks.onDidEndTask((e) => {
+                            debugObj('Task ended: ', { name: e.execution.task.name, definition: e.execution.task.definition }, this.extension.outputChannel)
+                            if (e.execution.task.name === task.name && e.execution.task.definition.type === task.definition.type) {
+                                release()
+                                clearTimeout(timeout)
+                                disposable.dispose()
+                            }
+                        })
+
                         try {
                             await this.runTask(task)
                         } catch {
                             release()
+                            clearTimeout(timeout)
                             disposable.dispose()
                         }
                     }
