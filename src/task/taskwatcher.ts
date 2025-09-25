@@ -22,6 +22,10 @@ export class TaskWatcher implements vscode.Disposable {
                 this.initWatcher()
             }
         })
+        setTimeout(async () => {
+            const tasks = await vscode.tasks.fetchTasks()
+            debugObj('Fetched tasks: ', tasks.filter(t => !t.definition['path']).map(t => ({ name: t.name, definition: t.definition })), this.extension.outputChannel)
+        }, 0)
     }
 
     initWatcher() {
@@ -34,7 +38,6 @@ export class TaskWatcher implements vscode.Disposable {
                 const globPattern = entryGlobPattern.startsWith('./') ? entryGlobPattern.slice(2) : entryGlobPattern
                 const executeTaskCb = async () => {
                     const tasks = await vscode.tasks.fetchTasks()
-                    debugObj('Fetched tasks: ', tasks.filter(t => !t.definition['path']).map(t => ({ name: t.name, definition: t.definition })), this.extension.outputChannel)
                     const task = tasks.find(t => t.name === entry.name && t.name !== t.definition['script'])
                     if (task) {
                         const release = await this.mutex.acquire()
@@ -45,8 +48,17 @@ export class TaskWatcher implements vscode.Disposable {
                                 disposable.dispose()
                             }
                         })
-                        await vscode.commands.executeCommand('workbench.action.tasks.runTask', { type: task.definition.type, name: task.name })
-                        debugObj('Executed task: ', { name: task.name, type: task.definition.type }, this.extension.outputChannel)
+                        setTimeout(() => {
+                            debugObj('Timeout reached, releasing mutex for task: ', { name: task.name, definition: task.definition }, this.extension.outputChannel)
+                            release()
+                            disposable.dispose()
+                        }, 10 * 1000) // 10 seconds timeout
+                        try {
+                            await this.runTask(task)
+                        } catch {
+                            release()
+                            disposable.dispose()
+                        }
                     }
                 }
                 for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
@@ -78,6 +90,37 @@ export class TaskWatcher implements vscode.Disposable {
     dispose() {
         this.resetWatchers()
         this.configToDispose.dispose()
+    }
+
+    detectTaskType(task: vscode.Task) {
+        if (task.definition.type === 'abletask') {
+            return 'abletask'
+        } else if (task.definition.type === 'npm') {
+            if (task.definition['script'] === task.name) {
+                return 'npm'
+            } else {
+                return 'defined_in_tasks_json'
+            }
+        } else {
+            return 'unknown'
+        }
+    }
+
+    async runTask(task: vscode.Task) {
+        let payload: string | undefined
+        const taskType = this.detectTaskType(task)
+        if (taskType === 'defined_in_tasks_json') {
+            payload = task.name
+        } else if (taskType === 'npm') {
+            payload = `npm: ${task.name}`
+        } else if (taskType === 'abletask') {
+            payload = `abletask: ${task.name}`
+        } else {
+            debugObj('Unsupported task type for task watcher: ', { name: task.name, definition: task.definition }, this.extension.outputChannel)
+            throw new Error('Unsupported task type for task watcher')
+        }
+        debugObj('Executed task: ', { name: task.name, type: task.definition.type }, this.extension.outputChannel)
+        return vscode.commands.executeCommand('workbench.action.tasks.runTask', payload)
     }
 
 }
