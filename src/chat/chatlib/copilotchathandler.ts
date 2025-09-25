@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
-import type { MainPromptProps, ToolCallResultPair, ToolCallResultRoundProps } from '../prompt.js'
-import { type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
+import type { ToolCallResultPair, ToolCallResultRoundProps } from '../prompt.js'
+import { BasePromptElementProps, type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { AbleTool, convertToToolCall, getLmTools } from './toolutils.js'
 
 
@@ -10,7 +10,7 @@ export class CopilotChatHandler {
         readonly outputChannel: vscode.LogOutputChannel
     }) { }
 
-    async copilotChatResponse<P extends MainPromptProps, S>(
+    async copilotChatResponse<P extends BasePromptElementProps, S>(
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
         ctor: PromptElementCtor<P, S>,
