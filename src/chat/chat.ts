@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, MainPromptProps, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { FluentJaPrompt, FluentPrompt, MainPromptProps, ProperNounsPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { extractHitory } from './chatlib/historyutils.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
@@ -8,6 +8,7 @@ import { AbleChatResultMetadata } from './chatlib/chatresultmetadata.js'
 import { debugObj } from '../utils/debug.js'
 import { convertMathEnv, removeLabel } from './chatlib/latex.js'
 import { toCunks } from './chatlib/chunk.js'
+import { extractProperNouns } from './chatlib/nlp.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -57,6 +58,8 @@ export class ChatHandleManager {
         stream: vscode.ChatResponseStream,
     ): Promise<vscode.ChatResult | undefined> {
         const model = request.model
+        const selected = await getSelected(request)
+        const input = selected?.text ?? request.prompt
         let ctor: PromptElementCtor<MainPromptProps, unknown> | undefined
         if (request.command === 'fluent') {
             ctor = FluentPrompt
@@ -65,25 +68,25 @@ export class ChatHandleManager {
         } else if (request.command === 'to_en') {
             ctor = ToEnPrompt
         } else if (request.command === 'to_ja') {
+            const properNouns = extractProperNouns(input)
+            const properNounsResult = await this.copilotChatHandler.copilotChatResponse(token, request, ProperNounsPrompt, { properNouns }, model)
+            const properNounsText = properNounsResult ? await processResponse(properNounsResult.chatResponse) : ''
+            console.log('Proper nouns extracted:', properNounsText)
             ctor = ToJaPrompt
-        }
-        if (!ctor) {
+        } else {
             this.extension.outputChannel.error(`Unknown command: ${request.command}`)
-            return
+            throw new Error(`Unknown command: ${request.command}`)
         }
-        const selected = await getSelected(request)
-        const input = selected?.text ?? request.prompt
+
         let responseText = ''
         const userInstruction = selected ? request.prompt : undefined
         const chunks = toCunks(input, 1024)
         for (const inputChunk of chunks) {
             const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { input: inputChunk, userInstruction }, model)
-            let responseChunk = ''
-            if (ret?.chatResponse) {
-                for await (const fragment of ret.chatResponse.text) {
-                    responseChunk += fragment
-                }
+            if (!ret) {
+                throw new Error('No response from LLM')
             }
+            const responseChunk = await processResponse(ret.chatResponse)
             if (selected) {
                 const formattedChatOutput = '#### input\n' + this.tweakResponse(inputChunk) + '\n\n' + '#### output\n' + this.tweakResponse(responseChunk) + '\n\n'
                 stream.markdown(formattedChatOutput)
@@ -108,4 +111,12 @@ export class ChatHandleManager {
         return text
     }
 
+}
+
+async function processResponse(response: vscode.LanguageModelChatResponse) {
+    let responseStr = ''
+    for await (const fragment of response.text) {
+        responseStr += fragment
+    }
+    return responseStr
 }

@@ -415,7 +415,11 @@ class ProperNouns extends PromptElement {
     }
 }
 
-export class ProperNounsPrompt extends PromptElement<MainPromptProps> {
+interface ProperNounsPromptProps extends BasePromptElementProps {
+    properNouns: string[]
+}
+
+export class ProperNounsPrompt extends PromptElement<ProperNounsPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -426,23 +430,26 @@ export class ProperNounsPrompt extends PromptElement<MainPromptProps> {
                     </Tag>
                 </UserMessage>
                 <ProperNouns>
-                    - Alice
-                    - But
+                    - Alice<br />
+                    - But<br />
                     - London
                 </ProperNouns>
                 <AssistantMessage>
-                    - Alice: アリス
-                    - London: ロンドン
+                    - Alice: アリス<br />
+                    - London: ロンドン<br />
                 </AssistantMessage>
                 <ProperNouns>
-                    - Smith
-                    - Jones
+                    - Smith<br />
+                    - Jones<br />
                     - Always
                 </ProperNouns>
                 <AssistantMessage>
-                    - Smith: スミス
-                    - Jones: ジョーンズ
+                    - Smith: スミス<br />
+                    - Jones: ジョーンズ<br />
                 </AssistantMessage>
+                <ProperNouns>
+                    { this.props.properNouns.map((pn) => <>- {pn}<br /></>) }
+                </ProperNouns>
             </>
         )
     }
