@@ -34,7 +34,7 @@ suite('nlp.extractProperNouns', () => {
 		const txt = "Alice's book was read by Bob."
 		const res = extractProperNouns(txt)
 		// per spec we do not normalize possessives, so Alice's remains
-		assert.deepEqual(res, ["Alice's", 'Bob'])
+		assert.deepEqual(res, ['Alice', 'Bob'])
 	})
 
 	test('dedupe and preserve order', () => {

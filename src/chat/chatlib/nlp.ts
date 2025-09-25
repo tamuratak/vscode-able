@@ -18,6 +18,10 @@ export function extractProperNouns(text: string): string[] {
 
     const trimPunct = (s: string): string => s.replace(/^[^A-Za-z0-9'`-]+|[^A-Za-z0-9'`-]+$/g, '')
 
+    // Remove trailing English possessive ('s or ’s) from a token when present.
+    // This preserves internal apostrophes (O'Connor) and hyphens (Jean-Paul).
+    const stripPossessive = (s: string): string => s.replace(/(?:['’]s)$/i, '')
+
     const isAbbreviation = (raw: string): boolean => {
         if (!raw) {
             return false
@@ -51,17 +55,23 @@ export function extractProperNouns(text: string): string[] {
     for (let i = 0; i < tokens.length; i++) {
         const raw = tokens[i]
         const tok = trimPunct(raw)
+        // strip trailing possessive so "Alice's" -> "Alice"
+        const base = stripPossessive(tok)
         if (tok === '') {
+            continue
+        }
+
+        if (base === '') {
             continue
         }
 
         if (isAbbreviation(raw)) {
             continue
         }
-        if (!isCapitalizedWord(raw)) {
+        if (!isCapitalizedWord(base)) {
             continue
         }
-        if (stopwords.has(tok)) {
+        if (stopwords.has(base)) {
             continue
         }
 
@@ -76,9 +86,9 @@ export function extractProperNouns(text: string): string[] {
             continue
         }
 
-        if (!seen.has(tok)) {
-            seen.add(tok)
-            result.push(tok)
+        if (!seen.has(base)) {
+            seen.add(base)
+            result.push(base)
         }
     }
 
