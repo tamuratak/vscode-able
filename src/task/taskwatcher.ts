@@ -8,6 +8,20 @@ interface TaskWatcherEntry {
     globPattern: string[]
 }
 
+function detectTaskType(task: vscode.Task) {
+    if (task.definition.type === 'abletask') {
+        return 'abletask'
+    } else if (task.definition.type === 'npm') {
+        if (task.definition['script'] === task.name) {
+            return 'npm'
+        } else {
+            return 'defined_in_tasks_json'
+        }
+    } else {
+        return 'unknown'
+    }
+}
+
 export class TaskWatcher implements vscode.Disposable {
     private watchers: vscode.FileSystemWatcher[] = []
     private readonly configToDispose: vscode.Disposable
@@ -45,7 +59,26 @@ export class TaskWatcher implements vscode.Disposable {
                                 disposable.dispose()
                             }
                         })
-                        await vscode.commands.executeCommand('workbench.action.tasks.runTask', { type: task.definition.type, name: task.name })
+                        setTimeout(() => {
+                            debugObj('Timeout reached, releasing mutex for task: ', { name: task.name, definition: task.definition }, this.extension.outputChannel)
+                            release()
+                            disposable.dispose()
+                        }, 10 * 1000) // 10 seconds timeout
+                        let payload: string | undefined
+                        const taskType = detectTaskType(task)
+                        if (taskType === 'defined_in_tasks_json') {
+                            payload = task.name
+                        } else if (taskType === 'npm') {
+                            payload = `npm: ${task.name}`
+                        } else if (taskType === 'abletask') {
+                            payload = `abletask: ${task.name}`
+                        } else {
+                            debugObj('Unsupported task type for task watcher: ', { name: task.name, definition: task.definition }, this.extension.outputChannel)
+                            release()
+                            disposable.dispose()
+                            return
+                        }
+                        await vscode.commands.executeCommand('workbench.action.tasks.runTask', payload)
                         debugObj('Executed task: ', { name: task.name, type: task.definition.type }, this.extension.outputChannel)
                     }
                 }
