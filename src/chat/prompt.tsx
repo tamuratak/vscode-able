@@ -87,8 +87,9 @@ export class LatexInstructions extends PromptElement {
 }
 
 export interface MainPromptProps extends HistoryMessagesProps, AttachmentsProps {
-    input: string
-    userInstruction?: string | undefined
+    input: string,
+    userInstruction?: string | undefined,
+    translationCorrespondenceList?: string | undefined,
     toolCallResultRounds?: ToolCallResultRoundProps[] | undefined
 }
 
@@ -336,9 +337,19 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                         - Please preserve the original tone and meaning. If the context is ambiguous, make reasonable assumptions to ensure the translation sounds fluent and contextually appropriate.<br />
                         - Preserve the original paragraph structure in the Japanese translation. Do not insert extra line breaks. <br />
                         - Avoid using **bold** or _italic_ formatting in the Japanese translation. <br />
+                        - When translating, always render proper nouns according to the provided correspondence list.
                         - 地の文は必ず「です・ます調」で統一してください。会話文は「です・ます調」に限らず、文脈に応じて自然で適切な口調を用いてください。<br />
                         {this.props.userInstruction && '- ' + this.props.userInstruction}
                     </Tag>
+                    <>
+                        {
+                            this.props.translationCorrespondenceList ? (
+                                <Tag name="translation_correspondence_list">
+                                    {this.props.translationCorrespondenceList}
+                                </Tag>
+                            ) : ''
+                        }
+                    </>
                 </UserMessage>
                 <ToJa>
                     The symptoms suggest it might be a hardware error.
@@ -448,7 +459,7 @@ export class ProperNounsPrompt extends PromptElement<ProperNounsPromptProps> {
                     - Jones: ジョーンズ<br />
                 </AssistantMessage>
                 <ProperNouns>
-                    { this.props.properNouns.map((pn) => <>- {pn}<br /></>) }
+                    {this.props.properNouns.map((pn) => <>- {pn}<br /></>)}
                 </ProperNouns>
             </>
         )

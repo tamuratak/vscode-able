@@ -60,6 +60,7 @@ export class ChatHandleManager {
         const model = request.model
         const selected = await getSelected(request)
         const input = selected?.text ?? request.prompt
+        let translationCorrespondenceList: string | undefined
         let ctor: PromptElementCtor<MainPromptProps, unknown> | undefined
         if (request.command === 'fluent') {
             ctor = FluentPrompt
@@ -71,7 +72,8 @@ export class ChatHandleManager {
             const properNouns = extractProperNouns(input)
             const properNounsResult = await this.copilotChatHandler.copilotChatResponse(token, request, ProperNounsPrompt, { properNouns }, model)
             const properNounsText = properNounsResult ? await processResponse(properNounsResult.chatResponse) : ''
-            console.log('Proper nouns extracted:', properNounsText)
+            stream.markdown('### Detected Proper Nouns\n' + properNounsText + '\n---\n')
+            translationCorrespondenceList = properNounsText
             ctor = ToJaPrompt
         } else {
             this.extension.outputChannel.error(`Unknown command: ${request.command}`)
@@ -82,7 +84,17 @@ export class ChatHandleManager {
         const userInstruction = selected ? request.prompt : undefined
         const chunks = toCunks(input, 1024)
         for (const inputChunk of chunks) {
-            const ret = await this.copilotChatHandler.copilotChatResponse(token, request, ctor, { input: inputChunk, userInstruction }, model)
+            const ret = await this.copilotChatHandler.copilotChatResponse(
+                token,
+                request,
+                ctor,
+                {
+                    input: inputChunk,
+                    userInstruction,
+                    translationCorrespondenceList,
+                },
+                model
+            )
             if (!ret) {
                 throw new Error('No response from LLM')
             }
