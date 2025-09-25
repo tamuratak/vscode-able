@@ -11,7 +11,7 @@
             "globPattern": ["src/**/*.ts"],
         },
         {
-            "name": "task-test",
+            "name": "abletask-task-test",
             "globPattern": ["src/**/*.ts", "test/**/*.ts"],
         }
     ]

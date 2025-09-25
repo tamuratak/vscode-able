@@ -4,7 +4,7 @@ import { collectMochaJsonFailures } from './tasklib/mochalib/mochajson.js'
 
 
 export class MochaJsonTaskProvider implements vscode.TaskProvider {
-    static AbleTaskType = 'abletask'
+    static AbleTaskType = 'abletask' as const
     private readonly tasks: Promise<vscode.Task[]>
     private readonly collection = vscode.languages.createDiagnosticCollection('AbleTask')
 
