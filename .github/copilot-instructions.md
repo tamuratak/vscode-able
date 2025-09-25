@@ -5,7 +5,6 @@
 
 - All file names should be in lowercase.
 - All file names should not include hyphens, spaces, nor underscores.
-- Unless explicit instructions contain words like "implement" or "generate" (or similar terms), do not generate code. Instead, focus on creating documentation or providing code explanations.
 - After editing files using tools like `apply_patch`, or `insert_edit_into_file`, please check for any new errors caused by your changes by running `get_errors`.
 - After editing files, you don't have to run tests. But if you want, please run the `task-test` task using the `run_task` tool.
 
@@ -16,7 +15,6 @@ Please refer to the following instructions only when generating the code. Ignore
 
 - When using Node.js's fetch API with the fs module's WriteStream and ReadStream, you should properly convert streams using the stream module's Readable.toWeb, Readable.fromWeb, Writable.toWeb, and Writable.fromWeb.
 - Use `for (const ... of ...)` instead of `Array.prototype.forEach`.
-- Avoid overusing `Array.prototype.map`.
 - Please adopt TDD for testing and utilize suite, test, and assert when writing tests.
 - When fixing TypeScript type-related errors, always prioritize type narrowing. Avoid type assertions unless absolutely necessary.
 - Never use property-shape checks (e.g. checking r['value'], 'value' in r, or typeof r.value) for type narrowing.
@@ -27,4 +25,3 @@ Please refer to the following instructions only when generating the code. Ignore
 - Never define function parameters or callbacks with type `unknown`
 - Always use explicit union types or constrained generics instead of `unknown`
 - When a TypeScript type-related error occurs, call the `able_annotation` tool with {"filePath":"<abs path>","code":"<small code fragment including the error and ~2 lines of context>"}; do not call it for pure syntax errors, missing-module errors, or lint-only issues. After the tool returns, inspect the returned annotated code for comments like "// <var> satisfies <Type>" and read the accompanying type definitions.
-- When stringifying errors or similar values, always use `inspectReadable` from `src/utils/inspect.ts`.
