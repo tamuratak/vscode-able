@@ -33,14 +33,8 @@ export class ChatHandleManager {
         ): Promise<vscode.ChatResult | undefined> => {
             debugObj('[Able Chat] request.references: ', request.references, this.extension.outputChannel)
             const history = extractHitory(context)
-            if (request.command === 'fluent') {
-                return this.responseWithSelection(token, request, FluentPrompt, request.model, stream)
-            } else if (request.command === 'fluent_ja') {
-                return this.responseWithSelection(token, request, FluentJaPrompt, request.model, stream)
-            } else if (request.command === 'to_en') {
-                return this.responseWithSelection(token, request, ToEnPrompt, request.model, stream)
-            } else if (request.command === 'to_ja') {
-                return this.responseWithSelection(token, request, ToJaPrompt, request.model, stream)
+            if (request.command) {
+                return this.responseForCommand(token, request, stream)
             } else {
                 const attachments = await getAttachmentFiles(request)
                 await this.copilotChatHandler.copilotChatResponse(
@@ -57,13 +51,26 @@ export class ChatHandleManager {
         }
     }
 
-    private async responseWithSelection<S>(
+    private async responseForCommand(
         token: vscode.CancellationToken,
         request: vscode.ChatRequest,
-        ctor: PromptElementCtor<MainPromptProps, S>,
-        model: vscode.LanguageModelChat,
         stream: vscode.ChatResponseStream,
     ): Promise<vscode.ChatResult | undefined> {
+        const model = request.model
+        let ctor: PromptElementCtor<MainPromptProps, unknown> | undefined
+        if (request.command === 'fluent') {
+            ctor = FluentPrompt
+        } else if (request.command === 'fluent_ja') {
+            ctor = FluentJaPrompt
+        } else if (request.command === 'to_en') {
+            ctor = ToEnPrompt
+        } else if (request.command === 'to_ja') {
+            ctor = ToJaPrompt
+        }
+        if (!ctor) {
+            this.extension.outputChannel.error(`Unknown command: ${request.command}`)
+            return
+        }
         const selected = await getSelected(request)
         const input = selected?.text ?? request.prompt
         let responseText = ''
