@@ -7,7 +7,7 @@ export function extractProperNouns(text: string): string[] {
     }
 
     const norm = text.replace(/\s+/g, ' ').trim()
-    const tokens = norm.split(/\s+/)
+    const tokens = norm.split(/[\s[\]()<>#]+/)
 
     const stopwords = new Set([
         'The', 'A', 'An', 'In', 'On', 'At', 'By', 'For', 'With', 'About', 'Against', 'Between', 'Into', 'Through', 'During', 'Before', 'After', 'Above', 'Below', 'To', 'From', 'Up', 'Down', 'Over', 'Under', 'Again', 'Further', 'Then', 'Once'
@@ -56,8 +56,7 @@ export function extractProperNouns(text: string): string[] {
         return /^[A-Z]/.test(t)
     }
 
-    for (let i = 0; i < tokens.length; i++) {
-        const raw = tokens[i]
+    for (const raw of tokens) {
         const tok = trimPunct(raw)
         // strip trailing possessive so "Alice's" -> "Alice"
         const base = stripPossessive(tok)
@@ -84,17 +83,6 @@ export function extractProperNouns(text: string): string[] {
             continue
         }
         if (/^[A-Z]{2,}$/.test(base)) {
-            continue
-        }
-
-        const prev = tokens[i - 1]
-        const next = tokens[i + 1]
-        // Skip middle tokens of a multi-word capitalized run (e.g. "New York City": skip "New" and "York")
-        if (prev && next && isProperNoun(prev) && isProperNoun(next)) {
-            continue
-        }
-        // Skip the first token of a multi-word capitalized run (it is followed by another capitalized token)
-        if (next && isProperNoun(next)) {
             continue
         }
 
@@ -147,9 +135,11 @@ const keepInEnglish = new Set(['OpenAI', 'DeepMind', 'DeepSeek', 'DeepL', 'GitHu
 
 export function selectProperNounsInEnglish(nameMap: Map<string, string>): Map<string, string> {
     const out = new Map<string, string>()
-    for (const [key] of nameMap) {
+    for (const [key, val] of nameMap) {
         if (keepInEnglish.has(key)) {
             out.set(key, key)
+        } else {
+            out.set(key, val)
         }
     }
     return out

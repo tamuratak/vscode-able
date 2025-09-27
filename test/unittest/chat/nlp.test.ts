@@ -12,8 +12,7 @@ suite('nlp.extractProperNouns', () => {
 	test('compound names are excluded', () => {
 		const txt = 'Alice visited New York City.'
 		const res = extractProperNouns(txt)
-		// New York City is compound and should be excluded; only Alice remains
-		assert.deepEqual(res, ['Alice', 'City'])
+		assert.deepEqual(res, ['Alice', 'New', 'York', 'City'])
 	})
 
 	test('exclude abbreviations and honorifics', () => {
@@ -55,6 +54,20 @@ suite('nlp.extractProperNouns', () => {
 		const res = extractProperNouns(txt)
 		// Area51 and Bob2 contain digits and should be excluded
 		assert.deepEqual(res, ['Alice', 'Carol'])
+	})
+
+	test('exclude markdown syntax', () => {
+		const txt = '[Alice\'s] book.'
+		const res = extractProperNouns(txt)
+		// NASA and CHARLIE are all-uppercase and should be excluded
+		assert.deepEqual(res, ['Alice'])
+	})
+
+		test('mote test 01', () => {
+		const txt = 'Some of Mark Bob\'s friends.'
+		const res = extractProperNouns(txt)
+		// NASA and CHARLIE are all-uppercase and should be excluded
+		assert.deepEqual(res, ['Some', 'Mark', 'Bob'])
 	})
 
 })

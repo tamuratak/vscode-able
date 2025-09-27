@@ -452,11 +452,13 @@ export class ProperNounsPrompt extends PromptElement<ProperNounsPromptProps> {
                 <ProperNouns>
                     - Smith<br />
                     - Jones<br />
-                    - Always
+                    - Always<br />
+                    - Meta
                 </ProperNouns>
                 <AssistantMessage>
                     - Smith: スミス<br />
                     - Jones: ジョーンズ<br />
+                    - Meta: Meta
                 </AssistantMessage>
                 <ProperNouns>
                     {this.props.properNouns.map((pn) => <>- {pn}<br /></>)}
