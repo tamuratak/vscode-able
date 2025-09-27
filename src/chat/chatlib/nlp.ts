@@ -94,3 +94,40 @@ export function extractProperNouns(text: string): string[] {
 
     return result
 }
+
+/**
+ * Parse lines like "- Alice: アリス" or "Alice: アリス" into a Map
+ * Returns a Map where the left side (before the first colon) is the key
+ * and the right side (after the first colon) is the value. Later entries
+ * overwrite earlier ones for the same key.
+ */
+export function parseNameMap(text: string): Map<string, string> {
+    if (typeof text !== 'string' || text.trim() === '') {
+        return new Map()
+    }
+    const out = new Map<string, string>()
+    const lines = text.split(/\r?\n/)
+    for (const raw of lines) {
+        let line = raw.trim()
+        if (line === '') {
+            continue
+        }
+        // remove common bullet markers at the start
+        line = line.replace(/^-\s*/, '')
+        // split on the first ASCII or fullwidth colon
+        const m = line.match(/^(.*?)\s*:\s*(.*)$/)
+        if (!m) {
+            // skip lines that don't look like key:value
+            continue
+        }
+        const key = m[1].trim()
+        const val = m[2].trim()
+        if (key === '' || val === '') {
+            continue
+        }
+        out.set(key, val)
+    }
+
+    return out
+}
+
