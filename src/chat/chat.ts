@@ -73,13 +73,13 @@ export class ChatHandleManager {
             const properNounsResult = await this.copilotChatHandler.copilotChatResponse(token, request, ProperNounsPrompt, { properNouns }, model)
             const properNounsText = properNounsResult ? await processResponse(properNounsResult.chatResponse) : ''
             const nameMap = parseNameMap(properNounsText)
-            const filteredNameMap = selectProperNounsInEnglish(nameMap)
-            let detectedProperNounsStr = ''
-            for (const [k, v] of filteredNameMap) {
-                detectedProperNounsStr += `- ${k}: ${v}\n`
+            const selectedProperNouns = selectProperNounsInEnglish(nameMap)
+            let selectedProperNounsStr = ''
+            for (const [k, v] of selectedProperNouns) {
+                selectedProperNounsStr += `- ${k}: ${v}\n`
             }
-            stream.markdown('### Detected Proper Nouns\n' + detectedProperNounsStr + '\n---\n')
-            translationCorrespondenceList = properNounsText
+            stream.markdown('### Detected Proper Nouns\n' + selectedProperNounsStr + '\n---\n')
+            translationCorrespondenceList = selectedProperNounsStr
             ctor = ToJaPrompt
         } else {
             this.extension.outputChannel.error(`Unknown command: ${request.command}`)
