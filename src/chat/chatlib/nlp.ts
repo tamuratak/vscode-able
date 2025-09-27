@@ -35,7 +35,7 @@ export function extractProperNouns(text: string): string[] {
         return letters.length <= 2
     }
 
-    const isCapitalizedWord = (raw: string): boolean => {
+    const isProperNoun = (raw: string): boolean => {
         if (!raw) {
             return false
         }
@@ -44,6 +44,10 @@ export function extractProperNouns(text: string): string[] {
         }
         const t = trimPunct(raw)
         if (t === '') {
+            return false
+        }
+        // exclude tokens containing digits (e.g., Area51, Bob2)
+        if (/[0-9]/.test(t)) {
             return false
         }
         if (/^[A-Z]{2,}$/.test(t)) {
@@ -68,21 +72,29 @@ export function extractProperNouns(text: string): string[] {
         if (isAbbreviation(raw)) {
             continue
         }
-        if (!isCapitalizedWord(base)) {
+        if (!isProperNoun(base)) {
             continue
         }
         if (stopwords.has(base)) {
             continue
         }
 
+        // Defensive: skip tokens that contain digits or are all-uppercase
+        if (/[0-9]/.test(base)) {
+            continue
+        }
+        if (/^[A-Z]{2,}$/.test(base)) {
+            continue
+        }
+
         const prev = tokens[i - 1]
         const next = tokens[i + 1]
         // Skip middle tokens of a multi-word capitalized run (e.g. "New York City": skip "New" and "York")
-        if (prev && next && isCapitalizedWord(prev) && isCapitalizedWord(next)) {
+        if (prev && next && isProperNoun(prev) && isProperNoun(next)) {
             continue
         }
         // Skip the first token of a multi-word capitalized run (it is followed by another capitalized token)
-        if (next && isCapitalizedWord(next)) {
+        if (next && isProperNoun(next)) {
             continue
         }
 

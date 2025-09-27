@@ -43,6 +43,20 @@ suite('nlp.extractProperNouns', () => {
 		assert.deepEqual(res, ['Alice', 'Bob'])
 	})
 
+	test('exclude all-uppercase acronyms', () => {
+		const txt = 'Alice met NASA and CHARLIE and Dave.'
+		const res = extractProperNouns(txt)
+		// NASA and CHARLIE are all-uppercase and should be excluded
+		assert.deepEqual(res, ['Alice', 'Dave'])
+	})
+
+	test('exclude tokens containing digits', () => {
+		const txt = 'Alice visited Area51 and Bob2 and Carol.'
+		const res = extractProperNouns(txt)
+		// Area51 and Bob2 contain digits and should be excluded
+		assert.deepEqual(res, ['Alice', 'Carol'])
+	})
+
 })
 
 suite('nlp.parseNameMap', () => {
