@@ -131,3 +131,14 @@ export function parseNameMap(text: string): Map<string, string> {
     return out
 }
 
+const keepInEnglish = new Set(['OpenAI', 'DeepMind', 'DeepSeek', 'DeepL', 'GitHub', 'VSCode', 'JavaScript', 'TypeScript', 'Python', 'Java', 'Rust', 'Node.js', 'React', 'Angular', 'Vue.js', 'Deno', 'NPM', 'Yarn', 'Docker', 'Kubernetes', 'TikTok', 'YouTube', 'Facebook', 'Meta', 'Google', 'Microsoft', 'Apple', 'Amazon', 'Netflix', 'Zoom', 'Spotify', 'LinkedIn', 'Linux', 'Unix', 'Windows', 'Mac', 'Ubuntu', 'Fedora', 'CentOS', 'Debian', 'PostgreSQL', 'MySQL', 'SQLite', 'MongoDB', 'Redis', 'GraphQL'])
+
+export function selectProperNounsInEnglish(nameMap: Map<string, string>): Map<string, string> {
+    const out = new Map<string, string>()
+    for (const [key] of nameMap) {
+        if (keepInEnglish.has(key)) {
+            out.set(key, key)
+        }
+    }
+    return out
+}
