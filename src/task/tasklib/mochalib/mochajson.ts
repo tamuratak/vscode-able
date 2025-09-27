@@ -69,7 +69,7 @@ export function collectMochaJsonFailures(output: string) {
     const failures = mochaResult.failures
     const result: Failure[] = []
     for (const failure of failures) {
-        const match = /\(([^:]+):(\d+):(\d+)\)/.exec(failure.err.stack)
+        const match = /\(([^():]+):(\d+):(\d+)\)/.exec(failure.err.stack)
         if (match) {
             result.push({
                 filePath: match[1],
