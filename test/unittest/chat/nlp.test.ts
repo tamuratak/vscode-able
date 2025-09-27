@@ -57,7 +57,7 @@ suite('nlp.extractProperNouns', () => {
 	})
 
 	test('exclude markdown syntax', () => {
-		const txt = '[Alice\'s] book.'
+		const txt = '[Alice\'s](link) book.'
 		const res = extractProperNouns(txt)
 		// NASA and CHARLIE are all-uppercase and should be excluded
 		assert.deepEqual(res, ['Alice'])
