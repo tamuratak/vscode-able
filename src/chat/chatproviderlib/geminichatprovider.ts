@@ -6,6 +6,7 @@ import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresultrendering.js'
 import { getValidator, initValidators } from './toolcallargvalidator.js'
 import { debugObj } from '../../utils/debug.js'
+import { renderMessages } from '../utils/renderer.js'
 
 
 type GeminiChatInformation = LanguageModelChatInformation & {
@@ -95,6 +96,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
         initValidators(options.tools)
+        this.extension.outputChannel.debug('messages:\n' + await renderMessages(messages))
         const contents: Content[] = await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToContent(m)))
 
         const functionDeclarations = options.tools?.map(t => {
