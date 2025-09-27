@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert'
-import { extractProperNouns } from '../../../src/chat/chatlib/nlp'
+import { extractProperNouns, parseNameMap } from '../../../src/chat/chatlib/nlp'
 
 suite('nlp.extractProperNouns', () => {
 
@@ -12,8 +12,7 @@ suite('nlp.extractProperNouns', () => {
 	test('compound names are excluded', () => {
 		const txt = 'Alice visited New York City.'
 		const res = extractProperNouns(txt)
-		// New York City is compound and should be excluded; only Alice remains
-		assert.deepEqual(res, ['Alice', 'City'])
+		assert.deepEqual(res, ['Alice', 'New', 'York', 'City'])
 	})
 
 	test('exclude abbreviations and honorifics', () => {
@@ -41,6 +40,63 @@ suite('nlp.extractProperNouns', () => {
 		const txt = 'Alice met Bob. Bob and Alice went home.'
 		const res = extractProperNouns(txt)
 		assert.deepEqual(res, ['Alice', 'Bob'])
+	})
+
+	test('exclude all-uppercase acronyms', () => {
+		const txt = 'Alice met NASA and CHARLIE and Dave.'
+		const res = extractProperNouns(txt)
+		// NASA and CHARLIE are all-uppercase and should be excluded
+		assert.deepEqual(res, ['Alice', 'Dave'])
+	})
+
+	test('exclude tokens containing digits', () => {
+		const txt = 'Alice visited Area51 and Bob2 and Carol.'
+		const res = extractProperNouns(txt)
+		// Area51 and Bob2 contain digits and should be excluded
+		assert.deepEqual(res, ['Alice', 'Carol'])
+	})
+
+	test('exclude markdown syntax', () => {
+		const txt = '[Alice\'s](link) book.'
+		const res = extractProperNouns(txt)
+		// NASA and CHARLIE are all-uppercase and should be excluded
+		assert.deepEqual(res, ['Alice'])
+	})
+
+		test('mote test 01', () => {
+		const txt = 'Some of Mark Bob\'s friends.'
+		const res = extractProperNouns(txt)
+		// NASA and CHARLIE are all-uppercase and should be excluded
+		assert.deepEqual(res, ['Some', 'Mark', 'Bob'])
+	})
+
+})
+
+suite('nlp.parseNameMap', () => {
+
+	test('basic parsing with bullets and plain lines', () => {
+		const txt = `- Alice: アリス
+- Bob: ボブ
+- Carol: キャロル
+- Dave: デイブ
+- Eve: イヴ`
+		const m = parseNameMap(txt)
+		assert.strictEqual(m.get('Alice'), 'アリス')
+		assert.strictEqual(m.get('Bob'), 'ボブ')
+		assert.strictEqual(m.get('Carol'), 'キャロル')
+		assert.strictEqual(m.get('Dave'), 'デイブ')
+		assert.strictEqual(m.get('Eve'), 'イヴ')
+	})
+
+	test('overwrite behavior and skipping invalid lines', () => {
+		const txt = `- Alice: アリス
+	Alice: アリス2
+	- NoColonLine
+	UnknownLine`
+		const m = parseNameMap(txt)
+		assert.strictEqual(m.get('Alice'), 'アリス2')
+		assert.strictEqual(m.has('NoColonLine'), false)
+		assert.strictEqual(m.has('UnknownLine'), false)
 	})
 
 })

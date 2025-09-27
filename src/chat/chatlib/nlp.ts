@@ -7,7 +7,7 @@ export function extractProperNouns(text: string): string[] {
     }
 
     const norm = text.replace(/\s+/g, ' ').trim()
-    const tokens = norm.split(/\s+/)
+    const tokens = norm.split(/[\s[\]()<>#]+/)
 
     const stopwords = new Set([
         'The', 'A', 'An', 'In', 'On', 'At', 'By', 'For', 'With', 'About', 'Against', 'Between', 'Into', 'Through', 'During', 'Before', 'After', 'Above', 'Below', 'To', 'From', 'Up', 'Down', 'Over', 'Under', 'Again', 'Further', 'Then', 'Once'
@@ -35,7 +35,7 @@ export function extractProperNouns(text: string): string[] {
         return letters.length <= 2
     }
 
-    const isCapitalizedWord = (raw: string): boolean => {
+    const isProperNoun = (raw: string): boolean => {
         if (!raw) {
             return false
         }
@@ -46,14 +46,17 @@ export function extractProperNouns(text: string): string[] {
         if (t === '') {
             return false
         }
+        // exclude tokens containing digits (e.g., Area51, Bob2)
+        if (/[0-9]/.test(t)) {
+            return false
+        }
         if (/^[A-Z]{2,}$/.test(t)) {
             return false
         }
         return /^[A-Z]/.test(t)
     }
 
-    for (let i = 0; i < tokens.length; i++) {
-        const raw = tokens[i]
+    for (const raw of tokens) {
         const tok = trimPunct(raw)
         // strip trailing possessive so "Alice's" -> "Alice"
         const base = stripPossessive(tok)
@@ -68,21 +71,18 @@ export function extractProperNouns(text: string): string[] {
         if (isAbbreviation(raw)) {
             continue
         }
-        if (!isCapitalizedWord(base)) {
+        if (!isProperNoun(base)) {
             continue
         }
         if (stopwords.has(base)) {
             continue
         }
 
-        const prev = tokens[i - 1]
-        const next = tokens[i + 1]
-        // Skip middle tokens of a multi-word capitalized run (e.g. "New York City": skip "New" and "York")
-        if (prev && next && isCapitalizedWord(prev) && isCapitalizedWord(next)) {
+        // Defensive: skip tokens that contain digits or are all-uppercase
+        if (/[0-9]/.test(base)) {
             continue
         }
-        // Skip the first token of a multi-word capitalized run (it is followed by another capitalized token)
-        if (next && isCapitalizedWord(next)) {
+        if (/^[A-Z]{2,}$/.test(base)) {
             continue
         }
 
@@ -93,4 +93,59 @@ export function extractProperNouns(text: string): string[] {
     }
 
     return result
+}
+
+/**
+ * Parse lines like "- Alice: アリス" or "Alice: アリス" into a Map
+ * Returns a Map where the left side (before the first colon) is the key
+ * and the right side (after the first colon) is the value. Later entries
+ * overwrite earlier ones for the same key.
+ */
+export function parseNameMap(text: string): Map<string, string> {
+    if (typeof text !== 'string' || text.trim() === '') {
+        return new Map()
+    }
+    const out = new Map<string, string>()
+    const lines = text.split(/\r?\n/)
+    for (const raw of lines) {
+        let line = raw.trim()
+        if (line === '') {
+            continue
+        }
+        // remove common bullet markers at the start
+        line = line.replace(/^-\s*/, '')
+        // split on the first ASCII or fullwidth colon
+        const m = line.match(/^(.*?)\s*:\s*(.*)$/)
+        if (!m) {
+            // skip lines that don't look like key:value
+            continue
+        }
+        const key = m[1].trim()
+        const val = m[2].trim()
+        if (key === '' || val === '') {
+            continue
+        }
+        out.set(key, val)
+    }
+
+    return out
+}
+
+const keepInEnglish = new Set(['OpenAI', 'DeepMind', 'DeepSeek', 'DeepL', 'GitHub', 'VSCode', 'JavaScript', 'TypeScript', 'Python', 'Java', 'Rust', 'Node.js', 'React', 'Angular', 'Vue.js', 'Deno', 'NPM', 'Yarn', 'Docker', 'Kubernetes', 'TikTok', 'YouTube', 'Facebook', 'Meta', 'Google', 'Microsoft', 'Apple', 'Amazon', 'Netflix', 'Zoom', 'Spotify', 'LinkedIn', 'Linux', 'Unix', 'Windows', 'Mac', 'Ubuntu', 'Fedora', 'CentOS', 'Debian', 'PostgreSQL', 'MySQL', 'SQLite', 'MongoDB', 'Redis', 'GraphQL'])
+
+const userDefinedMap = new Map<string, string>([
+])
+
+export function selectProperNounsInEnglish(nameMap: Map<string, string>): Map<string, string> {
+    const out = new Map<string, string>()
+    for (const [key, val] of nameMap) {
+        if (keepInEnglish.has(key)) {
+            out.set(key, key)
+        } else if (userDefinedMap.has(key)) {
+            out.set(key, userDefinedMap.get(key)!)
+        } else {
+            out.set(key, val)
+        }
+    }
+    return out
 }

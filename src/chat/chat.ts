@@ -8,7 +8,7 @@ import { AbleChatResultMetadata } from './chatlib/chatresultmetadata.js'
 import { debugObj } from '../utils/debug.js'
 import { convertMathEnv, removeLabel } from './chatlib/latex.js'
 import { toCunks } from './chatlib/chunk.js'
-import { extractProperNouns } from './chatlib/nlp.js'
+import { extractProperNouns, parseNameMap, selectProperNounsInEnglish } from './chatlib/nlp.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -72,8 +72,14 @@ export class ChatHandleManager {
             const properNouns = extractProperNouns(input)
             const properNounsResult = await this.copilotChatHandler.copilotChatResponse(token, request, ProperNounsPrompt, { properNouns }, model)
             const properNounsText = properNounsResult ? await processResponse(properNounsResult.chatResponse) : ''
-            stream.markdown('### Detected Proper Nouns\n' + properNounsText + '\n---\n')
-            translationCorrespondenceList = properNounsText
+            const nameMap = parseNameMap(properNounsText)
+            const selectedProperNouns = selectProperNounsInEnglish(nameMap)
+            let selectedProperNounsStr = ''
+            for (const [k, v] of selectedProperNouns) {
+                selectedProperNounsStr += `- ${k}: ${v}\n`
+            }
+            stream.markdown('### Detected Proper Nouns\n' + selectedProperNounsStr + '\n---\n')
+            translationCorrespondenceList = selectedProperNounsStr
             ctor = ToJaPrompt
         } else {
             this.extension.outputChannel.error(`Unknown command: ${request.command}`)

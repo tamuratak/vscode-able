@@ -437,7 +437,7 @@ export class ProperNounsPrompt extends PromptElement<ProperNounsPromptProps> {
                 <UserMessage>
                     <Tag name="instructions">
                         - You are an excellent translator between English and Japanese.<br />
-                        - Please extract only proper nouns from the following text and translate them into Japanese in the order they appear. <br />
+                        - Please extract only proper nouns from the following text and translate them into Japanese in the order they appear using the commonly accepted forms.
                     </Tag>
                 </UserMessage>
                 <ProperNouns>
@@ -452,11 +452,13 @@ export class ProperNounsPrompt extends PromptElement<ProperNounsPromptProps> {
                 <ProperNouns>
                     - Smith<br />
                     - Jones<br />
-                    - Always
+                    - Always<br />
+                    - Meta
                 </ProperNouns>
                 <AssistantMessage>
                     - Smith: スミス<br />
                     - Jones: ジョーンズ<br />
+                    - Meta: Meta
                 </AssistantMessage>
                 <ProperNouns>
                     {this.props.properNouns.map((pn) => <>- {pn}<br /></>)}
