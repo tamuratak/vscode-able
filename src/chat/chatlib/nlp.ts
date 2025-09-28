@@ -142,9 +142,14 @@ const keepInEnglish = new Set(['OpenAI', 'DeepMind', 'DeepSeek', 'DeepL', 'GitHu
 const userDefinedMap = new Map<string, string>([
 ])
 
-export function selectProperNounsInEnglish(nameMap: Map<string, string>): Map<string, string> {
+export function selectProperNounsInEnglish(nameMap: Map<string, string>, text: string): Map<string, string> {
+    const properNounsInText = extractProperNouns(text)
+    const properNounsMapInSet = new Set(properNounsInText)
     const out = new Map<string, string>()
     for (const [key, val] of nameMap) {
+        if (!properNounsMapInSet.has(key)) {
+            continue
+        }
         if (keepInEnglish.has(key)) {
             out.set(key, key)
         } else if (userDefinedMap.has(key)) {

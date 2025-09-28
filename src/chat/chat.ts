@@ -60,8 +60,8 @@ export class ChatHandleManager {
         const model = request.model
         const selected = await getSelected(request)
         const input = selected?.text ?? request.prompt
-        let translationCorrespondenceList: string | undefined
         let ctor: PromptElementCtor<MainPromptProps, unknown> | undefined
+        let properNounsTranslationMap: Map<string, string> | undefined
         if (request.command === 'fluent') {
             ctor = FluentPrompt
         } else if (request.command === 'fluent_ja') {
@@ -72,14 +72,7 @@ export class ChatHandleManager {
             const properNouns = extractProperNouns(input)
             const properNounsResult = await this.copilotChatHandler.copilotChatResponse(token, request, ProperNounsPrompt, { properNouns }, model)
             const properNounsText = properNounsResult ? await processResponse(properNounsResult.chatResponse) : ''
-            const nameMap = parseNameMap(properNounsText)
-            const selectedProperNouns = selectProperNounsInEnglish(nameMap)
-            let selectedProperNounsStr = ''
-            for (const [k, v] of selectedProperNouns) {
-                selectedProperNounsStr += `- ${k}: ${v}\n`
-            }
-            stream.markdown('### Detected Proper Nouns\n' + selectedProperNounsStr + '\n---\n')
-            translationCorrespondenceList = selectedProperNounsStr
+            properNounsTranslationMap = parseNameMap(properNounsText)
             ctor = ToJaPrompt
         } else {
             this.extension.outputChannel.error(`Unknown command: ${request.command}`)
@@ -90,6 +83,16 @@ export class ChatHandleManager {
         const userInstruction = selected ? request.prompt : undefined
         const chunks = toCunks(input, 1024)
         for (const inputChunk of chunks) {
+            let translationCorrespondenceList: string | undefined
+            if (request.command === 'to_ja' && properNounsTranslationMap) {
+                const selectedProperNouns = selectProperNounsInEnglish(properNounsTranslationMap, inputChunk)
+                let selectedProperNounsStr = ''
+                for (const [k, v] of selectedProperNouns) {
+                    selectedProperNounsStr += `- ${k}: ${v}\n`
+                }
+                stream.markdown('### Detected Proper Nouns\n' + selectedProperNounsStr + '\n---\n')
+                translationCorrespondenceList = selectedProperNounsStr
+            }
             const ret = await this.copilotChatHandler.copilotChatResponse(
                 token,
                 request,
