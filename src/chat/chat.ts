@@ -83,6 +83,7 @@ export class ChatHandleManager {
         const userInstruction = selected ? request.prompt : undefined
         const chunks = toCunks(input, 1024)
         for (const inputChunk of chunks) {
+            stream.markdown('---\n')
             let translationCorrespondenceList: string | undefined
             if (request.command === 'to_ja' && properNounsTranslationMap) {
                 const selectedProperNouns = selectProperNounsInEnglish(properNounsTranslationMap, inputChunk)
@@ -90,7 +91,7 @@ export class ChatHandleManager {
                 for (const [k, v] of selectedProperNouns) {
                     selectedProperNounsStr += `- ${k}: ${v}\n`
                 }
-                stream.markdown('### Detected Proper Nouns\n' + selectedProperNounsStr + '\n---\n')
+                stream.markdown('### Detected Proper Nouns\n' + selectedProperNounsStr)
                 translationCorrespondenceList = selectedProperNounsStr
             }
             const ret = await this.copilotChatHandler.copilotChatResponse(
