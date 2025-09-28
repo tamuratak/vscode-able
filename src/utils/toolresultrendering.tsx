@@ -33,3 +33,9 @@ export async function renderToolResult(data: vscode.LanguageModelToolResult) {
         return value
     }
 }
+
+export async function renderToolResultPart(part: vscode.LanguageModelToolResultPart | vscode.LanguageModelToolResultPart2) {
+    const contents = part.content.filter(c => c instanceof vscode.LanguageModelTextPart || c instanceof vscode.LanguageModelPromptTsxPart)
+    const toolResult = new vscode.LanguageModelToolResult(contents)
+    return renderToolResult(toolResult)
+}

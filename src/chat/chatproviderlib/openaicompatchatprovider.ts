@@ -7,6 +7,7 @@ import { debugObj } from '../../utils/debug.js'
 import { tokenLength } from './openaicompatchatproviderlib/tokencount.js'
 import { Converter } from './openaicompatchatproviderlib/converter.js'
 import { inspectReadable } from '../../utils/inspect.js'
+import { renderMessages } from '../utils/renderer.js'
 
 
 export interface ModelInformation extends LanguageModelChatInformation {
@@ -90,6 +91,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         const apiKey = session.accessToken
         const openai = this.createClient(apiKey)
         initValidators(options.tools)
+        this.extension.outputChannel.debug('messages:\n' + await renderMessages(messages))
         const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[]
             = (await Promise.all(messages.map(m => this.converter.toChatCompletionMessageParam(m)))).flat()
         const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = options.tools?.map(t => ({
@@ -129,7 +131,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     ) {
         const newParams = { ...params, stream: true } satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
         debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
-        debugObj('Chat params: ', newParams, this.extension.outputChannel)
+        // debugObj('Chat params: ', newParams, this.extension.outputChannel)
         const stream = openai.chat.completions.stream(newParams)
         let allContent = ''
         const disposable = token.onCancellationRequested(() => stream.controller.abort())
@@ -152,7 +154,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>
     ) {
         const newParams = { ...params, stream: false } satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
-        debugObj('Chat params: ', newParams, this.extension.outputChannel)
+        // debugObj('Chat params: ', newParams, this.extension.outputChannel)
         const chatCompletion = await openai.chat.completions.create(newParams)
         const response = chatCompletion.choices[0]
         if (!response) {
