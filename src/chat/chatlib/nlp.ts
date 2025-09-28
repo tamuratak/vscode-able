@@ -6,16 +6,6 @@ export function extractProperNouns(text: string): string[] {
         return []
     }
 
-    const norm = text.replace(/\s+/g, ' ').trim()
-    const tokens = norm.split(/[\s[\]()<>#]+/)
-
-    const stopwords = new Set([
-        'The', 'A', 'An', 'In', 'On', 'At', 'By', 'For', 'With', 'About', 'Against', 'Between', 'Into', 'Through', 'During', 'Before', 'After', 'Above', 'Below', 'To', 'From', 'Up', 'Down', 'Over', 'Under', 'Again', 'Further', 'Then', 'Once'
-    ])
-
-    const result: string[] = []
-    const seen = new Set<string>()
-
     const trimPunct = (s: string): string => s.replace(/^[^A-Za-z0-9'`-]+|[^A-Za-z0-9'`-]+$/g, '')
 
     // Remove trailing English possessive ('s or ’s) from a token when present.
@@ -55,6 +45,22 @@ export function extractProperNouns(text: string): string[] {
         }
         return /^[A-Z]/.test(t)
     }
+
+    const norm = text.replace(/\s+/g, ' ').trim()
+    const tokens = norm.split(/[\s[\]()<>#]+/)
+
+    // Common English stopwords that are capitalized at the start of sentences
+    const stopwords = new Set([
+        'The', 'A', 'An', 'In', 'On', 'At', 'By', 'For', 'With', 'About', 'Against', 'Between',
+        'Into', 'Through', 'During', 'Before', 'After', 'Above', 'Below', 'To', 'From',
+        'Up', 'Down', 'Over', 'Under', 'Again', 'Further', 'Then', 'Once',
+        'But', 'Or', 'Nor', 'So', 'Yet', 'And', 'Of', 'Is', 'Are', 'Was', 'Were',
+        'Be', 'Been', 'Being', 'Have', 'Has', 'Had', 'Do', 'Does', 'Did',
+        'Would', 'Shall', 'Should', 'Can', 'Could', 'Might', 'Must',
+    ])
+
+    const result: string[] = []
+    const seen = new Set<string>()
 
     for (const raw of tokens) {
         const tok = trimPunct(raw)
@@ -134,11 +140,17 @@ export function parseNameMap(text: string): Map<string, string> {
 const keepInEnglish = new Set(['OpenAI', 'DeepMind', 'DeepSeek', 'DeepL', 'GitHub', 'VSCode', 'JavaScript', 'TypeScript', 'Python', 'Java', 'Rust', 'Node.js', 'React', 'Angular', 'Vue.js', 'Deno', 'NPM', 'Yarn', 'Docker', 'Kubernetes', 'TikTok', 'YouTube', 'Facebook', 'Meta', 'Google', 'Microsoft', 'Apple', 'Amazon', 'Netflix', 'Zoom', 'Spotify', 'LinkedIn', 'Linux', 'Unix', 'Windows', 'Mac', 'Ubuntu', 'Fedora', 'CentOS', 'Debian', 'PostgreSQL', 'MySQL', 'SQLite', 'MongoDB', 'Redis', 'GraphQL'])
 
 const userDefinedMap = new Map<string, string>([
+    ['Iger', 'アイガー']
 ])
 
-export function selectProperNounsInEnglish(nameMap: Map<string, string>): Map<string, string> {
+export function selectProperNounsInEnglish(nameMap: Map<string, string>, text: string): Map<string, string> {
+    const properNounsInText = extractProperNouns(text)
+    const properNounsMapInSet = new Set(properNounsInText)
     const out = new Map<string, string>()
     for (const [key, val] of nameMap) {
+        if (!properNounsMapInSet.has(key)) {
+            continue
+        }
         if (keepInEnglish.has(key)) {
             out.set(key, key)
         } else if (userDefinedMap.has(key)) {
