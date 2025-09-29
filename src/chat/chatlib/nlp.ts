@@ -137,7 +137,7 @@ export function parseNameMap(text: string): Map<string, string> {
     return out
 }
 
-const keepInEnglish = new Set(['OpenAI', 'DeepMind', 'DeepSeek', 'DeepL', 'GitHub', 'VSCode', 'JavaScript', 'TypeScript', 'Python', 'Java', 'Rust', 'Node.js', 'React', 'Angular', 'Vue.js', 'Deno', 'NPM', 'Yarn', 'Docker', 'Kubernetes', 'TikTok', 'YouTube', 'Facebook', 'Meta', 'Google', 'Microsoft', 'Apple', 'Amazon', 'Netflix', 'Zoom', 'Spotify', 'LinkedIn', 'Linux', 'Unix', 'Windows', 'Mac', 'Ubuntu', 'Fedora', 'CentOS', 'Debian', 'PostgreSQL', 'MySQL', 'SQLite', 'MongoDB', 'Redis', 'GraphQL'])
+const keepInEnglish = new Set(['OpenAI', 'DeepMind', 'DeepSeek', 'DeepL', 'GitHub', 'VSCode', 'JavaScript', 'TypeScript', 'Python', 'Java', 'Rust', 'Node.js', 'React', 'Angular', 'Vue.js', 'Deno', 'NPM', 'Yarn', 'Docker', 'Kubernetes', 'TikTok', 'YouTube', 'Facebook', 'Meta', 'Google', 'Microsoft', 'Apple', 'Amazon', 'Netflix', 'Zoom', 'Spotify', 'Shopify', 'LinkedIn', 'Linux', 'Unix', 'Windows', 'Mac', 'Ubuntu', 'Fedora', 'CentOS', 'Debian', 'PostgreSQL', 'MySQL', 'SQLite', 'MongoDB', 'Redis', 'GraphQL'])
 
 const userDefinedMap = new Map<string, string>([
     ['Iger', 'アイガー']
