@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert'
-import { extractProperNouns, parseNameMap } from '../../../src/chat/chatlib/nlp'
+import { extractProperNouns, parseNameMap, checkIfPlural, removePluralForms } from '../../../src/chat/chatlib/nlp'
 
 suite('nlp.extractProperNouns', () => {
 
@@ -99,4 +99,77 @@ suite('nlp.parseNameMap', () => {
 		assert.strictEqual(m.has('UnknownLine'), false)
 	})
 
+})
+
+suite('nlp.isPluralOf', () => {
+
+	test('regular +s', () => {
+		assert.strictEqual(checkIfPlural('cat', 'cats'), true)
+		assert.strictEqual(checkIfPlural('Cat', 'CATS'), true)
+		assert.strictEqual(checkIfPlural('book', 'books'), true)
+		assert.strictEqual(checkIfPlural('book', 'book'), false)
+	})
+
+	test('sibilant +es', () => {
+		assert.strictEqual(checkIfPlural('bus', 'buses'), true)
+		assert.strictEqual(checkIfPlural('box', 'boxes'), true)
+		assert.strictEqual(checkIfPlural('church', 'churches'), true)
+		assert.strictEqual(checkIfPlural('brush', 'brushes'), true)
+	})
+
+	test('z ending doubling', () => {
+		assert.strictEqual(checkIfPlural('buzz', 'buzzes'), true)
+	})
+
+	test('consonant + y -> ies', () => {
+		assert.strictEqual(checkIfPlural('city', 'cities'), true)
+		assert.strictEqual(checkIfPlural('baby', 'babies'), true)
+		assert.strictEqual(checkIfPlural('key', 'keys'), true) // vowel + y
+	})
+
+	test('-f/-fe -> -ves (and allow +s alternates)', () => {
+		assert.strictEqual(checkIfPlural('knife', 'knives'), true)
+		assert.strictEqual(checkIfPlural('life', 'lives'), true)
+		assert.strictEqual(checkIfPlural('roof', 'roofs'), true) // alternate +s
+		assert.strictEqual(checkIfPlural('wolf', 'wolves'), true)
+	})
+
+	test('o ending', () => {
+		assert.strictEqual(checkIfPlural('piano', 'pianos'), true)
+		assert.strictEqual(checkIfPlural('photo', 'photos'), true)
+	})
+
+	test('negatives', () => {
+		assert.strictEqual(checkIfPlural('data', 'datum'), false)
+		assert.strictEqual(checkIfPlural('cats', 'cat'), false)
+		assert.strictEqual(checkIfPlural('', 'cats'), false)
+		assert.strictEqual(checkIfPlural('cat', ''), false)
+		assert.strictEqual(checkIfPlural('bus', 'buss'), false)
+	})
+})
+
+suite('nlp.removePluralForms', () => {
+	test('removes simple +s plurals', () => {
+		const inp = ['cat', 'cats', 'dog', 'dogs', 'book']
+		const out = removePluralForms(inp)
+		assert.deepEqual(out, ['cat', 'dog', 'book'])
+	})
+
+	test('removes es/ies/ves plurals and preserves order', () => {
+		const inp = ['bus', 'buses', 'city', 'cities', 'knife', 'knives', 'roof', 'roofs']
+		const out = removePluralForms(inp)
+		assert.deepEqual(out, ['bus', 'city', 'knife', 'roof'])
+	})
+
+	test('case-insensitive match', () => {
+		const inp = ['Cat', 'CATS', 'DOGS', 'dog']
+		const out = removePluralForms(inp)
+		assert.deepEqual(out, ['Cat', 'dog'])
+	})
+
+	test('ignores empty and non-strings', () => {
+		const inp = ['cat', '', 'cats', '  ', 'book']
+		const out = removePluralForms(inp)
+		assert.deepEqual(out, ['cat', '', '  ', 'book'])
+	})
 })
