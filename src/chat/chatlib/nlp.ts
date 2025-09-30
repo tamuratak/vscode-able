@@ -161,3 +161,78 @@ export function selectProperNounsInEnglish(nameMap: Map<string, string>, text: s
     }
     return out
 }
+
+/**
+ * Check if `target` is the English plural form of `orig`.
+ * Case-insensitive and trims surrounding whitespace.
+ * Handles common regular rules and a set of irregular plurals.
+ */
+export function checkIfPlural(orig: string, target: string): boolean {
+    const s = orig.trim()
+    const t = target.trim()
+    if (s === '' || t === '') {
+        return false
+    }
+    const a = s.toLowerCase()
+    const b = t.toLowerCase()
+    if (a === b) {
+        return false
+    }
+
+    // Regular patterns
+    // 1) sibilant endings -> add "es"
+    if (/(s|x|ch|sh|z)$/.test(a)) {
+        if (b === a + 'es') {
+            return true
+        }
+    }
+
+    // 2) consonant + y -> ies
+    if (/[^aeiou]y$/.test(a)) {
+        if (b === a.slice(0, -1) + 'ies') {
+            return true
+        }
+    }
+
+    // 3) vowel + y -> just add s
+    if (/[aeiou]y$/.test(a)) {
+        if (b === a + 's') {
+            return true
+        }
+    }
+
+    // 4) -f/-fe -> -ves (also allow simple +s as alternates like roofs)
+    if (/fe$/.test(a)) {
+        if (b === a.slice(0, -2) + 'ves' || b === a + 's') {
+            return true
+        }
+    }
+    if (/[^f]f$/.test(a) || /^(?:self|shelf|wolf|leaf|calf|half|loaf|thief|knife|life|wife)$/.test(a)) {
+        if (b === a.slice(0, -1) + 'ves' || b === a + 's') {
+            return true
+        }
+    }
+
+    // 5) words ending with 'o' -> usually +s, but some take +es (covered in irregular); accept +s generally
+    if (/o$/.test(a)) {
+        if (b === a + 's') {
+            return true
+        }
+    }
+
+    // 6) default regular plural: +s (but not for sibilant endings which should use +es)
+    if (!/(s|x|ch|sh|z)$/.test(a) && b === a + 's') {
+        return true
+    }
+
+    // 7) Latin/Greek patterns not covered by irregular map
+    //    -us -> -i (already irregular), -is -> -es, -um -> -a (already irregular)
+    if (/is$/.test(a)) {
+        if (b === a.slice(0, -2) + 'es') {
+            return true
+        }
+    }
+
+    return false
+}
+
