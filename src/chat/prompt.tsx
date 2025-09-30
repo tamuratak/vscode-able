@@ -406,6 +406,12 @@ export class ToJaPrompt extends PromptElement<MainPromptProps> {
                     エマ: そうですか。まあ、戻ってきてくれて嬉しいです。
                 </AssistantMessage>
                 <ToJa>
+                    He managed to earn just over six figures in his first year at the startup.
+                </ToJa>
+                <AssistantMessage>
+                    彼はスタートアップでの最初の年に、10万ドルをすこし超える額を稼ぎました。
+                </AssistantMessage>
+                <ToJa>
                     {this.props.input}
                 </ToJa>
             </>
