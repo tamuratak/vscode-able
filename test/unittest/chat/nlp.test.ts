@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert'
-import { extractProperNouns, parseNameMap, checkIfPlural } from '../../../src/chat/chatlib/nlp'
+import { extractProperNouns, parseNameMap, checkIfPlural, removePluralForms } from '../../../src/chat/chatlib/nlp'
 
 suite('nlp.extractProperNouns', () => {
 
@@ -145,5 +145,31 @@ suite('nlp.isPluralOf', () => {
 		assert.strictEqual(checkIfPlural('', 'cats'), false)
 		assert.strictEqual(checkIfPlural('cat', ''), false)
 		assert.strictEqual(checkIfPlural('bus', 'buss'), false)
+	})
+})
+
+suite('nlp.removePluralForms', () => {
+	test('removes simple +s plurals', () => {
+		const inp = ['cat', 'cats', 'dog', 'dogs', 'book']
+		const out = removePluralForms(inp)
+		assert.deepEqual(out, ['cat', 'dog', 'book'])
+	})
+
+	test('removes es/ies/ves plurals and preserves order', () => {
+		const inp = ['bus', 'buses', 'city', 'cities', 'knife', 'knives', 'roof', 'roofs']
+		const out = removePluralForms(inp)
+		assert.deepEqual(out, ['bus', 'city', 'knife', 'roof'])
+	})
+
+	test('case-insensitive match', () => {
+		const inp = ['Cat', 'CATS', 'DOGS', 'dog']
+		const out = removePluralForms(inp)
+		assert.deepEqual(out, ['Cat', 'dog'])
+	})
+
+	test('ignores empty and non-strings', () => {
+		const inp = ['cat', '', 'cats', '  ', 'book']
+		const out = removePluralForms(inp)
+		assert.deepEqual(out, ['cat', '', '  ', 'book'])
 	})
 })

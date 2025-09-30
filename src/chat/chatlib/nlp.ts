@@ -236,3 +236,40 @@ export function checkIfPlural(orig: string, target: string): boolean {
     return false
 }
 
+/**
+ * Remove words that are plural forms of other words in the same array.
+ * - Keeps original order of the remaining words
+ * - Case-insensitive comparison for plural detection
+ * - Trims whitespace around each word for comparison, but returns original strings
+ */
+export function removePluralForms(words: string[]): string[] {
+    if (words.length === 0) {
+        return []
+    }
+    const drop = new Array<boolean>(words.length)
+    for (let i = 0; i < words.length; i++) {
+        drop[i] = false
+    }
+    for (let i = 0; i < words.length; i++) {
+        const wi = words[i]
+        for (let j = 0; j < words.length; j++) {
+            if (i === j) {
+                continue
+            }
+            const wj = words[j]
+            // If wi is a plural of wj, mark wi to drop
+            if (checkIfPlural(wj, wi)) {
+                drop[i] = true
+                break
+            }
+        }
+    }
+    const out: string[] = []
+    for (let i = 0; i < words.length; i++) {
+        if (!drop[i]) {
+            out.push(words[i])
+        }
+    }
+    return out
+}
+
