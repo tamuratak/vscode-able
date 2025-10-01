@@ -49,7 +49,7 @@ export function extractProperNouns(text: string): string[] {
     const norm = text.replace(/\s+/g, ' ').trim()
     const tokens = norm.split(/[\s[\]()<>#]+/)
 
-    // Common English stopwords that are capitalized at the start of sentences
+    // Common English stopwords that are capitalized at the start of sentences and should not be treated as proper nouns
     const stopwords = new Set([
         'The', 'A', 'An', 'In', 'On', 'At', 'By', 'For', 'With', 'About', 'Against', 'Between',
         'Into', 'Through', 'During', 'Before', 'After', 'Above', 'Below', 'To', 'From',
