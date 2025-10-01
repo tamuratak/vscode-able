@@ -57,6 +57,9 @@ export function extractProperNouns(text: string): string[] {
         'But', 'Or', 'Nor', 'So', 'Yet', 'And', 'Of', 'Is', 'Are', 'Was', 'Were',
         'Be', 'Been', 'Being', 'Have', 'Has', 'Had', 'Do', 'Does', 'Did',
         'Would', 'Shall', 'Should', 'Can', 'Could', 'Might', 'Must',
+        'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+        'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+        'September', 'October', 'November', 'December'
     ])
 
     const result: string[] = []
@@ -137,13 +140,16 @@ export function parseNameMap(text: string): Map<string, string> {
     return out
 }
 
-const keepInEnglish = new Set(['OpenAI', 'DeepMind', 'DeepSeek', 'DeepL', 'GitHub', 'VSCode', 'JavaScript', 'TypeScript', 'Python', 'Java', 'Rust', 'Node.js', 'React', 'Angular', 'Vue.js', 'Deno', 'NPM', 'Yarn', 'Docker', 'Kubernetes', 'TikTok', 'YouTube', 'Facebook', 'Meta', 'Google', 'Microsoft', 'Apple', 'Amazon', 'Netflix', 'Zoom', 'Spotify', 'Shopify', 'LinkedIn', 'Linux', 'Unix', 'Windows', 'Mac', 'Ubuntu', 'Fedora', 'CentOS', 'Debian', 'PostgreSQL', 'MySQL', 'SQLite', 'MongoDB', 'Redis', 'GraphQL'])
-
-const userDefinedMap = new Map<string, string>([
-    ['Iger', 'アイガー']
-])
-
 export function selectProperNounsInEnglish(nameMap: Map<string, string>, text: string): Map<string, string> {
+    const keepInEnglish = new Set([
+        'OpenAI', 'DeepMind', 'DeepSeek', 'DeepL', 'GitHub', 'VSCode', 'JavaScript', 'TypeScript', 'Python', 'Java', 'Rust', 'Node.js', 'React',
+        'Angular', 'Vue.js', 'Deno', 'NPM', 'Yarn', 'Docker', 'Kubernetes',
+        'TikTok', 'YouTube', 'Facebook', 'Meta', 'Google', 'Microsoft', 'Apple', 'Amazon', 'Netflix', 'Zoom', 'Spotify', 'Shopify', 'LinkedIn',
+        'Linux', 'Unix', 'Windows', 'Mac', 'Ubuntu', 'Fedora', 'CentOS', 'Debian', 'PostgreSQL', 'MySQL', 'SQLite', 'MongoDB', 'Redis', 'GraphQL'
+    ])
+    const userDefinedMap = new Map<string, string>([
+        ['Iger', 'アイガー']
+    ])
     const properNounsInText = extractProperNouns(text)
     const properNounsMapInSet = new Set(properNounsInText)
     const out = new Map<string, string>()
