@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert'
-import { extractProperNouns, parseNameMap, checkIfPlural, removePluralForms, checkLinesContained } from '../../../src/chat/chatlib/nlp'
+import { extractProperNouns, parseNameMap, checkIfPlural, removePluralForms, countLinesContained } from '../../../src/chat/chatlib/nlp'
 
 suite('nlp.extractProperNouns', () => {
 
@@ -178,103 +178,76 @@ suite('nlp.checkLinesContained', () => {
 	test('all lines found', () => {
 		const original = 'This is a very long sentence with more than six words\nAnother sentence that has more than six words in it'
 		const translated = 'これは6単語以上のとても長い文です\nThis is a very long sentence with more than six words\nもう一つの文も6単語以上あります\nAnother sentence that has more than six words in it'
-		const result = checkLinesContained(original, translated)
+		const result = countLinesContained(original, translated)
 
-		assert.strictEqual(result.allLinesFound, true)
-		assert.deepEqual(result.foundLines, ['This is a very long sentence with more than six words', 'Another sentence that has more than six words in it'])
-		assert.deepEqual(result.missingLines, [])
-		assert.strictEqual(result.totalLines, 2)
+		assert.strictEqual(result, 2)
 	})
 
 	test('some lines missing', () => {
 		const original = 'This is a very long sentence with more than six words\nAnother sentence that has more than six words in it\nThis missing line also has more than six words total'
 		const translated = 'これは6単語以上のとても長い文です\nThis is a very long sentence with more than six words\nもう一つの文も6単語以上あります'
-		const result = checkLinesContained(original, translated)
+		const result = countLinesContained(original, translated)
 
-		assert.strictEqual(result.allLinesFound, false)
-		assert.deepEqual(result.foundLines, ['This is a very long sentence with more than six words'])
-		assert.deepEqual(result.missingLines, ['Another sentence that has more than six words in it', 'This missing line also has more than six words total'])
-		assert.strictEqual(result.totalLines, 3)
+		assert.strictEqual(result, 1)
 	})
 
 	test('empty original text', () => {
 		const original = ''
 		const translated = 'Some text here'
-		const result = checkLinesContained(original, translated)
+		const result = countLinesContained(original, translated)
 
-		assert.strictEqual(result.allLinesFound, true)
-		assert.deepEqual(result.foundLines, [])
-		assert.deepEqual(result.missingLines, [])
-		assert.strictEqual(result.totalLines, 0)
+		assert.strictEqual(result, 0)
 	})
 
 	test('empty translated text', () => {
 		const original = 'This is a very long sentence with more than six words'
 		const translated = ''
-		const result = checkLinesContained(original, translated)
+		const result = countLinesContained(original, translated)
 
-		assert.strictEqual(result.allLinesFound, false)
-		assert.deepEqual(result.foundLines, [])
-		assert.deepEqual(result.missingLines, ['This is a very long sentence with more than six words'])
-		assert.strictEqual(result.totalLines, 1)
+		assert.strictEqual(result, 0)
 	})
 
 	test('ignores empty lines and whitespace', () => {
 		const original = 'This is a very long sentence with more than six words\n\n  \nAnother sentence that has more than six words in it\n'
 		const translated = '  This is a very long sentence with more than six words  \n\nAnother sentence that has more than six words in it\n  \n'
-		const result = checkLinesContained(original, translated)
+		const result = countLinesContained(original, translated)
 
-		assert.strictEqual(result.allLinesFound, true)
-		assert.deepEqual(result.foundLines, ['This is a very long sentence with more than six words', 'Another sentence that has more than six words in it'])
-		assert.deepEqual(result.missingLines, [])
-		assert.strictEqual(result.totalLines, 2)
+		assert.strictEqual(result, 2)
 	})
 
 	test('case sensitive comparison', () => {
 		const original = 'This Is A Very Long Sentence With More Than Six Words'
 		const translated = 'this is a very long sentence with more than six words'
-		const result = checkLinesContained(original, translated)
+		const result = countLinesContained(original, translated)
 
-		assert.strictEqual(result.allLinesFound, false)
-		assert.deepEqual(result.foundLines, [])
-		assert.deepEqual(result.missingLines, ['This Is A Very Long Sentence With More Than Six Words'])
-		assert.strictEqual(result.totalLines, 1)
+		assert.strictEqual(result, 0)
 	})
 
 	test('handles different line endings', () => {
 		const original = 'This is a very long sentence with more than six words\r\nAnother sentence that has more than six words in it'
 		const translated = 'This is a very long sentence with more than six words\nAnother sentence that has more than six words in it\r\nThis is an extra line with more than six words'
-		const result = checkLinesContained(original, translated)
+		const result = countLinesContained(original, translated)
 
-		assert.strictEqual(result.allLinesFound, true)
-		assert.deepEqual(result.foundLines, ['This is a very long sentence with more than six words', 'Another sentence that has more than six words in it'])
-		assert.deepEqual(result.missingLines, [])
-		assert.strictEqual(result.totalLines, 2)
+		assert.strictEqual(result, 2)
 	})
 
 	test('handles non-string inputs', () => {
 		// Test with explicit type casting to simulate invalid inputs
-		const result1 = checkLinesContained(null as unknown as string, 'test')
-		const result2 = checkLinesContained('test', undefined as unknown as string)
-		const result3 = checkLinesContained(123 as unknown as string, 'test')
+		const result1 = countLinesContained(null as unknown as string, 'test')
+		const result2 = countLinesContained('test', undefined as unknown as string)
+		const result3 = countLinesContained(123 as unknown as string, 'test')
 
 		for (const result of [result1, result2, result3]) {
-			assert.strictEqual(result.allLinesFound, false)
-			assert.deepEqual(result.foundLines, [])
-			assert.deepEqual(result.missingLines, [])
-			assert.strictEqual(result.totalLines, 0)
+			assert.strictEqual(result, 0)
 		}
 	})
 
 	test('excludes lines with 6 words or fewer', () => {
 		const original = 'Short line\nThis has exactly six words here\nThis is a very long sentence with more than six words total'
 		const translated = 'Short line\nThis has exactly six words here\nThis is a very long sentence with more than six words total'
-		const result = checkLinesContained(original, translated)
+		const result = countLinesContained(original, translated)
 
 		// Only the line with more than 6 words should be considered
-		assert.strictEqual(result.allLinesFound, true)
-		assert.deepEqual(result.foundLines, ['This is a very long sentence with more than six words total'])
-		assert.deepEqual(result.missingLines, [])
-		assert.strictEqual(result.totalLines, 1)
+		assert.strictEqual(result, 1)
 	})
 })

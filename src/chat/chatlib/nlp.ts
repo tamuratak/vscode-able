@@ -280,26 +280,17 @@ export function removePluralForms(words: string[]): string[] {
 }
 
 /**
- * Check if lines from originalText are contained in translatedText.
- * Returns an object with information about which lines are found and which are missing.
+ * Count how many lines from originalText are contained in translatedText.
  * - Trims whitespace from lines for comparison
  * - Ignores empty lines in the original text
  * - Excludes lines with 6 words or fewer from the original text
  * - Case-sensitive comparison
+ * - Returns the number of original lines that were found in translatedText
+ * - Returns 0 for invalid (non-string) inputs or when no lines are considered
  */
-export function checkLinesContained(originalText: string, translatedText: string): {
-    allLinesFound: boolean
-    foundLines: string[]
-    missingLines: string[]
-    totalLines: number
-} {
+export function countLinesContained(originalText: string, translatedText: string): number {
     if (typeof originalText !== 'string' || typeof translatedText !== 'string') {
-        return {
-            allLinesFound: false,
-            foundLines: [],
-            missingLines: [],
-            totalLines: 0
-        }
+        return 0
     }
 
     const countWords = (line: string): number => {
@@ -316,21 +307,12 @@ export function checkLinesContained(originalText: string, translatedText: string
             .filter(line => line !== '')
     )
 
-    const foundLines: string[] = []
-    const missingLines: string[] = []
-
+    let foundCount = 0
     for (const line of originalLines) {
         if (translatedLines.has(line)) {
-            foundLines.push(line)
-        } else {
-            missingLines.push(line)
+            foundCount++
         }
     }
 
-    return {
-        allLinesFound: missingLines.length === 0,
-        foundLines,
-        missingLines,
-        totalLines: originalLines.length
-    }
+    return foundCount
 }
