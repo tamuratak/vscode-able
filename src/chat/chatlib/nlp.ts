@@ -284,6 +284,7 @@ export function removePluralForms(words: string[]): string[] {
  * Returns an object with information about which lines are found and which are missing.
  * - Trims whitespace from lines for comparison
  * - Ignores empty lines in the original text
+ * - Excludes lines with 6 words or fewer from the original text
  * - Case-sensitive comparison
  */
 export function checkLinesContained(originalText: string, translatedText: string): {
@@ -301,9 +302,13 @@ export function checkLinesContained(originalText: string, translatedText: string
         }
     }
 
+    const countWords = (line: string): number => {
+        return line.split(/\s+/).filter(word => word !== '').length
+    }
+
     const originalLines = originalText.split(/\r?\n/)
         .map(line => line.trim())
-        .filter(line => line !== '')
+        .filter(line => line !== '' && countWords(line) > 6)
 
     const translatedLines = new Set(
         translatedText.split(/\r?\n/)
@@ -329,4 +334,3 @@ export function checkLinesContained(originalText: string, translatedText: string
         totalLines: originalLines.length
     }
 }
-
