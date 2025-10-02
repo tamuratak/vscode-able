@@ -108,6 +108,7 @@ export class ChatHandleManager {
                         if (this.validateResponseChunkForToJa(inputChunk, responseChunk)) {
                             break
                         }
+                        this.extension.outputChannel.info('Re-translation needed')
                     } else {
                         break
                     }
