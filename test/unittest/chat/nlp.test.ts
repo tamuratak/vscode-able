@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert'
-import { extractProperNouns, parseNameMap, checkIfPlural, removePluralForms } from '../../../src/chat/chatlib/nlp'
+import { extractProperNouns, parseNameMap, checkIfPlural, removePluralForms, checkLinesContained } from '../../../src/chat/chatlib/nlp'
 
 suite('nlp.extractProperNouns', () => {
 
@@ -171,5 +171,98 @@ suite('nlp.removePluralForms', () => {
 		const inp = ['cat', '', 'cats', '  ', 'book']
 		const out = removePluralForms(inp)
 		assert.deepEqual(out, ['cat', '', '  ', 'book'])
+	})
+})
+
+suite('nlp.checkLinesContained', () => {
+	test('all lines found', () => {
+		const original = 'Hello world\nGoodbye world'
+		const translated = 'こんにちは世界\nHello world\nさようなら世界\nGoodbye world'
+		const result = checkLinesContained(original, translated)
+
+		assert.strictEqual(result.allLinesFound, true)
+		assert.deepEqual(result.foundLines, ['Hello world', 'Goodbye world'])
+		assert.deepEqual(result.missingLines, [])
+		assert.strictEqual(result.totalLines, 2)
+	})
+
+	test('some lines missing', () => {
+		const original = 'Hello world\nGoodbye world\nMissing line'
+		const translated = 'こんにちは世界\nHello world\nさようなら世界'
+		const result = checkLinesContained(original, translated)
+
+		assert.strictEqual(result.allLinesFound, false)
+		assert.deepEqual(result.foundLines, ['Hello world'])
+		assert.deepEqual(result.missingLines, ['Goodbye world', 'Missing line'])
+		assert.strictEqual(result.totalLines, 3)
+	})
+
+	test('empty original text', () => {
+		const original = ''
+		const translated = 'Some text here'
+		const result = checkLinesContained(original, translated)
+
+		assert.strictEqual(result.allLinesFound, true)
+		assert.deepEqual(result.foundLines, [])
+		assert.deepEqual(result.missingLines, [])
+		assert.strictEqual(result.totalLines, 0)
+	})
+
+	test('empty translated text', () => {
+		const original = 'Hello world'
+		const translated = ''
+		const result = checkLinesContained(original, translated)
+
+		assert.strictEqual(result.allLinesFound, false)
+		assert.deepEqual(result.foundLines, [])
+		assert.deepEqual(result.missingLines, ['Hello world'])
+		assert.strictEqual(result.totalLines, 1)
+	})
+
+	test('ignores empty lines and whitespace', () => {
+		const original = 'Hello world\n\n  \nGoodbye world\n'
+		const translated = '  Hello world  \n\nGoodbye world\n  \n'
+		const result = checkLinesContained(original, translated)
+
+		assert.strictEqual(result.allLinesFound, true)
+		assert.deepEqual(result.foundLines, ['Hello world', 'Goodbye world'])
+		assert.deepEqual(result.missingLines, [])
+		assert.strictEqual(result.totalLines, 2)
+	})
+
+	test('case sensitive comparison', () => {
+		const original = 'Hello World'
+		const translated = 'hello world'
+		const result = checkLinesContained(original, translated)
+
+		assert.strictEqual(result.allLinesFound, false)
+		assert.deepEqual(result.foundLines, [])
+		assert.deepEqual(result.missingLines, ['Hello World'])
+		assert.strictEqual(result.totalLines, 1)
+	})
+
+	test('handles different line endings', () => {
+		const original = 'Hello world\r\nGoodbye world'
+		const translated = 'Hello world\nGoodbye world\r\nExtra line'
+		const result = checkLinesContained(original, translated)
+
+		assert.strictEqual(result.allLinesFound, true)
+		assert.deepEqual(result.foundLines, ['Hello world', 'Goodbye world'])
+		assert.deepEqual(result.missingLines, [])
+		assert.strictEqual(result.totalLines, 2)
+	})
+
+	test('handles non-string inputs', () => {
+		// Test with explicit type casting to simulate invalid inputs
+		const result1 = checkLinesContained(null as unknown as string, 'test')
+		const result2 = checkLinesContained('test', undefined as unknown as string)
+		const result3 = checkLinesContained(123 as unknown as string, 'test')
+
+		for (const result of [result1, result2, result3]) {
+			assert.strictEqual(result.allLinesFound, false)
+			assert.deepEqual(result.foundLines, [])
+			assert.deepEqual(result.missingLines, [])
+			assert.strictEqual(result.totalLines, 0)
+		}
 	})
 })
