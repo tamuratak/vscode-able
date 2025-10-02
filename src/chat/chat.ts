@@ -8,7 +8,7 @@ import { AbleChatResultMetadata } from './chatlib/chatresultmetadata.js'
 import { debugObj } from '../utils/debug.js'
 import { convertMathEnv, removeLabel } from './chatlib/latex.js'
 import { toCunks } from './chatlib/chunk.js'
-import { extractProperNouns, parseNameMap, removePluralForms, selectProperNounsInEnglish } from './chatlib/nlp.js'
+import { countLinesContained, extractProperNouns, parseNameMap, removePluralForms, selectProperNounsInEnglish } from './chatlib/nlp.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -86,21 +86,36 @@ export class ChatHandleManager {
                 translationCorrespondenceList = this.generateTranslationListForToJa(properNounsTranslationMap, inputChunk)
                 stream.markdown('### Detected Proper Nouns\n' + translationCorrespondenceList)
             }
-            const ret = await this.copilotChatHandler.copilotChatResponse(
-                token,
-                request,
-                ctor,
-                {
-                    input: inputChunk,
-                    userInstruction,
-                    translationCorrespondenceList,
-                },
-                model
-            )
-            if (!ret) {
+            let res: {
+                chatResponse: vscode.LanguageModelChatResponse;
+            } | undefined
+            let responseChunk: string | undefined
+            for (let i = 0; i < 2; i++) {
+                res = await this.copilotChatHandler.copilotChatResponse(
+                    token,
+                    request,
+                    ctor,
+                    {
+                        input: inputChunk,
+                        userInstruction,
+                        translationCorrespondenceList,
+                    },
+                    model
+                )
+                if (res) {
+                    responseChunk = await processResponse(res.chatResponse)
+                    if (request.command === 'to_ja') {
+                        if (this.validateResponseChunkForToJa(inputChunk, responseChunk)) {
+                            break
+                        }
+                    } else {
+                        break
+                    }
+                }
+            }
+            if (!responseChunk) {
                 throw new Error('No response from LLM')
             }
-            const responseChunk = await processResponse(ret.chatResponse)
             if (selected) {
                 const formattedChatOutput = '#### input\n' + this.tweakResponse(inputChunk) + '\n\n' + '#### output\n' + this.tweakResponse(responseChunk) + '\n\n'
                 stream.markdown(formattedChatOutput)
@@ -141,6 +156,10 @@ export class ChatHandleManager {
             selectedProperNounsStr += `- ${k}: ${v}\n`
         }
         return selectedProperNounsStr
+    }
+
+    private validateResponseChunkForToJa(inputChunk: string, responseChunk: string): boolean {
+        return countLinesContained(inputChunk, responseChunk) === 0
     }
 
     private tweakResponse(text: string): string {
