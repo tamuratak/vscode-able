@@ -8,7 +8,7 @@ import { AbleChatResultMetadata } from './chatlib/chatresultmetadata.js'
 import { debugObj } from '../utils/debug.js'
 import { convertMathEnv, removeLabel } from './chatlib/latex.js'
 import { toCunks } from './chatlib/chunk.js'
-import { extractProperNouns, parseNameMap, removePluralForms, selectProperNounsInEnglish } from './chatlib/nlp.js'
+import { countLinesContained, extractProperNouns, parseNameMap, removePluralForms, selectProperNounsInEnglish } from './chatlib/nlp.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -69,11 +69,7 @@ export class ChatHandleManager {
         } else if (request.command === 'to_en') {
             ctor = ToEnPrompt
         } else if (request.command === 'to_ja') {
-            const extractedProperNouns = extractProperNouns(input)
-            const properNouns = removePluralForms(extractedProperNouns)
-            const properNounsResult = await this.copilotChatHandler.copilotChatResponse(token, request, ProperNounsPrompt, { properNouns }, model)
-            const properNounsText = properNounsResult ? await processResponse(properNounsResult.chatResponse) : ''
-            properNounsTranslationMap = parseNameMap(properNounsText)
+            properNounsTranslationMap = await this.extractTranslationMapForToJa(token, request, input)
             ctor = ToJaPrompt
         } else {
             this.extension.outputChannel.error(`Unknown command: ${request.command}`)
@@ -87,29 +83,39 @@ export class ChatHandleManager {
             stream.markdown('---\n')
             let translationCorrespondenceList: string | undefined
             if (request.command === 'to_ja' && properNounsTranslationMap) {
-                const selectedProperNouns = selectProperNounsInEnglish(properNounsTranslationMap, inputChunk)
-                let selectedProperNounsStr = ''
-                for (const [k, v] of selectedProperNouns) {
-                    selectedProperNounsStr += `- ${k}: ${v}\n`
-                }
-                stream.markdown('### Detected Proper Nouns\n' + selectedProperNounsStr)
-                translationCorrespondenceList = selectedProperNounsStr
+                translationCorrespondenceList = this.generateTranslationListForToJa(properNounsTranslationMap, inputChunk)
+                stream.markdown('### Detected Proper Nouns\n' + translationCorrespondenceList)
             }
-            const ret = await this.copilotChatHandler.copilotChatResponse(
-                token,
-                request,
-                ctor,
-                {
-                    input: inputChunk,
-                    userInstruction,
-                    translationCorrespondenceList,
-                },
-                model
-            )
-            if (!ret) {
+            let res: {
+                chatResponse: vscode.LanguageModelChatResponse;
+            } | undefined
+            let responseChunk: string | undefined
+            for (let i = 0; i < 2; i++) {
+                res = await this.copilotChatHandler.copilotChatResponse(
+                    token,
+                    request,
+                    ctor,
+                    {
+                        input: inputChunk,
+                        userInstruction,
+                        translationCorrespondenceList,
+                    },
+                    model
+                )
+                if (res) {
+                    responseChunk = await processResponse(res.chatResponse)
+                    if (request.command === 'to_ja') {
+                        if (this.validateResponseChunkForToJa(inputChunk, responseChunk)) {
+                            break
+                        }
+                    } else {
+                        break
+                    }
+                }
+            }
+            if (!responseChunk) {
                 throw new Error('No response from LLM')
             }
-            const responseChunk = await processResponse(ret.chatResponse)
             if (selected) {
                 const formattedChatOutput = '#### input\n' + this.tweakResponse(inputChunk) + '\n\n' + '#### output\n' + this.tweakResponse(responseChunk) + '\n\n'
                 stream.markdown(formattedChatOutput)
@@ -126,6 +132,34 @@ export class ChatHandleManager {
             return { metadata: { input, output: responseText, selected, userInstruction } } satisfies { metadata: AbleChatResultMetadata }
         }
         return
+    }
+
+    private async extractTranslationMapForToJa(
+        token: vscode.CancellationToken,
+        request: vscode.ChatRequest,
+        input: string
+    ): Promise<Map<string, string>> {
+        const extractedProperNouns = extractProperNouns(input)
+        const properNouns = removePluralForms(extractedProperNouns)
+        const properNounsResult = await this.copilotChatHandler.copilotChatResponse(token, request, ProperNounsPrompt, { properNouns }, request.model)
+        const properNounsText = properNounsResult ? await processResponse(properNounsResult.chatResponse) : ''
+        return parseNameMap(properNounsText)
+    }
+
+    private generateTranslationListForToJa(
+        properNounsTranslationMap: Map<string, string>,
+        inputChunk: string
+    ): string {
+        const selectedProperNouns = selectProperNounsInEnglish(properNounsTranslationMap, inputChunk)
+        let selectedProperNounsStr = ''
+        for (const [k, v] of selectedProperNouns) {
+            selectedProperNounsStr += `- ${k}: ${v}\n`
+        }
+        return selectedProperNounsStr
+    }
+
+    private validateResponseChunkForToJa(inputChunk: string, responseChunk: string): boolean {
+        return countLinesContained(inputChunk, responseChunk) === 0
     }
 
     private tweakResponse(text: string): string {
