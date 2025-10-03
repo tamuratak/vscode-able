@@ -24,10 +24,12 @@ export class MochaJsonTaskProvider implements vscode.TaskProvider {
                 MochaJsonTaskProvider.AbleTaskType,
                 new vscode.CustomExecution(() => {
                     return Promise.resolve(
-                        new SimpleTaskTerminal(async () => {
+                        new SimpleTaskTerminal(async (writeEmitter, closeEmitter) => {
                             try {
+                                writeEmitter.fire('Starting ...\r\n')
                                 this.collection.clear()
                                 const output = await executeMochaCommand(task)
+                                writeEmitter.fire(output)
                                 const failures = collectMochaJsonFailures(output)
                                 const diagEntries = await convertToCollections(failures)
                                 for (const entry of diagEntries.values()) {
@@ -39,6 +41,9 @@ export class MochaJsonTaskProvider implements vscode.TaskProvider {
                                 } else {
                                     console.log('Error executing task: ', error)
                                 }
+                            } finally {
+                                writeEmitter.fire('Complete.\r\n\r\n')
+                                closeEmitter.fire(0)
                             }
                         })
                     )
@@ -75,14 +80,16 @@ class SimpleTaskTerminal implements vscode.Pseudoterminal {
     onDidWrite: vscode.Event<string> = this.writeEmitter.event
     private readonly closeEmitter = new vscode.EventEmitter<number>()
     onDidClose: vscode.Event<number> = this.closeEmitter.event
-    private readonly cb: (emitter: vscode.EventEmitter<string>) => void
+    private readonly cb: (writeEmitter: vscode.EventEmitter<string>, closeEmitter: vscode.EventEmitter<number>) => void
 
-    constructor(cb: (emitter: vscode.EventEmitter<string>) => void) {
+    constructor(
+        cb: (writeEmitter: vscode.EventEmitter<string>, closeEmitter: vscode.EventEmitter<number>) => void
+    ) {
         this.cb = cb
     }
 
     open(): void {
-        void this.doBuild()
+        this.doTask()
     }
 
     close(): void {
@@ -90,14 +97,8 @@ class SimpleTaskTerminal implements vscode.Pseudoterminal {
         this.writeEmitter.dispose()
     }
 
-    private doBuild() {
-        try {
-            this.writeEmitter.fire('Starting ...\r\n')
-            this.cb(this.writeEmitter)
-            this.writeEmitter.fire('Complete.\r\n\r\n')
-        } finally {
-            this.closeEmitter.fire(0)
-        }
+    private doTask() {
+        void this.cb(this.writeEmitter, this.closeEmitter)
     }
 
 }
