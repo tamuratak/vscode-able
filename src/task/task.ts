@@ -80,13 +80,10 @@ class SimpleTaskTerminal implements vscode.Pseudoterminal {
     onDidWrite: vscode.Event<string> = this.writeEmitter.event
     private readonly closeEmitter = new vscode.EventEmitter<number>()
     onDidClose: vscode.Event<number> = this.closeEmitter.event
-    private readonly cb: (writeEmitter: vscode.EventEmitter<string>, closeEmitter: vscode.EventEmitter<number>) => void
 
     constructor(
-        cb: (writeEmitter: vscode.EventEmitter<string>, closeEmitter: vscode.EventEmitter<number>) => void
-    ) {
-        this.cb = cb
-    }
+        private readonly taskCb: (writeEmitter: vscode.EventEmitter<string>, closeEmitter: vscode.EventEmitter<number>) => void
+    ) { }
 
     open(): void {
         this.doTask()
@@ -98,7 +95,7 @@ class SimpleTaskTerminal implements vscode.Pseudoterminal {
     }
 
     private doTask() {
-        void this.cb(this.writeEmitter, this.closeEmitter)
+        void this.taskCb(this.writeEmitter, this.closeEmitter)
     }
 
 }
