@@ -1,6 +1,7 @@
 import * as vscode from 'vscode'
 import { convertToCollections, executeMochaCommand, findMochaJsonTestCommand } from './tasklib/mocha.js'
 import { collectMochaJsonFailures } from './tasklib/mochalib/mochajson.js'
+import { debugObj } from '../utils/debug.js'
 
 
 export class MochaJsonTaskProvider implements vscode.TaskProvider {
@@ -24,21 +25,22 @@ export class MochaJsonTaskProvider implements vscode.TaskProvider {
                 MochaJsonTaskProvider.AbleTaskType,
                 new vscode.CustomExecution(() => {
                     return Promise.resolve(
-                        new SimpleTaskTerminal(async () => {
+                        new SimpleTaskTerminal(async (writeEmitter) => {
                             try {
+                                writeEmitter.fire('Starting ...\r\n')
                                 this.collection.clear()
                                 const output = await executeMochaCommand(task)
+                                writeEmitter.fire(output.replace(/\n/g, '\r\n'))
                                 const failures = collectMochaJsonFailures(output)
                                 const diagEntries = await convertToCollections(failures)
                                 for (const entry of diagEntries.values()) {
                                     this.collection.set(entry.uri, entry.diags)
                                 }
                             } catch (error) {
-                                if (error instanceof Error) {
-                                    this.extension.outputChannel.error('Error executing task: ', error)
-                                } else {
-                                    console.log('Error executing task: ', error)
-                                }
+                                debugObj('MochaJsonTaskProvider error', error, this.extension.outputChannel)
+                                throw error
+                            } finally {
+                                writeEmitter.fire('Complete.\r\n\r\n')
                             }
                         })
                     )
@@ -75,14 +77,13 @@ class SimpleTaskTerminal implements vscode.Pseudoterminal {
     onDidWrite: vscode.Event<string> = this.writeEmitter.event
     private readonly closeEmitter = new vscode.EventEmitter<number>()
     onDidClose: vscode.Event<number> = this.closeEmitter.event
-    private readonly cb: (emitter: vscode.EventEmitter<string>) => void
 
-    constructor(cb: (emitter: vscode.EventEmitter<string>) => void) {
-        this.cb = cb
-    }
+    constructor(
+        private readonly taskCb: (writeEmitter: vscode.EventEmitter<string>) => Promise<void>
+    ) { }
 
     open(): void {
-        void this.doBuild()
+        void this.doTask()
     }
 
     close(): void {
@@ -90,11 +91,9 @@ class SimpleTaskTerminal implements vscode.Pseudoterminal {
         this.writeEmitter.dispose()
     }
 
-    private doBuild() {
+    private async doTask() {
         try {
-            this.writeEmitter.fire('Starting ...\r\n')
-            this.cb(this.writeEmitter)
-            this.writeEmitter.fire('Complete.\r\n\r\n')
+            await this.taskCb(this.writeEmitter)
         } finally {
             this.closeEmitter.fire(0)
         }
