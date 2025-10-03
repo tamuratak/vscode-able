@@ -59,7 +59,8 @@ export function extractProperNouns(text: string): string[] {
         'Would', 'Shall', 'Should', 'Can', 'Could', 'Might', 'Must',
         'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
         'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
-        'September', 'October', 'November', 'December'
+        'September', 'October', 'November', 'December',
+        'Jan', 'Feb', 'Mar', 'Apr', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ])
 
     const result: string[] = []
