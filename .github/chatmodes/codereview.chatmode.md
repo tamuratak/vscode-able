@@ -1,6 +1,6 @@
 ---
 description: 'Code review mode'
-tools: ['codebase', 'fetchwebpage', 'findTestFiles', 'problems', 'search', 'searchResults', 'usages', 'vscodeAPI', 'websearch']
+tools: ['tamuratak.able/fetchwebpage', 'problems', 'search', 'usages', 'vscodeAPI', 'tamuratak.able/websearch']
 ---
 
 # CODE REVIEW MODE - Agent Instructions

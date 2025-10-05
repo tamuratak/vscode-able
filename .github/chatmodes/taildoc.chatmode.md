@@ -1,6 +1,6 @@
 ---
 description: 'Editing file-tail docs (LLM-oriented)'
-tools: ['editFiles', 'codebase', 'search', 'searchResults', 'usages', 'vscodeAPI', 'fetchwebpage']
+tools: ['edit/editFiles', 'search', 'usages', 'vscodeAPI', 'tamuratak.able/fetchwebpage']
 ---
 
 # DOC MODE - Agent Instructions

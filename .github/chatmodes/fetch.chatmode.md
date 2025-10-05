@@ -1,6 +1,6 @@
 ---
 description: 'Fetch webpage mode'
-tools: ['editFiles', 'fetchwebpage']
+tools: ['edit/editFiles', 'tamuratak.able/fetchwebpage_autoapprove']
 ---
 
 # FETCH WEBPAGE MODE - Agent Instructions
