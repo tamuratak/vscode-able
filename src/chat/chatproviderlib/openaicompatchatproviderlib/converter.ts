@@ -45,9 +45,25 @@ export class Converter {
                     tool_call_id: part.callId,
                     content
                 } satisfies OpenAI.Chat.ChatCompletionToolMessageParam)
+            } else if (part instanceof vscode.LanguageModelDataPart) {
+                if (part.mimeType.startsWith('image/') && message.role !== LanguageModelChatMessageRole.Assistant) {
+                    result.push({
+                        role: 'user',
+                        content: [{
+                            type: 'image_url',
+                            image_url: {
+                                url: `data:${part.mimeType};base64,${Buffer.from(part.data).toString('base64')}`
+                            }
+                        }]
+                    })
+                } else {
+                    // TODO: support other data parts
+                    this.extension.outputChannel.info(`Skipping LanguageModelDataPart with mimeType ${part.mimeType}`)
+                }
             } else {
-                // TODO: LanguageModelDataPart case
-                this.extension.outputChannel.info('Skipping LanguageModelDataPart or LanguageModelThinkingPart')
+                // TODO: LanguageModelThinkingPart case
+                part satisfies vscode.LanguageModelThinkingPart
+                this.extension.outputChannel.info('Skipping LanguageModelThinkingPart')
             }
         }
         if (message.role === LanguageModelChatMessageRole.Assistant) {
