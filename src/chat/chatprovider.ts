@@ -20,7 +20,8 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 name: 'GPT-5',
                 tooltip: 'GPT-5',
                 capabilities: {
-                    toolCalling: true
+                    toolCalling: true,
+                    imageInput: true
                 }
             },
             {
@@ -32,7 +33,8 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 name: 'GPT-5 Mini',
                 tooltip: 'GPT-5 Mini',
                 capabilities: {
-                    toolCalling: true
+                    toolCalling: true,
+                    imageInput: true
                 },
             },
             {
@@ -44,7 +46,8 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 name: 'GPT-5 Mini (high)',
                 tooltip: 'GPT-5 Mini (high)',
                 capabilities: {
-                    toolCalling: true
+                    toolCalling: true,
+                    imageInput: true
                 },
                 options: {
                     reasoningEffort: 'high'
@@ -59,7 +62,8 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 name: 'GPT-4.1',
                 tooltip: 'GPT-4.1',
                 capabilities: {
-                    toolCalling: true
+                    toolCalling: true,
+                    imageInput: true
                 }
             },
             {
@@ -71,7 +75,8 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 name: 'GPT-4.1 Mini',
                 tooltip: 'GPT-4.1 Mini',
                 capabilities: {
-                    toolCalling: true
+                    toolCalling: true,
+                    imageInput: true
                 }
             },
             {
@@ -83,7 +88,8 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 name: 'GPT-4o Mini',
                 tooltip: 'GPT-4o Mini',
                 capabilities: {
-                    toolCalling: true
+                    toolCalling: true,
+                    imageInput: true
                 }
             }
         ]
