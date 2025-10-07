@@ -207,9 +207,17 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                     functionResponse.name = name
                 }
                 parts.push({ functionResponse })
+            } else if (part instanceof vscode.LanguageModelDataPart) {
+                parts.push({
+                    inlineData: {
+                        data: `data:${part.mimeType};base64,${Buffer.from(part.data).toString('base64')}`,
+                        mimeType: part.mimeType
+                    }
+                })
             } else {
-                // TODO: LanguageModelDataPart case
-                this.extension.outputChannel.info('Skipping LanguageModelDataPart or LanguageModelThinkingPart')
+                // TODO: LanguageModelThinkingPart case
+                part satisfies vscode.LanguageModelThinkingPart
+                this.extension.outputChannel.info('Skipping LanguageModelThinkingPart')
             }
         }
         return {
