@@ -1,10 +1,8 @@
 import * as vscode from 'vscode'
 import { FluentJaPrompt, FluentPrompt, MainPromptProps, ProperNounsPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
-import { extractHitory } from './chatlib/historyutils.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
-import { AbleChatResultMetadata } from './chatlib/chatresultmetadata.js'
 import { debugObj } from '../utils/debug.js'
 import { convertMathEnv, removeLabel } from './chatlib/latex.js'
 import { toCunks } from './chatlib/chunk.js'
@@ -28,12 +26,11 @@ export class ChatHandleManager {
     getHandler(): vscode.ChatRequestHandler {
         return async (
             request: vscode.ChatRequest,
-            context: vscode.ChatContext,
+            _context: vscode.ChatContext,
             stream: vscode.ChatResponseStream,
             token: vscode.CancellationToken
         ): Promise<vscode.ChatResult | undefined> => {
             debugObj('[Able Chat] request.references: ', request.references, this.extension.outputChannel)
-            const history = extractHitory(context)
             if (request.command) {
                 return this.responseForCommand(token, request, stream)
             } else {
@@ -42,7 +39,7 @@ export class ChatHandleManager {
                     token,
                     request,
                     SimplePrompt,
-                    { history, input: request.prompt, attachments },
+                    { input: request.prompt, attachments },
                     request.model,
                     stream,
                     [],
@@ -130,7 +127,7 @@ export class ChatHandleManager {
             const edit = new vscode.TextEdit(selected.range, responseText)
             const uri = selected.uri
             stream.textEdit(uri, edit)
-            return { metadata: { input, output: responseText, selected, userInstruction } } satisfies { metadata: AbleChatResultMetadata }
+            return
         }
         return
     }
