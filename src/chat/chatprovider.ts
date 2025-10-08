@@ -7,7 +7,11 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
     readonly serviceName = 'OpenAIChatProvider'
     readonly categoryLabel = 'OpenAI (with Able)'
     readonly apiBaseUrl = undefined
-    readonly streamSupported = true
+    readonly supported = {
+        stream: true,
+        response: true,
+        file: true
+    }
 
     get aiModelIds(): ModelInformation[] {
         return [
@@ -20,7 +24,8 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 name: 'GPT-5',
                 tooltip: 'GPT-5',
                 capabilities: {
-                    toolCalling: true
+                    toolCalling: true,
+                    imageInput: true
                 }
             },
             {
@@ -32,7 +37,8 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 name: 'GPT-5 Mini',
                 tooltip: 'GPT-5 Mini',
                 capabilities: {
-                    toolCalling: true
+                    toolCalling: true,
+                    imageInput: true
                 },
             },
             {
@@ -44,7 +50,8 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 name: 'GPT-5 Mini (high)',
                 tooltip: 'GPT-5 Mini (high)',
                 capabilities: {
-                    toolCalling: true
+                    toolCalling: true,
+                    imageInput: true
                 },
                 options: {
                     reasoningEffort: 'high'
@@ -59,7 +66,8 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 name: 'GPT-4.1',
                 tooltip: 'GPT-4.1',
                 capabilities: {
-                    toolCalling: true
+                    toolCalling: true,
+                    imageInput: true
                 }
             },
             {
@@ -71,7 +79,8 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 name: 'GPT-4.1 Mini',
                 tooltip: 'GPT-4.1 Mini',
                 capabilities: {
-                    toolCalling: true
+                    toolCalling: true,
+                    imageInput: true
                 }
             },
             {
@@ -83,7 +92,8 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
                 name: 'GPT-4o Mini',
                 tooltip: 'GPT-4o Mini',
                 capabilities: {
-                    toolCalling: true
+                    toolCalling: true,
+                    imageInput: true
                 }
             }
         ]
@@ -99,8 +109,11 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
     readonly serviceName = 'GroqChatProvider'
     readonly categoryLabel = 'Groq (with Able)'
     readonly apiBaseUrl = 'https://api.groq.com/openai/v1'
-    readonly streamSupported = true
-
+    readonly supported = {
+        stream: true,
+        response: false,
+        file: false
+    }
 
     get aiModelIds(): ModelInformation[] {
         return [

@@ -69,7 +69,8 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                     tooltip: model.description ?? 'Gemini',
                     requiresAuthorization: true,
                     capabilities: {
-                        toolCalling: id.startsWith('gemini')
+                        toolCalling: id.startsWith('gemini'),
+                        imageInput: true
                     },
                     model
                 })
@@ -99,14 +100,14 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
         this.extension.outputChannel.debug('messages:\n' + await renderMessages(messages))
         const contents: Content[] = await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToContent(m)))
 
-        const functionDeclarations = options.tools?.map(t => {
+        const functionDeclarations = options.tools && options.tools.length > 0 ? options.tools.map(t => {
             return {
                 name: t.name,
                 description: t.description,
                 parametersJsonSchema: t.inputSchema
 
             }
-        }) ?? undefined
+        }) : undefined
         const config: GenerateContentConfig = model.capabilities?.toolCalling && functionDeclarations ? {
             tools: [{ functionDeclarations }],
             toolConfig: {
@@ -207,9 +208,17 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                     functionResponse.name = name
                 }
                 parts.push({ functionResponse })
+            } else if (part instanceof vscode.LanguageModelDataPart) {
+                parts.push({
+                    inlineData: {
+                        data: Buffer.from(part.data).toString('base64'),
+                        mimeType: part.mimeType
+                    }
+                })
             } else {
-                // TODO: LanguageModelDataPart case
-                this.extension.outputChannel.info('Skipping LanguageModelDataPart or LanguageModelThinkingPart')
+                // TODO: LanguageModelThinkingPart case
+                part satisfies vscode.LanguageModelThinkingPart
+                this.extension.outputChannel.info('Skipping LanguageModelThinkingPart')
             }
         }
         return {
