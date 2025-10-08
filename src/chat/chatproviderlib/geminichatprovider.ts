@@ -69,7 +69,8 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                     tooltip: model.description ?? 'Gemini',
                     requiresAuthorization: true,
                     capabilities: {
-                        toolCalling: id.startsWith('gemini')
+                        toolCalling: id.startsWith('gemini'),
+                        imageInput: true
                     },
                     model
                 })
