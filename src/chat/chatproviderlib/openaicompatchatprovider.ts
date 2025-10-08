@@ -19,7 +19,11 @@ export interface ModelInformation extends LanguageModelChatInformation {
 export abstract class OpenAICompatChatProvider implements LanguageModelChatProvider {
     abstract readonly serviceName: string
     abstract readonly apiBaseUrl: string | undefined
-    abstract readonly streamSupported: boolean
+    abstract readonly supported: {
+        stream?: boolean | undefined
+        response?: boolean | undefined
+        file?: boolean | undefined
+    }
     private readonly converter: Converter
 
     constructor(
@@ -116,7 +120,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         if (model.options?.reasoningEffort) {
             params.reasoning_effort = model.options.reasoningEffort
         }
-        if (this.streamSupported) {
+        if (this.supported.stream) {
             await this.createStream(openai, params, progress, token)
         } else {
             await this.createNonStream(openai, params, progress)
