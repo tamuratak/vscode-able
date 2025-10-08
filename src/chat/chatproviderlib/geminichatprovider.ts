@@ -100,14 +100,14 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
         this.extension.outputChannel.debug('messages:\n' + await renderMessages(messages))
         const contents: Content[] = await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToContent(m)))
 
-        const functionDeclarations = options.tools?.map(t => {
+        const functionDeclarations = options.tools && options.tools.length > 0 ? options.tools.map(t => {
             return {
                 name: t.name,
                 description: t.description,
                 parametersJsonSchema: t.inputSchema
 
             }
-        }) ?? undefined
+        }) : undefined
         const config: GenerateContentConfig = model.capabilities?.toolCalling && functionDeclarations ? {
             tools: [{ functionDeclarations }],
             toolConfig: {
@@ -211,7 +211,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
             } else if (part instanceof vscode.LanguageModelDataPart) {
                 parts.push({
                     inlineData: {
-                        data: `data:${part.mimeType};base64,${Buffer.from(part.data).toString('base64')}`,
+                        data: Buffer.from(part.data).toString('base64'),
                         mimeType: part.mimeType
                     }
                 })
