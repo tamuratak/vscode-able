@@ -3,7 +3,6 @@ import type { ToolCallResultPair, ToolCallResultRoundProps } from '../prompt.js'
 import { BasePromptElementProps, type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { AbleTool, convertToToolCall, getLmTools } from './toolutils.js'
 import { renderMessages } from '../utils/renderer.js'
-import { isLoggingActive } from '../../utils/debug.js'
 
 
 export class CopilotChatHandler {
@@ -38,9 +37,7 @@ export class CopilotChatHandler {
                 model // model.countTokens is used to calculate the token count of the prompt.
             )
             const tools = getLmTools(selectedTools)
-            if (isLoggingActive(vscode.LogLevel.Debug)) {
-                this.extension.outputChannel.debug('messages:\n' + await renderMessages(messages))
-            }
+            this.extension.outputChannel.debug('@able messages:\n' + await renderMessages(messages))
             // Send request to the LLM.
             const chatResponse = await model.sendRequest(
                 messages, { tools }, token

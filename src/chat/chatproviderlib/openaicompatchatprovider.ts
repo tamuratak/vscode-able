@@ -95,7 +95,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         const apiKey = session.accessToken
         const openai = this.createClient(apiKey)
         initValidators(options.tools)
-        this.extension.outputChannel.debug('messages:\n' + await renderMessages(messages))
+        this.extension.outputChannel.debug('OpenAI Compat (with Able) messages:\n' + await renderMessages(messages))
         const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[]
             = (await Promise.all(messages.map(m => this.converter.toChatCompletionMessageParam(m)))).flat()
         const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = options.tools?.map(t => ({

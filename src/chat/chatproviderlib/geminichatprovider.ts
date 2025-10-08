@@ -97,7 +97,6 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
         initValidators(options.tools)
-        this.extension.outputChannel.debug('messages:\n' + await renderMessages(messages))
         const contents: Content[] = await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToContent(m)))
 
         const functionDeclarations = options.tools && options.tools.length > 0 ? options.tools.map(t => {
@@ -116,6 +115,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                 }
             }
         } : {}
+        this.extension.outputChannel.debug('Gemini (with Able) messages:\n' + await renderMessages(messages))
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
             {
                 model: model.id,
