@@ -116,15 +116,18 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                 }
             }
         } : {}
-
-        debugObj('Gemini chat request: ', { model: model.id, contents }, this.extension.outputChannel)
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
             {
                 model: model.id,
                 contents,
                 config
             }
-        )
+        ).catch(e => {
+            if (e instanceof Error) {
+                this.extension.outputChannel.error(e, { model: model.id, contents, config })
+            }
+            throw e
+        })
         let allContent = ''
         for await (const chunk of result) {
             debugObj('Gemini chat response chunk: ', { text: chunk.text, functionCalls: chunk.functionCalls }, this.extension.outputChannel)
