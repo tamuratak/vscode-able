@@ -96,6 +96,21 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         const openai = this.createClient(apiKey)
         initValidators(options.tools)
         debugObj('OpenAI Compat (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
+        if (this.supported.response) {
+            throw new Error('Non-streaming response is not supported yet.')
+        } else {
+            await this.completionsApiCall(openai, model, messages, options, progress, token)
+        }
+    }
+
+    private async completionsApiCall(
+        openai: OpenAI,
+        model: ModelInformation,
+        messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
+        options: vscode.ProvideLanguageModelChatResponseOptions,
+        progress: Progress<LanguageModelResponsePart2>,
+        token: CancellationToken
+    ) {
         const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[]
             = (await Promise.all(messages.map(m => this.converter.toChatCompletionMessageParam(m)))).flat()
         const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = options.tools?.map(t => ({
