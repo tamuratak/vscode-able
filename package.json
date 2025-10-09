@@ -408,7 +408,7 @@
     "@microsoft/tiktokenizer": "1.0.10",
     "@vscode/prompt-tsx": "0.4.0-alpha.4",
     "ajv": "8.17.1",
-    "openai": "5.12.2",
+    "openai": "6.2.0",
     "playwright": "1.55.0",
     "workerpool": "9.3.3"
   },
