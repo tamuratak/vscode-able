@@ -101,7 +101,7 @@ export class Converter {
         const input: OpenAI.Responses.ResponseInput = []
 
         // Build the message content array for a single message input item
-        const messageContent: OpenAI.Responses.ResponseInputMessageContentList = []
+        let messageContent: OpenAI.Responses.ResponseInputMessageContentList = []
 
         // Map vscode role -> Responses role. LanguageModelChatMessageRole.Assistant
         // isn't supported as an input role, map it to 'developer' as a best-effort.
@@ -127,9 +127,18 @@ export class Converter {
             } else if ((part instanceof vscode.LanguageModelToolResultPart2) || (part instanceof vscode.LanguageModelToolResultPart)) {
                 const contents = part.content.filter(c => c instanceof LanguageModelTextPart || c instanceof vscode.LanguageModelPromptTsxPart)
                 const toolResult = new vscode.LanguageModelToolResult(contents)
-                const rendered = await renderToolResult(toolResult)
-                const textItem: OpenAI.Responses.ResponseInputText = { type: 'input_text', text: rendered }
-                messageContent.push(textItem)
+                const output = await renderToolResult(toolResult)
+                input.push({
+                    type: 'message',
+                    role,
+                    content: messageContent,
+                })
+                messageContent = []
+                input.push({
+                    type: 'function_call_output',
+                    call_id: part.callId,
+                    output,
+                } satisfies OpenAI.Responses.ResponseInputItem.FunctionCallOutput)
             } else if (part instanceof vscode.LanguageModelDataPart) {
                 if (part.mimeType.startsWith('image/')) {
                     const imageItem: OpenAI.Responses.ResponseInputImage = {
@@ -158,19 +167,22 @@ export class Converter {
                     id: part.id ?? '',
                     summary
                 }
+                input.push({
+                    type: 'message',
+                    role,
+                    content: messageContent,
+                })
+                messageContent = []
                 input.push(thinkingItem)
             }
         }
-
-        // Always include the message item (even if empty content)
-        const messageItem: OpenAI.Responses.ResponseInputItem.Message = {
-            type: 'message',
-            role,
-            content: messageContent,
+        if (messageContent.length > 0) {
+            input.push({
+                type: 'message',
+                role,
+                content: messageContent,
+            })
         }
-        input.push(messageItem)
-
-        // Return a single ResponseCreateParams. Caller can augment with model/tools/etc.
         return [{ input }]
     }
 }
