@@ -107,7 +107,6 @@ export class Converter {
                 : message.role === LanguageModelChatMessageRole.User
                     ? 'user'
                     : 'developer'
-
         for (const part of message.content) {
             if (part instanceof LanguageModelTextPart) {
                 input.push({
