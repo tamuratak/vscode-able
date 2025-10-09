@@ -1,6 +1,15 @@
 import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatMessage, LanguageModelChatProvider, LanguageModelDataPart, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelToolCallPart, LanguageModelResponsePart2 } from 'vscode'
 import OpenAI from 'openai'
+import type {
+    Response,
+    ResponseCreateParams,
+    ResponseCreateParamsNonStreaming,
+    ResponseCreateParamsStreaming,
+    ResponseFunctionToolCall,
+    ResponseInput,
+    Tool
+} from 'openai/resources/responses/responses'
 import { getNonce } from '../../utils/getnonce.js'
 import { getValidator, initValidators } from './toolcallargvalidator.js'
 import { debugObj } from '../../utils/debug.js'
@@ -97,9 +106,146 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         initValidators(options.tools)
         debugObj('OpenAI Compat (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
         if (this.supported.response) {
-            throw new Error('Non-streaming response is not supported yet.')
+            await this.responsesApiCall(openai, model, messages, options, progress, token)
         } else {
             await this.completionsApiCall(openai, model, messages, options, progress, token)
+        }
+    }
+
+    private async responsesApiCall(
+        openai: OpenAI,
+        model: ModelInformation,
+        messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
+        options: vscode.ProvideLanguageModelChatResponseOptions,
+        progress: Progress<LanguageModelResponsePart2>,
+        token: CancellationToken
+    ) {
+        const responseInput: ResponseInput = (await Promise.all(messages.map(async message => this.converter.toResponseCreateParams(message)))).flat()
+        const tools: Tool[] | undefined = options.tools?.map(tool => ({
+            type: 'function',
+            name: tool.name,
+            description: tool.description ?? null,
+            parameters: tool.inputSchema ? tool.inputSchema as Record<string, unknown> : null,
+            strict: true
+        }))
+        const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools && tools.length > 0 ? 'auto' : undefined)
+        const hasTools = tools && tools.length > 0
+        const baseParams = {
+            model: model.family,
+            input: responseInput,
+            ...(hasTools ? { tools } : {}),
+            ...(toolChoice ? { tool_choice: toolChoice } : {}),
+            ...(model.options?.reasoningEffort ? { reasoning: { effort: model.options.reasoningEffort } } : {})
+        } satisfies ResponseCreateParams
+        if (this.supported.stream) {
+            await this.createResponsesStream(openai, baseParams, progress, token)
+        } else {
+            await this.createResponsesNonStream(openai, baseParams, progress)
+        }
+    }
+
+    private async createResponsesStream(
+        openai: OpenAI,
+        params: ResponseCreateParams,
+        progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>,
+        token: CancellationToken
+    ) {
+        const streamingParams = { ...params, stream: true } satisfies ResponseCreateParamsStreaming
+        debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
+        const stream = openai.responses.stream(streamingParams)
+        const toolCallsByItemId = new Map<string, { name: string; callId: string }>()
+        const reportedToolCalls = new Set<string>()
+        let aggregatedContent = ''
+        const disposable = token.onCancellationRequested(() => stream.abort())
+        stream.on('response.output_text.delta', event => {
+            if (event.delta) {
+                aggregatedContent += event.delta
+                this.reportContent(event.delta, progress)
+            }
+        })
+        stream.on('response.output_item.added', event => {
+            if (event.item.type === 'function_call') {
+                const info = { name: event.item.name, callId: event.item.call_id }
+                const keys = [event.item.id, event.item.call_id].filter((key): key is string => typeof key === 'string')
+                for (const key of keys) {
+                    toolCallsByItemId.set(key, info)
+                }
+            }
+        })
+        stream.on('response.output_item.done', event => {
+            if (event.item.type === 'function_call') {
+                const info = { name: event.item.name, callId: event.item.call_id }
+                const keys = [event.item.id, event.item.call_id].filter((key): key is string => typeof key === 'string')
+                for (const key of keys) {
+                    toolCallsByItemId.set(key, info)
+                }
+            }
+        })
+        stream.on('response.function_call_arguments.done', event => {
+            const info = toolCallsByItemId.get(event.item_id)
+            if (!info) {
+                return
+            }
+            const toolCall: ResponseFunctionToolCall = {
+                type: 'function_call',
+                id: event.item_id,
+                call_id: info.callId,
+                name: info.name,
+                arguments: event.arguments
+            }
+            this.reportToolCall(toolCall, progress)
+            reportedToolCalls.add(toolCall.call_id)
+            toolCallsByItemId.delete(event.item_id)
+            toolCallsByItemId.delete(info.callId)
+        })
+        const finalResponse = await stream.finalResponse()
+        disposable.dispose()
+        for (const item of finalResponse.output) {
+            if (item.type === 'function_call' && !reportedToolCalls.has(item.call_id)) {
+                this.reportToolCall(item, progress)
+            }
+        }
+        if (aggregatedContent) {
+            debugObj('Responses reply: ', aggregatedContent, this.extension.outputChannel)
+        } else if (finalResponse.output_text) {
+            debugObj('Responses reply: ', finalResponse.output_text, this.extension.outputChannel)
+        }
+    }
+
+    private async createResponsesNonStream(
+        openai: OpenAI,
+        params: ResponseCreateParams,
+        progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>
+    ) {
+        const nonStreamingParams = { ...params, stream: false } satisfies ResponseCreateParamsNonStreaming
+        const response = await openai.responses.create(nonStreamingParams)
+        this.processResponsesOutput(response, progress)
+        if (response.output_text) {
+            debugObj('Responses reply: ', response.output_text, this.extension.outputChannel)
+        }
+    }
+
+    private processResponsesOutput(
+        response: Response,
+        progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>
+    ) {
+        if (response.output_text) {
+            this.reportContent(response.output_text, progress)
+        } else {
+            for (const item of response.output) {
+                if (item.type === 'message') {
+                    for (const content of item.content) {
+                        if (content.type === 'output_text' && content.text) {
+                            this.reportContent(content.text, progress)
+                        }
+                    }
+                }
+            }
+        }
+        for (const item of response.output) {
+            if (item.type === 'function_call') {
+                this.reportToolCall(item, progress)
+            }
         }
     }
 
@@ -200,11 +346,16 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
-    private reportToolCall(toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function, progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>) {
+    private reportToolCall(
+        toolCall:
+        | OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function
+        | ResponseFunctionToolCall,
+        progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>
+    ) {
         if (toolCall.name === undefined || toolCall.arguments === undefined) {
             return
         }
-        const callId = this.generateCallId()
+        const callId = 'call_id' in toolCall && toolCall.call_id ? toolCall.call_id : this.generateCallId()
         let args: object
         try {
             if (toolCall.arguments === '') {
