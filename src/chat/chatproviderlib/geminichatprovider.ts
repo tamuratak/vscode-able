@@ -115,7 +115,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                 }
             }
         } : {}
-        this.extension.outputChannel.debug('Gemini (with Able) messages:\n' + await renderMessages(messages))
+       debugObj('Gemini (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
             {
                 model: model.id,
