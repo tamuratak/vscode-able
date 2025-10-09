@@ -121,13 +121,13 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }))
         const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools && tools.length > 0 ? 'auto' : undefined)
         const hasTools = tools && tools.length > 0
-        const baseParams = {
+        const baseParams: OpenAI.Responses.ResponseCreateParams = {
             model: model.family,
             input: responseInput,
             ...(hasTools ? { tools } : {}),
-            ...(toolChoice ? { tool_choice: toolChoice } : {}),
+            ...(hasTools && toolChoice ? { tool_choice: toolChoice } : {}),
             ...(model.options?.reasoningEffort ? { reasoning: { effort: model.options.reasoningEffort } } : {})
-        } satisfies OpenAI.Responses.ResponseCreateParams
+        }
         if (this.supported.stream) {
             await this.createResponsesStream(openai, baseParams, progress, token)
         } else {
@@ -155,7 +155,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             allReasoning += event.delta
             progress.report(new vscode.ChatResponseThinkingProgressPart(event.delta))
         })
-        stream.on('response.output_item.done', event => {
+        stream.on('response.output_item.done', (event) => {
             const item = event.item
             if (item.type === 'function_call') {
                 const toolCall: OpenAI.Responses.ResponseFunctionToolCall = {
@@ -191,18 +191,13 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             }
         }))
         const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools ? 'auto' : undefined)
+        const hasTools = tools && tools.length > 0
         const params: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
             model: model.family,
-            messages: chatMessages
-        }
-        if (tools && tools.length > 0) {
-            params.tools = tools
-            if (toolChoice) {
-                params.tool_choice = toolChoice
-            }
-        }
-        if (model.options?.reasoningEffort) {
-            params.reasoning_effort = model.options.reasoningEffort
+            messages: chatMessages,
+            ...(hasTools ? { tools } : {}),
+            ...(hasTools && toolChoice ? { tool_choice: toolChoice } : {}),
+            ...(model.options?.reasoningEffort ? { reasoning_effort: model.options.reasoningEffort } : {})
         }
         if (this.supported.stream) {
             await this.createStream(openai, params, progress, token)
