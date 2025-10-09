@@ -46,7 +46,10 @@ export class Converter {
                     content
                 } satisfies OpenAI.Chat.ChatCompletionToolMessageParam)
             } else if (part instanceof vscode.LanguageModelDataPart) {
-                if (part.mimeType.startsWith('image/') && message.role !== LanguageModelChatMessageRole.Assistant) {
+                if (message.role === LanguageModelChatMessageRole.Assistant) {
+                    continue
+                }
+                if (part.mimeType.startsWith('image/')) {
                     result.push({
                         role: 'user',
                         content: [{
@@ -57,8 +60,16 @@ export class Converter {
                         }]
                     })
                 } else {
-                    // TODO: support other data parts
-                    this.extension.outputChannel.info(`Skipping LanguageModelDataPart with mimeType ${part.mimeType}`)
+                    result.push({
+                        role: 'user',
+                        content: [{
+                            type: 'file',
+                            file: {
+                                file_data: Buffer.from(part.data).toString('base64'),
+                            }
+                        }]
+                    })
+
                 }
             } else {
                 // TODO: LanguageModelThinkingPart case
@@ -128,12 +139,26 @@ export class Converter {
                     }
                     messageContent.push(imageItem)
                 } else {
-                    this.extension.outputChannel.info(`Skipping LanguageModelDataPart with mimeType ${part.mimeType}`)
+                    const fileItem: OpenAI.Responses.ResponseInputFile = {
+                        type: 'input_file',
+                        file_data: Buffer.from(part.data).toString('base64')
+                    }
+                    messageContent.push(fileItem)
                 }
-            } else {
-                // Thinking parts and others aren't represented in Responses input
-                part satisfies vscode.LanguageModelThinkingPart
-                this.extension.outputChannel.info('Skipping LanguageModelThinkingPart')
+            } else if (part instanceof vscode.LanguageModelThinkingPart) {
+                const summary: OpenAI.Responses.ResponseReasoningItem.Summary[] = typeof part.value === 'string' ? [{
+                    type: 'summary_text',
+                    text: part.value
+                }] : part.value.map(v => ({
+                    type: 'summary_text',
+                    text: v
+                }))
+                const thinkingItem: OpenAI.Responses.ResponseReasoningItem = {
+                    type: 'reasoning',
+                    id: part.id ?? '',
+                    summary
+                }
+                input.push(thinkingItem)
             }
         }
 
