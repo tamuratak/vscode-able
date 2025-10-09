@@ -99,21 +99,19 @@ export class Converter {
         message: LanguageModelChatMessage | vscode.LanguageModelChatMessage2
     ): Promise<OpenAI.Responses.ResponseInputItem[]> {
         const input: OpenAI.Responses.ResponseInput = []
-        // Map vscode role -> Responses role. LanguageModelChatMessageRole.Assistant
-        // isn't supported as an input role, map it to 'developer' as a best-effort.
-        const role: 'user' | 'system' | 'developer' =
-            message.role === LanguageModelChatMessageRole.System
-                ? 'system'
-                : message.role === LanguageModelChatMessageRole.User
-                    ? 'user'
-                    : 'developer'
+        const role =
+            message.role === LanguageModelChatMessageRole.Assistant
+                ? 'assistant'
+                : message.role === LanguageModelChatMessageRole.System
+                    ? 'developer'
+                    : 'user'
         for (const part of message.content) {
             if (part instanceof LanguageModelTextPart) {
                 input.push({
                     type: 'message',
                     role,
                     content: [{ type: 'input_text', text: part.value }],
-                } satisfies OpenAI.Responses.ResponseInputItem.Message)
+                } satisfies OpenAI.Responses.EasyInputMessage)
             } else if (part instanceof LanguageModelToolCallPart) {
                 input.push({
                     type: 'function_call',
@@ -140,7 +138,7 @@ export class Converter {
                             detail: 'auto',
                             image_url: `data:${part.mimeType};base64,${Buffer.from(part.data).toString('base64')}`,
                         }]
-                    } satisfies OpenAI.Responses.ResponseInputItem.Message)
+                    } satisfies OpenAI.Responses.EasyInputMessage)
                 } else {
                     input.push({
                         type: 'message',
@@ -149,7 +147,7 @@ export class Converter {
                             type: 'input_file',
                             file_data: Buffer.from(part.data).toString('base64')
                         }]
-                    })
+                    } satisfies OpenAI.Responses.EasyInputMessage)
                 }
             } else if (part instanceof vscode.LanguageModelThinkingPart) {
                 const summary: OpenAI.Responses.ResponseReasoningItem.Summary[] = typeof part.value === 'string' ? [{
