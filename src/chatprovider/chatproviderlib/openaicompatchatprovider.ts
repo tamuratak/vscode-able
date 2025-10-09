@@ -7,7 +7,7 @@ import { debugObj } from '../../utils/debug.js'
 import { tokenLength } from './openaicompatchatproviderlib/tokencount.js'
 import { Converter } from './openaicompatchatproviderlib/converter.js'
 import { inspectReadable } from '../../utils/inspect.js'
-import { renderMessages } from '../utils/renderer.js'
+import { renderMessages } from '../../utils/renderer.js'
 
 
 export interface ModelInformation extends LanguageModelChatInformation {

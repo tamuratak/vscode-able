@@ -6,7 +6,7 @@ import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresultrendering.js'
 import { getValidator, initValidators } from './toolcallargvalidator.js'
 import { debugObj } from '../../utils/debug.js'
-import { renderMessages } from '../utils/renderer.js'
+import { renderMessages } from '../../utils/renderer.js'
 
 
 type GeminiChatInformation = LanguageModelChatInformation & {

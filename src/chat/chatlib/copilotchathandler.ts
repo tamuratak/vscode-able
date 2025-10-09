@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import type { ToolCallResultPair, ToolCallResultRoundProps } from '../prompt.js'
 import { BasePromptElementProps, type PromptElementCtor, renderPrompt } from '@vscode/prompt-tsx'
 import { AbleTool, convertToToolCall, getLmTools } from './toolutils.js'
-import { renderMessages } from '../utils/renderer.js'
+import { renderMessages } from '../../utils/renderer.js'
 import { debugObj } from '../../utils/debug.js'
 
 

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelTextPart, LanguageModelToolCallPart } from 'vscode'
-import { renderToolResultPart } from '../../utils/toolresultrendering.js'
+import { renderToolResultPart } from './toolresultrendering.js'
 
 
 export async function renderMessages(
