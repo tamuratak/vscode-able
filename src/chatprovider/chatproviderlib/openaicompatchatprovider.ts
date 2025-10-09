@@ -151,10 +151,6 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             allContent += event.delta
             this.reportContent(event.delta, progress)
         })
-        stream.on('response.reasoning_text.delta', (event) => {
-            allReasoning += event.delta
-            progress.report(new vscode.ChatResponseThinkingProgressPart(event.delta))
-        })
         stream.on('response.output_item.done', (event) => {
             const item = event.item
             if (item.type === 'function_call') {
@@ -165,6 +161,10 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                     arguments: item.arguments
                 }
                 this.reportToolCall(toolCall, progress)
+            } else if (item.type === 'reasoning') {
+                const summaryArray = item.summary.map(s => s.text)
+                allReasoning += summaryArray.join(' ')
+                progress.report(new vscode.ChatResponseThinkingProgressPart(summaryArray, item.id))
             }
         })
         await stream.finalResponse()
