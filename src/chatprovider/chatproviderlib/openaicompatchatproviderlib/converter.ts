@@ -78,18 +78,11 @@ export class Converter {
             }
         }
         if (message.role === LanguageModelChatMessageRole.Assistant) {
-            if (toolCalls.length > 0) {
-                return [{
-                    role: 'assistant',
-                    content: assistantContent,
-                    tool_calls: toolCalls
-                }] satisfies OpenAI.Chat.ChatCompletionAssistantMessageParam[]
-            } else {
-                return [{
-                    role: 'assistant',
-                    content: assistantContent
-                }] satisfies OpenAI.Chat.ChatCompletionAssistantMessageParam[]
-            }
+            return [{
+                role: 'assistant',
+                content: assistantContent,
+                ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {})
+            }] satisfies OpenAI.Chat.ChatCompletionAssistantMessageParam[]
         } else {
             return result
         }
