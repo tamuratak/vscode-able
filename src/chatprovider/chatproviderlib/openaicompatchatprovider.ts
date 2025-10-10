@@ -168,8 +168,11 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
                 progress.report(new vscode.ChatResponseThinkingProgressPart(summaryArray, item.id))
             }
         })
-        await stream.finalResponse()
-        disposable.dispose()
+        try {
+            await stream.finalResponse()
+        } finally {
+            disposable.dispose()
+        }
         debugObj('Chat reply: ', allReasoning + '\n\n' + allContent, this.extension.outputChannel)
     }
 
@@ -225,8 +228,11 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             debugObj('ToolCall: ', toolCall, this.extension.outputChannel)
             this.reportToolCall(toolCall, progress)
         })
-        await stream.finalChatCompletion()
-        disposable.dispose()
+        try {
+            await stream.finalChatCompletion()
+        } finally {
+            disposable.dispose()
+        }
         debugObj('Chat reply: ', allContent, this.extension.outputChannel)
     }
 
