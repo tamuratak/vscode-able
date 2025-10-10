@@ -124,7 +124,7 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
                 maxInputTokens: 131072,
                 maxOutputTokens: 32766,
                 name: 'GPT OSS 120b',
-                tooltip: 'GPT OSS 120b',
+                tooltip: 'GPT OSS 120b provided by Groq',
                 capabilities: {
                     toolCalling: true
                 },
@@ -139,7 +139,7 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
                 maxInputTokens: 131072,
                 maxOutputTokens: 32766,
                 name: 'GPT OSS 120b (high)',
-                tooltip: 'GPT OSS 120b (high)',
+                tooltip: 'GPT OSS 120b (high) provided by Groq',
                 capabilities: {
                     toolCalling: true
                 },
