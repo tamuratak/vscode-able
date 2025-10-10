@@ -110,7 +110,7 @@ export class Converter {
                 input.push({
                     type: 'message',
                     role,
-                    content: [{ type: 'input_text', text: part.value }],
+                    content: part.value,
                 } satisfies OpenAI.Responses.EasyInputMessage)
             } else if (part instanceof LanguageModelToolCallPart) {
                 input.push({
