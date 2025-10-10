@@ -96,6 +96,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         const openai = this.createClient(apiKey)
         initValidators(options.tools)
         debugObj('OpenAI Compat (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
+        debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
         if (this.supported.response) {
             await this.responsesApiCall(openai, model, messages, options, progress, token)
         } else {
@@ -111,7 +112,8 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ) {
-        const responseInput: OpenAI.Responses.ResponseInput = (await Promise.all(messages.map(async message => this.converter.toResponseCreateParams(message)))).flat()
+        const responseInput: OpenAI.Responses.ResponseInput
+            = (await Promise.all(messages.map(async message => this.converter.toResponseCreateParams(message)))).flat()
         const tools: OpenAI.Responses.Tool[] | undefined = options.tools?.map(tool => ({
             type: 'function',
             name: tool.name,
@@ -142,7 +144,6 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         token: CancellationToken
     ) {
         const streamingParams = { ...params, stream: true } satisfies OpenAI.Responses.ResponseCreateParamsStreaming
-        debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
         const stream = openai.responses.stream(streamingParams)
         let allReasoning = ''
         let allContent = ''
@@ -213,8 +214,6 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         token: CancellationToken
     ) {
         const newParams = { ...params, stream: true } satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
-        debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
-        // debugObj('Chat params: ', newParams, this.extension.outputChannel)
         const stream = openai.chat.completions.stream(newParams)
         let allContent = ''
         const disposable = token.onCancellationRequested(() => stream.controller.abort())
@@ -265,9 +264,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     }
 
     private reportToolCall(
-        toolCall:
-            | OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function
-            | OpenAI.Responses.ResponseFunctionToolCall,
+        toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function | OpenAI.Responses.ResponseFunctionToolCall,
         progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>
     ) {
         if (toolCall.name === undefined || toolCall.arguments === undefined) {
