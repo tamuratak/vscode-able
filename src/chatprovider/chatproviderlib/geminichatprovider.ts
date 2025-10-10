@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatMessage, LanguageModelChatMessageRole, ProvideLanguageModelChatResponseOptions, Progress, LanguageModelTextPart, LanguageModelDataPart, LanguageModelChatInformation, LanguageModelChatProvider, LanguageModelToolCallPart } from 'vscode'
-import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, GenerateContentConfig, FunctionCallingConfigMode, FunctionCall } from '@google/genai'
+import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, GenerateContentConfig, FunctionCallingConfigMode, FunctionCall, FunctionDeclaration } from '@google/genai'
 import { GeminiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresultrendering.js'
@@ -99,7 +99,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
         initValidators(options.tools)
         const contents: Content[] = await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToContent(m)))
 
-        const functionDeclarations = options.tools && options.tools.length > 0 ? options.tools.map(t => {
+        const functionDeclarations: FunctionDeclaration[] | undefined = options.tools && options.tools.length > 0 ? options.tools.map(t => {
             return {
                 name: t.name,
                 description: t.description,
@@ -115,7 +115,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                 }
             }
         } : {}
-       debugObj('Gemini (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
+        debugObj('Gemini (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
             {
                 model: model.id,
