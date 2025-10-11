@@ -212,10 +212,25 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                 }
                 parts.push({ functionResponse })
             } else if (part instanceof vscode.LanguageModelDataPart) {
+                const mimeType = part.mimeType ?? ''
+                const allowed = new Set([
+                    'image/png',
+                    'image/jpeg',
+                    'image/jpg',
+                    'application/pdf',
+                    'text/html',
+                    'application/json'
+                ])
+                const lower = mimeType.toLowerCase()
+                const isAllowed = allowed.has(lower) || lower.endsWith('+json')
+                if (!isAllowed) {
+                    this.extension.outputChannel.error(`Unsupported mimeType in LanguageModelDataPart: ${mimeType}`)
+                    continue
+                }
                 parts.push({
                     inlineData: {
                         data: Buffer.from(part.data).toString('base64'),
-                        mimeType: part.mimeType
+                        mimeType
                     }
                 })
             } else if (part instanceof vscode.LanguageModelThinkingPart) {
