@@ -2,6 +2,7 @@ import * as vscode from 'vscode'
 import { LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelTextPart, LanguageModelToolCallPart } from 'vscode'
 import OpenAI from 'openai'
 import { renderToolResult } from '../../../utils/toolresultrendering.js'
+import { isSupportedMimeType } from '../mime.js'
 
 
 export class Converter {
@@ -50,7 +51,13 @@ export class Converter {
                 if (message.role === LanguageModelChatMessageRole.Assistant) {
                     continue
                 }
-                if (part.mimeType.startsWith('image/')) {
+                const mimeType = part.mimeType
+                const isAllowed = isSupportedMimeType(mimeType)
+                if (!isAllowed) {
+                    this.extension.outputChannel.error(`Unsupported mimeType in LanguageModelDataPart: ${mimeType}`)
+                    continue
+                }
+                if (mimeType.startsWith('image/')) {
                     result.push({
                         role: 'user',
                         content: [{
@@ -124,14 +131,20 @@ export class Converter {
                     output,
                 } satisfies OpenAI.Responses.ResponseInputItem.FunctionCallOutput)
             } else if (part instanceof vscode.LanguageModelDataPart) {
-                if (part.mimeType.startsWith('image/')) {
+                const mimeType = part.mimeType
+                const isAllowed = isSupportedMimeType(mimeType)
+                if (!isAllowed) {
+                    this.extension.outputChannel.error(`Unsupported mimeType in LanguageModelDataPart: ${mimeType}`)
+                    continue
+                }
+                if (mimeType.startsWith('image/')) {
                     input.push({
                         type: 'message',
                         role,
                         content: [{
                             type: 'input_image',
                             detail: 'auto',
-                            image_url: `data:${part.mimeType};base64,${Buffer.from(part.data).toString('base64')}`,
+                            image_url: `data:${mimeType};base64,${Buffer.from(part.data).toString('base64')}`,
                         }]
                     } satisfies OpenAI.Responses.EasyInputMessage)
                 } else {
