@@ -36,7 +36,8 @@ export class Converter {
                         arguments: JSON.stringify(part.input)
                     }
                 })
-            } else if ((part instanceof vscode.LanguageModelToolResultPart2) || (part instanceof vscode.LanguageModelToolResultPart)) {
+            } else if (part instanceof vscode.LanguageModelToolResultPart2 || part instanceof vscode.LanguageModelToolResultPart) {
+                // TODO: an element of part contents is LanguageModelDataPart case
                 const contents = part.content.filter(c => c instanceof LanguageModelTextPart || c instanceof vscode.LanguageModelPromptTsxPart)
                 const toolResult = new vscode.LanguageModelToolResult(contents)
                 const content = await renderToolResult(toolResult)
@@ -112,7 +113,8 @@ export class Converter {
                     arguments: JSON.stringify(part.input),
                     call_id: part.callId,
                 } satisfies OpenAI.Responses.ResponseFunctionToolCall)
-            } else if ((part instanceof vscode.LanguageModelToolResultPart2) || (part instanceof vscode.LanguageModelToolResultPart)) {
+            } else if (part instanceof vscode.LanguageModelToolResultPart2 || part instanceof vscode.LanguageModelToolResultPart) {
+                // TODO: an element of part contents is LanguageModelDataPart case
                 const contents = part.content.filter(c => c instanceof LanguageModelTextPart || c instanceof vscode.LanguageModelPromptTsxPart)
                 const toolResult = new vscode.LanguageModelToolResult(contents)
                 const output = await renderToolResult(toolResult)
