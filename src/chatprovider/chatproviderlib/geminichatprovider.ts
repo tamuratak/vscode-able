@@ -218,10 +218,15 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                         mimeType: part.mimeType
                     }
                 })
+            } else if (part instanceof vscode.LanguageModelThinkingPart) {
+                if (part.id) {
+                    parts.push({
+                        thought: true,
+                        thoughtSignature: part.id
+                    })
+                }
             } else {
-                // TODO: LanguageModelThinkingPart case
-                part satisfies vscode.LanguageModelThinkingPart
-                this.extension.outputChannel.info('Skipping LanguageModelThinkingPart')
+                part satisfies never
             }
         }
         return {

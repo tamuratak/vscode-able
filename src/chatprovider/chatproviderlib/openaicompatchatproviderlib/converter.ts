@@ -143,18 +143,18 @@ export class Converter {
                     } satisfies OpenAI.Responses.EasyInputMessage)
                 }
             } else if (part instanceof vscode.LanguageModelThinkingPart) {
-                const summary: OpenAI.Responses.ResponseReasoningItem.Summary[] = typeof part.value === 'string' ? [{
-                    type: 'summary_text',
-                    text: part.value
-                }] : part.value.map(v => ({
-                    type: 'summary_text',
-                    text: v
-                }))
-                input.push({
-                    type: 'reasoning',
-                    id: part.id ?? '',
-                    summary
-                } satisfies OpenAI.Responses.ResponseReasoningItem)
+                if (part.id) {
+                    const summaryText = typeof part.value === 'string' ? part.value : part.value.join('\n')
+                    const summary: OpenAI.Responses.ResponseReasoningItem.Summary[] = [{
+                        type: 'summary_text',
+                        text: summaryText
+                    }]
+                    input.push({
+                        type: 'reasoning',
+                        id: part.id,
+                        summary
+                    } satisfies OpenAI.Responses.ResponseReasoningItem)
+                }
             }
         }
         return input
