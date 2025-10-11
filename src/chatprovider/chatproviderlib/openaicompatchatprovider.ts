@@ -7,7 +7,7 @@ import { debugObj } from '../../utils/debug.js'
 import { tokenLength } from './openaicompatchatproviderlib/tokencount.js'
 import { Converter } from './openaicompatchatproviderlib/converter.js'
 import { inspectReadable } from '../../utils/inspect.js'
-import { renderMessages } from '../utils/renderer.js'
+import { renderMessages } from '../../utils/renderer.js'
 
 
 export interface ModelInformation extends LanguageModelChatInformation {
@@ -95,7 +95,95 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         const apiKey = session.accessToken
         const openai = this.createClient(apiKey)
         initValidators(options.tools)
-        this.extension.outputChannel.debug('messages:\n' + await renderMessages(messages))
+        debugObj('OpenAI Compat (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
+        debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
+        if (this.supported.response) {
+            await this.responsesApiCall(openai, model, messages, options, progress, token)
+        } else {
+            await this.completionsApiCall(openai, model, messages, options, progress, token)
+        }
+    }
+
+    private async responsesApiCall(
+        openai: OpenAI,
+        model: ModelInformation,
+        messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
+        options: vscode.ProvideLanguageModelChatResponseOptions,
+        progress: Progress<LanguageModelResponsePart2>,
+        token: CancellationToken
+    ) {
+        const responseInput: OpenAI.Responses.ResponseInput
+            = (await Promise.all(messages.map(async message => this.converter.toResponseCreateParams(message)))).flat()
+        const tools: OpenAI.Responses.Tool[] | undefined = options.tools?.map(tool => ({
+            type: 'function',
+            name: tool.name,
+            description: tool.description ?? null,
+            parameters: tool.inputSchema ? tool.inputSchema as Record<string, unknown> : null,
+            strict: true
+        }))
+        const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools && tools.length > 0 ? 'auto' : undefined)
+        const hasTools = tools && tools.length > 0
+        const baseParams: OpenAI.Responses.ResponseCreateParams = {
+            model: model.family,
+            input: responseInput,
+            ...(hasTools ? { tools } : {}),
+            ...(hasTools && toolChoice ? { tool_choice: toolChoice } : {}),
+            ...(model.options?.reasoningEffort ? { reasoning: { effort: model.options.reasoningEffort } } : {})
+        }
+        if (this.supported.stream) {
+            await this.createResponsesStream(openai, baseParams, progress, token)
+        } else {
+            throw new Error('Non-streaming responses are not supported yet')
+        }
+    }
+
+    private async createResponsesStream(
+        openai: OpenAI,
+        params: OpenAI.Responses.ResponseCreateParams,
+        progress: Progress<LanguageModelResponsePart2>,
+        token: CancellationToken
+    ) {
+        const streamingParams = { ...params, stream: true } satisfies OpenAI.Responses.ResponseCreateParamsStreaming
+        const stream = openai.responses.stream(streamingParams)
+        let allReasoning = ''
+        let allContent = ''
+        const disposable = token.onCancellationRequested(() => stream.abort())
+        stream.on('response.output_text.delta', (event) => {
+            allContent += event.delta
+            this.reportContent(event.delta, progress)
+        })
+        stream.on('response.output_item.done', (event) => {
+            const item = event.item
+            if (item.type === 'function_call') {
+                const toolCall: OpenAI.Responses.ResponseFunctionToolCall = {
+                    type: 'function_call',
+                    call_id: item.call_id,
+                    name: item.name,
+                    arguments: item.arguments
+                }
+                this.reportToolCall(toolCall, progress)
+            } else if (item.type === 'reasoning') {
+                const summaryArray = item.summary.map(s => s.text)
+                allReasoning += summaryArray.join(' ')
+                progress.report(new vscode.ChatResponseThinkingProgressPart(summaryArray, item.id))
+            }
+        })
+        try {
+            await stream.finalResponse()
+        } finally {
+            disposable.dispose()
+        }
+        debugObj('Chat reply: ', allReasoning + '\n\n' + allContent, this.extension.outputChannel)
+    }
+
+    private async completionsApiCall(
+        openai: OpenAI,
+        model: ModelInformation,
+        messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
+        options: vscode.ProvideLanguageModelChatResponseOptions,
+        progress: Progress<LanguageModelResponsePart2>,
+        token: CancellationToken
+    ) {
         const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[]
             = (await Promise.all(messages.map(m => this.converter.toChatCompletionMessageParam(m)))).flat()
         const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = options.tools?.map(t => ({
@@ -107,18 +195,13 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             }
         }))
         const toolChoice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : (tools ? 'auto' : undefined)
+        const hasTools = tools && tools.length > 0
         const params: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
             model: model.family,
-            messages: chatMessages
-        }
-        if (tools && tools.length > 0) {
-            params.tools = tools
-            if (toolChoice) {
-                params.tool_choice = toolChoice
-            }
-        }
-        if (model.options?.reasoningEffort) {
-            params.reasoning_effort = model.options.reasoningEffort
+            messages: chatMessages,
+            ...(hasTools ? { tools } : {}),
+            ...(hasTools && toolChoice ? { tool_choice: toolChoice } : {}),
+            ...(model.options?.reasoningEffort ? { reasoning_effort: model.options.reasoningEffort } : {})
         }
         if (this.supported.stream) {
             await this.createStream(openai, params, progress, token)
@@ -134,8 +217,6 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         token: CancellationToken
     ) {
         const newParams = { ...params, stream: true } satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
-        debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
-        // debugObj('Chat params: ', newParams, this.extension.outputChannel)
         const stream = openai.chat.completions.stream(newParams)
         let allContent = ''
         const disposable = token.onCancellationRequested(() => stream.controller.abort())
@@ -147,8 +228,11 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
             debugObj('ToolCall: ', toolCall, this.extension.outputChannel)
             this.reportToolCall(toolCall, progress)
         })
-        await stream.finalChatCompletion()
-        disposable.dispose()
+        try {
+            await stream.finalChatCompletion()
+        } finally {
+            disposable.dispose()
+        }
         debugObj('Chat reply: ', allContent, this.extension.outputChannel)
     }
 
@@ -185,11 +269,14 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         }
     }
 
-    private reportToolCall(toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function, progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>) {
+    private reportToolCall(
+        toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall.Function | OpenAI.Responses.ResponseFunctionToolCall,
+        progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>
+    ) {
         if (toolCall.name === undefined || toolCall.arguments === undefined) {
             return
         }
-        const callId = this.generateCallId()
+        const callId = 'call_id' in toolCall && toolCall.call_id ? toolCall.call_id : this.generateCallId()
         let args: object
         try {
             if (toolCall.arguments === '') {

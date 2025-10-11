@@ -1,12 +1,12 @@
 import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatMessage, LanguageModelChatMessageRole, ProvideLanguageModelChatResponseOptions, Progress, LanguageModelTextPart, LanguageModelDataPart, LanguageModelChatInformation, LanguageModelChatProvider, LanguageModelToolCallPart } from 'vscode'
-import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, GenerateContentConfig, FunctionCallingConfigMode, FunctionCall } from '@google/genai'
+import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, GenerateContentConfig, FunctionCallingConfigMode, FunctionCall, FunctionDeclaration } from '@google/genai'
 import { GeminiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
 import { renderToolResult } from '../../utils/toolresultrendering.js'
 import { getValidator, initValidators } from './toolcallargvalidator.js'
 import { debugObj } from '../../utils/debug.js'
-import { renderMessages } from '../utils/renderer.js'
+import { renderMessages } from '../../utils/renderer.js'
 
 
 type GeminiChatInformation = LanguageModelChatInformation & {
@@ -97,10 +97,9 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
         const apiKey = session.accessToken
         const ai = new GoogleGenAI({ apiKey })
         initValidators(options.tools)
-        this.extension.outputChannel.debug('messages:\n' + await renderMessages(messages))
         const contents: Content[] = await Promise.all(messages.map(m => this.convertLanguageModelChatMessageToContent(m)))
 
-        const functionDeclarations = options.tools && options.tools.length > 0 ? options.tools.map(t => {
+        const functionDeclarations: FunctionDeclaration[] | undefined = options.tools && options.tools.length > 0 ? options.tools.map(t => {
             return {
                 name: t.name,
                 description: t.description,
@@ -116,15 +115,19 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                 }
             }
         } : {}
-
-        debugObj('Gemini chat request: ', { model: model.id, contents }, this.extension.outputChannel)
+        debugObj('Gemini (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
         const result: AsyncGenerator<GenerateContentResponse> = await ai.models.generateContentStream(
             {
                 model: model.id,
                 contents,
                 config
             }
-        )
+        ).catch(e => {
+            if (e instanceof Error) {
+                this.extension.outputChannel.error(e, { model: model.id, contents, config })
+            }
+            throw e
+        })
         let allContent = ''
         for await (const chunk of result) {
             debugObj('Gemini chat response chunk: ', { text: chunk.text, functionCalls: chunk.functionCalls }, this.extension.outputChannel)
@@ -215,10 +218,15 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                         mimeType: part.mimeType
                     }
                 })
+            } else if (part instanceof vscode.LanguageModelThinkingPart) {
+                if (part.id) {
+                    parts.push({
+                        thought: true,
+                        thoughtSignature: part.id
+                    })
+                }
             } else {
-                // TODO: LanguageModelThinkingPart case
-                part satisfies vscode.LanguageModelThinkingPart
-                this.extension.outputChannel.info('Skipping LanguageModelThinkingPart')
+                part satisfies never
             }
         }
         return {
