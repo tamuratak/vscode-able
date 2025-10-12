@@ -9,7 +9,7 @@ export class OpenAIChatProvider extends OpenAICompatChatProvider {
     readonly apiBaseUrl = undefined
     readonly supported = {
         stream: true,
-        response: true,
+        responses: true,
         file: true
     }
 
@@ -111,7 +111,7 @@ export class GroqChatProvider extends OpenAICompatChatProvider {
     readonly apiBaseUrl = 'https://api.groq.com/openai/v1'
     readonly supported = {
         stream: true,
-        response: false,
+        responses: false,
         file: false
     }
 

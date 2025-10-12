@@ -20,9 +20,9 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     abstract readonly serviceName: string
     abstract readonly apiBaseUrl: string | undefined
     abstract readonly supported: {
-        stream?: boolean | undefined
-        response?: boolean | undefined
-        file?: boolean | undefined
+        stream: boolean | undefined
+        responses: boolean | undefined
+        file: boolean | undefined
     }
     private readonly converter: Converter
 
@@ -33,11 +33,18 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
     ) {
         this.converter = new Converter(extension)
         setTimeout(() => this.extension.outputChannel.info(this.serviceName + ': OpenAICompatChatProvider initialized'), 0)
+        setTimeout(() => this.checkSupportedApi(), 0)
     }
 
     abstract get authServiceId(): string
     abstract get aiModelIds(): ModelInformation[]
     abstract get categoryLabel(): string
+
+    private checkSupportedApi() {
+        if (this.supported.responses && !this.supported.stream) {
+            this.extension.outputChannel.warn(`${this.serviceName}: Responses API without streaming is not supported`)
+        }
+    }
 
     private generateCallId(): string {
         return 'call_' + getNonce(16)
@@ -97,7 +104,7 @@ export abstract class OpenAICompatChatProvider implements LanguageModelChatProvi
         initValidators(options.tools)
         debugObj('OpenAI Compat (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
         debugObj('apiBaseUrl: ', this.apiBaseUrl, this.extension.outputChannel)
-        if (this.supported.response) {
+        if (this.supported.responses) {
             await this.responsesApiCall(openai, model, messages, options, progress, token)
         } else {
             await this.completionsApiCall(openai, model, messages, options, progress, token)
