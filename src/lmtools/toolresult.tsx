@@ -1,6 +1,4 @@
 import { BasePromptElementProps, PromptElement, PromptPiece, TextChunk } from '@vscode/prompt-tsx'
-import { DefinitionMetadata } from './annotation.js'
-import { Tag } from '../utils/tag.js'
 
 
 interface CommandResultPromptProps extends BasePromptElementProps {
@@ -32,25 +30,6 @@ export class CommandResultPrompt extends PromptElement<CommandResultPromptProps>
                     {this.props.signal}
                 </TextChunk>
             </>
-        )
-    }
-}
-
-interface TypeDefinitionProps extends BasePromptElementProps {
-    definitionMetadata: DefinitionMetadata
-}
-
-export class TypeDefinitionTag extends PromptElement<TypeDefinitionProps> {
-    render(): PromptPiece {
-        return (
-            <Tag name='typedefinition' attrs={{
-                typename: this.props.definitionMetadata.name,
-                filePath: this.props.definitionMetadata.filePath,
-                startLine: this.props.definitionMetadata.startLine,
-                endLine: this.props.definitionMetadata.endLine
-            }}>
-                {this.props.definitionMetadata.definitionText ?? '[fail to retrieve definition]'}
-            </Tag>
         )
     }
 }

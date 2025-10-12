@@ -8,7 +8,6 @@ import { GeminiApiKeyAuthenticationProvider, GroqApiKeyAuthenticationProvider, O
 import { GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chatprovider/chatprovider.js'
 import { WebSearchTool } from './lmtools/websearch.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
-import { AnnotationTool, annotationToolName } from './lmtools/annotation.js'
 import { renderToolResult } from './utils/toolresultrendering.js'
 import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwebpage.js'
 
@@ -84,7 +83,6 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove(extension)),
         vscode.lm.registerTool('able_web_search', new WebSearchTool(extension)),
         vscode.lm.registerTool('able_run_in_sandbox', new RunInSandbox(extension)),
-        vscode.lm.registerTool(annotationToolName, new AnnotationTool(extension)),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()
     )
