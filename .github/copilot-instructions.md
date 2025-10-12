@@ -24,4 +24,3 @@ Please refer to the following instructions only when generating the code. Ignore
 - Never use `as unknown` or assertions that assert to `unknown`
 - Never define function parameters or callbacks with type `unknown`
 - Always use explicit union types or constrained generics instead of `unknown`
-- When a TypeScript type-related error occurs, call the `able_annotation` tool with {"filePath":"<abs path>","code":"<small code fragment including the error and ~2 lines of context>"}; do not call it for pure syntax errors, missing-module errors, or lint-only issues. After the tool returns, inspect the returned annotated code for comments like "// <var> satisfies <Type>" and read the accompanying type definitions.

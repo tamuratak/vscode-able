@@ -111,34 +111,4 @@ async function doSomething(extension: Extension) {
             extension.outputChannel.error(`[doSomething]: error: ${JSON.stringify([e.message, e.stack], null, 2)}`)
         }
     }
-
-    const activeDocument = vscode.window.activeTextEditor?.document
-    if (!activeDocument) {
-        return
-    }
-    const range = vscode.window.activeTextEditor?.selection
-    if (!range) {
-        return
-    }
-    const code = activeDocument.getText(range)
-    //    const result = await extractDeclarationsFromUriCode(activeDocument.uri, code)
-    //    extension.outputChannel.debug(`[doSomething]: result: ${JSON.stringify(result, null, 2)}`)
-    const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', activeDocument.uri)
-    extension.outputChannel.info(`[doSomething]: symbols: ${JSON.stringify(symbols, null, 2)}`)
-    try {
-        const result = await vscode.lm.invokeTool('able_annotation', {
-            toolInvocationToken: undefined,
-            input: {
-                filePath: activeDocument.uri.fsPath,
-                code
-            }
-        })
-        const ret = await renderToolResult(result)
-        extension.outputChannel.info(`[doSomething]: result:\n ${ret}`)
-    } catch (e) {
-        if (e instanceof Error) {
-            extension.outputChannel.error(`[doSomething]: error: ${JSON.stringify([e.message, e.stack], null, 2)}`)
-        }
-    }
-
 }
