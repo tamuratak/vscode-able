@@ -4,9 +4,9 @@ Comments in code are English; test file checks common API behaviours.
 */
 
 import assert from 'node:assert/strict'
-import fs from 'fs'
-import os from 'os'
-import path from 'path'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { DuckDBInstance } from '@duckdb/node-api'
 
 suite('duckdb API smoke tests', () => {
