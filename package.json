@@ -407,7 +407,6 @@
     "lint": "sandbox-exec.js -c -- eslint --cache .",
     "lint:fix": "sandbox-exec.js -c -- eslint --fix --cache .",
     "release": "npm run clean && npm run lint && npm run build && vsce package",
-    "test": "mocha --require source-map-support/register --ui tdd out/test/unittest/**/*.js",
     "test:witsandbox": "sandbox-exec.js -c -- mocha --require source-map-support/register --ui tdd out/test/unittest/**/*.js",
     "test:witsandbox:json": "sandbox-exec.js -c -- mocha --require source-map-support/register --reporter json --ui tdd out/test/unittest/**/*.js",
     "test:vscode": "node ./out/test/runvscodetest.js",
