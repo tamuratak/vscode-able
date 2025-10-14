@@ -3,7 +3,6 @@ DuckDB API exploratory tests.
 Comments in code are English; test file checks common API behaviours.
 */
 
-/* eslint-disable @typescript-eslint/no-floating-promises */
 import assert from 'node:assert/strict'
 import fs from 'fs'
 import os from 'os'
@@ -17,10 +16,28 @@ suite('duckdb API smoke tests', () => {
         const instance = await DuckDBInstance.create(dbPath)
         const conn = await instance.connect()
         try {
-            // Run a very simple SELECT query.
-            // SQL explanation: `SELECT 1 AS a` selects the literal number 1
-            // and gives it the column name `a`. This returns a single row
-            // with one column named `a` whose value is 1.
+            // Run a very simple SELECT query that does not read any table.
+            // SQL explanation: `SELECT 1 AS a` evaluates the literal value 1
+            // and returns it as a column named `a`. Because this SELECT
+            // has no FROM clause, it does not read any table; it simply
+            // returns a single row containing the evaluated expression.
+            //
+            // Key point for beginners: a query can compute expressions
+            // (literals, math, function calls) and return them as rows
+            // even when no table data exists.
+            //
+            // Note for readers unfamiliar with SQL:
+            // - A SQL query does not always have to read from a table. You can
+            //     select literal expressions directly. For example, `SELECT 1 AS a`
+            //     evaluates the expression `1` and returns it as a single-column,
+            //     single-row result with column name `a`.
+            //
+            //     This is useful for quick checks and for queries that compute
+            //     expressions without needing stored data. Many databases (DuckDB,
+            //     PostgreSQL, SQLite) support SELECT without FROM. Historically,
+            //     Oracle used a dummy table `DUAL` for this purpose, but the effect
+            //     is the same: the database evaluates the expressions and returns
+            //     a row containing their values.
             const result = await conn.run('SELECT 1 AS a')
             const rows = await result.getRowObjectsJS()
             assert.equal(Array.isArray(rows), true)
