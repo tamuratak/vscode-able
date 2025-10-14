@@ -379,6 +379,7 @@
     "@microsoft/tiktokenizer": "1.0.10",
     "@vscode/prompt-tsx": "0.4.0-alpha.5",
     "ajv": "8.17.1",
+    "@duckdb/node-api": "1.4.1-r.1",
     "openai": "6.2.0",
     "playwright": "1.56.1",
     "workerpool": "9.3.4"
