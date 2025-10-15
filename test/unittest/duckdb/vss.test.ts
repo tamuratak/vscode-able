@@ -4,7 +4,7 @@ DuckDB VSS extension example test.
 This test demonstrates a minimal end-to-end example of using the
 vss (Vector Similarity Search) extension with DuckDB. It's intended
 for beginners who want to see the typical steps required to perform
-a nearest-neighbour search using an HNSW index:
+    a nearest-neighbour search using an HNSW (Hierarchical Navigable Small Worlds) index:
 
     1. Create a DuckDB instance (file-backed temporary DB)
     2. Load (or INSTALL then LOAD) the `vss` extension
@@ -47,12 +47,13 @@ suite('duckdb vss extension example', () => {
             // Create a table with a fixed-size FLOAT array column named `vec`.
             // Each row stores a 3-dimensional vector. Fixed-size arrays
             // communicate the dimensionality to DuckDB which is required
-            // for the vss HNSW index construction.
+            // for the vss HNSW (Hierarchical Navigable Small Worlds) index construction.
             //
             // Insert a few example vectors to form a tiny dataset we can
             // run a nearest-neighbour query against.
             //
             // Create an HNSW index on `vec`. Once the index exists,
+            // Create an HNSW (Hierarchical Navigable Small Worlds) index on `vec`. Once the index exists,
             // queries that use ORDER BY array_distance(vec, <const_vector>)
             // followed by LIMIT will be able to use the index to find
             // approximate nearest neighbours efficiently.
