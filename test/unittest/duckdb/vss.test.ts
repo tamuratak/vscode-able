@@ -67,7 +67,7 @@ suite('duckdb vss extension example', () => {
             const res = await conn.run('SELECT vec FROM my_vector_table ORDER BY array_distance(vec, [1,2,3]::FLOAT[3]) LIMIT 3')
             const rows = await res.getRowObjectsJS()
             assert.equal(rows.length, 3)
-            const first = rows[0] as Record<string, unknown>
+            const first = rows[0]
             // Expect the nearest vector to be [1,2,3]
             assert.deepEqual(first['vec'], [1, 2, 3])
         } finally {
@@ -105,7 +105,7 @@ suite('duckdb vss extension example', () => {
             const res = await conn.run('SELECT txt, vec FROM my_vector_text ORDER BY array_distance(vec, [1,2,3]::FLOAT[3]) LIMIT 1')
             const rows = await res.getRowObjectsJS()
             assert.equal(rows.length, 1)
-            const txt = (rows[0] as Record<string, unknown>)['txt']
+            const txt = rows[0]['txt']
             assert.equal(txt, 'first')
         } finally {
             try { conn.closeSync() } catch { }
