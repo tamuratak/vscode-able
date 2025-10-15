@@ -23,5 +23,5 @@ Use the following rules when generating code; ignore them in plan mode.
 - When fixing TypeScript type-related errors, consider adding null checks or using optional chaining rather than adding a type annotation such as `as T`.
 - Use undefined instead of null for optional properties.
 - Never use `as unknown` or assertions that assert to `unknown`
-- Never define function parameters or callbacks with type `unknown`
+- Never define function parameters or callbacks with type `unknown` or `any`
 - Always use explicit union types or constrained generics instead of `unknown`
