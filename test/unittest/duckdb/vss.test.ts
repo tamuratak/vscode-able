@@ -76,4 +76,41 @@ suite('duckdb vss extension example', () => {
             fs.rmSync(tmp, { recursive: true, force: true })
         }
     })
+
+    test('store and retrieve text payload with vector search', async () => {
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'duckdb-'))
+        const dbPath = path.join(tmp, 'vss-text.db')
+        const instance = await DuckDBInstance.create(dbPath)
+        const conn = await instance.connect()
+        try {
+            // Load or install the vss extension for this test as well.
+            try {
+                await conn.run('LOAD vss')
+            } catch {
+                try {
+                    await conn.run('INSTALL vss')
+                    await conn.run('LOAD vss')
+                } catch {
+                    // Extension not available in this environment — exit early
+                    return
+                }
+            }
+
+            // Create a table that stores a vector and a text payload side-by-side.
+            await conn.run('CREATE TABLE my_vector_text (vec FLOAT[3], txt VARCHAR)')
+            await conn.run('INSERT INTO my_vector_text VALUES ([1,2,3]::FLOAT[3], \'first\'), ([2,2,3]::FLOAT[3], \'second\'), ([5,5,5]::FLOAT[3], \'far\')')
+            await conn.run('CREATE INDEX my_hnsw_text_idx ON my_vector_text USING HNSW (vec)')
+
+            // Query the nearest neighbor and return the associated text payload
+            const res = await conn.run('SELECT txt, vec FROM my_vector_text ORDER BY array_distance(vec, [1,2,3]::FLOAT[3]) LIMIT 1')
+            const rows = await res.getRowObjectsJS()
+            assert.equal(rows.length, 1)
+            const txt = (rows[0] as Record<string, unknown>)['txt']
+            assert.equal(txt, 'first')
+        } finally {
+            try { conn.closeSync() } catch { }
+            try { instance.closeSync() } catch { }
+            fs.rmSync(tmp, { recursive: true, force: true })
+        }
+    })
 })
