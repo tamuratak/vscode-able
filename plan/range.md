@@ -1,96 +1,97 @@
-# Selecting non-overlapping ranges ([startoffset, endoffset])
+## Nearest by cosine distance with overlapping-interval deduplication
 
-This note summarizes how to work with rows that carry inclusive ranges [startoffset, endoffset] and how to return results that do not overlap.
+The SQL below returns rows whose embedding vectors are nearest to a given query vector `vec` by cosine distance. If multiple rows have overlapping character ranges `[start_offset, end_offset]`, the query keeps only the single row in each overlapping group that has the smallest cosine distance.
 
-## Overlap and non-overlap tests
+This implementation assumes the following schema exists in DuckDB (adjust names/types as needed):
 
-- Two inclusive intervals a = [a_s, a_e] and b = [b_s, b_e] overlap iff:
-	a_s <= b_e AND b_s <= a_e
-- They are non-overlapping iff:
-	a_e < b_s OR b_e < a_s
+- `embeddings` table with columns: `chunk_id`, `vec` (FLOAT[dim]), `norm` (FLOAT)
+- `chunks` table with columns: `id`, `file_id`, `chunk_index`, `start_offset`, `end_offset`, `text`
 
-Half-open variant [s, e):
-- Overlap: a_s < b_e AND b_s < a_e
-- Non-overlap: a_e <= b_s OR b_e <= a_s
-
-## Practical tips
-
-- Indices: consider adding indexes on (endoffset), (startoffset) or a composite index (endoffset, startoffset) to support the greedy selection efficiently; for the anti-join, (startoffset) and (endoffset) help range checks.
-- Ties: when multiple intervals share the same `endoffset`, add a deterministic tie-breaker (e.g., `ORDER BY endoffset, startoffset, id`).
-- Data hygiene: ensure `startoffset <= endoffset`. If not guaranteed, normalize or filter invalid rows before running the queries.
-
-## DuckDB: notes and examples
-
-The queries above are compatible with DuckDB. Below are DuckDB-specific notes and small examples showing how to run the anti-join, the greedy recursive CTE, and a window-based merge on inclusive `[startoffset, endoffset]` intervals.
-
-- Anti-join (keep rows that do not overlap any other row):
+Replace the placeholders `<dim>`, `[v1,v2,...]::FLOAT[<dim>]`, `:qnorm`, and `:k` with your actual values.
 
 ```sql
--- DuckDB: returns intervals that do not overlap any other interval
-SELECT i.*
-FROM intervals i
-WHERE NOT EXISTS (
-	SELECT 1
-	FROM intervals j
-	WHERE j.id <> i.id
-		AND j.startoffset <= i.endoffset
-		AND i.startoffset <= j.endoffset
-)
-```
+-- Parameters to replace:
+--   [v1,v2,...]::FLOAT[<dim>]  -> the query vector literal
+--   :qnorm                     -> norm (L2 length) of the query vector
+--   :k                         -> max number of final results to return
 
-- Greedy interval scheduling using a recursive CTE (portable and works in DuckDB):
-
-```sql
-WITH RECURSIVE picked AS (
-	-- seed: earliest-finishing interval overall
-	SELECT i.id, i.startoffset, i.endoffset
-	FROM intervals i
-	ORDER BY i.endoffset, i.startoffset, i.id
-	LIMIT 1
-	UNION ALL
-	-- step: pick the earliest-finishing interval that starts after the last finish
-	SELECT i2.id, i2.startoffset, i2.endoffset
-	FROM picked p
-	JOIN intervals i2
-		ON i2.startoffset > p.endoffset  -- strict > for inclusive ranges
-	WHERE i2.endoffset = (
-		SELECT MIN(i3.endoffset)
-		FROM intervals i3
-		WHERE i3.startoffset > p.endoffset
-	)
-)
-SELECT * FROM picked
-```
-
-- Merge overlapping intervals per group using window functions (fast and idiomatic in DuckDB):
-
-```sql
-WITH ordered AS (
-	SELECT *,
-		LAG(endoffset) OVER (PARTITION BY group_id ORDER BY startoffset, endoffset) AS prev_end
-	FROM intervals
+WITH params AS (
+	SELECT [v1,v2,...]::FLOAT[<dim>] AS q, :qnorm AS qnorm
 ),
-flags AS (
-	SELECT *,
-		CASE WHEN prev_end IS NULL OR prev_end < startoffset THEN 1 ELSE 0 END AS new_group
-	FROM ordered
+scored AS (
+	-- compute cosine distance from stored embedding to query vector
+	SELECT
+		e.chunk_id,
+		c.file_id,
+		c.chunk_index,
+		c.start_offset,
+		c.end_offset,
+		c.text,
+		e.norm AS emb_norm,
+		ar.euclid AS euclid_dist,
+		-- dot = (||a||^2 + ||q||^2 - ||a-q||^2) / 2
+		((e.norm * e.norm + params.qnorm * params.qnorm - ar.euclid * ar.euclid) / 2) AS dot,
+		-- cosine distance = 1 - dot / (||a|| * ||q||)
+		(1 - ( ((e.norm * e.norm + params.qnorm * params.qnorm - ar.euclid * ar.euclid) / 2) / (e.norm * params.qnorm) )) AS cos_distance
+	FROM embeddings e
+	JOIN chunks c ON e.chunk_id = c.id
+	CROSS JOIN params
+	CROSS JOIN (
+		SELECT array_distance(e.vec, params.q) AS euclid
+	) AS ar
 ),
-grp AS (
-	SELECT *,
-		SUM(new_group) OVER (PARTITION BY group_id ORDER BY startoffset, endoffset ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS grp_no
-	FROM flags
+edges AS (
+	-- undirected edges between chunks whose [start_offset, end_offset] intervals overlap
+	SELECT a.chunk_id AS a_id, b.chunk_id AS b_id
+	FROM scored a
+	JOIN scored b ON a.chunk_id < b.chunk_id
+		AND a.start_offset < b.end_offset
+		AND b.start_offset < a.end_offset
+),
+groups AS (
+	-- build reachability: seed each node with itself, then expand along edges
+	SELECT chunk_id, chunk_id AS group_id FROM scored
+	UNION
+	SELECT e.b_id AS chunk_id, g.group_id
+	FROM groups g
+	JOIN edges e ON e.a_id = g.chunk_id
+),
+component AS (
+	-- assign the minimal reachable group_id as the component id for each chunk
+	SELECT chunk_id, MIN(group_id) AS component_id
+	FROM groups
+	GROUP BY chunk_id
 )
-SELECT group_id, grp_no, MIN(startoffset) AS startoffset, MAX(endoffset) AS endoffset
-FROM grp
-GROUP BY group_id, grp_no
-ORDER BY group_id, startoffset
+-- for each overlapping component, keep the single row with smallest cosine distance
+SELECT s.chunk_id, s.file_id, s.chunk_index, s.start_offset, s.end_offset, s.text, s.cos_distance
+FROM scored s
+JOIN component comp ON s.chunk_id = comp.chunk_id
+WHERE s.cos_distance = (
+	SELECT MIN(s2.cos_distance)
+	FROM scored s2
+	JOIN component comp2 ON s2.chunk_id = comp2.chunk_id
+	WHERE comp2.component_id = comp.component_id
+)
+ORDER BY s.cos_distance
+LIMIT :k;
 ```
 
-Notes specific to DuckDB
-- DuckDB supports WITH RECURSIVE, LATERAL (using CROSS JOIN LATERAL), window functions, and the standard SQL used above
-- For large datasets, sort orders and partitioning matter; DuckDB is optimized for analytical workloads but consider adding explicit ORDER BY or filtering by group_id before the recursive step
-- If you need deterministic tie-breaking, include `ORDER BY endoffset, startoffset, id` when selecting seeds or using LATERAL
-- Ensure your data follows `startoffset <= endoffset`; if not, normalize with `LEAST`/`GREATEST` or a preprocess step
+Beginner-friendly explanation (English):
 
-If you'd like, I can also add runnable DuckDB examples (CREATE TABLE, INSERT sample rows, and run the queries) to this file or a nearby `examples` file
+- Goal: We want the closest chunks (by cosine distance) to a query vector. However, when two or more chunks come from overlapping character ranges in the original document, we want to return only one representative from that overlapping group to avoid duplicate or redundant results.
+
+- Steps the query performs:
+  1. params: Put the query vector and its norm into a small table so we can reuse them.
+ 2. scored: For every stored embedding, compute the Euclidean distance to the query vector using `array_distance`. From the euclidean distance and the two vector norms we compute the dot product, then compute cosine distance = 1 - (dot / (||a|| * ||q||)). Lower cosine distance means more similar (closer) in angle.
+ 3. edges: Find pairs of chunks whose `[start_offset, end_offset]` intervals overlap. These overlapping pairs are treated as connected in a graph.
+ 4. groups + component: Using the edges, build connected components (groups) of overlapping intervals. Each connected component represents a set of chunks that overlap each other directly or transitively.
+ 5. final SELECT: For each overlapping component, pick the single chunk that has the smallest cosine distance, then order the chosen rows by cosine distance and limit to `:k` results.
+
+- Notes and tips:
+  - You must compute and pass the query vector's L2 norm (:qnorm) from your application. Many vector libraries expose a norm function.
+  - If your embeddings table stores the vector norm in `embeddings.norm`, ensure it contains the L2 length (not squared). If you store squared norms, adapt the math accordingly.
+  - The connected-component logic uses a simple recursive expansion; for very large result sets you may prefer a more scalable approach (like windowing or client-side dedup after a small candidate set).
+  - Replace `array_distance` with your DB's function for Euclidean distance if different.
+
+This file documents the approach and a ready-to-run SQL pattern you can adapt for DuckDB with the vss extension or a compatible setup.
 
