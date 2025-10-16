@@ -31,6 +31,8 @@ CREATE TABLE files (
 );
 
 -- chunks: extracted text chunks with provenance information
+-- Enforce referential integrity: each chunk must reference an existing file
+-- Also enforce that (file_id, chunk_index) is unique to preserve chunk ordering/provenance
 CREATE TABLE chunks (
 	id BIGINT AUTO_INCREMENT,
 	file_id BIGINT NOT NULL,      -- references files.id
@@ -39,20 +41,27 @@ CREATE TABLE chunks (
 	start_offset BIGINT,          -- character offset start in the source text
 	end_offset BIGINT,            -- character offset end in the source text
 	language VARCHAR,             -- optional per-chunk language
-	PRIMARY KEY(id)
+	PRIMARY KEY(id),
+	FOREIGN KEY (file_id) REFERENCES files(id),
+	UNIQUE (file_id, chunk_index)
 );
 
 -- embeddings: fixed-dimension float arrays for vector search
+-- Each embedding row corresponds to exactly one chunk (1:1). Make chunk_id the primary key
+-- and enforce the foreign key to the chunks table for provenance.
 -- replace <dim> with the chosen embedding dimensionality (e.g. 1536)
 CREATE TABLE embeddings (
 	chunk_id BIGINT NOT NULL,     -- references chunks.id
 	vec FLOAT[<dim>],             -- fixed-size float array representing the embedding
 	norm FLOAT,                   -- optional precomputed norm
-	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (chunk_id),
+	FOREIGN KEY (chunk_id) REFERENCES chunks(id)
 );
 
 -- helper indexes
 CREATE INDEX idx_chunks_fileid ON chunks (file_id);
+CREATE INDEX idx_embeddings_chunkid ON embeddings (chunk_id);
 -- HNSW index must be created after loading the vss extension
 -- CREATE INDEX idx_embeddings_hnsw ON embeddings USING HNSW (vec);
 ```
@@ -88,9 +97,10 @@ export function createHnswIndexSql() {
 export async function ensureVssSchema(conn: DuckDBConnection, dim: number) {
 	if (!Number.isInteger(dim) || dim <= 0) throw new TypeError('dim must be a positive integer')
 	await conn.run(`CREATE TABLE files (id BIGINT AUTO_INCREMENT, filepath VARCHAR, filename VARCHAR, mimetype VARCHAR, filesize BIGINT, language VARCHAR, metadata VARCHAR, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(id))`)
-	await conn.run(`CREATE TABLE chunks (id BIGINT AUTO_INCREMENT, file_id BIGINT NOT NULL, chunk_index INTEGER NOT NULL, text VARCHAR, start_offset BIGINT, end_offset BIGINT, language VARCHAR, PRIMARY KEY(id))`)
-	await conn.run(`CREATE TABLE embeddings (chunk_id BIGINT NOT NULL, vec FLOAT[${dim}], norm FLOAT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`) 
+	await conn.run(`CREATE TABLE chunks (id BIGINT AUTO_INCREMENT, file_id BIGINT NOT NULL, chunk_index INTEGER NOT NULL, text VARCHAR, start_offset BIGINT, end_offset BIGINT, language VARCHAR, PRIMARY KEY(id), FOREIGN KEY (file_id) REFERENCES files(id), UNIQUE(file_id, chunk_index))`)
+	await conn.run(`CREATE TABLE embeddings (chunk_id BIGINT NOT NULL, vec FLOAT[${dim}], norm FLOAT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (chunk_id), FOREIGN KEY (chunk_id) REFERENCES chunks(id))`)
 	await conn.run('CREATE INDEX idx_chunks_fileid ON chunks (file_id)')
+	await conn.run('CREATE INDEX idx_embeddings_chunkid ON embeddings (chunk_id)')
 	// Note: run `CREATE INDEX idx_embeddings_hnsw ON embeddings USING HNSW (vec)` after loading vss
 }
 
