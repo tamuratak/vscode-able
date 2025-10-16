@@ -81,7 +81,7 @@ Beginner-friendly explanation (English):
 - Goal: We want the closest chunks (by cosine distance) to a query vector. However, when two or more chunks come from overlapping character ranges in the original document, we want to return only one representative from that overlapping group to avoid duplicate or redundant results.
 
 - Steps the query performs:
-  1. params: Put the query vector and its norm into a small table so we can reuse them.
+ 1. params: Put the query vector and its norm into a small table so we can reuse them.
  2. scored: For every stored embedding, compute the Euclidean distance to the query vector using `array_distance`. From the euclidean distance and the two vector norms we compute the dot product, then compute cosine distance = 1 - (dot / (||a|| * ||q||)). Lower cosine distance means more similar (closer) in angle.
  3. edges: Find pairs of chunks whose `[start_offset, end_offset]` intervals overlap. These overlapping pairs are treated as connected in a graph.
  4. groups + component: Using the edges, build connected components (groups) of overlapping intervals. Each connected component represents a set of chunks that overlap each other directly or transitively.
