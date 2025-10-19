@@ -5,7 +5,6 @@
 
 - All file names should be in lowercase.
 - All file names should not include hyphens, spaces, nor underscores.
-- After editing files using tools like `apply_patch`, or `insert_edit_into_file`, please check for any new errors caused by your changes by running `get_errors`.
 - After editing files, you don't have to run tests. But if you want, please run the `task-test` task using the `run_task` tool.
 
 
