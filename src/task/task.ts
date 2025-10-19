@@ -40,7 +40,7 @@ export class MochaJsonTaskProvider implements vscode.TaskProvider {
                                 debugObj('MochaJsonTaskProvider error', error, this.extension.outputChannel)
                                 throw error
                             } finally {
-                                writeEmitter.fire('Complete.\r\n\r\n')
+                                writeEmitter.fire('\r\nComplete.\r\n\r\n')
                             }
                         })
                     )
@@ -50,7 +50,8 @@ export class MochaJsonTaskProvider implements vscode.TaskProvider {
             newTask.presentationOptions = {
                 reveal: vscode.TaskRevealKind.Never,
                 clear: true,
-                close: false
+                close: false,
+                panel: vscode.TaskPanelKind.Dedicated
             }
             return newTask
         })
