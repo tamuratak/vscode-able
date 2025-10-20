@@ -19,14 +19,14 @@ needed for your application.
 ```sql
 -- files: metadata for original source files
 CREATE TABLE files (
-	id BIGINT AUTO_INCREMENT,
-	filepath VARCHAR,       -- absolute or relative path to the original file
+	id BIGINT,
+	filepath VARCHAR NOT NULL,       -- absolute or relative path to the original file
 	filename VARCHAR,       -- base filename for display
 	mimetype VARCHAR,       -- e.g. application/pdf, text/markdown
 	filesize BIGINT,        -- bytes, nullable if unknown
 	language VARCHAR,       -- detected language code, e.g. 'en' or 'ja'
 	metadata VARCHAR,       -- JSON string with extractor metadata (page counts, title, etc.)
-	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	created_at TIMESTAMP,
 	PRIMARY KEY(id)
 );
 
@@ -34,10 +34,10 @@ CREATE TABLE files (
 -- Enforce referential integrity: each chunk must reference an existing file
 -- Also enforce that (file_id, chunk_index) is unique to preserve chunk ordering/provenance
 CREATE TABLE chunks (
-	id BIGINT AUTO_INCREMENT,
+	id BIGINT,
 	file_id BIGINT NOT NULL,      -- references files.id
 	chunk_index INTEGER NOT NULL, -- ordinal index of chunk within the source
-	text VARCHAR,                 -- extracted text for this chunk
+	text VARCHAR NOT NULL DEFAULT '',                 -- extracted text for this chunk
 	start_offset BIGINT,          -- character offset start in the source text
 	end_offset BIGINT,            -- character offset end in the source text
 	language VARCHAR,             -- optional per-chunk language
@@ -53,8 +53,7 @@ CREATE TABLE chunks (
 CREATE TABLE embeddings (
 	chunk_id BIGINT NOT NULL,     -- references chunks.id
 	vec FLOAT[<dim>],             -- fixed-size float array representing the embedding
-	norm FLOAT,                   -- optional precomputed norm
-	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP,
 	PRIMARY KEY (chunk_id),
 	FOREIGN KEY (chunk_id) REFERENCES chunks(id)
 );
@@ -96,9 +95,9 @@ export function createHnswIndexSql() {
 
 export async function ensureVssSchema(conn: DuckDBConnection, dim: number) {
 	if (!Number.isInteger(dim) || dim <= 0) throw new TypeError('dim must be a positive integer')
-	await conn.run(`CREATE TABLE files (id BIGINT AUTO_INCREMENT, filepath VARCHAR, filename VARCHAR, mimetype VARCHAR, filesize BIGINT, language VARCHAR, metadata VARCHAR, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(id))`)
-	await conn.run(`CREATE TABLE chunks (id BIGINT AUTO_INCREMENT, file_id BIGINT NOT NULL, chunk_index INTEGER NOT NULL, text VARCHAR, start_offset BIGINT, end_offset BIGINT, language VARCHAR, PRIMARY KEY(id), FOREIGN KEY (file_id) REFERENCES files(id), UNIQUE(file_id, chunk_index))`)
-	await conn.run(`CREATE TABLE embeddings (chunk_id BIGINT NOT NULL, vec FLOAT[${dim}], norm FLOAT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (chunk_id), FOREIGN KEY (chunk_id) REFERENCES chunks(id))`)
+	await conn.run(`CREATE TABLE files (id BIGINT, filepath VARCHAR, filename VARCHAR, mimetype VARCHAR, filesize BIGINT, language VARCHAR, metadata VARCHAR, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(id))`)
+	await conn.run(`CREATE TABLE chunks (id BIGINT, file_id BIGINT NOT NULL, chunk_index INTEGER NOT NULL, text VARCHAR, start_offset BIGINT, end_offset BIGINT, language VARCHAR, PRIMARY KEY(id), FOREIGN KEY (file_id) REFERENCES files(id), UNIQUE(file_id, chunk_index))`)
+	await conn.run(`CREATE TABLE embeddings (chunk_id BIGINT NOT NULL, vec FLOAT[${dim}], updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (chunk_id), FOREIGN KEY (chunk_id) REFERENCES chunks(id))`)
 	await conn.run('CREATE INDEX idx_chunks_fileid ON chunks (file_id)')
 	await conn.run('CREATE INDEX idx_embeddings_chunkid ON embeddings (chunk_id)')
 	// Note: run `CREATE INDEX idx_embeddings_hnsw ON embeddings USING HNSW (vec)` after loading vss
