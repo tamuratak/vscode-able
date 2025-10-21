@@ -20,7 +20,7 @@ needed for your application.
 -- files: metadata for original source files
 CREATE TABLE files (
 	id BIGINT PRIMARY KEY,
-	filepath VARCHAR NOT NULL,       -- absolute or relative path to the original file
+	filepath VARCHAR NOT NULL UNIQUE,       -- absolute or relative path to the original file (unique to avoid duplicate imports)
 	filename VARCHAR,       -- base filename for display
 	mimetype VARCHAR,       -- e.g. application/pdf, text/markdown
 	filesize BIGINT,        -- bytes, nullable if unknown
@@ -35,19 +35,23 @@ CREATE TABLE files (
 CREATE TABLE chunks (
 	id BIGINT PRIMARY KEY,
 	file_id BIGINT NOT NULL,      -- references files.id
-	chunk_index BIGINT NOT NULL, -- ordinal index of chunk within the source
+	chunk_index INTEGER NOT NULL, -- ordinal index of chunk within the source
 	text VARCHAR NOT NULL DEFAULT '',                 -- extracted text for this chunk
-	page_number BIGINT,          -- page number in the original file (1-based, nullable)
-	start_offset BIGINT,          -- character offset start in the source text
-	end_offset BIGINT,            -- character offset end in the source text
+	page_number INTEGER,          -- page number in the original file (1-based, nullable)
+	start_offset INTEGER,          -- character offset start in the source text
+	end_offset INTEGER,            -- character offset end in the source text
 	language VARCHAR,             -- optional per-chunk language
 	FOREIGN KEY (file_id) REFERENCES files(id),
-	UNIQUE (file_id, chunk_index)
+	UNIQUE (file_id, chunk_index),
+	-- sanity checks
+	CHECK (chunk_index >= 0),
+	CHECK (page_number IS NULL OR page_number >= 1),
+	CHECK (start_offset IS NULL OR end_offset IS NULL OR start_offset <= end_offset)
 );
 
 CREATE TABLE embeddings (
 	chunk_id BIGINT PRIMARY KEY,     -- references chunks.id
-	vec FLOAT[1536],             -- fixed-size float array representing the embedding
+	vec FLOAT[1536] NOT NULL,             -- fixed-size float array representing the embedding (not null)
 	updated_at TIMESTAMP,
 	FOREIGN KEY (chunk_id) REFERENCES chunks(id)
 );
