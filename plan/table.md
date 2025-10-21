@@ -19,29 +19,27 @@ needed for your application.
 ```sql
 -- files: metadata for original source files
 CREATE TABLE files (
-	id BIGINT,
+	id BIGINT PRIMARY KEY,
 	filepath VARCHAR NOT NULL,       -- absolute or relative path to the original file
 	filename VARCHAR,       -- base filename for display
 	mimetype VARCHAR,       -- e.g. application/pdf, text/markdown
 	filesize BIGINT,        -- bytes, nullable if unknown
 	language VARCHAR,       -- detected language code, e.g. 'en' or 'ja'
 	metadata VARCHAR,       -- JSON string with extractor metadata (page counts, title, etc.)
-	created_at TIMESTAMP,
-	PRIMARY KEY(id)
+	created_at TIMESTAMP
 );
 
 -- chunks: extracted text chunks with provenance information
 -- Enforce referential integrity: each chunk must reference an existing file
 -- Also enforce that (file_id, chunk_index) is unique to preserve chunk ordering/provenance
 CREATE TABLE chunks (
-	id BIGINT,
+	id BIGINT PRIMARY KEY,
 	file_id BIGINT NOT NULL,      -- references files.id
 	chunk_index INTEGER NOT NULL, -- ordinal index of chunk within the source
 	text VARCHAR NOT NULL DEFAULT '',                 -- extracted text for this chunk
 	start_offset BIGINT,          -- character offset start in the source text
 	end_offset BIGINT,            -- character offset end in the source text
 	language VARCHAR,             -- optional per-chunk language
-	PRIMARY KEY(id),
 	FOREIGN KEY (file_id) REFERENCES files(id),
 	UNIQUE (file_id, chunk_index)
 );
@@ -51,10 +49,9 @@ CREATE TABLE chunks (
 -- and enforce the foreign key to the chunks table for provenance.
 -- replace <dim> with the chosen embedding dimensionality (e.g. 1536)
 CREATE TABLE embeddings (
-	chunk_id BIGINT NOT NULL,     -- references chunks.id
+	chunk_id BIGINT PRIMARY KEY,     -- references chunks.id
 	vec FLOAT[<dim>],             -- fixed-size float array representing the embedding
 	updated_at TIMESTAMP,
-	PRIMARY KEY (chunk_id),
 	FOREIGN KEY (chunk_id) REFERENCES chunks(id)
 );
 
@@ -63,6 +60,45 @@ CREATE INDEX idx_chunks_fileid ON chunks (file_id);
 CREATE INDEX idx_embeddings_chunkid ON embeddings (chunk_id);
 -- HNSW index must be created after loading the vss extension
 -- CREATE INDEX idx_embeddings_hnsw ON embeddings USING HNSW (vec);
+```
+
+```sql
+-- Normalized schema: canonical authors reused across files
+CREATE TABLE publishers (
+	id BIGINT PRIMARY KEY,
+	name VARCHAR NOT NULL,
+	metadata VARCHAR,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE authors (
+	id BIGINT PRIMARY KEY,
+	name VARCHAR NOT NULL,
+	orcid VARCHAR,       -- optional
+	metadata VARCHAR,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- join table to preserve ordering and per-file role
+CREATE TABLE file_authors (
+	file_id BIGINT NOT NULL,
+	author_id BIGINT NOT NULL,
+	author_order INTEGER,
+	role VARCHAR,
+	PRIMARY KEY (file_id, author_id),
+	FOREIGN KEY (file_id) REFERENCES files(id),
+	FOREIGN KEY (author_id) REFERENCES authors(id)
+);
+
+-- identifiers for DOI/ISBN/etc. Allows uniqueness per scheme
+CREATE TABLE identifiers (
+	id BIGINT PRIMARY KEY,
+	file_id BIGINT NOT NULL,
+	scheme VARCHAR NOT NULL, -- 'doi','isbn',...
+	value VARCHAR NOT NULL,
+	UNIQUE (scheme, value),
+	FOREIGN KEY (file_id) REFERENCES files(id)
+);
 ```
 
 ## Example queries
