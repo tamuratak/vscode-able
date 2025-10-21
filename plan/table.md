@@ -26,7 +26,7 @@ CREATE TABLE files (
 	filesize BIGINT,        -- bytes, nullable if unknown
 	language VARCHAR,       -- detected language code, e.g. 'en' or 'ja'
 	metadata VARCHAR,       -- JSON string with extractor metadata (page counts, title, etc.)
-	created_at TIMESTAMP
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- chunks: extracted text chunks with provenance information
@@ -45,7 +45,9 @@ CREATE TABLE chunks (
 	UNIQUE (file_id, chunk_index),
 	-- sanity checks
 	CHECK (chunk_index >= 0),
-	CHECK (page_number IS NULL OR page_number >= 1),
+	CHECK (page_number IS NULL OR page_number >= 0),
+	CHECK (start_offset IS NULL OR start_offset >= 0),
+    CHECK (end_offset IS NULL OR end_offset >= 0),
 	CHECK (start_offset IS NULL OR end_offset IS NULL OR start_offset <= end_offset)
 );
 
@@ -60,15 +62,11 @@ CREATE TABLE embedding_models (
 	UNIQUE (name, version)
 );
 
-CREATE INDEX idx_chunks_fileid ON chunks (file_id);
-CREATE INDEX idx_embeddings_chunkid ON embeddings_1536 (chunk_id);
-CREATE INDEX idx_embeddings_modelid ON embeddings_1536 (model_id);
-
 CREATE TABLE embeddings_1536 (
 	chunk_id BIGINT,
 	vec FLOAT[1536] NOT NULL,
 	model_id BIGINT NOT NULL, -- optional link back to embedding_models
-	updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (model_id, chunk_id),
 	FOREIGN KEY (chunk_id) REFERENCES chunks(id),
 	FOREIGN KEY (model_id) REFERENCES embedding_models(id)
@@ -78,11 +76,17 @@ CREATE TABLE embeddings_3072 (
 	chunk_id BIGINT,
 	vec FLOAT[3072] NOT NULL,
 	model_id BIGINT NOT NULL, -- optional link back to embedding_models
-	updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (model_id, chunk_id),
 	FOREIGN KEY (chunk_id) REFERENCES chunks(id),
 	FOREIGN KEY (model_id) REFERENCES embedding_models(id)
 );
+
+CREATE INDEX idx_chunks_fileid ON chunks (file_id);
+CREATE INDEX idx_embeddings1536_chunkid ON embeddings_1536 (chunk_id);
+CREATE INDEX idx_embeddings1536_modelid ON embeddings_1536 (model_id);
+CREATE INDEX idx_embeddings3072_chunkid ON embeddings_3072 (chunk_id);
+CREATE INDEX idx_embeddings3072_modelid ON embeddings_3072 (model_id);
 ```
 
 ```sql
@@ -110,7 +114,8 @@ CREATE TABLE file_authors (
 	role VARCHAR,
 	PRIMARY KEY (file_id, author_id),
 	FOREIGN KEY (file_id) REFERENCES files(id),
-	FOREIGN KEY (author_id) REFERENCES authors(id)
+	FOREIGN KEY (author_id) REFERENCES authors(id),
+	UNIQUE (file_id, author_order)
 );
 
 -- identifiers for DOI/ISBN/etc. Allows uniqueness per scheme
@@ -129,7 +134,7 @@ CREATE TABLE identifiers (
 -- Nearest-neighbour search (k results):
 ```sql
 SELECT f.filename, c.chunk_index, c.text, e.vec
-FROM embeddings e
+FROM embeddings_1536 e
 JOIN chunks c ON e.chunk_id = c.id
 JOIN files f ON c.file_id = f.id
 ORDER BY array_distance(e.vec, [v1,v2,...,v_dim]::FLOAT[<dim>])
