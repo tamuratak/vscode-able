@@ -1,0 +1,2 @@
+- DuckDB does not support ON DELETE CASCADE in foreign key constraints, so please avoid using it.
+- DuckDB does not support AS IDENTITY or AUTO_INCREMENT for auto-incrementing primary keys. Use BIGINT PRIMARY KEY and manage IDs in application code.
