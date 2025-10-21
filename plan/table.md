@@ -60,20 +60,23 @@ CREATE TABLE embedding_models (
 	UNIQUE (name, version)
 );
 
--- helper indexes
 CREATE INDEX idx_chunks_fileid ON chunks (file_id);
 CREATE INDEX idx_embeddings_chunkid ON embeddings_1536 (chunk_id);
 CREATE INDEX idx_embeddings_modelid ON embeddings_1536 (model_id);
--- HNSW index must be created after loading the vss extension and should be created per-model
--- because vectors indexed together must share the same dimensionality and metric
--- Example (per-model):
--- CREATE INDEX idx_embeddings_hnsw_modelX ON embeddings USING HNSW (vec) WHERE model_id = <model_id>;
 
--- Recommended production pattern: separate tables per model dimensionality
--- Example: embeddings_1536 for a 1536-dim model (vec is fixed-length FLOAT[1536])
 CREATE TABLE embeddings_1536 (
 	chunk_id BIGINT,
 	vec FLOAT[1536] NOT NULL,
+	model_id BIGINT NOT NULL, -- optional link back to embedding_models
+	updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (model_id, chunk_id),
+	FOREIGN KEY (chunk_id) REFERENCES chunks(id),
+	FOREIGN KEY (model_id) REFERENCES embedding_models(id)
+);
+
+CREATE TABLE embeddings_3072 (
+	chunk_id BIGINT,
+	vec FLOAT[3072] NOT NULL,
 	model_id BIGINT NOT NULL, -- optional link back to embedding_models
 	updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (model_id, chunk_id),
