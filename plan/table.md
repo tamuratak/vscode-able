@@ -35,8 +35,9 @@ CREATE TABLE files (
 CREATE TABLE chunks (
 	id BIGINT PRIMARY KEY,
 	file_id BIGINT NOT NULL,      -- references files.id
-	chunk_index INTEGER NOT NULL, -- ordinal index of chunk within the source
+	chunk_index BIGINT NOT NULL, -- ordinal index of chunk within the source
 	text VARCHAR NOT NULL DEFAULT '',                 -- extracted text for this chunk
+	page_number BIGINT,          -- page number in the original file (1-based, nullable)
 	start_offset BIGINT,          -- character offset start in the source text
 	end_offset BIGINT,            -- character offset end in the source text
 	language VARCHAR,             -- optional per-chunk language
@@ -44,13 +45,9 @@ CREATE TABLE chunks (
 	UNIQUE (file_id, chunk_index)
 );
 
--- embeddings: fixed-dimension float arrays for vector search
--- Each embedding row corresponds to exactly one chunk (1:1). Make chunk_id the primary key
--- and enforce the foreign key to the chunks table for provenance.
--- replace <dim> with the chosen embedding dimensionality (e.g. 1536)
 CREATE TABLE embeddings (
 	chunk_id BIGINT PRIMARY KEY,     -- references chunks.id
-	vec FLOAT[<dim>],             -- fixed-size float array representing the embedding
+	vec FLOAT[1536],             -- fixed-size float array representing the embedding
 	updated_at TIMESTAMP,
 	FOREIGN KEY (chunk_id) REFERENCES chunks(id)
 );
@@ -117,44 +114,3 @@ LIMIT 5;
 ```sql
 SELECT file_id, COUNT(*) AS chunk_count FROM chunks GROUP BY file_id;
 ```
-
-## TypeScript helper examples
-
-The following helpers are convenience snippets you can include in your codebase.
-
-```ts
-import type { DuckDBConnection } from '@duckdb/node-api'
-
-export function createHnswIndexSql() {
-	return 'CREATE INDEX idx_embeddings_hnsw ON embeddings USING HNSW (vec)'
-}
-
-export async function ensureVssSchema(conn: DuckDBConnection, dim: number) {
-	if (!Number.isInteger(dim) || dim <= 0) throw new TypeError('dim must be a positive integer')
-	await conn.run(`CREATE TABLE files (id BIGINT, filepath VARCHAR, filename VARCHAR, mimetype VARCHAR, filesize BIGINT, language VARCHAR, metadata VARCHAR, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(id))`)
-	await conn.run(`CREATE TABLE chunks (id BIGINT, file_id BIGINT NOT NULL, chunk_index INTEGER NOT NULL, text VARCHAR, start_offset BIGINT, end_offset BIGINT, language VARCHAR, PRIMARY KEY(id), FOREIGN KEY (file_id) REFERENCES files(id), UNIQUE(file_id, chunk_index))`)
-	await conn.run(`CREATE TABLE embeddings (chunk_id BIGINT NOT NULL, vec FLOAT[${dim}], updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (chunk_id), FOREIGN KEY (chunk_id) REFERENCES chunks(id))`)
-	await conn.run('CREATE INDEX idx_chunks_fileid ON chunks (file_id)')
-	await conn.run('CREATE INDEX idx_embeddings_chunkid ON embeddings (chunk_id)')
-	// Note: run `CREATE INDEX idx_embeddings_hnsw ON embeddings USING HNSW (vec)` after loading vss
-}
-
-export function nearestNeighbourSql(dim: number, k: number, vector: number[]) {
-	if (vector.length !== dim) throw new TypeError('vector length mismatch')
-	const literal = `[${vector.join(',')}]::FLOAT[${dim}]`
-	return `SELECT f.filename, c.chunk_index, c.text, e.vec FROM embeddings e JOIN chunks c ON e.chunk_id = c.id JOIN files f ON c.file_id = f.id ORDER BY array_distance(e.vec, ${literal}) LIMIT ${k}`
-}
-```
-
-## Operational notes
-
-- Load the vss extension before creating the HNSW index: `LOAD vss` (or `INSTALL vss; LOAD vss` if not present)
-- Embeddings must have a fixed dimensionality. Enforce `dim` consistency in your ingestion pipeline.
-- For large datasets consider batching inserts and periodically rebuilding or optimizing the HNSW index.
-- Store file contents externally (e.g. object storage) and keep references in `files.filepath`, or add a BLOB column if you prefer embedding file bodies in the DB.
-
----
-
-Use this schema as a starting point and adapt to your application's performance, storage,
-and querying requirements.
-
