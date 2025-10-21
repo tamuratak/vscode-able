@@ -145,3 +145,35 @@ LIMIT 5;
 ```sql
 SELECT file_id, COUNT(*) AS chunk_count FROM chunks GROUP BY file_id;
 ```
+
+```sql
+-- Deletion order when ON DELETE CASCADE is not available (DuckDB)
+-- Remove a file and all dependent rows safely. Perform these steps inside a transaction
+-- to ensure atomicity and to avoid leaving orphan rows if an error occurs.
+-- Replace :file_id with the target file id value.
+-- Step 1: delete embeddings that reference chunks of the file
+BEGIN TRANSACTION;
+
+-- delete from each embedding table (do this for every embeddings_<dim> table you have)
+DELETE FROM embeddings_1536 WHERE chunk_id IN (SELECT id FROM chunks WHERE file_id = :file_id);
+DELETE FROM embeddings_3072 WHERE chunk_id IN (SELECT id FROM chunks WHERE file_id = :file_id);
+
+-- Step 2: delete chunks belonging to the file
+DELETE FROM chunks WHERE file_id = :file_id;
+
+-- Step 3: delete side tables referencing the file (identifiers, file_authors, etc.)
+DELETE FROM identifiers WHERE file_id = :file_id;
+DELETE FROM file_authors WHERE file_id = :file_id;
+
+-- Step 4: finally delete the file row itself
+DELETE FROM files WHERE id = :file_id;
+
+COMMIT;
+
+-- Notes:
+-- * If you have other per-chunk tables (e.g. fts indexes, annotations), delete them in step 1.
+-- * For large numbers of chunks/embeddings, prefer batching (e.g. process chunk ids in
+--   ranges or use temporary table with chunk ids to join-delete) to avoid long-running
+--   IN (...) lists and to reduce transaction memory pressure.
+-- * Always run in a transaction so that a failure rolls back the whole operation.
+```
