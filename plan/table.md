@@ -49,18 +49,42 @@ CREATE TABLE chunks (
 	CHECK (start_offset IS NULL OR end_offset IS NULL OR start_offset <= end_offset)
 );
 
+-- Embedding models catalog: keep model metadata and dimensionality centralized
+CREATE TABLE embedding_models (
+	id BIGINT PRIMARY KEY,
+	name VARCHAR NOT NULL,            -- model name, e.g. "openai-text-embedding-3-small"
+	provider VARCHAR,                 -- provider or framework, e.g. 'openai', 'hf'
+	version VARCHAR,                  -- model version string
+	dim INTEGER NOT NULL,             -- embedding dimensionality
+	model_hash VARCHAR,               -- short fingerprint of model spec/weights
+	metadata VARCHAR,                 -- JSON string with extra params
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE (name, version)
+);
+
+-- embeddings: allow one embedding per (chunk, model). This lets you keep
+-- multiple models and preserve history. model_dim is copied for easy checks.
 CREATE TABLE embeddings (
-	chunk_id BIGINT PRIMARY KEY,     -- references chunks.id
-	vec FLOAT[1536] NOT NULL,             -- fixed-size float array representing the embedding (not null)
+	chunk_id BIGINT NOT NULL,
+	model_id BIGINT NOT NULL,
+	vec FLOAT[] NOT NULL,             -- vector; DB-level check ensures length == model_dim
+	model_dim INTEGER NOT NULL,
 	updated_at TIMESTAMP,
-	FOREIGN KEY (chunk_id) REFERENCES chunks(id)
+	PRIMARY KEY (chunk_id, model_id),
+	FOREIGN KEY (chunk_id) REFERENCES chunks(id),
+	FOREIGN KEY (model_id) REFERENCES embedding_models(id),
+	-- Ensure stored vector length matches declared model_dim. Replace `cardinality` if DB differs.
+	CHECK (length(vec) = model_dim)
 );
 
 -- helper indexes
 CREATE INDEX idx_chunks_fileid ON chunks (file_id);
 CREATE INDEX idx_embeddings_chunkid ON embeddings (chunk_id);
--- HNSW index must be created after loading the vss extension
--- CREATE INDEX idx_embeddings_hnsw ON embeddings USING HNSW (vec);
+CREATE INDEX idx_embeddings_modelid ON embeddings (model_id);
+-- HNSW index must be created after loading the vss extension and should be created per-model
+-- because vectors indexed together must share the same dimensionality and metric
+-- Example (per-model):
+-- CREATE INDEX idx_embeddings_hnsw_modelX ON embeddings USING HNSW (vec) WHERE model_id = <model_id>;
 ```
 
 ```sql
