@@ -130,6 +130,49 @@ CREATE TABLE identifiers (
 	UNIQUE (scheme, value),
 	FOREIGN KEY (file_id) REFERENCES files(id)
 );
+
+-- file_links: record directed links from one file to another (citations, imports, references, etc.)
+-- Each row represents a single link from source_file_id -> target_file_id
+CREATE TABLE file_links (
+	id BIGINT PRIMARY KEY,
+	source_file_id BIGINT NOT NULL,
+	target_file_id BIGINT NOT NULL,
+	link_type VARCHAR,        -- e.g. 'citation','reference','import','includes','backlink'
+	anchor_text VARCHAR,      -- optional excerpt or anchor text used when linking
+	page INTEGER,             -- optional page number in the source where the link appears
+	start_offset INTEGER,     -- optional character offset start in the source
+	end_offset INTEGER,       -- optional character offset end in the source
+	metadata VARCHAR,         -- JSON string for extra metadata (line number, section id, etc.)
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (source_file_id) REFERENCES files(id),
+	FOREIGN KEY (target_file_id) REFERENCES files(id),
+	-- prevent exact duplicate links for the same source/target/type/anchor
+	UNIQUE (source_file_id, target_file_id, link_type, anchor_text)
+);
+
+CREATE INDEX idx_filelinks_source ON file_links (source_file_id);
+CREATE INDEX idx_filelinks_target ON file_links (target_file_id);
+
+-- chunk_links: record links from a specific chunk to a file (for per-chunk references/provenance)
+-- Example uses: a paragraph in file A cites file B, or a chunk contains a URL pointing to another document
+CREATE TABLE chunk_links (
+	id BIGINT PRIMARY KEY,
+	chunk_id BIGINT NOT NULL,      -- references chunks.id
+	target_file_id BIGINT NOT NULL,-- the file this chunk links to
+	link_type VARCHAR,             -- e.g. 'citation','reference','url','seealso'
+	anchor_text VARCHAR,           -- optional excerpt or anchor text used when linking
+	page INTEGER,                  -- optional page in the source chunk where link appears
+	start_offset INTEGER,          -- optional character offset start in the chunk
+	end_offset INTEGER,            -- optional character offset end in the chunk
+	metadata VARCHAR,              -- JSON string for extra metadata (context id, confidence, etc.)
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (chunk_id) REFERENCES chunks(id),
+	FOREIGN KEY (target_file_id) REFERENCES files(id),
+	UNIQUE (chunk_id, target_file_id, link_type, anchor_text)
+);
+
+CREATE INDEX idx_chunklinks_chunk ON chunk_links (chunk_id);
+CREATE INDEX idx_chunklinks_target ON chunk_links (target_file_id);
 ```
 
 ## Example queries
@@ -161,14 +204,15 @@ BEGIN TRANSACTION;
 DELETE FROM embeddings_1536 WHERE chunk_id IN (SELECT id FROM chunks WHERE file_id = :file_id);
 DELETE FROM embeddings_3072 WHERE chunk_id IN (SELECT id FROM chunks WHERE file_id = :file_id);
 
--- Step 2: delete chunks belonging to the file
 DELETE FROM chunks WHERE file_id = :file_id;
 
--- Step 3: delete side tables referencing the file (identifiers, file_authors, etc.)
 DELETE FROM identifiers WHERE file_id = :file_id;
 DELETE FROM file_authors WHERE file_id = :file_id;
+-- delete file-level links where this file is either source or target
+DELETE FROM file_links WHERE source_file_id = :file_id OR target_file_id = :file_id;
+-- delete chunk-level links where the chunks belong to this file or the target is this file
+DELETE FROM chunk_links WHERE chunk_id IN (SELECT id FROM chunks WHERE file_id = :file_id) OR target_file_id = :file_id;
 
--- Step 4: finally delete the file row itself
 DELETE FROM files WHERE id = :file_id;
 
 COMMIT;
