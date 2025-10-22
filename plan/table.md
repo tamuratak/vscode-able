@@ -37,17 +37,20 @@ CREATE TABLE chunks (
 	file_id BIGINT NOT NULL,      -- references files.id
 	chunk_index INTEGER NOT NULL, -- ordinal index of chunk within the source
 	text VARCHAR NOT NULL DEFAULT '',                 -- extracted text for this chunk
-	page_number INTEGER,          -- page number in the original file (1-based, nullable)
-	start_offset INTEGER,          -- character offset start in the source text
-	end_offset INTEGER,            -- character offset end in the source text
+	page_start INTEGER,           -- first page number this chunk appears
+	page_end INTEGER,             -- last page number this chunk appears
+	start_offset INTEGER,         -- character offset start in the source text
+	end_offset INTEGER,           -- character offset end in the source text
 	language VARCHAR,             -- optional per-chunk language
 	FOREIGN KEY (file_id) REFERENCES files(id),
 	UNIQUE (file_id, chunk_index),
 	-- sanity checks
 	CHECK (chunk_index >= 0),
-	CHECK (page_number IS NULL OR page_number >= 0),
+	CHECK (page_start IS NULL OR page_start >= 0),
+	CHECK (page_end IS NULL OR page_end >= 0),
+	CHECK (page_start IS NULL OR page_end IS NULL OR page_start <= page_end),
 	CHECK (start_offset IS NULL OR start_offset >= 0),
-    CHECK (end_offset IS NULL OR end_offset >= 0),
+	CHECK (end_offset IS NULL OR end_offset >= 0),
 	CHECK (start_offset IS NULL OR end_offset IS NULL OR start_offset <= end_offset)
 );
 
