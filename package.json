@@ -380,17 +380,17 @@
     "ajv": "8.17.1",
     "openai": "6.2.0",
     "playwright": "1.56.1",
-    "workerpool": "9.3.4"
+    "workerpool": "10.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "9.37.0",
+    "@eslint/js": "9.39.1",
     "@types/mocha": "10.0.10",
     "@types/node": "~22.15",
     "@types/vscode": "1.106.0",
     "@vscode/dts": "0.4.1",
     "@vscode/test-electron": "2.5.2",
-    "@vscode/vsce": "3.6.2",
-    "eslint": "9.37.0",
+    "@vscode/vsce": "3.7.0",
+    "eslint": "9.39.1",
     "glob": "11.0.1",
     "mocha": "11.1.0",
     "rimraf": "3.0.2",
