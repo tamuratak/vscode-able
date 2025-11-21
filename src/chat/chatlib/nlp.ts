@@ -146,7 +146,9 @@ export function selectProperNounsInEnglish(nameMap: Map<string, string>, text: s
         'OpenAI', 'DeepMind', 'DeepSeek', 'DeepL', 'GitHub', 'VSCode', 'JavaScript', 'TypeScript', 'Python', 'Java', 'Rust', 'Node.js', 'React',
         'Angular', 'Vue.js', 'Deno', 'NPM', 'Yarn', 'Docker', 'Kubernetes',
         'TikTok', 'YouTube', 'Facebook', 'Meta', 'Google', 'Microsoft', 'Apple', 'Amazon', 'Netflix', 'Zoom', 'Spotify', 'Shopify', 'LinkedIn',
-        'Linux', 'Unix', 'Windows', 'Mac', 'Ubuntu', 'Fedora', 'CentOS', 'Debian', 'PostgreSQL', 'MySQL', 'SQLite', 'MongoDB', 'Redis', 'GraphQL'
+        'Linux', 'Unix', 'Windows', 'Mac', 'Ubuntu', 'Fedora', 'CentOS', 'Debian', 'PostgreSQL', 'MySQL', 'SQLite', 'MongoDB', 'Redis', 'GraphQL',
+        'Codex', 'GPT-3', 'GPT-4', 'ChatGPT', 'Bard', 'Gemini', 'Claude',
+        'Markdown'
     ])
     const userDefinedMap = new Map<string, string>([
         ['Iger', 'アイガー']
