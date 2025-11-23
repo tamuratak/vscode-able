@@ -374,7 +374,7 @@
     }
   },
   "dependencies": {
-    "@google/genai": "1.23.0",
+    "@google/genai": "1.30.0",
     "@microsoft/tiktokenizer": "1.0.10",
     "@vscode/prompt-tsx": "0.4.0-alpha.5",
     "ajv": "8.17.1",
