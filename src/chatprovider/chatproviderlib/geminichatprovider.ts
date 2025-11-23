@@ -14,8 +14,6 @@ type GeminiChatInformation = LanguageModelChatInformation & {
     model: Model
 }
 
-const toolCallIdNameMap = new Map<string, string>()
-
 
 export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatInformation> {
     private readonly aiModelIds = [
@@ -25,6 +23,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
         'gemini-2.0-flash',
         'gemma-3-27b-it'
     ]
+    private readonly toolCallIdNameMap = new Map<string, string>()
     private readonly toolCallIdThoughtSignatureMap = new Map<string, string>()
 
     constructor(
@@ -169,7 +168,10 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
             return
         }
         const callId = functionCall.id ?? this.generateCallId()
-        toolCallIdNameMap.set(callId, functionCall.name)
+        this.toolCallIdNameMap.set(callId, functionCall.name)
+        if (thoughtSignature) {
+            this.toolCallIdThoughtSignatureMap.set(callId, thoughtSignature)
+        }
         const validator = getValidator(functionCall.name)
         if (validator === undefined) {
             this.extension.outputChannel.error(`No validator found for tool call: ${functionCall.name}`)
@@ -178,9 +180,6 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
         if (!validator(functionCall.args)) {
             this.extension.outputChannel.error(`Invalid tool call arguments for ${functionCall.name}: ${JSON.stringify(functionCall.args)}`)
             throw new Error(`Invalid tool call arguments for ${functionCall.name}: ${JSON.stringify(functionCall.args)}`)
-        }
-        if (thoughtSignature) {
-            this.toolCallIdThoughtSignatureMap.set(callId, thoughtSignature)
         }
         progress.report(new LanguageModelToolCallPart(callId, functionCall.name, functionCall.args))
     }
@@ -206,7 +205,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
             if (part instanceof LanguageModelTextPart) {
                 parts.push({ text: part.value })
             } else if (part instanceof LanguageModelToolCallPart) {
-                toolCallIdNameMap.set(part.callId, part.name)
+                this.toolCallIdNameMap.set(part.callId, part.name)
                 const thoughtSignature = this.toolCallIdThoughtSignatureMap.get(part.callId)
                 parts.push({
                     functionCall: {
@@ -226,7 +225,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                         output
                     }
                 }
-                const name = toolCallIdNameMap.get(part.callId)
+                const name = this.toolCallIdNameMap.get(part.callId)
                 if (name) {
                     functionResponse.name = name
                 }
