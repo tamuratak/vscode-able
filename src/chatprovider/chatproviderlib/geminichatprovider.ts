@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { CancellationToken, LanguageModelChatMessage, LanguageModelChatMessageRole, ProvideLanguageModelChatResponseOptions, Progress, LanguageModelTextPart, LanguageModelDataPart, LanguageModelChatInformation, LanguageModelChatProvider, LanguageModelToolCallPart } from 'vscode'
+import { CancellationToken, LanguageModelChatMessage, LanguageModelChatMessageRole, ProvideLanguageModelChatResponseOptions, Progress, LanguageModelTextPart, LanguageModelChatInformation, LanguageModelChatProvider, LanguageModelToolCallPart } from 'vscode'
 import { GoogleGenAI, Model, Content, Part, GenerateContentResponse, FunctionResponse, GenerateContentConfig, FunctionCallingConfigMode, FunctionCall, FunctionDeclaration } from '@google/genai'
 import { GeminiAuthServiceId } from '../../auth/authproviders.js'
 import { getNonce } from '../../utils/getnonce.js'
@@ -14,16 +14,17 @@ type GeminiChatInformation = LanguageModelChatInformation & {
     model: Model
 }
 
-const toolCallIdNameMap = new Map<string, string>()
-
 
 export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatInformation> {
     private readonly aiModelIds = [
+        'gemini-3-pro-preview',
         'gemini-2.5-pro',
         'gemini-2.5-flash',
         'gemini-2.0-flash',
         'gemma-3-27b-it'
     ]
+    private readonly toolCallIdNameMap = new Map<string, string>()
+    private readonly toolCallIdThoughtSignatureMap = new Map<string, string>()
 
     constructor(
         private readonly extension: {
@@ -135,37 +136,52 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
             if (token.isCancellationRequested) {
                 break
             }
-            const text = chunk.text
-            if (text && text.length > 0) {
-                allContent += text
-                progress.report(new LanguageModelTextPart(text))
+            const parts = chunk.candidates?.[0].content?.parts
+            if (!parts) {
+                continue
             }
-            const functionCalls = chunk.functionCalls
-            if (functionCalls) {
-                this.reportToolCall(functionCalls, progress)
+            for (const part of parts) {
+                if (part.thought) {
+                    progress.report(new vscode.LanguageModelThinkingPart(
+                        part.text ?? '',
+                        part.thoughtSignature
+                    ))
+                } else if (part.functionCall) {
+                    this.reportToolCall(part.functionCall, progress, part.thoughtSignature)
+                } else {
+                    if (part.text && part.text.length > 0) {
+                        progress.report(new LanguageModelTextPart(part.text))
+                        allContent += part.text
+                    }
+                }
             }
         }
         debugObj('Chat reply: ', allContent, this.extension.outputChannel)
     }
 
-    private reportToolCall(functionCalls: FunctionCall[], progress: Progress<LanguageModelTextPart | LanguageModelToolCallPart | LanguageModelDataPart>) {
-        for (const call of functionCalls) {
-            if (call.name === undefined || call.args === undefined) {
-                continue
-            }
-            const callId = call.id ?? this.generateCallId()
-            toolCallIdNameMap.set(callId, call.name)
-            const validator = getValidator(call.name)
-            if (validator === undefined) {
-                this.extension.outputChannel.error(`No validator found for tool call: ${call.name}`)
-                throw new Error(`No validator found for tool call: ${call.name}`)
-            }
-            if (!validator(call.args)) {
-                this.extension.outputChannel.error(`Invalid tool call arguments for ${call.name}: ${JSON.stringify(call.args)}`)
-                throw new Error(`Invalid tool call arguments for ${call.name}: ${JSON.stringify(call.args)}`)
-            }
-            progress.report(new LanguageModelToolCallPart(callId, call.name, call.args))
+    private reportToolCall(
+        functionCall: FunctionCall,
+        progress: Progress<vscode.LanguageModelResponsePart2>,
+        thoughtSignature: string | undefined
+    ) {
+        if (functionCall.name === undefined || functionCall.args === undefined) {
+            return
         }
+        const callId = functionCall.id ?? this.generateCallId()
+        this.toolCallIdNameMap.set(callId, functionCall.name)
+        if (thoughtSignature) {
+            this.toolCallIdThoughtSignatureMap.set(callId, thoughtSignature)
+        }
+        const validator = getValidator(functionCall.name)
+        if (validator === undefined) {
+            this.extension.outputChannel.error(`No validator found for tool call: ${functionCall.name}`)
+            throw new Error(`No validator found for tool call: ${functionCall.name}`)
+        }
+        if (!validator(functionCall.args)) {
+            this.extension.outputChannel.error(`Invalid tool call arguments for ${functionCall.name}: ${JSON.stringify(functionCall.args)}`)
+            throw new Error(`Invalid tool call arguments for ${functionCall.name}: ${JSON.stringify(functionCall.args)}`)
+        }
+        progress.report(new LanguageModelToolCallPart(callId, functionCall.name, functionCall.args))
     }
 
     async provideTokenCount(model: GeminiChatInformation, text: string | LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<number> {
@@ -189,13 +205,15 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
             if (part instanceof LanguageModelTextPart) {
                 parts.push({ text: part.value })
             } else if (part instanceof LanguageModelToolCallPart) {
-                toolCallIdNameMap.set(part.callId, part.name)
+                this.toolCallIdNameMap.set(part.callId, part.name)
+                const thoughtSignature = this.toolCallIdThoughtSignatureMap.get(part.callId)
                 parts.push({
                     functionCall: {
                         id: part.callId,
                         name: part.name,
                         args: part.input as Record<string, unknown>
-                    }
+                    },
+                    ...(thoughtSignature ? { thoughtSignature } : {})
                 })
             } else if ((part instanceof vscode.LanguageModelToolResultPart2) || (part instanceof vscode.LanguageModelToolResultPart)) {
                 const contents = part.content.filter(c => c instanceof LanguageModelTextPart || c instanceof vscode.LanguageModelPromptTsxPart)
@@ -207,7 +225,7 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                         output
                     }
                 }
-                const name = toolCallIdNameMap.get(part.callId)
+                const name = this.toolCallIdNameMap.get(part.callId)
                 if (name) {
                     functionResponse.name = name
                 }
