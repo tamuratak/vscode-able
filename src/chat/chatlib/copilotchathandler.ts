@@ -60,6 +60,8 @@ export class CopilotChatHandler {
                     responseStr += fragment.value
                 } else if (fragment instanceof vscode.LanguageModelToolCallPart) {
                     toolCalls.push(fragment)
+                } else if (fragment instanceof vscode.LanguageModelThinkingPart) {
+                    stream.thinkingProgress({ text: fragment.value, ...fragment })
                 }
             }
             const toolCallResultPairs: ToolCallResultPair[] = []
