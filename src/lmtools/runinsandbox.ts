@@ -51,34 +51,35 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             throw new Error('[RunInSandbox]: command is empty')
         }
 
-        const rwritableDirs = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? undefined
-        if (!rwritableDirs || rwritableDirs.length === 0) {
+        const workspaceDirs = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? undefined
+        if (!workspaceDirs || workspaceDirs.length === 0) {
             this.extension.outputChannel.error('[RunInSandbox]: no workspace folders')
             throw new Error('[RunInSandbox]: no workspace folders')
         }
+        const denyWriteList = workspaceDirs.map(dir => path.join(dir, '.vscode'))
 
         // Read deny list and allowed read/write list from user settings and validate
-        const userDenyList = this.getConfiguredDenyFileReadDirectories()
+        const userReadDenyList = this.getConfiguredDenyFileReadDirectories()
         const userAllowedRW = this.getConfiguredAllowedReadWriteDirectories()
 
-        if (!userDenyList || userDenyList.length === 0) {
+        if (!userReadDenyList || userReadDenyList.length === 0) {
             this.extension.outputChannel.error('[RunInSandbox]: failed to read user deny directories')
             throw new Error('[RunInSandbox]: failed to read user deny directories')
         }
 
         // Merge workspace writable dirs with user allowed read/write directories (user entries must be absolute)
-        const mergedWritable = [...rwritableDirs]
+        const mergedReadableWritable = [...workspaceDirs]
         if (userAllowedRW && userAllowedRW.length > 0) {
             for (const p of userAllowedRW) {
                 if (typeof p === 'string' && p !== '') {
-                    if (!mergedWritable.includes(p)) {
-                        mergedWritable.push(p)
+                    if (!mergedReadableWritable.includes(p)) {
+                        mergedReadableWritable.push(p)
                     }
                 }
             }
         }
 
-        const { policy, params } = this.buildSeatbeltPolicyAndParams(mergedWritable, userDenyList)
+        const { policy, params } = this.buildSeatbeltPolicyAndParams(mergedReadableWritable, userReadDenyList, denyWriteList)
 
         const args = ['-p', policy, ...params, '--', '/bin/zsh', '-lc', command]
 
@@ -87,12 +88,12 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const stdoutChunks: string[] = []
         const stderrChunks: string[] = []
 
-        debugObj('RunInSandbox args: ', { args, cwd: rwritableDirs[0] }, this.extension.outputChannel)
+        debugObj('RunInSandbox args: ', { args, cwd: workspaceDirs[0] }, this.extension.outputChannel)
         const child = spawn(seatbeltPath, args, {
             stdio: ['ignore', 'pipe', 'pipe'],
             shell: false,
             detached: true,
-            cwd: rwritableDirs[0]
+            cwd: workspaceDirs[0]
         })
 
         // Wire cancellation to kill the whole process group
@@ -138,7 +139,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         ])
     }
 
-    private buildSeatbeltPolicyAndParams(rwritableDirs: string[], userDenyList?: string[]) {
+    private buildSeatbeltPolicyAndParams(rwritableDirs: string[], userReadDenyList: string[], denyWriteList: string[]) {
         for (const dir of rwritableDirs) {
             if (!path.isAbsolute(dir) || dir === '') {
                 throw new Error(`[RunInSandbox]: -w DIR must be an absolute path. Got: ${dir}`)
@@ -212,19 +213,30 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
 )
 `
         // Build deny file-read entries: start with the hardcoded list
-        const denyEntries: string[] = []
+        const denyReadEntries: string[] = []
         // Append user-configured deny entries (validated already by caller)
-        if (userDenyList && userDenyList.length > 0) {
-            for (const p of userDenyList) {
+        if (userReadDenyList && userReadDenyList.length > 0) {
+            for (const p of userReadDenyList) {
                 if (typeof p === 'string' && p !== '') {
-                    denyEntries.push(p)
+                    denyReadEntries.push(p)
                 }
             }
         }
 
-        if (!denyEntries || denyEntries.length === 0) {
+        if (!denyReadEntries || denyReadEntries.length === 0) {
             this.extension.outputChannel.error('[RunInSandbox]: no deny entries configured')
             throw new Error('[RunInSandbox]: no deny entries configured')
+        }
+
+        const allowRwPolicies: string[] = []
+        const allowRwParams: string[] = []
+        for (let i = 0; i < rwritableDirs.length; ++i) {
+            allowRwPolicies.push(`(subpath (param "RWRITABLE_ROOT_${i}"))`)
+            allowRwParams.push(`-DRWRITABLE_ROOT_${i}=${rwritableDirs[i]}`)
+        }
+        let allowReadWritePolicy = ''
+        if (allowRwPolicies.length > 0) {
+            allowReadWritePolicy = `\n(allow file-read*\n${allowRwPolicies.join(' ')}\n)\n(allow file-write*\n${allowRwPolicies.join(' ')}\n)`
         }
 
         // Compose deny file-read block
@@ -232,28 +244,28 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const denyReadParams: string[] = []
         // Build deny policies and params from denyEntries.
         // Each denied path becomes a param DENY_ROOT_i and a subpath policy using that param.
-        for (let i = 0; i < denyEntries.length; ++i) {
+        for (let i = 0; i < denyReadEntries.length; ++i) {
             denyReadPolicies.push(`(subpath (param "DENY_ROOT_${i}"))`)
-            denyReadParams.push(`-DDENY_ROOT_${i}=${denyEntries[i]}`)
+            denyReadParams.push(`-DDENY_ROOT_${i}=${denyReadEntries[i]}`)
         }
         let denyReadPolicy = ''
         if (denyReadPolicies.length > 0) {
             denyReadPolicy = `\n(deny file-read*\n${denyReadPolicies.join(' ')}\n)\n`
         }
 
-        const rwPolicies: string[] = []
-        const rwParams: string[] = []
-        for (let i = 0; i < rwritableDirs.length; ++i) {
-            rwPolicies.push(`(subpath (param "RWRITABLE_ROOT_${i}"))`)
-            rwParams.push(`-DRWRITABLE_ROOT_${i}=${rwritableDirs[i]}`)
+        const denyWritePolicies: string[] = []
+        const denyWriteParams: string[] = []
+        for (let i = 0; i < denyWriteList.length; ++i) {
+            denyWritePolicies.push(`(subpath (param "DENYWRITE_ROOT_${i}"))`)
+            denyWriteParams.push(`-DDENYWRITE_ROOT_${i}=${denyWriteList[i]}`)
         }
-        let readWritePolicy = ''
-        if (rwPolicies.length > 0) {
-            readWritePolicy = `\n(allow file-read*\n${rwPolicies.join(' ')}\n)\n(allow file-write*\n${rwPolicies.join(' ')}\n)`
+        let denyWritePolicy = ''
+        if (denyWritePolicies.length > 0) {
+            denyWritePolicy = `\n(deny file-write*\n${denyWritePolicies.join(' ')}\n)\n`
         }
         // Combine deny params (for denied paths) with rw params (allowed read/write roots)
-        const params = [...denyReadParams, ...rwParams]
-        return { policy: basePolicy + denyReadPolicy + readWritePolicy, params }
+        const params = [...allowRwParams, ...denyReadParams, ...denyWriteParams]
+        return { policy: basePolicy + allowReadWritePolicy + denyReadPolicy + denyWritePolicy, params }
     }
 
     private getConfiguredDenyFileReadDirectories(): string[] | undefined {
