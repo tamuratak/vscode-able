@@ -231,8 +231,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const allowRwPolicies: string[] = []
         const allowRwParams: string[] = []
         for (let i = 0; i < rwritableDirs.length; ++i) {
-            allowRwPolicies.push(`(subpath (param "RWRITABLE_ROOT_${i}"))`)
-            allowRwParams.push(`-DRWRITABLE_ROOT_${i}=${rwritableDirs[i]}`)
+            allowRwPolicies.push(`(subpath (param "ALLOW_RW_ROOT_${i}"))`)
+            allowRwParams.push(`-DALLOW_RW_ROOT_${i}=${rwritableDirs[i]}`)
         }
         let allowReadWritePolicy = ''
         if (allowRwPolicies.length > 0) {
@@ -243,10 +243,10 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const denyReadPolicies: string[] = []
         const denyReadParams: string[] = []
         // Build deny policies and params from denyEntries.
-        // Each denied path becomes a param DENY_ROOT_i and a subpath policy using that param.
+        // Each denied path becomes a param DENY_READ_ROOT_i and a subpath policy using that param.
         for (let i = 0; i < denyReadEntries.length; ++i) {
-            denyReadPolicies.push(`(subpath (param "DENY_ROOT_${i}"))`)
-            denyReadParams.push(`-DDENY_ROOT_${i}=${denyReadEntries[i]}`)
+            denyReadPolicies.push(`(subpath (param "DENY_READ_ROOT_${i}"))`)
+            denyReadParams.push(`-DDENY_READ_ROOT_${i}=${denyReadEntries[i]}`)
         }
         let denyReadPolicy = ''
         if (denyReadPolicies.length > 0) {
@@ -256,8 +256,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const denyWritePolicies: string[] = []
         const denyWriteParams: string[] = []
         for (let i = 0; i < denyWriteList.length; ++i) {
-            denyWritePolicies.push(`(subpath (param "DENYWRITE_ROOT_${i}"))`)
-            denyWriteParams.push(`-DDENYWRITE_ROOT_${i}=${denyWriteList[i]}`)
+            denyWritePolicies.push(`(subpath (param "DENY_WRITE_ROOT_${i}"))`)
+            denyWriteParams.push(`-DDENY_WRITE_ROOT_${i}=${denyWriteList[i]}`)
         }
         let denyWritePolicy = ''
         if (denyWritePolicies.length > 0) {
