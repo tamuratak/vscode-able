@@ -1,6 +1,6 @@
 ---
 description: 'Easy plan mode'
-tools: ['tamuratak.able/fetchwebpage',  'githubRepo', 'problems', 'search', 'usages', 'vscodeAPI', 'tamuratak.able/websearch']
+tools: ['tamuratak.able/fetchwebpage',  'web/githubRepo', 'search/problems', 'search', 'search/usages', 'vscode/vscodeAPI', 'tamuratak.able/websearch']
 ---
 
 # PLAN MODE - Agent Instructions
