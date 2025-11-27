@@ -1,4 +1,5 @@
 import { BasePromptElementProps, PromptElement, PromptPiece, TextChunk } from '@vscode/prompt-tsx'
+import { Tag } from '../utils/tag.js'
 
 
 interface CommandResultPromptProps extends BasePromptElementProps {
@@ -12,24 +13,24 @@ export class CommandResultPrompt extends PromptElement<CommandResultPromptProps>
     render(): PromptPiece {
         return (
             <>
-                <TextChunk breakOn=' '>
-                    ### stdout <br />
-                    {this.props.stdout}
-                </TextChunk>
-                <br /><br />
-                <TextChunk breakOn=' '>
-                    ### stderr <br />
-                    {this.props.stderr}
-                    <br /><br />
-
-                    ### exit code  <br />
+                <Tag name='stdout'>
+                    <TextChunk breakOn=' '>
+                        {this.props.stdout}
+                    </TextChunk>
+                </Tag>
+                <Tag name='stderr'>
+                    <TextChunk breakOn=' '>
+                        {this.props.stderr}
+                    </TextChunk>
+                </Tag>
+                <Tag name='exitCode'>
                     {this.props.exitCode}
-                    <br /><br />
-
-                    ### exit signal <br />
-                    {this.props.signal}
-                </TextChunk>
+                </Tag>
+                <Tag name='exitSignal'>
+                    {this.props.signal ?? ''}
+                </Tag>
             </>
         )
     }
 }
+
