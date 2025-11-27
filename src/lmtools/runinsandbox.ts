@@ -88,12 +88,20 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const stdoutChunks: string[] = []
         const stderrChunks: string[] = []
 
-        debugObj('RunInSandbox args: ', { args, cwd: workspaceDirs[0] }, this.extension.outputChannel)
+        const minimalEnv = {
+            PATH: process.env['PATH'] ?? '/usr/bin:/bin:/usr/sbin:/sbin',
+            LANG: process.env['LANG'] ?? 'C.UTF-8',
+            LC_ALL: process.env['LC_ALL'] ?? 'C.UTF-8',
+            HOME: process.env['HOME'] ?? workspaceDirs[0],
+            TMPDIR: process.env['TMPDIR'] ?? '/tmp'
+        }
+        debugObj('RunInSandbox args: ', { args, cwd: workspaceDirs[0], env: minimalEnv }, this.extension.outputChannel)
         const child = spawn(seatbeltPath, args, {
             stdio: ['ignore', 'pipe', 'pipe'],
             shell: false,
             detached: true,
-            cwd: workspaceDirs[0]
+            cwd: workspaceDirs[0],
+            env: minimalEnv
         })
 
         // Wire cancellation to kill the whole process group
@@ -111,12 +119,12 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             killGroup()
         })
 
-        child.stdout.setEncoding('utf8')
-        child.stdout.on('data', (buf: string) => {
+        child.stdout?.setEncoding('utf8')
+        child.stdout?.on('data', (buf: string) => {
             stdoutChunks.push(buf)
         })
-        child.stderr.setEncoding('utf8')
-        child.stderr.on('data', (buf: string) => {
+        child.stderr?.setEncoding('utf8')
+        child.stderr?.on('data', (buf: string) => {
             stderrChunks.push(buf)
         })
 
@@ -232,7 +240,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const allowRwParams: string[] = []
         for (let i = 0; i < rwritableDirs.length; ++i) {
             allowRwPolicies.push(`(subpath (param "ALLOW_RW_ROOT_${i}"))`)
-            allowRwParams.push(`-DALLOW_RW_ROOT_${i}=${rwritableDirs[i]}`)
+            allowRwParams.push('-D', `ALLOW_RW_ROOT_${i}=${rwritableDirs[i]}`)
         }
         let allowReadWritePolicy = ''
         if (allowRwPolicies.length > 0) {
@@ -246,7 +254,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         // Each denied path becomes a param DENY_READ_ROOT_i and a subpath policy using that param.
         for (let i = 0; i < denyReadEntries.length; ++i) {
             denyReadPolicies.push(`(subpath (param "DENY_READ_ROOT_${i}"))`)
-            denyReadParams.push(`-DDENY_READ_ROOT_${i}=${denyReadEntries[i]}`)
+            denyReadParams.push('-D', `DENY_READ_ROOT_${i}=${denyReadEntries[i]}`)
         }
         let denyReadPolicy = ''
         if (denyReadPolicies.length > 0) {
@@ -257,7 +265,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const denyWriteParams: string[] = []
         for (let i = 0; i < denyWriteList.length; ++i) {
             denyWritePolicies.push(`(subpath (param "DENY_WRITE_ROOT_${i}"))`)
-            denyWriteParams.push(`-DDENY_WRITE_ROOT_${i}=${denyWriteList[i]}`)
+            denyWriteParams.push('-D', `DENY_WRITE_ROOT_${i}=${denyWriteList[i]}`)
         }
         let denyWritePolicy = ''
         if (denyWritePolicies.length > 0) {
