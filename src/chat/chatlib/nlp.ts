@@ -1,6 +1,13 @@
-// English proper noun extractor utilities
-// Comments in English. Main interface: extractProperNouns(text) -> string[]
 
+const multiWords = new Set<string[]>([
+    'New York', 'Los Angeles', 'San Francisco', 'United States', 'United Kingdom', 'South Korea', 'North Korea',
+    'Saudi Arabia',
+].map(s => s.split(/[\s[\]()<>#]+/)))
+
+/**
+ * Extract probable English proper nouns from the input text.
+ * Returns an array of unique proper nouns found in the text.
+ */
 export function extractProperNouns(text: string): string[] {
     if (typeof text !== 'string' || text.trim() === '') {
         return []
@@ -63,10 +70,35 @@ export function extractProperNouns(text: string): string[] {
         'Jan', 'Feb', 'Mar', 'Apr', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ])
 
+
     const result: string[] = []
     const seen = new Set<string>()
 
-    for (const raw of tokens) {
+    for (let i = 0; i < tokens.length; i++) {
+        const raw = tokens[i]
+        // Check for multi-word proper nouns (up to 3 words)
+        let multiWordFound = false
+        let candidate: string | undefined
+        for (const mw of multiWords) {
+            if (mw.length > 1 && i + mw.length - 1 < tokens.length) {
+                candidate = tokens.slice(i, i + mw.length).map(t => trimPunct(t)).join(' ')
+                if (candidate === mw.join(' ')) {
+                    // Found a multi-word proper noun
+                    multiWordFound = true
+                    break
+                }
+            }
+        }
+        if (multiWordFound && candidate) {
+            candidate = stripPossessive(candidate)
+            if (!seen.has(candidate)) {
+                seen.add(candidate)
+                result.push(candidate)
+            }
+            i += candidate.split(' ').length - 1
+            continue
+        }
+
         const tok = trimPunct(raw)
         // strip trailing possessive so "Alice's" -> "Alice"
         const base = stripPossessive(tok)
