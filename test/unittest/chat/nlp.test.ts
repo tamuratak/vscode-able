@@ -15,6 +15,12 @@ suite('nlp.extractProperNouns', () => {
 		assert.deepEqual(res, ['Alice', 'New', 'York', 'City'])
 	})
 
+	test('multi-word proper noun detection', () => {
+		const txt = 'Alice visited New York.'
+		const res = extractProperNouns(txt)
+		assert.deepEqual(res, ['Alice', 'New York'])
+	})
+
 	test('exclude abbreviations and honorifics', () => {
 		const txt = 'Mr. Smith met Dr. Jones. NASA launched a rocket.'
 		const res = extractProperNouns(txt)
