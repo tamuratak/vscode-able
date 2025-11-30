@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert'
-import { extractProperNouns, parseNameMap, checkIfPlural, removePluralForms, countLinesContained } from '../../../src/chat/chatlib/nlp'
+import { extractProperNouns, parseNameMap, selectProperNounsInEnglish, checkIfPlural, removePluralForms, countLinesContained } from '../../../src/chat/chatlib/nlp'
 
 suite('nlp.extractProperNouns', () => {
 
@@ -103,6 +103,28 @@ suite('nlp.parseNameMap', () => {
 		assert.strictEqual(m.get('Alice'), 'アリス2')
 		assert.strictEqual(m.has('NoColonLine'), false)
 		assert.strictEqual(m.has('UnknownLine'), false)
+	})
+
+})
+
+suite('nlp.selectProperNounsInEnglish', () => {
+
+	test('selects and respects English-keep and user-defined map', () => {
+		const nameMap = new Map<string, string>([
+			['Alice', 'アリス'],
+			['OpenAI', 'オープンAI'],
+			['Iger', 'イガー'],
+			['Bob', 'ボブ']
+		])
+		const txt = 'Alice met OpenAI and Iger in Tokyo.'
+		const out = selectProperNounsInEnglish(nameMap, txt)
+		assert.strictEqual(out.get('Alice'), 'アリス')
+		// OpenAI is in the keep-in-English set -> value should be the key
+		assert.strictEqual(out.get('OpenAI'), 'OpenAI')
+		// Iger is in the userDefinedMap -> uses that mapping
+		assert.strictEqual(out.get('Iger'), 'アイガー')
+		// Bob not present in text -> should not be included
+		assert.strictEqual(out.has('Bob'), false)
 	})
 
 })
