@@ -183,7 +183,15 @@ export function selectProperNounsInEnglish(nameMap: Map<string, string>, text: s
         'Markdown'
     ])
     const userDefinedMap = new Map<string, string>([
-        ['Iger', 'アイガー']
+        ['Iger', 'アイガー'],
+        ['New York', 'ニューヨーク'],
+        ['Los Angeles', 'ロサンゼルス'],
+        ['San Francisco', 'サンフランシスコ'],
+        ['United States', 'アメリカ合衆国'],
+        ['United Kingdom', 'イギリス'],
+        ['South Korea', '韓国'],
+        ['North Korea', '北朝鮮'],
+        ['Saudi Arabia', 'サウジアラビア'],
     ])
     const properNounsInText = extractProperNouns(text)
     const properNounsMapInSet = new Set(properNounsInText)

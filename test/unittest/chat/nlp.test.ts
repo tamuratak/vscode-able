@@ -114,15 +114,18 @@ suite('nlp.selectProperNounsInEnglish', () => {
 			['Alice', 'アリス'],
 			['OpenAI', 'オープンAI'],
 			['Iger', 'イガー'],
+			['New York', 'ニューヨーク(旧)'],
 			['Bob', 'ボブ']
 		])
-		const txt = 'Alice met OpenAI and Iger in Tokyo.'
+		const txt = 'Alice visited New York and met OpenAI and Iger in Tokyo.'
 		const out = selectProperNounsInEnglish(nameMap, txt)
 		assert.strictEqual(out.get('Alice'), 'アリス')
 		// OpenAI is in the keep-in-English set -> value should be the key
 		assert.strictEqual(out.get('OpenAI'), 'OpenAI')
 		// Iger is in the userDefinedMap -> uses that mapping
 		assert.strictEqual(out.get('Iger'), 'アイガー')
+		// New York is a multi-word proper noun present in the text and has a userDefined override
+		assert.strictEqual(out.get('New York'), 'ニューヨーク')
 		// Bob not present in text -> should not be included
 		assert.strictEqual(out.has('Bob'), false)
 	})
