@@ -184,6 +184,7 @@ export function selectProperNounsInEnglish(nameMap: Map<string, string>, text: s
     ])
     const userDefinedMap = new Map<string, string>([
         ['Iger', 'アイガー'],
+        ['Acemoglu', 'アセモグル'],
         ['New York', 'ニューヨーク'],
         ['Los Angeles', 'ロサンゼルス'],
         ['San Francisco', 'サンフランシスコ'],
