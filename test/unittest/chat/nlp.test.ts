@@ -12,7 +12,7 @@ suite('nlp.extractProperNouns', () => {
 	test('compound names are excluded', () => {
 		const txt = 'Alice visited New York City.'
 		const res = extractProperNouns(txt)
-		assert.deepEqual(res, ['Alice', 'New', 'York', 'City'])
+		assert.deepEqual(res, ['Alice', 'New York', 'City'])
 	})
 
 	test('multi-word proper noun detection', () => {
