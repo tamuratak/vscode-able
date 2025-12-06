@@ -49,4 +49,12 @@ suite('command parser', () => {
             pipeline: [{ command: 'echo', args: ['final | && end'] }]
         })
     })
+
+    test('argument that is a double-quote character', () => {
+        const parsed = parseCommand('echo \\"')
+        assert.strictEqual(parsed.sequences.length, 1)
+        assert.deepStrictEqual(parsed.sequences[0], {
+            pipeline: [{ command: 'echo', args: ['"'] }]
+        })
+    })
 })

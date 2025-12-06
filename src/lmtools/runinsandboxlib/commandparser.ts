@@ -130,8 +130,14 @@ function trimQuotes(value: string): string {
         const first = trimmed[0]
         const last = trimmed[trimmed.length - 1]
         if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
-            return trimmed.slice(1, -1)
+            const inner = trimmed.slice(1, -1)
+            return unescapeQuotes(inner)
         }
     }
-    return trimmed
+    return unescapeQuotes(trimmed)
+}
+
+function unescapeQuotes(s: string): string {
+    // first replace escaped backslashes, then escaped quotes
+    return s.replace(/\\\\/g, '\\').replace(/\\"/g, '"').replace(/\\'/g, "'")
 }
