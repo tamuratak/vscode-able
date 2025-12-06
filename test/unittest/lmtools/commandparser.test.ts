@@ -73,4 +73,28 @@ suite('command parser', () => {
             pipeline: [{ command: 'echo', args: ["a ' b"] }]
         })
     })
+
+    test('escaped ampersands do not split into sequences', () => {
+        const parsed = parseCommand('echo a \\&\\& b')
+        assert.strictEqual(parsed.sequences.length, 1)
+        assert.deepStrictEqual(parsed.sequences[0], {
+            pipeline: [{ command: 'echo', args: ['a', '\\&\\&', 'b'] }]
+        })
+    })
+
+    test('escaped dollar sign is preserved in argument', () => {
+        const parsed = parseCommand('echo \\$PATH')
+        assert.strictEqual(parsed.sequences.length, 1)
+        assert.deepStrictEqual(parsed.sequences[0], {
+            pipeline: [{ command: 'echo', args: ['\\$PATH'] }]
+        })
+    })
+
+    test('escaped space merges tokens into single argument', () => {
+        const parsed = parseCommand('echo a\\ b c')
+        assert.strictEqual(parsed.sequences.length, 1)
+        assert.deepStrictEqual(parsed.sequences[0], {
+            pipeline: [{ command: 'echo', args: ['a b', 'c'] }]
+        })
+    })
 })

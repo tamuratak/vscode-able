@@ -72,7 +72,7 @@ function splitTopLevel(input: string, delimiter: string): string[] {
             inDouble = !inDouble
         }
 
-        if (!inSingle && !inDouble && input.startsWith(delimiter, index)) {
+        if (!inSingle && !inDouble && input.startsWith(delimiter, index) && !isEscaped(input, index)) {
             parts.push(buffer.trim())
             buffer = ''
             index += delimiter.length
@@ -118,7 +118,7 @@ function tokenizeSegment(segment: string): string[] {
             inDouble = !inDouble
         }
 
-        if (!inSingle && !inDouble && char === ' ') {
+        if (!inSingle && !inDouble && char === ' ' && !escaped) {
             if (buffer.length > 0) {
                 tokens.push(trimQuotes(buffer))
                 buffer = ''
@@ -153,5 +153,9 @@ function trimQuotes(value: string): string {
 
 function unescapeQuotes(s: string): string {
     // first replace escaped backslashes, then escaped quotes
-    return s.replace(/\\\\/g, '\\').replace(/\\"/g, '"').replace(/\\'/g, "'")
+    return s
+        .replace(/\\\\/g, '\\')
+        .replace(/\\ /g, ' ')
+        .replace(/\\"/g, '"')
+        .replace(/\\'/g, "'")
 }
