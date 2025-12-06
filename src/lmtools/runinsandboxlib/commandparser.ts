@@ -64,9 +64,11 @@ function splitTopLevel(input: string, delimiter: string): string[] {
     while (index < input.length) {
         const char = input[index]
 
-        if (char === "'" && !inDouble) {
+        // if the quote is escaped, do not toggle
+        const escaped = isEscaped(input, index)
+        if (char === "'" && !inDouble && !escaped) {
             inSingle = !inSingle
-        } else if (char === '"' && !inSingle) {
+        } else if (char === '"' && !inSingle && !escaped) {
             inDouble = !inDouble
         }
 
@@ -88,6 +90,17 @@ function splitTopLevel(input: string, delimiter: string): string[] {
     return parts.filter((part) => part.length > 0)
 }
 
+function isEscaped(input: string, index: number): boolean {
+    // count consecutive backslashes immediately before index
+    let i = index - 1
+    let count = 0
+    while (i >= 0 && input[i] === '\\') {
+        count += 1
+        i -= 1
+    }
+    return (count % 2) === 1
+}
+
 function tokenizeSegment(segment: string): string[] {
     const tokens: string[] = []
     let buffer = ''
@@ -97,10 +110,11 @@ function tokenizeSegment(segment: string): string[] {
 
     while (index < segment.length) {
         const char = segment[index]
+        const escaped = isEscaped(segment, index)
 
-        if (char === "'" && !inDouble) {
+        if (char === "'" && !inDouble && !escaped) {
             inSingle = !inSingle
-        } else if (char === '"' && !inSingle) {
+        } else if (char === '"' && !inSingle && !escaped) {
             inDouble = !inDouble
         }
 

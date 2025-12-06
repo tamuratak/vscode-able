@@ -57,4 +57,20 @@ suite('command parser', () => {
             pipeline: [{ command: 'echo', args: ['"'] }]
         })
     })
+
+    test('escaped quote inside double quotes', () => {
+        const parsed = parseCommand('echo "a \\" b"')
+        assert.strictEqual(parsed.sequences.length, 1)
+        assert.deepStrictEqual(parsed.sequences[0], {
+            pipeline: [{ command: 'echo', args: ['a " b'] }]
+        })
+    })
+
+    test('escaped single quote inside single quotes', () => {
+        const parsed = parseCommand("echo 'a \\' b'")
+        assert.strictEqual(parsed.sequences.length, 1)
+        assert.deepStrictEqual(parsed.sequences[0], {
+            pipeline: [{ command: 'echo', args: ["a ' b"] }]
+        })
+    })
 })
