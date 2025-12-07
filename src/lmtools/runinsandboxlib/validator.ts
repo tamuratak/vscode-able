@@ -4,11 +4,11 @@ import { parseCommand, ParsedCommand } from './commandparser.js'
 // Check if a command string uses only allowed commands (cd, nl, sed),
 // that no sed invocation includes a filename, and that no unquoted '>' is used.
 // Returns true when the command is allowed under these constraints.
-export function isAllowedCommand(command: string, workspaceRootPath: string): boolean {
+export function isAllowedCommand(command: string, workspaceRootPath: string | undefined): boolean {
 
     const parsed: ParsedCommand = parseCommand(command)
 
-    const allowed = new Set(['cd', 'nl', 'sed'])
+    const allowed = new Set(['cd', 'nl', 'sed', 'grep', 'rg'])
 
     for (const seq of parsed.sequences) {
         for (const cmd of seq.pipeline) {
@@ -44,7 +44,7 @@ export function isAllowedCommand(command: string, workspaceRootPath: string): bo
                 }
                 const target = cmd.args[0]
                 const normalizedPath = path.normalize(target)
-                if (!normalizedPath.startsWith(workspaceRootPath)) {
+                if (!workspaceRootPath || !normalizedPath.startsWith(workspaceRootPath)) {
                     return false
                 }
             }
