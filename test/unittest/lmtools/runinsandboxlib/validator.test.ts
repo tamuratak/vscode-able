@@ -21,4 +21,28 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('shell expansion is disallowed', () => {
+        const cmd = 'grep $(ls -la)'
+        const ok = isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('shell expansion is disallowed', () => {
+        const cmd = 'grep `date`'
+        const ok = isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('shell expansion is disallowed', () => {
+        const cmd = 'grep <(date)'
+        const ok = isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('shell expansion is disallowed', () => {
+        const cmd = 'grep ~/date'
+        const ok = isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
 })

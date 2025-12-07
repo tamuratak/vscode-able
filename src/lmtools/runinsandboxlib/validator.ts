@@ -6,16 +6,14 @@ import { parseCommand, ParsedCommand } from './commandparser.js'
 // Returns true when the command is allowed under these constraints.
 export function isAllowedCommand(command: string, workspaceRootPath: string | undefined): boolean {
 
+    if (/[`()$<>~{}]/.test(command)) {
+        return false
+    }
     const parsed: ParsedCommand = parseCommand(command)
-
     const allowed = new Set(['cd', 'nl', 'sed', 'grep', 'rg'])
 
     for (const seq of parsed.sequences) {
         for (const cmd of seq.pipeline) {
-
-            if (cmd.args.includes('>') || cmd.args.includes('>>')) {
-                return false
-            }
 
             if (cmd.args.find(arg => arg.includes('settings.json'))) {
                 return false
