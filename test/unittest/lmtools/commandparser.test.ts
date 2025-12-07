@@ -5,10 +5,15 @@ import { parseCommand } from '../../../src/lmtools/runinsandboxlib/commandparser
 suite('command parser', () => {
     test('extracts cd target and a simple pipeline', () => {
         const parsed = parseCommand('cd /Users/tamura/src/github/vscode-copilot-chat && ls -la')
-        assert.strictEqual(parsed.sequences.length, 1)
-        assert.deepStrictEqual(parsed.sequences[0], {
-            pipeline: [{ command: 'ls', args: ['-la'] }]
-        })
+        assert.strictEqual(parsed.sequences.length, 2)
+        assert.deepStrictEqual(parsed.sequences, [
+            {
+                pipeline: [{ command: 'cd', args: ['/Users/tamura/src/github/vscode-copilot-chat'] }]
+            },
+            {
+                pipeline: [{ command: 'ls', args: ['-la'] }]
+            }
+        ])
     })
 
     test('supports pipelines joined by pipe characters', () => {
