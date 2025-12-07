@@ -1,11 +1,18 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
-import { validateCommand } from '../../../../src/lmtools/runinsandboxlib/validator.js'
+import { isAllowedCommand } from '../../../../src/lmtools/runinsandboxlib/validator.js'
 
 suite('validator', () => {
     test('allows cd + nl + sed pipeline without file argument', () => {
         const cmd = "cd /Users/tamura/src/github/vscode-copilot-chat && nl -ba src/extension/prompts/node/inline/inlineChatFix3Prompt.tsx | sed -n '60,120p'"
-        const ok = validateCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        const ok = isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
         assert.strictEqual(ok, true)
     })
+
+    test('sed with file argument is disallowed', () => {
+        const cmd = "sed -E -i.bak -e 's/old/new/g' -e '/^#/d' file"
+        const ok = isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
 })
