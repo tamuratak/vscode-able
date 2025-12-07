@@ -12,6 +12,15 @@ export function isAllowedCommand(command: string, workspaceRootPath: string): bo
 
     for (const seq of parsed.sequences) {
         for (const cmd of seq.pipeline) {
+
+            if (cmd.args.includes('>') || cmd.args.includes('>>')) {
+                return false
+            }
+
+            if (cmd.args.find(arg => arg.includes('settings.json'))) {
+                return false
+            }
+
             const name = cmd.command
             if (!allowed.has(name)) {
                 return false
@@ -39,6 +48,7 @@ export function isAllowedCommand(command: string, workspaceRootPath: string): bo
                     return false
                 }
             }
+
         }
     }
 
