@@ -59,6 +59,14 @@ suite('command parser', () => {
         })
     })
 
+    test('line break', () => {
+        const parsed = parseCommand('echo a \n b c')
+        assert.strictEqual(parsed.sequences.length, 1)
+        assert.deepStrictEqual(parsed.sequences[0], {
+            pipeline: [{ command: 'echo', args: ['a', 'b', 'c'] }]
+        })
+    })
+
     test('escaped quote inside double quotes', () => {
         const parsed = parseCommand('echo "a \\" b"')
         assert.strictEqual(parsed.sequences.length, 1)
@@ -96,6 +104,27 @@ suite('command parser', () => {
         assert.strictEqual(parsed.sequences.length, 1)
         assert.deepStrictEqual(parsed.sequences[0], {
             pipeline: [{ command: 'echo', args: ['a b', 'c'] }]
+        })
+    })
+    test('redirect operator is parsed as separate token', () => {
+        const parsed = parseCommand('echo aaa > t.md')
+        assert.strictEqual(parsed.sequences.length, 1)
+        assert.deepStrictEqual(parsed.sequences[0], {
+            pipeline: [{ command: 'echo', args: ['aaa', '>', 't.md'] }]
+        })
+    })
+    test('escaped newline merges tokens into single argument', () => {
+        const parsed = parseCommand('echo a\\\n b c')
+        assert.strictEqual(parsed.sequences.length, 1)
+        assert.deepStrictEqual(parsed.sequences[0], {
+            pipeline: [{ command: 'echo', args: ['a b', 'c'] }]
+        })
+    })
+    test('backslash followed by n is preserved (\\n)', () => {
+        const parsed = parseCommand('echo a\\\\\n b c')
+        assert.strictEqual(parsed.sequences.length, 1)
+        assert.deepStrictEqual(parsed.sequences[0], {
+            pipeline: [{ command: 'echo', args: ['a\\', 'b', 'c'] }]
         })
     })
 })

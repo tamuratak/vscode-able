@@ -91,6 +91,9 @@ function isEscaped(input: string, index: number): boolean {
 }
 
 function tokenizeSegment(segment: string): string[] {
+    // normalize backslash + newline + optional spaces into backslash+space
+    // so that it is handled the same as an escaped space (line continuation)
+    segment = segment.replace(/\\\r?\n[ \t]*/g, '\\ ')
     const tokens: string[] = []
     let buffer = ''
     let inSingle = false
@@ -143,8 +146,10 @@ function trimQuotes(value: string): string {
 function unescapeQuotes(s: string): string {
     // first replace escaped backslashes, then escaped quotes
     return s
-        .replace(/\\\\/g, '\\')
-        .replace(/\\ /g, ' ')
-        .replace(/\\"/g, '"')
-        .replace(/\\'/g, "'")
+    // remove escaped newlines (line continuation)
+    .replace(/\\\n/g, '')
+    .replace(/\\\\/g, '\\')
+    .replace(/\\ /g, ' ')
+    .replace(/\\"/g, '"')
+    .replace(/\\'/g, "'")
 }
