@@ -1,6 +1,6 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
-import { parseCommand } from '../../../src/lmtools/runinsandboxlib/commandparser.js'
+import { parseCommand } from '../../../../src/lmtools/runinsandboxlib/commandparser.js'
 
 suite('command parser', () => {
     test('extracts cd target and a simple pipeline', () => {
