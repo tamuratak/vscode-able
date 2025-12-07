@@ -28,7 +28,7 @@ function insertNewlinesEvery70(input: string | undefined | null): string {
     for (let i = 0; i < input.length; i += 70) {
         chunks.push(input.slice(i, i + 70))
     }
-    return chunks.join('\n')
+    return chunks.join('\\\n')
 }
 
 export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
