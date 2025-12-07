@@ -1,9 +1,10 @@
+import path from 'node:path'
 import { parseCommand, ParsedCommand } from './commandparser.js'
 
 // Check if a command string uses only allowed commands (cd, nl, sed),
 // that no sed invocation includes a filename, and that no unquoted '>' is used.
 // Returns true when the command is allowed under these constraints.
-export function validateCommand(command: string): boolean {
+export function validateCommand(command: string, workspaceRootPath: string): boolean {
 
     const parsed: ParsedCommand = parseCommand(command)
 
@@ -26,6 +27,16 @@ export function validateCommand(command: string): boolean {
                     if (isPotentialFilenameForSed(last)) {
                         return false
                     }
+                }
+            } else if (name === 'cd') {
+                // check that the argument is within the workspace root
+                if (cmd.args.length !== 1) {
+                    return false
+                }
+                const target = cmd.args[0]
+                const normalizedPath = path.normalize(target)
+                if (!normalizedPath.startsWith(workspaceRootPath)) {
+                    return false
                 }
             }
         }

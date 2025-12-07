@@ -5,7 +5,7 @@ import { validateCommand } from '../../../../src/lmtools/runinsandboxlib/validat
 suite('validator', () => {
     test('allows cd + nl + sed pipeline without file argument', () => {
         const cmd = "cd /Users/tamura/src/github/vscode-copilot-chat && nl -ba src/extension/prompts/node/inline/inlineChatFix3Prompt.tsx | sed -n '60,120p'"
-        const ok = validateCommand(cmd)
+        const ok = validateCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
         assert.strictEqual(ok, true)
     })
 })
