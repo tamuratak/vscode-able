@@ -9,12 +9,10 @@ export interface PipelineSequence {
 
 export interface ParsedCommand {
     sequences: PipelineSequence[]
-    workingDirectory?: string | undefined
 }
 
 export function parseCommand(command: string): ParsedCommand {
     const sequences: PipelineSequence[] = []
-    let workingDirectory: string | undefined
 
     for (const sequencePart of splitTopLevel(command, '&&')) {
         if (sequencePart.length === 0) {
@@ -39,19 +37,10 @@ export function parseCommand(command: string): ParsedCommand {
         if (pipeline.length === 0) {
             continue
         }
-
-        if (!workingDirectory && pipeline.length === 1 && pipeline[0].command === 'cd') {
-            const target = pipeline[0].args[0]
-            if (target && target.length > 0) {
-                workingDirectory = target
-            }
-            continue
-        }
-
         sequences.push({ pipeline })
     }
 
-    return { sequences, workingDirectory }
+    return { sequences }
 }
 
 function splitTopLevel(input: string, delimiter: string): string[] {
