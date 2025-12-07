@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LogOutputChannel, PreparedToolInvocation } from 'vscode'
+import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LogOutputChannel } from 'vscode'
 import { spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -7,11 +7,29 @@ import { debugObj } from '../utils/debug.js'
 import { renderElementJSON } from '@vscode/prompt-tsx'
 import { CommandResultPrompt } from './toolresult.js'
 import { createLanguageModelPromptTsxPart } from '../utils/prompttsxhelper.js'
+import { isAllowedCommand } from './runinsandboxlib/validator.js'
 
 
 export interface RunInSandboxInput {
     command: string,
     explanation: string
+}
+
+/**
+ * Insert newline every 70 characters
+ */
+function insertNewlinesEvery70(input: string | undefined | null): string {
+    if (input === undefined || input === null) {
+        return ''
+    }
+    if (input === '') {
+        return ''
+    }
+    const chunks: string[] = []
+    for (let i = 0; i < input.length; i += 70) {
+        chunks.push(input.slice(i, i + 70))
+    }
+    return chunks.join('\\\n')
 }
 
 export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
@@ -23,11 +41,18 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         this.extension.outputChannel.info('[RunInSandbox]: RunInSandbox created')
     }
 
-    prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<RunInSandboxInput>): PreparedToolInvocation {
+    prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<RunInSandboxInput>) {
+        const workspaceRootPath = vscode.workspace.workspaceFolders?.[0].uri.fsPath
+        const isAllowed = isAllowedCommand(options.input.command, workspaceRootPath)
+        if (isAllowed) {
+            return {
+                invocationMessage: 'Run command by using sandbox-exec'
+            }
+        }
         return {
             confirmationMessages: {
                 title: 'Run command by using sandbox-exec',
-                message: options.input.explanation + '\n\n```sh\n' + options.input.command + '\n```'
+                message: options.input.explanation + '\n\n```sh\n' + insertNewlinesEvery70(options.input.command) + '\n```'
             }
         }
     }
