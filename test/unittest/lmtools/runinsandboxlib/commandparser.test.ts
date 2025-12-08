@@ -106,6 +106,15 @@ suite('command parser', () => {
             pipeline: [{ command: 'echo', args: ['a b', 'c'] }]
         })
     })
+    test('parses semicolon separated commands', () => {
+        const parsed = parseCommand('echo a; echo b; echo c')
+        assert.strictEqual(parsed.sequences.length, 3)
+        assert.deepStrictEqual(parsed.sequences, [
+            { pipeline: [{ command: 'echo', args: ['a'] }] },
+            { pipeline: [{ command: 'echo', args: ['b'] }] },
+            { pipeline: [{ command: 'echo', args: ['c'] }] }
+        ])
+    })
     test('redirect operator is parsed as separate token', () => {
         const parsed = parseCommand('echo aaa > t.md')
         assert.strictEqual(parsed.sequences.length, 1)
