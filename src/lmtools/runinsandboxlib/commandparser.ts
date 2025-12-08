@@ -14,12 +14,12 @@ export interface ParsedCommand {
 export function parseCommand(command: string): ParsedCommand {
     const sequences: PipelineSequence[] = []
 
-    for (const sequencePart of splitTopLevel(command, '&&')) {
+    for (const sequencePart of splitTopLevel(command, ['&&', '||', ';'])) {
         if (sequencePart.length === 0) {
             continue
         }
 
-        const pipelineParts = splitTopLevel(sequencePart, '|')
+        const pipelineParts = splitTopLevel(sequencePart, ['|'])
             .map((part) => part.trim())
             .filter((part) => part.length > 0)
 
@@ -43,7 +43,7 @@ export function parseCommand(command: string): ParsedCommand {
     return { sequences }
 }
 
-function splitTopLevel(input: string, delimiter: string): string[] {
+function splitTopLevel(input: string, delimiter: string[]): string[] {
     const parts: string[] = []
     let buffer = ''
     let inSingle = false
@@ -61,10 +61,11 @@ function splitTopLevel(input: string, delimiter: string): string[] {
             inDouble = !inDouble
         }
 
-        if (!inSingle && !inDouble && input.startsWith(delimiter, index) && !isEscaped(input, index)) {
+        const foundStartingDelimiter = delimiter.find((delim) => input.startsWith(delim, index) )
+        if (!inSingle && !inDouble && foundStartingDelimiter && !isEscaped(input, index)) {
             parts.push(buffer.trim())
             buffer = ''
-            index += delimiter.length
+            index += foundStartingDelimiter.length
             continue
         }
 
