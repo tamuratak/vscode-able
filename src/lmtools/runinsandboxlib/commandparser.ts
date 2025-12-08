@@ -8,42 +8,103 @@ export interface PipelineSequence {
 }
 
 export interface ParsedCommand {
-    sequences: PipelineSequence[]
+    sequences: PipelineSequence[][]
 }
 
 export function parseCommand(command: string): ParsedCommand {
-    const sequences: PipelineSequence[] = []
+    const groups: PipelineSequence[][] = []
+    let currentGroup: PipelineSequence[] = []
+    let buffer = ''
+    let inSingle = false
+    let inDouble = false
+    let index = 0
 
-    for (const sequencePart of splitTopLevel(command, '&&')) {
-        if (sequencePart.length === 0) {
+    while (index < command.length) {
+        const char = command[index]
+        const escaped = isEscaped(command, index)
+
+        if (char === "'" && !inDouble && !escaped) {
+            inSingle = !inSingle
+            buffer += char
+            index += 1
+            continue
+        } else if (char === '"' && !inSingle && !escaped) {
+            inDouble = !inDouble
+            buffer += char
+            index += 1
             continue
         }
 
-        const pipelineParts = splitTopLevel(sequencePart, '|')
-            .map((part) => part.trim())
-            .filter((part) => part.length > 0)
-
-        const pipeline: SimpleCommand[] = []
-
-        for (const pipelinePart of pipelineParts) {
-            const tokens = tokenizeSegment(pipelinePart)
-            if (tokens.length === 0) {
+        // detect top-level operators: &&, ||, ;
+        if (!inSingle && !inDouble && !escaped) {
+            if (command.startsWith('&&', index) || command.startsWith('||', index)) {
+                const part = buffer.trim()
+                if (part.length > 0) {
+                    const seq = parsePipeline(part)
+                    if (seq !== null) {
+                        currentGroup.push(seq)
+                    }
+                }
+                buffer = ''
+                index += 2
                 continue
             }
 
-            pipeline.push({ command: tokens[0], args: tokens.slice(1) })
+            if (command[index] === ';') {
+                const part = buffer.trim()
+                if (part.length > 0) {
+                    const seq = parsePipeline(part)
+                    if (seq !== null) {
+                        currentGroup.push(seq)
+                    }
+                }
+                buffer = ''
+                // finalize this semicolon-delimited group
+                if (currentGroup.length > 0) {
+                    groups.push(currentGroup)
+                }
+                currentGroup = []
+                index += 1
+                continue
+            }
         }
 
-        if (pipeline.length === 0) {
-            continue
-        }
-        sequences.push({ pipeline })
+        buffer += char
+        index += 1
     }
 
-    return { sequences }
+    const tail = buffer.trim()
+    if (tail.length > 0) {
+        const seq = parsePipeline(tail)
+        if (seq !== null) {
+            currentGroup.push(seq)
+        }
+    }
+
+    if (currentGroup.length > 0) {
+        groups.push(currentGroup)
+    }
+
+    return { sequences: groups }
 }
 
-function splitTopLevel(input: string, delimiter: string): string[] {
+function parsePipeline(input: string): PipelineSequence | null {
+    const parts = splitPipesTopLevel(input).map((p) => p.trim()).filter((p) => p.length > 0)
+    const pipeline: SimpleCommand[] = []
+    for (const part of parts) {
+        const tokens = tokenizeSegment(part)
+        if (tokens.length === 0) {
+            continue
+        }
+        pipeline.push({ command: tokens[0], args: tokens.slice(1) })
+    }
+    if (pipeline.length === 0) {
+        return null
+    }
+    return { pipeline }
+}
+
+function splitPipesTopLevel(input: string): string[] {
     const parts: string[] = []
     let buffer = ''
     let inSingle = false
@@ -52,19 +113,18 @@ function splitTopLevel(input: string, delimiter: string): string[] {
 
     while (index < input.length) {
         const char = input[index]
-
-        // if the quote is escaped, do not toggle
         const escaped = isEscaped(input, index)
+
         if (char === "'" && !inDouble && !escaped) {
             inSingle = !inSingle
         } else if (char === '"' && !inSingle && !escaped) {
             inDouble = !inDouble
         }
 
-        if (!inSingle && !inDouble && input.startsWith(delimiter, index) && !isEscaped(input, index)) {
-            parts.push(buffer.trim())
+        if (!inSingle && !inDouble && char === '|' && !escaped) {
+            parts.push(buffer)
             buffer = ''
-            index += delimiter.length
+            index += 1
             continue
         }
 
@@ -73,11 +133,12 @@ function splitTopLevel(input: string, delimiter: string): string[] {
     }
 
     if (buffer.length > 0) {
-        parts.push(buffer.trim())
+        parts.push(buffer)
     }
 
-    return parts.filter((part) => part.length > 0)
+    return parts
 }
+
 
 function isEscaped(input: string, index: number): boolean {
     // count consecutive backslashes immediately before index
