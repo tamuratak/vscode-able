@@ -44,6 +44,10 @@ export function isAllowedCommand(command: string, workspaceRootPath: string | un
                         return false
                     }
                 }
+                // disallow in-place editing
+                if (args.find(arg => arg.startsWith('-i'))) {
+                    return false
+                }
             } else if (name === 'cd') {
                 // check that the argument is within the workspace root
                 if (cmd.args.length !== 1) {
@@ -70,21 +74,15 @@ function isPotentialFilenameForSed(token: string): boolean {
         return false
     }
 
-    // If token contains a slash or looks like a substitution script (s/...)
-    // treat it as a script, not a filename
-    if (token.includes('/')) {
-        return false
-    }
-    if (/^s[^\s]*\/.+\/.+/.test(token)) {
+    // If token looks like a substitution script (s/...)
+    // treat it as a script.
+    if (/^s\/.+\/.+\/[a-z]*$/.test(token)) {
         return false
     }
 
-    // If the token looks like an address/script (e.g. 60,120p or 60p),
-    // or contains a comma or sed command letter, treat it as a script
-    if (/^[0-9,]+[a-zA-Z]?$/.test(token)) {
-        return false
-    }
-    if (token.includes(',') || /[pdqsy]/.test(token)) {
+    // If the token looks like an address/script (e.g. 60,120p or 60p)
+    // treat it as a script.
+    if (/^\d+,\d+.$/.test(token) || /^\d+p$/.test(token)) {
         return false
     }
 
