@@ -8,7 +8,8 @@ export interface PipelineSequence {
 }
 
 export interface ParsedCommand {
-    sequences: PipelineSequence[]
+    sequences: PipelineSequence[] | undefined
+    error?: string | undefined
 }
 
 export function parseCommand(command: string): ParsedCommand {
