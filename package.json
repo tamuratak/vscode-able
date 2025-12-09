@@ -351,7 +351,8 @@
             "default": [],
             "items": {
               "type": "string"
-            }
+            },
+            "scope": "machine"
           },
           "able.runInSandbox.allowedReadWriteDirectories": {
             "type": "array",
@@ -359,7 +360,8 @@
             "default": [],
             "items": {
               "type": "string"
-            }
+            },
+            "scope": "machine"
           }
         }
       }
