@@ -9,6 +9,15 @@ export function isAllowedCommand(command: string, workspaceRootPath: string | un
     if (/[`()$<>~{}]/.test(command)) {
         return false
     }
+
+    if (/\b(if|then|else|fi|for|while|do|done|case|esac|select|function)\b/.test(command)) {
+        return false
+    }
+
+    if (/\s(\[|\[\[)\s/.test(command)) {
+        return false
+    }
+
     const parsed: ParsedCommand = parseCommand(command)
     const allowed = new Set(['cd', 'nl', 'sed', 'grep', 'rg'])
 
