@@ -6,14 +6,15 @@
 - All file names should be in lowercase.
 - All file names should not include hyphens, spaces, nor underscores.
 - After editing files, you don't have to run tests. But if you want, please run the `task-test` task using the `run_task` tool.
-
+- When calling the `get_errors` tool, specify an empty array for `filePaths` to always retrieve all errors.
+- We use Mocha's TDD interface as the test framework. `suite`, `test`, `setup`, `teardown` can be used for defining tests.
+- We use `node:assert` for assertions in tests.
 
 ### Instructions only in ACTION MODE
 
 Please refer to the following instructions only when generating the code. Ignore them in plan mode.
 
 - When using `apply_patch`, please note that Delete File is not supported. 
-- When using Node.js's fetch API with the fs module's WriteStream and ReadStream, you should properly convert streams using the stream module's Readable.toWeb, Readable.fromWeb, Writable.toWeb, and Writable.fromWeb.
 - Use `for (const ... of ...)` instead of `Array.prototype.forEach`.
 - Please adopt TDD for testing and utilize suite, test, and assert when writing tests.
 - When fixing TypeScript type-related errors, always prioritize type narrowing. Avoid type assertions unless absolutely necessary.
