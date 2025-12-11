@@ -107,7 +107,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         }
 
         // Merge workspace writable dirs with user allowed read/write directories (user entries must be absolute)
-        const mergedReadableWritable = [...workspaceDirs]
+        const mergedReadableWritable = [...workspaceDirs, this.tmpDir()]
         if (userAllowedRW && userAllowedRW.length > 0) {
             for (const p of userAllowedRW) {
                 if (typeof p === 'string' && p !== '') {
