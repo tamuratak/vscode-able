@@ -2,6 +2,7 @@ import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LogOutputChannel } from 'vscode'
 import { spawn } from 'node:child_process'
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import { debugObj } from '../utils/debug.js'
 import { renderElementJSON } from '@vscode/prompt-tsx'
@@ -39,6 +40,19 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         }
     ) {
         this.extension.outputChannel.info('[RunInSandbox]: RunInSandbox created')
+        this.setupTmpDir()
+    }
+
+    private tmpDir(): string {
+        return path.join(os.tmpdir(), 'ableruninsandbox')
+    }
+
+    private setupTmpDir(): string {
+        const dir = this.tmpDir()
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true })
+        }
+        return dir
     }
 
     prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<RunInSandboxInput>) {
@@ -106,7 +120,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
 
         const { policy, params } = this.buildSeatbeltPolicyAndParams(mergedReadableWritable, userReadDenyList, denyWriteList)
 
-        const args = ['-p', policy, ...params, '--', '/bin/zsh', '-lc', command]
+        const args = ['-p', policy, ...params, '--', '/bin/bash', '-c', command]
 
         this.extension.outputChannel.info(`[RunInSandbox]: invoking in sandbox: ${command}`)
 
@@ -118,7 +132,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             LANG: process.env['LANG'] ?? 'C.UTF-8',
             LC_ALL: process.env['LC_ALL'] ?? 'C.UTF-8',
             HOME: process.env['HOME'] ?? workspaceDirs[0],
-            TMPDIR: process.env['TMPDIR'] ?? '/tmp'
+            TMPDIR: this.tmpDir()
         }
         debugObj('RunInSandbox args: ', { args, cwd: workspaceDirs[0], env: minimalEnv }, this.extension.outputChannel)
         const child = spawn(seatbeltPath, args, {
