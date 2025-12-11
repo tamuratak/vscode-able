@@ -19,7 +19,7 @@ export function isAllowedCommand(command: string, workspaceRootPath: string | un
     }
 
     const parsed: ParsedCommand = parseCommand(command)
-    const allowed = new Set(['cd', 'nl', 'sed', 'grep', 'rg'])
+    const allowed = new Set(['cd', 'head', 'tail', 'nl', 'sed', 'grep', 'rg'])
 
     for (const seq of parsed.sequences) {
         for (const cmd of seq.pipeline) {
