@@ -3,6 +3,7 @@ import vm from 'node:vm'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
+import path from 'node:path'
 
 const nodeRequire = Module.createRequire(__filename)
 
@@ -123,9 +124,14 @@ class AMDModuleImporter {
     const normalizedPath = this._normalizeScriptPath(scriptSrc)
     const content = await readFile(normalizedPath, 'utf8')
     const wrapped = Module.wrap(content.replace(/^#!.*/, ''))
-    const script = new vm.Script(wrapped, { filename: normalizedPath })
-    const compileWrapper = script.runInThisContext() as (...args: unknown[]) => unknown
-    compileWrapper()
+    const compileWrapper = vm.runInThisContext(wrapped, {
+      filename: normalizedPath,
+      importModuleDynamically: vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER
+    }) as (...args: unknown[]) => unknown
+    const exportsObj: Record<string, unknown> = {}
+    const moduleObj = { exports: exportsObj }
+    const scriptDir = path.dirname(normalizedPath)
+    compileWrapper(exportsObj, nodeRequire, moduleObj, normalizedPath, scriptDir)
     return this._defineCalls.pop()
   }
 }
