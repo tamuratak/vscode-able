@@ -36,8 +36,8 @@ async function doParse() {
 
     const query = new treesitter.Query(language, `
     (command
-        name: (word) @cmd_name
-        arguments: (argument)+ @arg
+        name: (command_name (word)) @cmd_name
+        argument: (_) @arg
     )`)
 
     if (!tree) {
