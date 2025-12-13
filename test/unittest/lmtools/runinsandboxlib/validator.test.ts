@@ -40,19 +40,13 @@ suite('validator', () => {
     })
 
     test('shell expansion is disallowed', async () => {
-        const cmd = 'grep $(ls -la)'
+        const cmd = 'grep $(evil_command)'
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
         assert.strictEqual(ok, false)
     })
 
     test('shell expansion is disallowed', async () => {
-        const cmd = 'grep `date`'
-        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
-        assert.strictEqual(ok, false)
-    })
-
-    test('shell expansion is disallowed', async () => {
-        const cmd = 'grep > a.txt'
+        const cmd = 'grep `evil_command`'
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
         assert.strictEqual(ok, false)
     })
@@ -63,4 +57,19 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test(' > redirection is disallowed', async () => {
+        const cmd = 'grep > a.txt'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test(' > redirection is disallowed', async () => {
+        const cmd = `# Loop that overwrites the file each iteration
+for i in 1 2 3; do
+  # Overwrite file with current index
+  echo "current: $i" > current.txt
+done`
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
 })
