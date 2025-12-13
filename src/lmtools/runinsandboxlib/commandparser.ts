@@ -134,10 +134,8 @@ export async function hasNoWriteRedirection(source: string): Promise<boolean> {
         const matches = readirectQuery.matches(tree.rootNode)
         if (matches.length === 0) {
             return true
-        } else {
-            return false
         }
-
+        return false
     } finally {
         tree.delete()
     }
