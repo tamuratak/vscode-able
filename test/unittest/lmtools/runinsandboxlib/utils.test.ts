@@ -24,4 +24,3 @@ suite('runinsandbox utils', () => {
 		assert.strictEqual(out, short + '\n' + expectedLong)
 	})
 })
-
