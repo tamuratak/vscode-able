@@ -259,9 +259,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
   (sysctl-name-prefix "hw.perflevel")
 )
 `
-        // Build deny file-read entries: start with the hardcoded list
         const allowedReadEntries: string[] = []
-        // Append user-configured deny entries (validated already by caller)
         if (userAllowedReadDirectories && userAllowedReadDirectories.length > 0) {
             for (const p of userAllowedReadDirectories) {
                 if (typeof p === 'string' && p !== '') {
@@ -281,11 +279,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             allowReadWritePolicy = `\n(allow file-read*\n${allowRwPolicies.join(' ')}\n)\n(allow file-write*\n${allowRwPolicies.join(' ')}\n)`
         }
 
-        // Compose deny file-read block
         const allowReadPolicies: string[] = []
         const allowReadParams: string[] = []
-        // Build deny policies and params from denyEntries.
-        // Each denied path becomes a param DENY_READ_ROOT_i and a subpath policy using that param.
         for (let i = 0; i < allowedReadEntries.length; ++i) {
             allowReadPolicies.push(`(subpath (param "ALLOW_READ_ROOT_${i}"))`)
             allowReadParams.push('-D', `ALLOW_READ_ROOT_${i}=${allowedReadEntries[i]}`)
