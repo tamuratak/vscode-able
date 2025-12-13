@@ -14,7 +14,6 @@
 
 Please refer to the following instructions only when generating the code. Ignore them in plan mode.
 
-- When using `apply_patch`, please note that Delete File is not supported. 
 - Use `for (const ... of ...)` instead of `Array.prototype.forEach`.
 - Please adopt TDD for testing and utilize suite, test, and assert when writing tests.
 - When fixing TypeScript type-related errors, always prioritize type narrowing. Avoid type assertions unless absolutely necessary.
