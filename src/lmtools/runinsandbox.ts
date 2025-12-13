@@ -55,9 +55,9 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         return dir
     }
 
-    prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<RunInSandboxInput>) {
+    async prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<RunInSandboxInput>) {
         const workspaceRootPath = vscode.workspace.workspaceFolders?.[0].uri.fsPath
-        const isAllowed = isAllowedCommand(options.input.command, workspaceRootPath)
+        const isAllowed = await isAllowedCommand(options.input.command, workspaceRootPath)
         if (isAllowed) {
             return {
                 invocationMessage: 'Run command by using sandbox-exec'

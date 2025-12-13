@@ -1,69 +1,158 @@
 import path from 'node:path'
-import { parseCommand, ParsedCommand } from './commandparser.js'
+import { createRequire } from 'node:module'
+import treeSitter from '#vscode-tree-sitter-wasm'
 
-// Check if a command string uses only allowed commands (cd, nl, sed),
-// that no sed invocation includes a filename, and that no unquoted '>' is used.
-// Returns true when the command is allowed under these constraints.
-export function isAllowedCommand(command: string, workspaceRootPath: string | undefined): boolean {
+const nodeRequire = createRequire(__filename)
+const treeSitterWasmPath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter.wasm')
+const bashLanguagePath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter-bash.wasm')
+const commandQuerySource = `(command
+    name: (command_name (word)) @cmd_name
+    argument: (_) @arg
+ )`
 
-    if (/[`()$<>~{}]/.test(command)) {
+let parser: treeSitter.Parser | undefined
+let commandQuery: treeSitter.Query | undefined
+let parserInitialization: Promise<void> | undefined
+
+function ensureParserInitialized(): Promise<void> {
+    if (!parserInitialization) {
+        parserInitialization = (async () => {
+            await treeSitter.Parser.init({ locateFile: () => treeSitterWasmPath })
+            const language = await treeSitter.Language.load(bashLanguagePath)
+            parser = new treeSitter.Parser()
+            parser.setLanguage(language)
+            commandQuery = new treeSitter.Query(language, commandQuerySource)
+        })()
+    }
+    return parserInitialization
+}
+
+const forbiddenCharacters = /[`()$<>~{}]/
+const forbiddenKeywords = /\b(if|then|else|fi|for|while|do|done|case|esac|select|function)\b/
+const bracketTest = /\s(\[|\[\[)\s/
+const allowedCommands = new Set(['cd', 'head', 'tail', 'nl', 'sed', 'grep', 'rg'])
+
+export async function isAllowedCommand(command: string, workspaceRootPath: string | undefined): Promise<boolean> {
+    if (forbiddenCharacters.test(command)) {
         return false
     }
 
-    if (/\b(if|then|else|fi|for|while|do|done|case|esac|select|function)\b/.test(command)) {
+    if (forbiddenKeywords.test(command)) {
         return false
     }
 
-    if (/\s(\[|\[\[)\s/.test(command)) {
+    if (bracketTest.test(command)) {
         return false
     }
 
-    const parsed: ParsedCommand = parseCommand(command)
-    const allowed = new Set(['cd', 'head', 'tail', 'nl', 'sed', 'grep', 'rg'])
+    await ensureParserInitialized()
+    const commands = collectCommands(command)
+    if (commands === null) {
+        return false
+    }
 
-    for (const seq of parsed.sequences) {
-        for (const cmd of seq.pipeline) {
+    const normalizedWorkspaceRoot = workspaceRootPath ? path.normalize(workspaceRootPath) : undefined
 
-            if (cmd.args.find(arg => arg.includes('settings.json'))) {
+    for (const cmd of commands) {
+        for (const arg of cmd.args) {
+            if (arg.includes('settings.json')) {
                 return false
             }
+        }
 
-            const name = cmd.command
-            if (!allowed.has(name)) {
+        if (!allowedCommands.has(cmd.command)) {
+            return false
+        }
+
+        if (cmd.command === 'sed') {
+            if (cmd.args.length >= 2) {
+                const last = cmd.args[cmd.args.length - 1]
+                if (isPotentialFilenameForSed(last)) {
+                    return false
+                }
+            }
+            for (const arg of cmd.args) {
+                if (arg.startsWith('-i')) {
+                    return false
+                }
+            }
+        } else if (cmd.command === 'cd') {
+            if (cmd.args.length !== 1) {
                 return false
             }
-
-            if (name === 'sed') {
-                // Heuristic: treat presence of a non-option trailing argument
-                // that does not look like a sed script as a filename.
-                // If there are 2 or more args, check the last one.
-                const args = cmd.args
-                if (args.length >= 2) {
-                    const last = args[args.length - 1]
-                    if (isPotentialFilenameForSed(last)) {
-                        return false
-                    }
-                }
-                // disallow in-place editing
-                if (args.find(arg => arg.startsWith('-i'))) {
-                    return false
-                }
-            } else if (name === 'cd') {
-                // check that the argument is within the workspace root
-                if (cmd.args.length !== 1) {
-                    return false
-                }
-                const target = cmd.args[0]
-                const normalizedPath = path.normalize(target)
-                if (!workspaceRootPath || !normalizedPath.startsWith(workspaceRootPath)) {
-                    return false
-                }
+            const target = path.normalize(cmd.args[0])
+            if (!normalizedWorkspaceRoot || !target.startsWith(normalizedWorkspaceRoot)) {
+                return false
             }
-
         }
     }
 
     return true
+}
+
+interface CommandNode {
+    command: string
+    args: string[]
+}
+
+function collectCommands(source: string): CommandNode[] | null {
+    if (!parser || !commandQuery) {
+        return null
+    }
+
+    const tree = parser.parse(source)
+    if (!tree) {
+        return null
+    }
+
+    const matches = commandQuery.matches(tree.rootNode)
+    const commands: CommandNode[] = []
+
+    for (const match of matches) {
+        let commandName: string | undefined
+        const args: string[] = []
+
+        for (const capture of match.captures) {
+            const text = normalizeToken(getNodeText(capture.node, source))
+            if (capture.name === 'cmd_name') {
+                commandName = text
+            } else if (capture.name === 'arg' && text.length > 0) {
+                args.push(text)
+            }
+        }
+
+        if (commandName) {
+            commands.push({ command: commandName, args })
+        }
+    }
+
+    tree.delete()
+    return commands
+}
+
+function getNodeText(node: treeSitter.Node, source: string): string {
+    return source.slice(node.startIndex, node.endIndex)
+}
+
+function normalizeToken(value: string): string {
+    const trimmed = value.trim()
+    if (trimmed.length >= 2) {
+        const first = trimmed[0]
+        const last = trimmed[trimmed.length - 1]
+        if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+            return unescapeQuotes(trimmed.slice(1, -1))
+        }
+    }
+    return unescapeQuotes(trimmed)
+}
+
+function unescapeQuotes(value: string): string {
+    return value
+        .replace(/\\\n/g, '')
+        .replace(/\\\\/g, '\\')
+        .replace(/\\ /g, ' ')
+        .replace(/\\"/g, '"')
+        .replace(/\\'/g, "'")
 }
 
 function isPotentialFilenameForSed(token: string): boolean {
@@ -74,18 +163,13 @@ function isPotentialFilenameForSed(token: string): boolean {
         return false
     }
 
-    // If token looks like a substitution script (s/...)
-    // treat it as a script.
     if (/^s\/.+\/.+\/[a-z]*$/.test(token)) {
         return false
     }
 
-    // If the token looks like an address/script (e.g. 60,120p or 60p)
-    // treat it as a script.
     if (/^\d+,\d+.$/.test(token) || /^\d+p$/.test(token)) {
         return false
     }
 
-    // Otherwise consider it a filename
     return true
 }
