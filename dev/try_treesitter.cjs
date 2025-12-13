@@ -1,4 +1,5 @@
 const treesitter = require('@vscode/tree-sitter-wasm')
+const languagePath = require.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter-bash.wasm')
 
 async function doParse() {
     await treesitter.Parser.init()
