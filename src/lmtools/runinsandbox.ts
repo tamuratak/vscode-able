@@ -16,21 +16,21 @@ export interface RunInSandboxInput {
     explanation: string
 }
 
-/**
- * Insert newline every 70 characters
- */
-function insertNewlinesEvery70(input: string | undefined | null): string {
-    if (input === undefined || input === null) {
-        return ''
-    }
-    if (input === '') {
-        return ''
-    }
-    const chunks: string[] = []
-    for (let i = 0; i < input.length; i += 70) {
-        chunks.push(input.slice(i, i + 70))
-    }
-    return chunks.join('\\\n')
+export function wrapLongLines(input: string): string {
+    const lines = input.split('\n')
+    const maxLineLength = 90
+    const wrappedLines = lines.map(line => {
+        if (line.length <= maxLineLength) {
+            return line
+        } else {
+            const chunks: string[] = []
+            for (let i = 0; i < line.length; i += maxLineLength) {
+                chunks.push(line.slice(i, i + maxLineLength))
+            }
+            return chunks.join('\\\n')
+        }
+    })
+    return wrappedLines.join('\n')
 }
 
 export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
@@ -66,7 +66,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         return {
             confirmationMessages: {
                 title: 'Run command by using sandbox-exec',
-                message: options.input.explanation + '\n\n```sh\n' + insertNewlinesEvery70(options.input.command) + '\n```'
+                message: options.input.explanation + '\n\n```sh\n' + wrapLongLines(options.input.command) + '\n```'
             }
         }
     }
