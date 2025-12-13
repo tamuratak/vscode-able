@@ -11,40 +11,35 @@ const commandQuerySource = `(command
  )
 (command
     name: (command_name (word)) @cmd_name
-)`
+)
+`
 
 let parser: treeSitter.Parser | undefined
 let commandQuery: treeSitter.Query | undefined
-let parserInitialization: Promise<void> | undefined
+const parserInitialization = ensureParserInitialized()
 
-function ensureParserInitialized(): Promise<void> {
-    if (!parserInitialization) {
-        parserInitialization = (async () => {
-            await treeSitter.Parser.init({ locateFile: () => treeSitterWasmPath })
-            const language = await treeSitter.Language.load(bashLanguagePath)
-            parser = new treeSitter.Parser()
-            parser.setLanguage(language)
-            commandQuery = new treeSitter.Query(language, commandQuerySource)
-        })()
-    }
-    return parserInitialization
+async function ensureParserInitialized(): Promise<void> {
+    await treeSitter.Parser.init({ locateFile: () => treeSitterWasmPath })
+    const language = await treeSitter.Language.load(bashLanguagePath)
+    parser = new treeSitter.Parser()
+    parser.setLanguage(language)
+    commandQuery = new treeSitter.Query(language, commandQuerySource)
 }
-
 
 interface CommandNode {
     command: string
     args: string[]
 }
 
-export async function collectCommands(source: string): Promise<CommandNode[] | null> {
-    await ensureParserInitialized()
+export async function collectCommands(source: string): Promise<CommandNode[] | undefined> {
+    await parserInitialization
     if (!parser || !commandQuery) {
-        return null
+        return undefined
     }
 
     const tree = parser.parse(source)
     if (!tree) {
-        return null
+        return undefined
     }
 
     const matches = commandQuery.matches(tree.rootNode)
@@ -114,4 +109,43 @@ function unescapeQuotes(value: string): string {
         .replace(/\\ /g, ' ')
         .replace(/\\"/g, '"')
         .replace(/\\'/g, "'")
+}
+
+const writeRedirectOperatorTypes = new Set(['>', '>>'])
+
+export async function hasWriteRedirection(source: string): Promise<boolean> {
+    await parserInitialization
+    if (!parser) {
+        return false
+    }
+
+    const tree = parser.parse(source)
+    if (!tree) {
+        return false
+    }
+
+    try {
+        return containsWriteRedirection(tree.rootNode)
+    } finally {
+        tree.delete()
+    }
+}
+
+function containsWriteRedirection(node: treeSitter.Node): boolean {
+    if (node.type === 'file_redirect') {
+        for (const child of node.children) {
+            if (child && writeRedirectOperatorTypes.has(child.type)) {
+                return true
+            }
+        }
+    }
+
+    for (let i = 0; i < node.childCount; i++) {
+        const child = node.child(i)
+        if (child && containsWriteRedirection(child)) {
+            return true
+        }
+    }
+
+    return false
 }

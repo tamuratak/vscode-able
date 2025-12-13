@@ -20,7 +20,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
     }
 
     const commands = await collectCommands(command)
-    if (commands === null) {
+    if (commands === undefined) {
         return false
     }
 
