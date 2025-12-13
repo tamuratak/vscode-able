@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { collectCommands, hasWriteRedirection } from './commandparser.js'
+import { collectCommands, hasNoWriteRedirection } from './commandparser.js'
 
 const forbiddenCharacters = /[~]/
 const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'sed', 'tail', 'grep'])
@@ -9,7 +9,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
         return false
     }
 
-    if (await hasWriteRedirection(command)) {
+    if (!await hasNoWriteRedirection(command)) {
         return false
     }
 
