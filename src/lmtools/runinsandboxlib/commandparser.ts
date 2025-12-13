@@ -1,156 +1,151 @@
-export interface SimpleCommand {
+
+import { createRequire } from 'node:module'
+import treeSitter from '#vscode-tree-sitter-wasm'
+
+const nodeRequire = createRequire(__filename)
+const treeSitterWasmPath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter.wasm')
+const bashLanguagePath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter-bash.wasm')
+const commandQuerySource = `(command
+    name: (command_name (word)) @cmd_name
+    argument: (_) @arg
+ )
+(command
+    name: (command_name (word)) @cmd_name
+)
+`
+
+let parser: treeSitter.Parser | undefined
+let commandQuery: treeSitter.Query | undefined
+const parserInitialization = ensureParserInitialized()
+
+async function ensureParserInitialized(): Promise<void> {
+    await treeSitter.Parser.init({ locateFile: () => treeSitterWasmPath })
+    const language = await treeSitter.Language.load(bashLanguagePath)
+    parser = new treeSitter.Parser()
+    parser.setLanguage(language)
+    commandQuery = new treeSitter.Query(language, commandQuerySource)
+}
+
+interface CommandNode {
     command: string
     args: string[]
 }
 
-export interface PipelineSequence {
-    pipeline: SimpleCommand[]
-}
+export async function collectCommands(source: string): Promise<CommandNode[] | undefined> {
+    await parserInitialization
+    if (!parser || !commandQuery) {
+        return undefined
+    }
 
-export interface ParsedCommand {
-    sequences: PipelineSequence[]
-}
+    const tree = parser.parse(source)
+    if (!tree) {
+        return undefined
+    }
 
-export function parseCommand(command: string): ParsedCommand {
-    const sequences: PipelineSequence[] = []
+    const matches = commandQuery.matches(tree.rootNode)
+    const commands: CommandNode[] = []
+    const commandMap = new Map<number, CommandNode>()
 
-    for (const sequencePart of splitTopLevel(command, ['&&', '||', ';'])) {
-        if (sequencePart.length === 0) {
-            continue
-        }
+    for (const match of matches) {
+        let commandName: string | undefined
+        let commandStartIndex: number | undefined
+        const args: string[] = []
 
-        const pipelineParts = splitTopLevel(sequencePart, ['|'])
-            .map((part) => part.trim())
-            .filter((part) => part.length > 0)
-
-        const pipeline: SimpleCommand[] = []
-
-        for (const pipelinePart of pipelineParts) {
-            const tokens = tokenizeSegment(pipelinePart)
-            if (tokens.length === 0) {
-                continue
+        for (const capture of match.captures) {
+            const text = normalizeToken(getNodeText(capture.node, source))
+            if (capture.name === 'cmd_name') {
+                commandName = text
+                // identify the command node by walking to its ancestor 'command' node
+                let node: treeSitter.Node | null | undefined = capture.node
+                while (node && node.type !== 'command') {
+                    node = node.parent
+                }
+                if (node) {
+                    commandStartIndex = node.startIndex
+                }
+            } else if (capture.name === 'arg' && text.length > 0) {
+                args.push(text)
             }
-
-            pipeline.push({ command: tokens[0], args: tokens.slice(1) })
         }
 
-        if (pipeline.length === 0) {
-            continue
-        }
-        sequences.push({ pipeline })
-    }
-
-    return { sequences }
-}
-
-function splitTopLevel(input: string, delimiter: string[]): string[] {
-    const parts: string[] = []
-    let buffer = ''
-    let inSingle = false
-    let inDouble = false
-    let index = 0
-
-    while (index < input.length) {
-        const char = input[index]
-
-        // if the quote is escaped, do not toggle
-        const escaped = isEscaped(input, index)
-        if (char === "'" && !inDouble && !escaped) {
-            inSingle = !inSingle
-        } else if (char === '"' && !inSingle && !escaped) {
-            inDouble = !inDouble
-        }
-
-        const foundStartingDelimiter = delimiter.find((delim) => input.startsWith(delim, index) )
-        if (!inSingle && !inDouble && foundStartingDelimiter && !isEscaped(input, index)) {
-            parts.push(buffer.trim())
-            buffer = ''
-            index += foundStartingDelimiter.length
-            continue
-        }
-
-        buffer += char
-        index += 1
-    }
-
-    if (buffer.length > 0) {
-        parts.push(buffer.trim())
-    }
-
-    return parts.filter((part) => part.length > 0)
-}
-
-function isEscaped(input: string, index: number): boolean {
-    // count consecutive backslashes immediately before index
-    let i = index - 1
-    let count = 0
-    while (i >= 0 && input[i] === '\\') {
-        count += 1
-        i -= 1
-    }
-    return (count % 2) === 1
-}
-
-function tokenizeSegment(segment: string): string[] {
-    // normalize backslash + newline + optional spaces into backslash+space
-    // so that it is handled the same as an escaped space (line continuation)
-    segment = segment.replace(/\\\r?\n[ \t]*/g, '\\ ')
-    const tokens: string[] = []
-    let buffer = ''
-    let inSingle = false
-    let inDouble = false
-    let index = 0
-
-    while (index < segment.length) {
-        const char = segment[index]
-        const escaped = isEscaped(segment, index)
-
-        if (char === "'" && !inDouble && !escaped) {
-            inSingle = !inSingle
-        } else if (char === '"' && !inSingle && !escaped) {
-            inDouble = !inDouble
-        }
-
-        if (!inSingle && !inDouble && char === ' ' && !escaped) {
-            if (buffer.length > 0) {
-                tokens.push(trimQuotes(buffer))
-                buffer = ''
+        if (commandName && typeof commandStartIndex === 'number') {
+            const existing = commandMap.get(commandStartIndex)
+            if (existing) {
+                for (const a of args) {
+                    existing.args.push(a)
+                }
+            } else {
+                const entry: CommandNode = { command: commandName, args }
+                commandMap.set(commandStartIndex, entry)
+                commands.push(entry)
             }
-            index += 1
-            continue
         }
-
-        buffer += char
-        index += 1
     }
 
-    if (buffer.length > 0) {
-        tokens.push(trimQuotes(buffer))
-    }
-
-    return tokens.filter((token) => token.length > 0)
+    tree.delete()
+    return commands
 }
 
-function trimQuotes(value: string): string {
+function getNodeText(node: treeSitter.Node, source: string): string {
+    return source.slice(node.startIndex, node.endIndex)
+}
+
+function normalizeToken(value: string): string {
     const trimmed = value.trim()
     if (trimmed.length >= 2) {
         const first = trimmed[0]
         const last = trimmed[trimmed.length - 1]
         if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
-            const inner = trimmed.slice(1, -1)
-            return unescapeQuotes(inner)
+            return unescapeQuotes(trimmed.slice(1, -1))
         }
     }
     return unescapeQuotes(trimmed)
 }
 
-function unescapeQuotes(s: string): string {
-    // first replace escaped backslashes, then escaped quotes
-    return s
-    // remove escaped newlines (line continuation)
-    .replace(/\\\n/g, '')
-    .replace(/\\\\/g, '\\')
-    .replace(/\\ /g, ' ')
-    .replace(/\\"/g, '"')
-    .replace(/\\'/g, "'")
+function unescapeQuotes(value: string): string {
+    return value
+        .replace(/\\\n/g, '')
+        .replace(/\\\\/g, '\\')
+        .replace(/\\ /g, ' ')
+        .replace(/\\"/g, '"')
+        .replace(/\\'/g, "'")
+}
+
+const writeRedirectOperatorTypes = new Set(['>', '>>'])
+
+export async function hasWriteRedirection(source: string): Promise<boolean> {
+    await parserInitialization
+    if (!parser) {
+        return false
+    }
+
+    const tree = parser.parse(source)
+    if (!tree) {
+        return false
+    }
+
+    try {
+        return containsWriteRedirection(tree.rootNode)
+    } finally {
+        tree.delete()
+    }
+}
+
+function containsWriteRedirection(node: treeSitter.Node): boolean {
+    if (node.type === 'file_redirect') {
+        for (const child of node.children) {
+            if (child && writeRedirectOperatorTypes.has(child.type)) {
+                return true
+            }
+        }
+    }
+
+    for (let i = 0; i < node.childCount; i++) {
+        const child = node.child(i)
+        if (child && containsWriteRedirection(child)) {
+            return true
+        }
+    }
+
+    return false
 }

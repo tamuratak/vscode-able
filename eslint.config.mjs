@@ -103,9 +103,11 @@ export default tseslint.config(
     {
         ignores: [            
             "_output/",
+            "contexttmp/",
             "eslint.config.mjs",
             "dev/",
             "dist/",
+            "lib/",
             "node_modules/",
             "out/",
             "types/",

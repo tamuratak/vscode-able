@@ -21,6 +21,7 @@
     "pyodide/pyodide/*.mjs",
     "pyodide/pyodide/*.wasm",
     "pyodide/pyodide/micropip*",
+    "lib",
     "node_modules",
     "out",
     "LICENSE"
@@ -345,9 +346,9 @@
               ]
             }
           },
-          "able.runInSandbox.denyFileReadDirectories": {
+          "able.runInSandbox.allowedFileReadDirectories": {
             "type": "array",
-            "description": "Array of absolute paths that will be denied for file-read in sandbox-exec. Each entry must be an absolute path.",
+            "description": "Array of absolute paths that will be allowed for file-read in sandbox-exec. Each entry must be an absolute path.",
             "default": [],
             "items": {
               "type": "string"
@@ -373,12 +374,16 @@
   "imports": {
     "#pyodide": {
       "default": "./pyodide/pyodide/pyodide.js"
+    },
+    "#vscode-tree-sitter-wasm": {
+      "default": "./lib/vscode-tree-sitter-wasm/tree-sitter.js"
     }
   },
   "dependencies": {
     "@google/genai": "1.30.0",
     "@microsoft/tiktokenizer": "1.0.10",
     "@vscode/prompt-tsx": "0.4.0-alpha.5",
+    "@vscode/tree-sitter-wasm": "0.3.0",
     "ajv": "8.17.1",
     "openai": "6.2.0",
     "playwright": "1.56.1",
