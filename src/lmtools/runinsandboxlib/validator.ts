@@ -8,7 +8,10 @@ const bashLanguagePath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree
 const commandQuerySource = `(command
     name: (command_name (word)) @cmd_name
     argument: (_) @arg
- )`
+ )
+(command
+    name: (command_name (word)) @cmd_name
+)`
 
 let parser: treeSitter.Parser | undefined
 let commandQuery: treeSitter.Query | undefined
@@ -27,7 +30,7 @@ function ensureParserInitialized(): Promise<void> {
     return parserInitialization
 }
 
-const forbiddenCharacters = /[`()$<>~{}]/
+const forbiddenCharacters = /[`();$<>~{}]/
 const forbiddenKeywords = /\b(if|then|else|fi|for|while|do|done|case|esac|select|function)\b/
 const bracketTest = /\s(\[|\[\[)\s/
 const allowedCommands = new Set(['cd', 'head', 'tail', 'nl', 'sed', 'grep', 'rg'])
@@ -72,7 +75,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
                 }
             }
             for (const arg of cmd.args) {
-                if (arg.startsWith('-i')) {
+                if (/^-[iI]\b/.test(arg)) {
                     return false
                 }
             }
@@ -107,22 +110,41 @@ function collectCommands(source: string): CommandNode[] | null {
 
     const matches = commandQuery.matches(tree.rootNode)
     const commands: CommandNode[] = []
+    const commandMap = new Map<number, CommandNode>()
 
     for (const match of matches) {
         let commandName: string | undefined
+        let commandStartIndex: number | undefined
         const args: string[] = []
 
         for (const capture of match.captures) {
             const text = normalizeToken(getNodeText(capture.node, source))
             if (capture.name === 'cmd_name') {
                 commandName = text
+                // identify the command node by walking to its ancestor 'command' node
+                let node: treeSitter.Node | null | undefined = capture.node
+                while (node && node.type !== 'command') {
+                    node = node.parent
+                }
+                if (node) {
+                    commandStartIndex = node.startIndex
+                }
             } else if (capture.name === 'arg' && text.length > 0) {
                 args.push(text)
             }
         }
 
-        if (commandName) {
-            commands.push({ command: commandName, args })
+        if (commandName && typeof commandStartIndex === 'number') {
+            const existing = commandMap.get(commandStartIndex)
+            if (existing) {
+                for (const a of args) {
+                    existing.args.push(a)
+                }
+            } else {
+                const entry: CommandNode = { command: commandName, args }
+                commandMap.set(commandStartIndex, entry)
+                commands.push(entry)
+            }
         }
     }
 

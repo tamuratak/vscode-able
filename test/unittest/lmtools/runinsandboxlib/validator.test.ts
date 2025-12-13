@@ -27,6 +27,12 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('evil command is disallowed', async () => {
+        const cmd = 'evil_command'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
     test('shell expansion is disallowed', async () => {
         const cmd = 'grep $(ls -la)'
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')

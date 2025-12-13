@@ -10,13 +10,16 @@ async function doParse() {
     const parser = new treesitter.Parser()
     const language = await treesitter.Language.load(languagePath)
     parser.setLanguage(language)
-    const source = 'echo "Hello, world!" && cd /home/user && sed -i "s/foo/bar/" file.txt'
+    const source = 'cd /Users/tamura/src/github/vscode-copilot-chat && nl -ba src/extension/prompts/node/inline/inlineChatFix3Prompt.tsx | sed -n \'60,120p\''
     const tree = parser.parse(source)
 
     const query = new treesitter.Query(language, `
     (command
         name: (command_name (word)) @cmd_name
         argument: (_) @arg
+    )
+    (command
+        name: (command_name (word)) @cmd_name
     )`)
 
     if (!tree) {

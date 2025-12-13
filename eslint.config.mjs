@@ -106,6 +106,7 @@ export default tseslint.config(
             "eslint.config.mjs",
             "dev/",
             "dist/",
+            "lib/",
             "node_modules/",
             "out/",
             "types/",
