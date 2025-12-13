@@ -9,28 +9,12 @@ import { renderElementJSON } from '@vscode/prompt-tsx'
 import { CommandResultPrompt } from './toolresult.js'
 import { createLanguageModelPromptTsxPart } from '../utils/prompttsxhelper.js'
 import { isAllowedCommand } from './runinsandboxlib/validator.js'
+import { wrapLongLines } from './runinsandboxlib/utils.js'
 
 
 export interface RunInSandboxInput {
     command: string,
     explanation: string
-}
-
-/**
- * Insert newline every 70 characters
- */
-function insertNewlinesEvery70(input: string | undefined | null): string {
-    if (input === undefined || input === null) {
-        return ''
-    }
-    if (input === '') {
-        return ''
-    }
-    const chunks: string[] = []
-    for (let i = 0; i < input.length; i += 70) {
-        chunks.push(input.slice(i, i + 70))
-    }
-    return chunks.join('\\\n')
 }
 
 export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
@@ -66,7 +50,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         return {
             confirmationMessages: {
                 title: 'Run command by using sandbox-exec',
-                message: options.input.explanation + '\n\n```sh\n' + insertNewlinesEvery70(options.input.command) + '\n```'
+                message: options.input.explanation + '\n\n```sh\n' + wrapLongLines(options.input.command) + '\n```'
             }
         }
     }

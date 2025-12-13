@@ -91,7 +91,7 @@ function getNodeText(node: treeSitter.Node, source: string): string {
     return source.slice(node.startIndex, node.endIndex)
 }
 
-function normalizeToken(value: string): string {
+export function normalizeToken(value: string): string {
     const trimmed = value.trim()
     if (trimmed.length >= 2) {
         const first = trimmed[0]
