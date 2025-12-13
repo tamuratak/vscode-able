@@ -204,6 +204,15 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
 ; allow read-only file operations
 (allow file-read*)
 (deny file-read* (subpath "/Users"))
+(deny file-read* (subpath "/Volumes"))
+(deny file-read* (subpath "/Network"))
+(deny file-read* (subpath "/tmp"))
+(deny file-read* (subpath "/private/tmp"))
+(deny file-read* (subpath "/private/var/tmp"))
+(deny file-read* (subpath "/private/var/folders"))
+(deny file-read* (subpath "/var/folders"))
+(deny file-read* (subpath "/var/tmp"))
+
 
 ; child processes inherit the policy of their parent
 (allow process-exec)
