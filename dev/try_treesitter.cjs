@@ -32,11 +32,13 @@ async function doParse() {
         }
     }
 
-    function printNode(node, indent = '') {
-        const start = node.startPosition
-        const end = node.endPosition
-        const text = getNodeText(node).replace(/\n/g, '\\n')
-        console.log(`${indent}${node.type} [${start.row}:${start.column}-${end.row}:${end.column}] -> "${text}"`)
+    function printNode(node, indent = '', printHeader = true) {
+        if (printHeader) {
+            const start = node.startPosition
+            const end = node.endPosition
+            const text = getNodeText(node).replace(/\n/g, '\\n')
+            console.log(`${indent}${node.type} [${start.row}:${start.column}-${end.row}:${end.column}] -> "${text}"`)
+        }
         const count = node.childCount || 0
         for (let i = 0; i < count; i++) {
             const child = node.child(i)
@@ -45,8 +47,8 @@ async function doParse() {
             const childStart = child.startPosition
             const childEnd = child.endPosition
             const childText = getNodeText(child).replace(/\n/g, '\\n')
-            console.log(`${indent}  ${fieldPrefix}${child.type} [${childStart.row}:${childStart.column}-${childEnd.row}:${childEnd.column}] -> "${childText}")`)
-            printNode(child, indent + '    ')
+            console.log(`${indent}  ${fieldPrefix}${child.type} [${childStart.row}:${childStart.column}-${childEnd.row}:${childEnd.column}] -> "${childText}"`)
+            printNode(child, indent + '    ', false)
         }
     }
 
