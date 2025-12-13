@@ -58,7 +58,7 @@ suite('validator', () => {
     })
 
     test(' > redirection is disallowed', async () => {
-        const cmd = 'grep > a.txt'
+        const cmd = 'echo aaa > a.txt'
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
         assert.strictEqual(ok, false)
     })

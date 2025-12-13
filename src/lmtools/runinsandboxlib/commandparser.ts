@@ -16,14 +16,15 @@ const commandQuerySource = `(command
 
 let parser: treeSitter.Parser | undefined
 let commandQuery: treeSitter.Query | undefined
+let bashLanguage: treeSitter.Language | undefined
 const parserInitialization = ensureParserInitialized()
 
 async function ensureParserInitialized(): Promise<void> {
     await treeSitter.Parser.init({ locateFile: () => treeSitterWasmPath })
-    const language = await treeSitter.Language.load(bashLanguagePath)
+    bashLanguage = await treeSitter.Language.load(bashLanguagePath)
     parser = new treeSitter.Parser()
-    parser.setLanguage(language)
-    commandQuery = new treeSitter.Query(language, commandQuerySource)
+    parser.setLanguage(bashLanguage)
+    commandQuery = new treeSitter.Query(bashLanguage, commandQuerySource)
 }
 
 interface CommandNode {
@@ -111,12 +112,17 @@ function unescapeQuotes(value: string): string {
         .replace(/\\'/g, "'")
 }
 
-const writeRedirectOperatorTypes = new Set(['>', '>>'])
 
-export async function hasWriteRedirection(source: string): Promise<boolean> {
+const redirectQuerySource = '(file_redirect ">") (file_redirect ">>")'
+let readirectQuery: treeSitter.Query | undefined
+
+export async function hasNoWriteRedirection(source: string): Promise<boolean> {
     await parserInitialization
-    if (!parser) {
+    if (!parser || !bashLanguage) {
         return false
+    }
+    if (!readirectQuery) {
+        readirectQuery = new treeSitter.Query(bashLanguage, redirectQuerySource)
     }
 
     const tree = parser.parse(source)
@@ -125,27 +131,12 @@ export async function hasWriteRedirection(source: string): Promise<boolean> {
     }
 
     try {
-        return containsWriteRedirection(tree.rootNode)
+        const matches = readirectQuery.matches(tree.rootNode)
+        if (matches.length === 0) {
+            return true
+        }
+        return false
     } finally {
         tree.delete()
     }
-}
-
-function containsWriteRedirection(node: treeSitter.Node): boolean {
-    if (node.type === 'file_redirect') {
-        for (const child of node.children) {
-            if (child && writeRedirectOperatorTypes.has(child.type)) {
-                return true
-            }
-        }
-    }
-
-    for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i)
-        if (child && containsWriteRedirection(child)) {
-            return true
-        }
-    }
-
-    return false
 }
