@@ -33,6 +33,12 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('head command is allowed', async () => {
+        const cmd = 'cat a.txt | head -n 10'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
     test('shell expansion is disallowed', async () => {
         const cmd = 'grep $(ls -la)'
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
@@ -46,7 +52,7 @@ suite('validator', () => {
     })
 
     test('shell expansion is disallowed', async () => {
-        const cmd = 'grep <(date)'
+        const cmd = 'grep > a.txt'
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
         assert.strictEqual(ok, false)
     })

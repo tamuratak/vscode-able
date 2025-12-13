@@ -1,10 +1,10 @@
 import path from 'node:path'
-import { collectCommands } from './treesittercommandparser.js'
+import { collectCommands, hasWriteRedirection } from './treesittercommandparser.js'
 
-const forbiddenCharacters = /[`();$<>~{}]/
+const forbiddenCharacters = /[`();$~{}]/
 const forbiddenKeywords = /\b(if|then|else|fi|for|while|do|done|case|esac|select|function)\b/
 const bracketTest = /\s(\[|\[\[)\s/
-const allowedCommands = new Set(['cd', 'head', 'tail', 'nl', 'sed', 'grep', 'rg'])
+const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'tail', 'nl', 'sed', 'grep', 'rg'])
 
 export async function isAllowedCommand(command: string, workspaceRootPath: string | undefined): Promise<boolean> {
     if (forbiddenCharacters.test(command)) {
@@ -16,6 +16,10 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
     }
 
     if (bracketTest.test(command)) {
+        return false
+    }
+
+    if (await hasWriteRedirection(command)) {
         return false
     }
 
