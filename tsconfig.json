@@ -27,8 +27,7 @@
         "target": "es2024",
         "baseUrl": "./",
         "paths": {
-            "vscodegit": ["./types/vscodegit/git.d.ts"],
-            "#vscode-tree-sitter-wasm": ["@vscode/tree-sitter-wasm"]
+            "vscodegit": ["./types/vscodegit/git.d.ts"]
         }
     },
     "exclude": [
