@@ -10,7 +10,7 @@ async function doParse() {
     const parser = new treesitter.Parser()
     const language = await treesitter.Language.load(languagePath)
     parser.setLanguage(language)
-    const source = 'echo "Hello, world!"\ncd /home/user\nsed -i "s/foo/bar/" file.txt'
+    const source = 'echo "Hello, world!" && cd /home/user && sed -i "s/foo/bar/" file.txt'
     const tree = parser.parse(source)
 
     const query = new treesitter.Query(language, `
@@ -55,15 +55,32 @@ async function doParse() {
     console.log('--- Parse Tree ---')
     printNode(tree.rootNode)
 
-    const captures = query.captures(tree.rootNode)
-    console.log('\n--- Query Captures ---')
-    for (let i = 0; i < captures.length; i++) {
-        const c = captures[i]
-        const n = c.node
-        const txt = getNodeText(n).replace(/\n/g, '\\n')
-        const start = n.startPosition
-        const end = n.endPosition
-        console.log(`#${i} @${c.name}: ${n.type} [${start.row}:${start.column}-${end.row}:${end.column}] -> "${txt}"`)
+    const matches = query.matches(tree.rootNode)
+    console.log('\n--- Query Matches ---')
+    for (let i = 0; i < matches.length; i++) {
+        const m = matches[i]
+        // collect command name and arguments within the same match
+        let cmdNode = undefined
+        const args = []
+        for (let j = 0; j < m.captures.length; j++) {
+            const cap = m.captures[j]
+            if (cap.name === 'cmd_name') cmdNode = cap.node
+            if (cap.name === 'arg') args.push(cap.node)
+        }
+        const cmdText = cmdNode ? getNodeText(cmdNode).replace(/\n/g, '\\n') : '<unknown>'
+        const argTexts = []
+        for (const a of args) argTexts.push(getNodeText(a).replace(/\n/g, '\\n'))
+        console.log(`#${i} command: "${cmdText}" args: ${JSON.stringify(argTexts)}`)
+
+        // optional: print each capture with positions
+        for (let j = 0; j < m.captures.length; j++) {
+            const cap = m.captures[j]
+            const n = cap.node
+            const txt = getNodeText(n).replace(/\n/g, '\\n')
+            const start = n.startPosition
+            const end = n.endPosition
+            console.log(`  @${cap.name}: ${n.type} [${start.row}:${start.column}-${end.row}:${end.column}] -> "${txt}"`)
+        }
     }
 }
 
