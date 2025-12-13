@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { collectCommands, hasWriteRedirection } from './treesittercommandparser.js'
+import { collectCommands, hasWriteRedirection } from './commandparser.js'
 
 const forbiddenCharacters = /[~]/
 const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'sed', 'tail', 'grep'])
