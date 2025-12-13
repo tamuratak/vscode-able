@@ -37,10 +37,16 @@ async function doParse() {
         const end = node.endPosition
         const text = getNodeText(node).replace(/\n/g, '\\n')
         console.log(`${indent}${node.type} [${start.row}:${start.column}-${end.row}:${end.column}] -> "${text}"`)
-        const children = node.children && node.children.length ? node.children : (node.namedChildren || [])
-        for (let i = 0; i < children.length; i++) {
-            const child = children[i]
-            printNode(child, indent + '  ')
+        const count = node.childCount || 0
+        for (let i = 0; i < count; i++) {
+            const child = node.child(i)
+            const field = node.fieldNameForChild(i) || ''
+            const fieldPrefix = field ? `(${field}) ` : ''
+            const childStart = child.startPosition
+            const childEnd = child.endPosition
+            const childText = getNodeText(child).replace(/\n/g, '\\n')
+            console.log(`${indent}  ${fieldPrefix}${child.type} [${childStart.row}:${childStart.column}-${childEnd.row}:${childEnd.column}] -> "${childText}")`)
+            printNode(child, indent + '    ')
         }
     }
 
