@@ -1,6 +1,6 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
-import { wrapLongLines } from '../../../../src/lmtools/runinsandbox.js'
+import { wrapLongLines } from '../../../../src/lmtools/runinsandboxlib/utils.js'
 
 suite('runinsandbox utils', () => {
 	test('wrapLongLines leaves short lines intact', () => {

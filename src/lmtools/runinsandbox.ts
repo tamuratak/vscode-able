@@ -9,28 +9,12 @@ import { renderElementJSON } from '@vscode/prompt-tsx'
 import { CommandResultPrompt } from './toolresult.js'
 import { createLanguageModelPromptTsxPart } from '../utils/prompttsxhelper.js'
 import { isAllowedCommand } from './runinsandboxlib/validator.js'
+import { wrapLongLines } from './runinsandboxlib/utils.js'
 
 
 export interface RunInSandboxInput {
     command: string,
     explanation: string
-}
-
-export function wrapLongLines(input: string): string {
-    const lines = input.split('\n')
-    const maxLineLength = 90
-    const wrappedLines = lines.map(line => {
-        if (line.length <= maxLineLength) {
-            return line
-        } else {
-            const chunks: string[] = []
-            for (let i = 0; i < line.length; i += maxLineLength) {
-                chunks.push(line.slice(i, i + maxLineLength))
-            }
-            return chunks.join('\\\n')
-        }
-    })
-    return wrappedLines.join('\n')
 }
 
 export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {

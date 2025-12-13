@@ -1,6 +1,6 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
-import { hasNoWriteRedirection, normalizeToken } from '../../../../src/lmtools/runinsandboxlib/commandparser.js'
+import { hasNoWriteRedirection, normalizeToken, collectCommands } from '../../../../src/lmtools/runinsandboxlib/commandparser.js'
 
 suite('tree-sitter command parser', () => {
 	test('detects truncate redirection', async () => {
@@ -69,4 +69,32 @@ suite('normalizeToken', () => {
 		const result = normalizeToken('\\\\')
 		assert.strictEqual(result, '\\')
 	})
+})
+
+suite('collectCommands', () => {
+	test('parses simple command and arg', async () => {
+ 		const cmds = await collectCommands('echo hi')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds.length, 1)
+ 		assert.strictEqual(cmds[0].command, 'echo')
+ 		assert.deepStrictEqual(cmds[0].args, ['hi'])
+ 	})
+
+	test('parses quoted arguments', async () => {
+ 		const cmds = await collectCommands('printf "%s\\n" "hello world"')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds.length, 1)
+ 		assert.strictEqual(cmds[0].command, 'printf')
+ 		assert.deepStrictEqual(cmds[0].args, ['%s\\n', 'hello world'])
+ 	})
+
+	test('parses multiple commands', async () => {
+ 		const cmds = await collectCommands('cd /tmp\nls -la')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds.length, 2)
+ 		assert.strictEqual(cmds[0].command, 'cd')
+ 		assert.deepStrictEqual(cmds[0].args, ['/tmp'])
+ 		assert.strictEqual(cmds[1].command, 'ls')
+ 		assert.deepStrictEqual(cmds[1].args, ['-la'])
+ 	})
 })
