@@ -5,7 +5,7 @@
 
 - All file names should be in lowercase.
 - All file names should not include hyphens, spaces, nor underscores.
-- After editing files, you don't have to run tests. But if you want, please run the `task-test` task using the `run_task` tool.
+- After editing files, you don't have to run tests. But if you want, please run the `task-test-json` task using the `run_task` tool. Don't run `npm run test` directly.
 - When calling the `get_errors` tool, specify an empty array for `filePaths` to always retrieve all errors.
 - We use Mocha's TDD interface as the test framework. `suite`, `test`, `setup`, `teardown` can be used for defining tests.
 - We use `node:assert` for assertions in tests.
