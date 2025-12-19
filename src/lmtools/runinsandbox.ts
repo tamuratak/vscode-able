@@ -95,9 +95,24 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
                 }
             }
         }
-
         const { policy, params } = this.buildSeatbeltPolicyAndParams(mergedReadableWritable, userAllowedReadDirectories, denyWriteList)
 
+        const { stdout, stderr, exitCode, signal } = await this.executeInSandbox(policy, params, command, workspaceDirs, seatbeltPath, token)
+
+        const result = await renderElementJSON(CommandResultPrompt, { stdout, stderr, exitCode, signal }, options.tokenizationOptions)
+        return new LanguageModelToolResult([
+            createLanguageModelPromptTsxPart(result)
+        ])
+    }
+
+    private async executeInSandbox(
+        policy: string,
+        params: string[],
+        command: string,
+        workspaceDirs: string[],
+        seatbeltPath: string,
+        token: CancellationToken
+    ) {
         const args = ['-p', policy, ...params, '--', '/bin/bash', '-c', command]
 
         this.extension.outputChannel.info(`[RunInSandbox]: invoking in sandbox: ${command}`)
@@ -158,10 +173,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         debugObj('RunInSandbox stdout: ', stdout, this.extension.outputChannel)
         debugObj('RunInSandbox stderr: ', stderr, this.extension.outputChannel)
         debugObj('RunInSandbox exit code: ', { code: exitCode, signal, commandError }, this.extension.outputChannel)
-        const result = await renderElementJSON(CommandResultPrompt, { stdout, stderr, exitCode, signal }, options.tokenizationOptions)
-        return new LanguageModelToolResult([
-            createLanguageModelPromptTsxPart(result)
-        ])
+
+        return { stdout, stderr, exitCode, signal }
     }
 
     private buildSeatbeltPolicyAndParams(
