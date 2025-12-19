@@ -18,6 +18,8 @@ export interface RunInSandboxInput {
 }
 
 export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
+    readonly tmpDir = this.setupTmpDir()
+
     constructor(
         private readonly extension: {
             readonly outputChannel: LogOutputChannel
@@ -27,16 +29,13 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         this.setupTmpDir()
     }
 
-    private tmpDir(): string {
-        return path.join(os.tmpdir(), 'ableruninsandbox')
-    }
-
     private setupTmpDir(): string {
-        const dir = this.tmpDir()
+        const dir = path.join(os.tmpdir(), 'ableruninsandbox')
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true })
         }
-        return dir
+        const resolved = fs.realpathSync(dir)
+        return resolved
     }
 
     async prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<RunInSandboxInput>) {
@@ -86,7 +85,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const userAllowedRW = this.getConfiguredAllowedReadWriteDirectories()
 
         // Merge workspace writable dirs with user allowed read/write directories (user entries must be absolute)
-        const mergedReadableWritable = [...workspaceDirs, this.tmpDir()]
+        const mergedReadableWritable = [...workspaceDirs, this.tmpDir]
         if (userAllowedRW && userAllowedRW.length > 0) {
             for (const p of userAllowedRW) {
                 if (typeof p === 'string' && p !== '') {
@@ -96,9 +95,24 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
                 }
             }
         }
-
         const { policy, params } = this.buildSeatbeltPolicyAndParams(mergedReadableWritable, userAllowedReadDirectories, denyWriteList)
 
+        const { stdout, stderr, exitCode, signal } = await this.executeInSandbox(policy, params, command, workspaceDirs, seatbeltPath, token)
+
+        const result = await renderElementJSON(CommandResultPrompt, { stdout, stderr, exitCode, signal }, options.tokenizationOptions)
+        return new LanguageModelToolResult([
+            createLanguageModelPromptTsxPart(result)
+        ])
+    }
+
+    private async executeInSandbox(
+        policy: string,
+        params: string[],
+        command: string,
+        workspaceDirs: string[],
+        seatbeltPath: string,
+        token: CancellationToken
+    ) {
         const args = ['-p', policy, ...params, '--', '/bin/bash', '-c', command]
 
         this.extension.outputChannel.info(`[RunInSandbox]: invoking in sandbox: ${command}`)
@@ -111,7 +125,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             LANG: process.env['LANG'] ?? 'C.UTF-8',
             LC_ALL: process.env['LC_ALL'] ?? 'C.UTF-8',
             HOME: process.env['HOME'] ?? workspaceDirs[0],
-            TMPDIR: this.tmpDir()
+            TMPDIR: this.tmpDir
         }
         debugObj('RunInSandbox args: ', { args, cwd: workspaceDirs[0], env: minimalEnv }, this.extension.outputChannel)
         const child = spawn(seatbeltPath, args, {
@@ -159,10 +173,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         debugObj('RunInSandbox stdout: ', stdout, this.extension.outputChannel)
         debugObj('RunInSandbox stderr: ', stderr, this.extension.outputChannel)
         debugObj('RunInSandbox exit code: ', { code: exitCode, signal, commandError }, this.extension.outputChannel)
-        const result = await renderElementJSON(CommandResultPrompt, { stdout, stderr, exitCode, signal }, options.tokenizationOptions)
-        return new LanguageModelToolResult([
-            createLanguageModelPromptTsxPart(result)
-        ])
+
+        return { stdout, stderr, exitCode, signal }
     }
 
     private buildSeatbeltPolicyAndParams(
@@ -195,8 +207,24 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
   (subpath "/private/tmp")
   (subpath "/private/var/tmp")
   (subpath "/private/var/folders")
-  (subpath "/var/folders")
   (subpath "/var/tmp")
+  (subpath "/var/folders")
+)
+
+(allow file-read*
+  (path "/Users")
+  (path "/Users/tamura")
+  (path "/Users/tamura/src")
+  (path "/Users/tamura/src/github")
+)
+
+(allow file-read*
+  (subpath "/Users/tamura/bin")
+  (subpath "/Users/tamura/.cargo")
+  (subpath "/Users/tamura/.local")
+  (subpath "/Users/tamura/.rustup")
+  (subpath "/Users/tamura/.config")
+  (path "/Users/tamura/.gitconfig")
 )
 
 ; child processes inherit the policy of their parent
