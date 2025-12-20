@@ -1,8 +1,9 @@
+const wordSplitRegex = /[\s[\]()<>#]+/
 
 const multiWords = new Set<string[]>([
     'New York', 'Los Angeles', 'San Francisco', 'United States', 'United Kingdom', 'South Korea', 'North Korea',
     'Saudi Arabia',
-].map(s => s.split(/[\s[\]()<>#]+/)))
+].map(s => s.split(wordSplitRegex)))
 
 /**
  * Extract probable English proper nouns from the input text.
@@ -54,7 +55,7 @@ export function extractProperNouns(text: string): string[] {
     }
 
     const norm = text.replace(/\s+/g, ' ').trim()
-    const tokens = norm.split(/[\s[\]()<>#]+/)
+    const tokens = norm.split(wordSplitRegex)
 
     // Common English stopwords that are capitalized at the start of sentences and should not be treated as proper nouns
     const stopwords = new Set([
@@ -193,6 +194,8 @@ export function selectProperNounsInEnglish(nameMap: Map<string, string>, text: s
         ['South Korea', '韓国'],
         ['North Korea', '北朝鮮'],
         ['Saudi Arabia', 'サウジアラビア'],
+        ['U.A.E.', 'アラブ首長国連邦'],
+        ['United Arab Emirates', 'アラブ首長国連邦'],
     ])
     const properNounsInText = extractProperNouns(text)
     const properNounsMapInSet = new Set(properNounsInText)
@@ -324,13 +327,7 @@ export function removePluralForms(words: string[]): string[] {
 }
 
 /**
- * Count how many lines from originalText are contained in translatedText.
- * - Trims whitespace from lines for comparison
- * - Ignores empty lines in the original text
- * - Excludes lines with 6 words or fewer from the original text
- * - Case-sensitive comparison
- * - Returns the number of original lines that were found in translatedText
- * - Returns 0 for invalid (non-string) inputs or when no lines are considered
+ * Find untranslated lines in translatedText.
  */
 export function countLinesContained(originalText: string, translatedText: string): number {
     if (typeof originalText !== 'string' || typeof translatedText !== 'string') {
