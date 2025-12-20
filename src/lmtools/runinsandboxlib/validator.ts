@@ -77,7 +77,7 @@ function isPotentialFilenameForSed(token: string): boolean {
         return false
     }
 
-    if (/^\d+,\d+.$/.test(token) || /^\d+p$/.test(token)) {
+    if (/^\d+,\d+.(;\s\d+,\d+.)*$/.test(token) || /^\d+p$/.test(token)) {
         return false
     }
 

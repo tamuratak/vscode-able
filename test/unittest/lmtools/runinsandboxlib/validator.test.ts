@@ -9,9 +9,15 @@ suite('validator', () => {
         assert.strictEqual(ok, true)
     })
 
-    test('allows cd + nl + sed pipeline without file argument', async () => {
-        const cmd = "cd /Users/tamura/src/github/vscode-copilot-chat && nl -ba src/extension/prompts/node/inline/inlineChatFix3Prompt.tsx | sed -n '60,120p'"
-        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-able')
+    test('allows cd + nl + sed -n \'730,780p; 880,960p; 1500,1680p\'', async () => {
+        const cmd = "cd /Users/tamura/src/github/vscode-copilot-chat && nl -ba src/vs/base/browser/ui/list/listView.ts | sed -n '730,780p; 880,960p; 1500,1680p'"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('cd out of workspace is disallowed', async () => {
+        const cmd = 'cd /Users/tamura/src/github/vscode'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
         assert.strictEqual(ok, false)
     })
 
