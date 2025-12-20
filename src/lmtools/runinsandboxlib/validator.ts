@@ -27,6 +27,14 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
             }
         }
 
+        if (matchCli(['git', 'status'], [cmd.command, ...cmd.args])) {
+            continue
+        }
+
+        if (matchCli(['git', 'status', /^(-[sb]+)?$/], [cmd.command, ...cmd.args])) {
+            continue
+        }
+
         if (!allowedCommands.has(cmd.command)) {
             return false
         }
@@ -73,5 +81,25 @@ function isPotentialFilenameForSed(token: string): boolean {
         return false
     }
 
+    return true
+}
+
+export function matchCli(pattern: (string | RegExp)[], input: string[]): boolean {
+    if (pattern.length !== input.length) {
+        return false
+    }
+    for (let i = 0; i < pattern.length; i++) {
+        const p = pattern[i]
+        const inp = input[i]
+        if (typeof p === 'string') {
+            if (p !== inp) {
+                return false
+            }
+        } else {
+            if (!p.test(inp)) {
+                return false
+            }
+        }
+    }
     return true
 }

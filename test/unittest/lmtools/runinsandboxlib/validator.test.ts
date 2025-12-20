@@ -33,6 +33,24 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('git status is allowed', async () => {
+        const cmd = 'git status'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('git status -sb is allowed', async () => {
+        const cmd = 'git status -sb'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('git push is disallowed', async () => {
+        const cmd = 'git push origin main'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
     test('head command is allowed', async () => {
         const cmd = 'cat a.txt | head -n 10'
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
