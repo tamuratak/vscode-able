@@ -27,7 +27,7 @@ async function ensureParserInitialized(): Promise<void> {
     commandQuery = new treeSitter.Query(bashLanguage, commandQuerySource)
 }
 
-interface CommandNode {
+export interface CommandNode {
     command: string
     args: string[]
 }

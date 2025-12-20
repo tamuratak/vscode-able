@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { collectCommands, hasNoWriteRedirection } from './commandparser.js'
+import { collectCommands, CommandNode, hasNoWriteRedirection } from './commandparser.js'
 
 const forbiddenCharacters = /[~]/
 const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'sed', 'tail', 'grep'])
@@ -27,11 +27,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
             }
         }
 
-        if (matchCli(['git', 'status'], [cmd.command, ...cmd.args])) {
-            continue
-        }
-
-        if (matchCli(['git', 'status', /^(-[sb]+)?$/], [cmd.command, ...cmd.args])) {
+        if (isAllowedSubCommand(cmd)) {
             continue
         }
 
@@ -65,6 +61,18 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
     return true
 }
 
+function isAllowedSubCommand(command: CommandNode): boolean {
+    if (matchCli(['git', 'status'], [command.command, ...command.args])) {
+        return true
+    }
+
+    if (matchCli(['git', 'status', /^(-[sb]+)?$/], [command.command, ...command.args])) {
+        return true
+    }
+
+    return false
+}
+
 function isPotentialFilenameForSed(token: string): boolean {
     if (token.length === 0) {
         return false
@@ -84,7 +92,7 @@ function isPotentialFilenameForSed(token: string): boolean {
     return true
 }
 
-export function matchCli(pattern: (string | RegExp)[], input: string[]): boolean {
+function matchCli(pattern: (string | RegExp)[], input: string[]): boolean {
     if (pattern.length !== input.length) {
         return false
     }
