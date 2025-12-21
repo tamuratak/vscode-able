@@ -216,14 +216,6 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
   (path "/Users/tamura")
   (path "/Users/tamura/src")
   (path "/Users/tamura/src/github")
-)
-
-(allow file-read*
-  (subpath "/Users/tamura/bin")
-  (subpath "/Users/tamura/.cargo")
-  (subpath "/Users/tamura/.local")
-  (subpath "/Users/tamura/.rustup")
-  (subpath "/Users/tamura/.config")
   (path "/Users/tamura/.gitconfig")
 )
 
