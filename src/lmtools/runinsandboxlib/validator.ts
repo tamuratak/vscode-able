@@ -66,11 +66,11 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
 }
 
 function isAllowedSubCommand(command: CommandNode): boolean {
-    if (exactMatchCommand(['git', 'status'], [command.command, ...command.args])) {
+    if (exactMatchCommand(['git', 'status'], command)) {
         return true
     }
 
-    if (exactMatchCommand(['git', 'status', /^(-[sb]+)?$/], [command.command, ...command.args])) {
+    if (exactMatchCommand(['git', 'status', /^(-[sb]+)?$/], command)) {
         return true
     }
 
@@ -79,33 +79,33 @@ function isAllowedSubCommand(command: CommandNode): boolean {
 
 // https://github.com/microsoft/vscode/blob/698d618f29e978c2ca7f45570d148e6eb9aa2a66/src/vs/workbench/contrib/terminalContrib/chatAgentTools/common/terminalChatAgentToolsConfiguration.ts#L240
 function isForbiddenCommand(command: CommandNode): boolean {
-    if (matchCommand(['column', /^-c\b/], command)) {
+    if (partialMatchCommand(['column', /^-c\b/], command)) {
         if (command.args.find((arg) => /[0-9]{4,}/.test(arg))) {
             return true
         }
     }
 
-    if (matchCommand(['date', /^(-s|--set)\b/], command)) {
+    if (partialMatchCommand(['date', /^(-s|--set)\b/], command)) {
         return true
     }
 
-    if (matchCommand(['rg', /^--(pre|hostname-bin)\b/], command)) {
+    if (partialMatchCommand(['rg', /^--(pre|hostname-bin)\b/], command)) {
         return true
     }
 
-    if (matchCommand(['find', /^-(delete|exec|execdir|fprint|fprintf|fls|ok|okdir)\b/], command)) {
+    if (partialMatchCommand(['find', /^-(delete|exec|execdir|fprint|fprintf|fls|ok|okdir)\b/], command)) {
         return true
     }
 
-    if (matchCommand(['sed', /(\/e|\/w|;W)/], command)) {
+    if (partialMatchCommand(['sed', /(\/e|\/w|;W)/], command)) {
         return true
     }
 
-    if (matchCommand(['sort', /^-(o|S)\b/], command)) {
+    if (partialMatchCommand(['sort', /^-(o|S)\b/], command)) {
         return true
     }
 
-    if (matchCommand(['tree', /^-o\b/], command)) {
+    if (partialMatchCommand(['tree', /^-o\b/], command)) {
         return true
     }
 
@@ -131,13 +131,19 @@ function isPotentialFilenameForSed(token: string): boolean {
     return true
 }
 
-function exactMatchCommand(pattern: (string | RegExp)[], input: string[]): boolean {
-    if (pattern.length !== input.length) {
+/**
+ * Returns true if the input exactly matches the pattern.
+ */
+function exactMatchCommand(pattern: (string | RegExp)[], command: CommandNode): boolean {
+    if (pattern.length !== command.args.length + 1) {
         return false
     }
-    for (let i = 0; i < pattern.length; i++) {
+    if (pattern[0] !== command.command) {
+        return false
+    }
+    for (let i = 1; i < pattern.length; i++) {
         const p = pattern[i]
-        const inp = input[i]
+        const inp = command.args[i - 1]
         if (typeof p === 'string') {
             if (p !== inp) {
                 return false
@@ -151,7 +157,10 @@ function exactMatchCommand(pattern: (string | RegExp)[], input: string[]): boole
     return true
 }
 
-function matchCommand(pattern: (string | RegExp)[], command: CommandNode): boolean {
+/**
+ * Returns true if one of the arguments matches some pattern.
+ */
+function partialMatchCommand(pattern: (string | RegExp)[], command: CommandNode): boolean {
     if (pattern[0] !== command.command) {
         return false
     }
