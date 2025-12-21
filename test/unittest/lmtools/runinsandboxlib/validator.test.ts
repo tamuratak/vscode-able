@@ -27,6 +27,12 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('rg --pre is disallowed', async () => {
+        const cmd = 'rg --pre \'sed s/foo/bar/g\' pattern'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
     test('evil command is disallowed', async () => {
         const cmd = 'grep ; evil_command'
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')

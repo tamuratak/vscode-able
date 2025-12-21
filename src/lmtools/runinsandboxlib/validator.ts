@@ -27,6 +27,10 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
             }
         }
 
+        if (isForbiddenCommand(cmd)) {
+            return false
+        }
+
         if (isAllowedSubCommand(cmd)) {
             continue
         }
@@ -62,11 +66,46 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
 }
 
 function isAllowedSubCommand(command: CommandNode): boolean {
-    if (matchCli(['git', 'status'], [command.command, ...command.args])) {
+    if (exactMatchCommand(['git', 'status'], [command.command, ...command.args])) {
         return true
     }
 
-    if (matchCli(['git', 'status', /^(-[sb]+)?$/], [command.command, ...command.args])) {
+    if (exactMatchCommand(['git', 'status', /^(-[sb]+)?$/], [command.command, ...command.args])) {
+        return true
+    }
+
+    return false
+}
+
+// https://github.com/microsoft/vscode/blob/698d618f29e978c2ca7f45570d148e6eb9aa2a66/src/vs/workbench/contrib/terminalContrib/chatAgentTools/common/terminalChatAgentToolsConfiguration.ts#L240
+function isForbiddenCommand(command: CommandNode): boolean {
+    if (matchCommand(['column', /^-c\b/], command)) {
+        if (command.args.find((arg) => /[0-9]{4,}/.test(arg))) {
+            return true
+        }
+    }
+
+    if (matchCommand(['date', /^(-s|--set)\b/], command)) {
+        return true
+    }
+
+    if (matchCommand(['rg', /^--(pre|hostname-bin)\b/], command)) {
+        return true
+    }
+
+    if (matchCommand(['find', /^-(delete|exec|execdir|fprint|fprintf|fls|ok|okdir)\b/], command)) {
+        return true
+    }
+
+    if (matchCommand(['sed', /(\/e|\/w|;W)/], command)) {
+        return true
+    }
+
+    if (matchCommand(['sort', /^-(o|S)\b/], command)) {
+        return true
+    }
+
+    if (matchCommand(['tree', /^-o\b/], command)) {
         return true
     }
 
@@ -92,7 +131,7 @@ function isPotentialFilenameForSed(token: string): boolean {
     return true
 }
 
-function matchCli(pattern: (string | RegExp)[], input: string[]): boolean {
+function exactMatchCommand(pattern: (string | RegExp)[], input: string[]): boolean {
     if (pattern.length !== input.length) {
         return false
     }
@@ -110,4 +149,25 @@ function matchCli(pattern: (string | RegExp)[], input: string[]): boolean {
         }
     }
     return true
+}
+
+function matchCommand(pattern: (string | RegExp)[], command: CommandNode): boolean {
+    if (pattern[0] !== command.command) {
+        return false
+    }
+    const argPatterns = pattern.slice(1)
+    return !!argPatterns.find((pat) => {
+        for (const arg of command.args) {
+            if (typeof pat === 'string') {
+                if (pat === arg) {
+                    return true
+                }
+            } else {
+                if (pat.test(arg)) {
+                    return true
+                }
+            }
+        }
+        return false
+    })
 }
