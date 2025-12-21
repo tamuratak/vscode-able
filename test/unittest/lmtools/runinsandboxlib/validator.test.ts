@@ -15,6 +15,12 @@ suite('validator', () => {
         assert.strictEqual(ok, true)
     })
 
+    test('disallows sed \'/version/ W warn.log\' package.json', async () => {
+        const cmd = "sed '/version/ W warn.log' package.json"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
     test('cd out of workspace is disallowed', async () => {
         const cmd = 'cd /Users/tamura/src/github/vscode'
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')

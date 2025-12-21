@@ -101,7 +101,7 @@ function isForbiddenCommand(command: CommandNode): boolean {
         return true
     }
 
-    if (partialMatchCommand(['sed', /(\/e|\/w|;W)/], command)) {
+    if (partialMatchCommand(['sed', /(\/e|\/w|\b[wW]\b)/], command)) {
         return true
     }
 
