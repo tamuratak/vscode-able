@@ -1,0 +1,11 @@
+--- node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter.js	2025-12-21 10:32:37
++++ lib/vscode-tree-sitter-wasm/tree-sitter.js	2025-12-13 17:02:33
+@@ -1,6 +1,6 @@
+ (function (global, factory) {
+-	typeof define === 'function' && define.amd ? define(['exports'], factory) :
+-		typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
++  typeof define === 'function' && define.amd ? define(['exports'], factory) :
++    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(exports) :
+ 			(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.Parser = {}));
+ })(this, (function () {
+ 
