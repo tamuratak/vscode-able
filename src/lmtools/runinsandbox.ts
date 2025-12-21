@@ -344,7 +344,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             }
             return valid
         } catch {
-            this.extension.outputChannel.warn('[RunInSandbox]: failed to read configured denyFileReadDirectories')
+            this.extension.outputChannel.warn('[RunInSandbox]: failed to read configured allowedFileReadDirectories')
             return undefined
         }
     }
