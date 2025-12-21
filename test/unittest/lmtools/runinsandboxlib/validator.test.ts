@@ -21,8 +21,14 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
-    test('sed with file argument is disallowed', async () => {
+    test('sed -i is disallowed', async () => {
         const cmd = "sed -E -i.bak -e 's/old/new/g' -e '/^#/d' file"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('sed -I is disallowed', async () => {
+        const cmd = "sed -E -Ibak -e 's/old/new/g' -e '/^#/d' file"
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
         assert.strictEqual(ok, false)
     })
