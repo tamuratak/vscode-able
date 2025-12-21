@@ -27,7 +27,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
             }
         }
 
-        if (isForbiddenCommand(cmd)) {
+        if (isConfirmationRequired(cmd)) {
             return false
         }
 
@@ -77,40 +77,42 @@ function isAllowedSubCommand(command: CommandNode): boolean {
     return false
 }
 
+//
 // https://github.com/microsoft/vscode/blob/698d618f29e978c2ca7f45570d148e6eb9aa2a66/src/vs/workbench/contrib/terminalContrib/chatAgentTools/common/terminalChatAgentToolsConfiguration.ts#L240
-function isForbiddenCommand(command: CommandNode): boolean {
-    if (partialMatchCommand(['column', /^-c\b/], command)) {
-        if (command.args.find((arg) => /[0-9]{4,}/.test(arg))) {
+//
+function isConfirmationRequired(command: CommandNode): boolean {
+    const needConfirmationCommands = new Set([
+        'rm', 'rmdir', 'mv', 'cp', 'chmod', 'chown',
+        'dd', 'mkfs', 'mount', 'umount', 'ln', 'touch', 'truncate',
+        'kill', 'pkill', 'ps', 'top', 'htop',
+        'xargs', 'eval', 'nohup', 'sudo', 'env', 'export', 'nice', 'renice', 'watch', 'time', 'timeout',
+        'shutdown', 'reboot', 'sysctl',
+        'tee'
+    ])
+
+    if (needConfirmationCommands.has(command.command)) {
+        return true
+    }
+
+    const needConfirmationPatterns: [string, RegExp][] = [
+        ['date', /^(-s|--set)\b/],
+        ['rg', /^--(pre|hostname-bin)\b/],
+        ['find', /^-(delete|exec|execdir|fprint|fprintf|fls|ok|okdir)\b/],
+        ['sed', /^(-[a-zA-Z]*(e|i|I|f)[a-zA-Z]*|--expression|--file|--in-place)\b/],
+        ['sed', /(\/e|\/w|\b[wW]\b)/],
+        ['sort', /^-(o|S)\b/],
+        ['tree', /^-o\b/],
+    ]
+    for (const [cmd, pattern] of needConfirmationPatterns) {
+        if (partialMatchCommand([cmd, pattern], command)) {
             return true
         }
     }
 
-    if (partialMatchCommand(['date', /^(-s|--set)\b/], command)) {
-        return true
-    }
-
-    if (partialMatchCommand(['rg', /^--(pre|hostname-bin)\b/], command)) {
-        return true
-    }
-
-    if (partialMatchCommand(['find', /^-(delete|exec|execdir|fprint|fprintf|fls|ok|okdir)\b/], command)) {
-        return true
-    }
-
-    if (partialMatchCommand(['sed', /^(-[a-zA-Z]*(e|i|I|f)[a-zA-Z]*|--expression|--file|--in-place)\b/], command)) {
-        return true
-    }
-
-    if (partialMatchCommand(['sed', /(\/e|\/w|\b[wW]\b)/], command)) {
-        return true
-    }
-
-    if (partialMatchCommand(['sort', /^-(o|S)\b/], command)) {
-        return true
-    }
-
-    if (partialMatchCommand(['tree', /^-o\b/], command)) {
-        return true
+    if (partialMatchCommand(['column', /^-c\b/], command)) {
+        if (command.args.find((arg) => /[0-9]{4,}/.test(arg))) {
+            return true
+        }
     }
 
     return false
