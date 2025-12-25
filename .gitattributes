@@ -1,0 +1,3 @@
+/lib/** linguist-vendored
+/src/lib/** linguist-vendored
+/src/vscode*.d.ts linguist-vendored
