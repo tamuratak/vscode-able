@@ -131,7 +131,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const child = spawn(seatbeltPath, args, {
             stdio: ['ignore', 'pipe', 'pipe'],
             shell: false,
-            detached: true,
+            detached: true, // Create a new process group so that we can kill all child processes later.
             cwd: workspaceDirs[0],
             env: minimalEnv
         })
