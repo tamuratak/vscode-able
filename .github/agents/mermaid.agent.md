@@ -6,6 +6,7 @@ Provide a corresponding Mermaid diagram that visually summarizes those core enti
 
 ### Requirements
 
-- Automatically choose the most appropriate Mermaid diagram type (e.g., sequenceDiagram for ordered interactions, classDiagram for structural relationships).
+- Create at least one classDiagram and one sequenceDiagram based on the provided information.
 - Make the diagram "moderately abridged": include major components and primary interactions/state changes, omit low-level implementation details.
-- If the output becomes large, consider splitting it into multiple parts.
+- If the sequenceDiagram has over 5 columns, create an abridged version and the full version.
+- Add source links to the diagrams for reference as possible as you can.
