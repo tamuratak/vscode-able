@@ -8,7 +8,7 @@ When necessary, carry out the required investigations to confirm things such as 
 ### Requirements
 
 - Create at least one classDiagram and one sequenceDiagram based on the provided information.
-- Make the diagram "moderately abridged": include major components and primary interactions/state changes, omit low-level implementation details.
+- Make the diagrams moderately abridged: include major components and primary interactions/state changes, omit low-level implementation details.
 - In classDiagram, arrows are used only for inheritance.
 - In classDiagram, write instance variables and methods properly.
 - For classDiagram, if there are five or more classes, split into multiple markdown code blocks.
