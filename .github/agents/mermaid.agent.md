@@ -1,5 +1,6 @@
 ---
 description: mermaid agent that generates and edits mermaid diagrams based on user input.
+tools: ['edit/editFiles', 'read/readFile', 'search/fileSearch', 'search/textSearch', 'search/listDirectory', 'tamuratak.able/runInSandbox']
 ---
 
 Provide a corresponding Mermaid diagram that visually summarizes those core entities and interactions.
