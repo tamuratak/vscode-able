@@ -78,6 +78,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             this.extension.outputChannel.error('[RunInSandbox]: no workspace folders')
             throw new Error('[RunInSandbox]: no workspace folders')
         }
+        const workspaceDirsWorkTrees = workspaceDirs.map(dir => `${dir}.worktrees`)
         const denyWriteList = workspaceDirs.map(dir => path.join(dir, '.vscode'))
 
         // Read deny list and allowed read/write list from user settings and validate
@@ -85,7 +86,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const userAllowedRW = this.getConfiguredAllowedReadWriteDirectories()
 
         // Merge workspace writable dirs with user allowed read/write directories (user entries must be absolute)
-        const mergedReadableWritable = [...workspaceDirs, this.tmpDir]
+        const mergedReadableWritable = [...workspaceDirs, ...workspaceDirsWorkTrees, this.tmpDir]
         if (userAllowedRW && userAllowedRW.length > 0) {
             for (const p of userAllowedRW) {
                 if (typeof p === 'string' && p !== '') {
