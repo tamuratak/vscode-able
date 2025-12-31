@@ -1,6 +1,6 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
-import { collectImports, collectExportedSymbols } from '../../../src/components/tsparser.js'
+import { collectImports, collectExportedSymbols, collectClassDefinitions } from '../../../src/components/tsparser.js'
 
 suite('ts parser collectImports', () => {
 	test('captures default and named bindings', async () => {
@@ -60,5 +60,34 @@ export enum Mode {}`
 			{ name: 'Token', kind: 'type' },
 			{ name: 'Mode', kind: 'enum' }
 		])
+	})
+})
+
+suite('ts parser collectClassDefinitions', () => {
+	test('captures class members and relations', async () => {
+		const source = `class Foo extends Base implements Serializable {
+			bar: Bar
+			callOther() {
+				Bar.doSomething()
+			}
+		}
+		class Base {}
+		class Bar {
+			doSomething() {}
+		}`
+		const classes = await collectClassDefinitions(source)
+		assert.ok(classes)
+		const foo = classes.find((entry) => entry.name === 'Foo')
+		assert.ok(foo)
+		assert.strictEqual(foo?.extends, 'Base')
+		assert.deepStrictEqual(foo?.implements, ['Serializable'])
+		assert.deepStrictEqual(foo?.properties, [{ name: 'bar', type: 'Bar' }])
+		const callOther = foo?.methods.find((method) => method.name === 'callOther')
+		assert.ok(callOther)
+		assert.deepStrictEqual(callOther?.calls, [{ targetClass: 'Bar', targetMethod: 'doSomething' }])
+		const bar = classes.find((entry) => entry.name === 'Bar')
+		assert.ok(bar)
+		const doSomething = bar?.methods.find((method) => method.name === 'doSomething')
+		assert.ok(doSomething)
 	})
 })

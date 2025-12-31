@@ -35,6 +35,29 @@ export interface ExportedSymbol {
 	kind: ExportedSymbolKind
 }
 
+export interface ClassProperty {
+	name: string
+	type?: string | undefined
+}
+
+export interface MethodCall {
+	targetClass: string
+	targetMethod: string
+}
+
+export interface ClassMethod {
+	name: string
+	calls: MethodCall[]
+}
+
+export interface ClassDefinition {
+	name: string
+	extends?: string | undefined
+	implements: string[]
+	properties: ClassProperty[]
+	methods: ClassMethod[]
+}
+
 export async function collectImports(source: string): Promise<ImportStatement[] | undefined> {
 	await parserInitialization
 	if (!parser) {
@@ -103,6 +126,34 @@ export async function collectExportedSymbols(source: string): Promise<ExportedSy
 			}
 		}
 		return symbols
+	} finally {
+		tree.delete()
+	}
+}
+
+export async function collectClassDefinitions(source: string): Promise<ClassDefinition[] | undefined> {
+	await parserInitialization
+	if (!parser) {
+		return undefined
+	}
+
+	const tree = parser.parse(source)
+	if (!tree) {
+		return undefined
+	}
+
+	try {
+		const classes: ClassDefinition[] = []
+		traverseNamedNodes(tree.rootNode, (node) => {
+			if (node.type !== 'class_declaration') {
+				return
+			}
+			const definition = createClassDefinition(node, source)
+			if (definition) {
+				classes.push(definition)
+			}
+		})
+		return classes
 	} finally {
 		tree.delete()
 	}
@@ -259,4 +310,196 @@ function findNamedChild(node: treeSitter.Node, type: string): treeSitter.Node | 
 		}
 	}
 	return undefined
+}
+
+const classPropertyNodeTypes = new Set([
+	'public_field_definition',
+	'private_field_definition',
+	'protected_field_definition',
+	'abstract_field_definition',
+	'public_field_signature',
+	'private_field_signature',
+	'protected_field_signature',
+	'property_signature',
+	'readonly_property_signature',
+	'decorated_field_definition'
+])
+
+function traverseNamedNodes(node: treeSitter.Node, callback: (node: treeSitter.Node) => void): void {
+	callback(node)
+	for (let i = 0; i < node.namedChildCount; i++) {
+		const child = node.namedChild(i)
+		if (child) {
+			traverseNamedNodes(child, callback)
+		}
+	}
+}
+
+function createClassDefinition(node: treeSitter.Node, source: string): ClassDefinition | undefined {
+	const nameNode = node.childForFieldName('name')
+	if (!nameNode) {
+		return undefined
+	}
+	const heritage = gatherClassHeritage(node, source)
+	const body = findNamedChild(node, 'class_body')
+	const members = body ? collectClassMembers(body, source) : { properties: [], methods: [] }
+	return {
+		name: getNodeText(nameNode, source),
+		extends: heritage.extends,
+		implements: heritage.implements,
+		properties: members.properties,
+		methods: members.methods
+	}
+}
+
+function gatherClassHeritage(node: treeSitter.Node, source: string): { extends?: string; implements: string[] } {
+	const result: { extends?: string; implements: string[] } = { implements: [] }
+	const heritageNode = findNamedChild(node, 'class_heritage')
+	if (!heritageNode) {
+		return result
+	}
+	const extendsClause = findNamedChild(heritageNode, 'extends_clause')
+	if (extendsClause) {
+		const identifier = findHeritageIdentifier(extendsClause, source)
+		if (identifier) {
+			result.extends = identifier
+		}
+	}
+	const implementsClause = findNamedChild(heritageNode, 'implements_clause')
+	if (implementsClause) {
+		for (let i = 0; i < implementsClause.namedChildCount; i++) {
+			const child = implementsClause.namedChild(i)
+			if (!child) {
+				continue
+			}
+			const identifier = findHeritageIdentifier(child, source)
+			if (identifier) {
+				result.implements.push(identifier)
+			}
+		}
+	}
+	return result
+}
+
+function findHeritageIdentifier(node: treeSitter.Node | undefined, source: string): string | undefined {
+	if (!node) {
+		return undefined
+	}
+	const target = findNamedChild(node, 'identifier') ??
+		findNamedChild(node, 'type_identifier') ??
+		findNamedChild(node, 'scoped_identifier') ??
+		findNamedChild(node, 'qualified_identifier')
+	if (target) {
+		return getNodeText(target, source)
+	}
+	return undefined
+}
+
+function collectClassMembers(body: treeSitter.Node, source: string): { properties: ClassProperty[]; methods: ClassMethod[] } {
+	const properties: ClassProperty[] = []
+	const methods: ClassMethod[] = []
+	for (let i = 0; i < body.namedChildCount; i++) {
+		const child = body.namedChild(i)
+		if (!child) {
+			continue
+		}
+		if (isClassPropertyNode(child)) {
+			const property = createClassProperty(child, source)
+			if (property) {
+				properties.push(property)
+			}
+			continue
+		}
+		if (child.type === 'method_definition') {
+			const method = createClassMethod(child, source)
+			if (method) {
+				methods.push(method)
+			}
+		}
+	}
+	return { properties, methods }
+}
+
+function isClassPropertyNode(node: treeSitter.Node): boolean {
+	if (classPropertyNodeTypes.has(node.type)) {
+		return true
+	}
+	const lowType = node.type.toLowerCase()
+	return (lowType.includes('field') || lowType.includes('property')) && !lowType.includes('method')
+}
+
+function createClassProperty(node: treeSitter.Node, source: string): ClassProperty | undefined {
+	const nameNode = findNamedChild(node, 'property_identifier') ??
+		findNamedChild(node, 'identifier') ??
+		findNamedChild(node, 'type_identifier')
+	if (!nameNode) {
+		return undefined
+	}
+	const property: ClassProperty = { name: getNodeText(nameNode, source) }
+	const typeAnnotation = findNamedChild(node, 'type_annotation')
+	if (typeAnnotation) {
+		property.type = cleanTypeAnnotation(getNodeText(typeAnnotation, source))
+	}
+	return property
+}
+
+function createClassMethod(node: treeSitter.Node, source: string): ClassMethod | undefined {
+	const nameNode = findNamedChild(node, 'property_identifier') ?? findNamedChild(node, 'identifier')
+	if (!nameNode) {
+		return undefined
+	}
+	const body = findMethodBody(node)
+	return {
+		name: getNodeText(nameNode, source),
+		calls: body ? collectMethodCalls(body, source) : []
+	}
+}
+
+function findMethodBody(node: treeSitter.Node): treeSitter.Node | undefined {
+	return findNamedChild(node, 'statement_block') ?? findNamedChild(node, 'function_body')
+}
+
+function collectMethodCalls(root: treeSitter.Node, source: string): MethodCall[] {
+	const calls: MethodCall[] = []
+	traverseNamedNodes(root, (node) => {
+		if (node.type !== 'call_expression') {
+			return
+		}
+		const target = extractCallTarget(node, source)
+		if (target) {
+			calls.push(target)
+		}
+	})
+	return calls
+}
+
+function extractCallTarget(node: treeSitter.Node, source: string): MethodCall | undefined {
+	const functionNode = node.childForFieldName('function') ?? node.namedChild(0)
+	if (!functionNode || functionNode.type !== 'member_expression') {
+		return undefined
+	}
+	const objectNode = functionNode.namedChild(0)
+	const propertyNode = functionNode.namedChild(1)
+	if (!objectNode || !propertyNode) {
+		return undefined
+	}
+	const objectText = getNodeText(objectNode, source)
+	if (objectText === 'this' || objectText === 'super') {
+		return undefined
+	}
+	if (propertyNode.type !== 'property_identifier') {
+		return undefined
+	}
+	return {
+		targetClass: objectText,
+		targetMethod: getNodeText(propertyNode, source)
+	}
+}
+
+function cleanTypeAnnotation(raw: string): string {
+	const trimmed = raw.trim()
+	if (trimmed.startsWith(':')) {
+		return trimmed.slice(1).trim()
+	}
+	return trimmed
 }
