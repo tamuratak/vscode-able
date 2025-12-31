@@ -7,6 +7,7 @@ suite('ts analyzer', () => {
 		const markdown = `この文書は Foo が bar プロパティと callBar メソッドを持ち、Bar.doSomething を呼び出すことを説明します。
 
 \`\`\`mermaid
+	%% general architecture
 classDiagram
 class Foo {
 	+bar: Bar
@@ -43,6 +44,48 @@ Foo o-- Bar
 	}
 	Foo ..> Bar : callBar -> doSomething
 	Foo o-- Bar : bar`
+		assert.strictEqual(diagram, expected)
+	})
+
+	test('resolves calls via property types', async () => {
+		const markdown = `Foo の worker プロパティと start メソッドが Worker.run を使うことを説明します。
+
+	\`\`\`mermaid
+	classDiagram
+	class Foo {
+		+worker: Worker
+		+start()
+	}
+	class Worker {
+		+run()
+	}
+	\`\`\`
+	`
+		const source = `export class Worker {
+			run() {}
+		}
+
+		export class Foo {
+			worker: Worker
+			start() {
+				this.worker.run()
+			}
+		}
+		`
+		const diagram = await generateFocusedMermaidDiagram({
+			markdown,
+			sourceFiles: [{ path: 'src/foo.ts', content: source }]
+		})
+		const expected = `classDiagram
+	class Foo {
+		worker: Worker
+		start()
+	}
+	class Worker {
+		run()
+	}
+	Foo ..> Worker : start -> run
+	Foo o-- Worker : worker`
 		assert.strictEqual(diagram, expected)
 	})
 

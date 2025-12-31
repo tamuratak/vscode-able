@@ -35,4 +35,22 @@ Foo ..> Bar : calls
 			{ from: 'Foo', to: 'Bar', type: 'calls', label: 'calls' }
 		])
 	})
+
+	test('preserves function-typed attributes as properties', () => {
+		const diagram = `classDiagram
+class Task {
+	+handler: () => void
+	+execute()
+}
+`
+		const parsed = parseMermaidClassDiagram(diagram)
+		const task = parsed.classes.find((entry) => entry.name === 'Task')
+		assert.ok(task)
+		assert.deepStrictEqual(task?.attributes, [
+			{ name: 'handler', text: '+handler: () => void', type: '() => void' }
+		])
+		assert.deepStrictEqual(task?.methods, [
+			{ name: 'execute', text: '+execute()' }
+		])
+	})
 })

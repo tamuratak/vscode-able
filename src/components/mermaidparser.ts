@@ -74,7 +74,7 @@ export function parseMermaidClassDiagram(source: string): MermaidDiagram {
 				currentClassName = undefined
 				continue
 			}
-			if (line.includes('(')) {
+			if (/^[+#~-]?\s*[A-Za-z0-9_]+\s*\([^)]*\)\s*$/.test(line)) {
 				const methodName = extractMethodName(line)
 				if (methodName) {
 					currentMethods.push({ name: methodName, text: line })

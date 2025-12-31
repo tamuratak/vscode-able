@@ -1,5 +1,5 @@
 import { parseMermaidClassDiagram, MermaidClass, MermaidClassAttribute, MermaidClassMethod, MermaidDiagram, MermaidRelation, MermaidRelationType } from './mermaidparser.js'
-import { collectClassDefinitions, ClassDefinition } from './tsparser.js'
+import { collectClassDefinitions, ClassDefinition, ClassProperty } from './tsparser.js'
 
 export interface SourceFile {
 	path: string
@@ -80,7 +80,7 @@ function splitMarkdownSections(markdown: string): { description: string; diagram
 function isMermaidDiagram(content: string): boolean {
 	for (const rawLine of content.split(/\r?\n/)) {
 		const trimmed = rawLine.trim()
-		if (trimmed.length === 0) {
+		if (trimmed.length === 0 || trimmed.startsWith('%%')) {
 			continue
 		}
 		return trimmed.startsWith('classDiagram')
@@ -360,13 +360,20 @@ function buildRelations(
 					continue
 				}
 				for (const call of method.calls) {
-					if (!includedClasses.has(call.targetClass)) {
-						continue
-					}
 					const label = call.targetMethod
 						? `${method.name} -> ${call.targetMethod}`
 						: method.name
-					addRelation({ from: className, to: call.targetClass, type: 'calls', label })
+					if (includedClasses.has(call.targetClass)) {
+						addRelation({ from: className, to: call.targetClass, type: 'calls', label })
+						continue
+					}
+					const property = findPropertyForCallTarget(tsClass.properties, call.targetClass)
+					if (!property?.type) {
+						continue
+					}
+					for (const target of findReferencedClasses(property.type, includedClasses)) {
+						addRelation({ from: className, to: target, type: 'calls', label })
+					}
 				}
 			}
 		}
@@ -403,6 +410,28 @@ function findReferencedClasses(type: string | undefined, includedClasses: Set<st
 		}
 	}
 	return result
+}
+
+function findPropertyForCallTarget(properties: ClassProperty[], callTarget: string): ClassProperty | undefined {
+	for (const property of properties) {
+		if (matchesCallTarget(callTarget, property.name)) {
+			return property
+		}
+	}
+	return undefined
+}
+
+function matchesCallTarget(callTarget: string, propertyName: string): boolean {
+	if (propertyName.length === 0) {
+		return false
+	}
+	if (callTarget === propertyName) {
+		return true
+	}
+	if (callTarget.endsWith(`.${propertyName}`)) {
+		return true
+	}
+	return false
 }
 
 function relationToLine(relation: MermaidRelation): string {
