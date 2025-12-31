@@ -1,46 +1,62 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
-import { buildMermaidDiagramFromContent, parseDescriptionMentions } from '../../../src/components/tsanalyzer.js'
+import { generateFocusedMermaidDiagram } from '../../../src/components/tsanalyzer.js'
 
-suite('ts analyzer description mentions', () => {
-	test('extracts classes methods and properties from text', () => {
-		const description = 'クラス `Foo` は property `Foo.bar` を持ち、method `Foo#callOther` から `Bar#doSomething` を呼び出す'
-		const mentions = parseDescriptionMentions(description)
-		assert.ok(mentions.classes.has('Foo'))
-		assert.ok(mentions.classes.has('Bar'))
-		assert.ok(mentions.properties.get('Foo')?.has('bar'))
-		assert.ok(mentions.methods.get('Foo')?.has('callOther'))
-		assert.ok(mentions.methods.get('Bar')?.has('doSomething'))
-	})
-})
+suite('ts analyzer', () => {
+	test('filters described classes and relations', async () => {
+		const markdown = `この文書は Foo が bar プロパティと callBar メソッドを持ち、Bar.doSomething を呼び出すことを説明します。
 
-suite('ts analyzer mermaid generation', () => {
-	test('builds diagram limited to described elements', async () => {
-		const source = `class Foo extends Base {
+\`\`\`mermaid
+classDiagram
+class Foo {
+	+bar: Bar
+	+callBar()
+}
+class Bar {
+	+doSomething()
+}
+Foo o-- Bar
+\`\`\`
+`
+		const source = `export class Bar {
+			doSomething() {}
+		}
+
+		export class Foo {
 			bar: Bar
-			callOther() {
+			callBar() {
 				Bar.doSomething()
 			}
 		}
-		class Base {}
-		class Bar {
-			doSomething() {}
-		}`
-		const description = 'クラス `Foo` は `Base` を継承し、property `Foo.bar` で `Bar` を保持する。method `Foo#callOther` から `Bar#doSomething` を呼び出す。'
-		const diagram = await buildMermaidDiagramFromContent(source, description)
+		`
+		const diagram = await generateFocusedMermaidDiagram({
+			markdown,
+			sourceFiles: [{ path: 'src/foo.ts', content: source }]
+		})
 		const expected = `classDiagram
-	class Base
 	class Bar {
-		+doSomething()
+		doSomething()
 	}
 	class Foo {
-		+bar: Bar
-		+callOther()
+		bar: Bar
+		callBar()
 	}
-	Base <|-- Foo
-	Foo --> Bar : bar
-	Foo ..> Bar : calls doSomething()
-`
+	Foo ..> Bar : callBar -> doSomething
+	Foo o-- Bar : bar`
 		assert.strictEqual(diagram, expected)
+	})
+
+	test('returns undefined when no relevant mentions', async () => {
+		const markdown = `この文章は対象のクラス名前を含んでいません。
+
+\`\`\`mermaid
+classDiagram
+class Foo {
+	+bar: Bar
+}
+\`\`\`
+`
+		const result = await generateFocusedMermaidDiagram({ markdown })
+		assert.strictEqual(result, undefined)
 	})
 })

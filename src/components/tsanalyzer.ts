@@ -1,231 +1,431 @@
-import { promises as fs } from 'node:fs'
-import { ClassDefinition, ClassMethod, ClassProperty, collectClassDefinitions } from './tsparser.js'
+import { parseMermaidClassDiagram, MermaidClass, MermaidClassAttribute, MermaidClassMethod, MermaidDiagram, MermaidRelation, MermaidRelationType } from './mermaidparser.js'
+import { collectClassDefinitions, ClassDefinition } from './tsparser.js'
 
-const methodKeywords = ['method', 'methods', 'function', 'call', 'calls', 'invoke', 'invokes', 'メソッド', '関数', '呼び出']
-const propertyKeywords = ['property', 'properties', 'field', 'fields', 'member', 'members', 'プロパティ', 'フィールド', 'インスタンス変数', '持つ', 'has']
-const contextWindow = 40
-
-export interface DescriptionMentions {
-	classes: Set<string>
-	properties: Map<string, Set<string>>
-	methods: Map<string, Set<string>>
+export interface SourceFile {
+	path: string
+	content: string
 }
 
-export interface MermaidGenerationOptions {
-	sourcePath: string
-	descriptionPath: string
-	outputPath: string
+export interface AnalyzerInput {
+	markdown: string
+	sourceFiles?: SourceFile[] | undefined
 }
 
-export async function analyzeAndWriteMermaid(options: MermaidGenerationOptions): Promise<string> {
-	const [source, description] = await Promise.all([
-		fs.readFile(options.sourcePath, 'utf8'),
-		fs.readFile(options.descriptionPath, 'utf8')
-	])
-	const diagram = await buildMermaidDiagramFromContent(source, description)
-	await fs.writeFile(options.outputPath, diagram, 'utf8')
-	return diagram
-}
-
-export async function buildMermaidDiagramFromContent(source: string, description: string): Promise<string> {
-	const mentions = parseDescriptionMentions(description)
-	const definitions = await collectClassDefinitions(source)
-	if (!definitions) {
-		throw new Error('Unable to parse source file for class definitions')
+export async function generateFocusedMermaidDiagram(input: AnalyzerInput): Promise<string | undefined> {
+	const { description, diagrams } = splitMarkdownSections(input.markdown)
+	if (diagrams.length === 0) {
+		return undefined
 	}
-	const model = buildDiagramModel(definitions, mentions)
-	return renderMermaidDiagram(model)
-}
-
-export function parseDescriptionMentions(description: string): DescriptionMentions {
-	const mentions: DescriptionMentions = {
-		classes: new Set(),
-		properties: new Map(),
-		methods: new Map()
+	const tokens = collectDescriptionTokens(description)
+	if (tokens.size === 0) {
+		return undefined
 	}
-	const expression = /`([^`]+)`/g
-	let match: RegExpExecArray | null
-	while ((match = expression.exec(description)) !== null) {
-		const token = match[1].trim()
-		if (!token) {
-			continue
-		}
-		const before = description.slice(Math.max(0, match.index - contextWindow), match.index).toLowerCase()
-		const afterIndex = match.index + match[0].length
-		const after = description.slice(afterIndex, afterIndex + contextWindow).toLowerCase()
-		const member = splitMemberToken(token)
-		if (!member) {
-			mentions.classes.add(token)
-			continue
-		}
-		mentions.classes.add(member.className)
-		const kind = classifyMemberMention(member.separator, before + after)
-		if (kind === 'method') {
-			addMention(mentions.methods, member.className, member.memberName)
-		} else {
-			addMention(mentions.properties, member.className, member.memberName)
-		}
+	const mermaidDiagrams = diagrams.map(parseMermaidClassDiagram)
+	const mermaidClasses = mergeMermaidClasses(mermaidDiagrams)
+	const mermaidRelations = mergeMermaidRelations(mermaidDiagrams)
+	const tsClasses = await gatherClasses(input.sourceFiles ?? [])
+	const tsClassMap = new Map(tsClasses.map((entry) => [entry.name, entry]))
+	const memberIndex = buildMemberIndex(mermaidClasses, tsClasses)
+	const includedClasses = determineIncludedClasses(memberIndex, tokens)
+	if (includedClasses.size === 0) {
+		return undefined
 	}
-	return mentions
+	const classBlocks = buildClassBlocks(includedClasses, tokens, mermaidClasses, tsClassMap)
+	const relations = buildRelations(includedClasses, tokens, mermaidClasses, tsClassMap, mermaidRelations)
+	const sortedRelations = relations.sort((a, b) => {
+		const fromCompare = a.from.localeCompare(b.from)
+		if (fromCompare !== 0) {
+			return fromCompare
+		}
+		const toCompare = a.to.localeCompare(b.to)
+		if (toCompare !== 0) {
+			return toCompare
+		}
+		return a.type.localeCompare(b.type)
+	})
+	const relationLines = sortedRelations.map((relation) => relationToLine(relation))
+	return ['classDiagram', ...classBlocks, ...relationLines].join('\n')
 }
 
-interface DiagramClass {
-	name: string
-	properties: ClassProperty[]
-	methods: ClassMethod[]
-}
-
-interface DiagramModel {
-	classes: DiagramClass[]
-	extendsEdges: { derived: string; base: string }[]
-	hasEdges: { source: string; target: string; label: string }[]
-	callEdges: { source: string; target: string; label: string }[]
-}
-
-function buildDiagramModel(definitions: ClassDefinition[], mentions: DescriptionMentions): DiagramModel {
-	const classMap = new Map(definitions.map((definition) => [definition.name, definition]))
-	const classes: DiagramClass[] = []
-	const extendsEdges: { derived: string; base: string }[] = []
-	const hasEdges: { source: string; target: string; label: string }[] = []
-	const callEdges: { source: string; target: string; label: string }[] = []
-	const requestedClasses = Array.from(mentions.classes).sort((a, b) => a.localeCompare(b))
-	for (const className of requestedClasses) {
-		const definition = classMap.get(className)
-		if (!definition) {
-			continue
-		}
-		const propertyNames = mentions.properties.get(className) ?? new Set<string>()
-		const methodNames = mentions.methods.get(className) ?? new Set<string>()
-		const properties: ClassProperty[] = []
-		for (const propertyName of Array.from(propertyNames).sort()) {
-			const found = definition.properties.find((property) => property.name === propertyName)
-			properties.push(found ?? { name: propertyName })
-		}
-		const methods: ClassMethod[] = []
-		for (const methodName of Array.from(methodNames).sort()) {
-			const found = definition.methods.find((method) => method.name === methodName)
-			methods.push(found ?? { name: methodName, calls: [] })
-		}
-		classes.push({ name: className, properties, methods })
-		if (definition.extends && mentions.classes.has(definition.extends)) {
-			extendsEdges.push({ derived: className, base: definition.extends })
-		}
-		for (const property of properties) {
-			if (!property.type) {
-				continue
-			}
-			for (const candidate of mentions.classes) {
-				if (matchClassInType(property.type, candidate)) {
-					hasEdges.push({ source: className, target: candidate, label: property.name })
+function splitMarkdownSections(markdown: string): { description: string; diagrams: string[] } {
+	const lines = markdown.split(/\r?\n/)
+	const descriptionLines: string[] = []
+	const diagrams: string[] = []
+	let inCodeBlock = false
+	const currentBlock: string[] = []
+	for (const line of lines) {
+		const trimmed = line.trim()
+		if (trimmed.startsWith('```')) {
+			if (inCodeBlock) {
+				const content = currentBlock.join('\n')
+				if (isMermaidDiagram(content)) {
+					diagrams.push(content)
 				}
+				currentBlock.length = 0
+				inCodeBlock = false
+			} else {
+				inCodeBlock = true
 			}
-		}
-		const methodMention = mentions.methods.get(className)
-		for (const method of methods) {
-			if (!methodMention || !methodMention.has(method.name)) {
-				continue
-			}
-			for (const call of method.calls) {
-				if (!mentions.classes.has(call.targetClass)) {
-					continue
-				}
-				const targetMethods = mentions.methods.get(call.targetClass)
-				if (!targetMethods || !targetMethods.has(call.targetMethod)) {
-					continue
-				}
-				callEdges.push({ source: className, target: call.targetClass, label: call.targetMethod })
-			}
-		}
-	}
-	return { classes, extendsEdges, hasEdges, callEdges }
-}
-
-function renderMermaidDiagram(model: DiagramModel): string {
-	const lines: string[] = ['classDiagram']
-	const sortedClasses = [...model.classes].sort((a, b) => a.name.localeCompare(b.name))
-	for (const diagramClass of sortedClasses) {
-		const hasMembers = diagramClass.properties.length > 0 || diagramClass.methods.length > 0
-		if (hasMembers) {
-			lines.push(`    class ${diagramClass.name} {`)
-			for (const property of diagramClass.properties) {
-				const suffix = property.type ? `: ${property.type}` : ''
-				lines.push(`        +${property.name}${suffix}`)
-			}
-			for (const method of diagramClass.methods) {
-				lines.push(`        +${method.name}()`)
-			}
-			lines.push('    }')
-		} else {
-			lines.push(`    class ${diagramClass.name}`)
-		}
-	}
-	const extendsLines = Array.from(new Set(model.extendsEdges.map((edge) => `    ${edge.base} <|-- ${edge.derived}`))).sort()
-	const hasLines = Array.from(new Set(model.hasEdges.map((edge) => `    ${edge.source} --> ${edge.target} : ${edge.label}`))).sort()
-	const callLines = Array.from(new Set(model.callEdges.map((edge) => `    ${edge.source} ..> ${edge.target} : calls ${edge.label}()`))).sort()
-	lines.push(...extendsLines, ...hasLines, ...callLines)
-	return lines.join('\n') + '\n'
-}
-
-function matchClassInType(typeText: string, className: string): boolean {
-	if (!typeText) {
-		return false
-	}
-	const pattern = new RegExp(`\\b${escapeRegExp(className)}\\b`)
-	return pattern.test(typeText)
-}
-
-function escapeRegExp(value: string): string {
-	return value.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')
-}
-
-function splitMemberToken(token: string): { className: string; memberName: string; separator: string } | undefined {
-	const separators = ['#', '::', '.']
-	for (const separator of separators) {
-		const index = token.indexOf(separator)
-		if (index <= 0) {
 			continue
 		}
-		const className = token.slice(0, index).trim()
-		const memberName = stripParens(token.slice(index + separator.length))
-		if (!className || !memberName) {
+		if (inCodeBlock) {
+			currentBlock.push(line)
 			continue
 		}
-		return { className, memberName, separator }
+		descriptionLines.push(line)
 	}
-	return undefined
+	return { description: descriptionLines.join('\n').trim(), diagrams }
 }
 
-function stripParens(value: string): string {
-	return value.replace(/\(\s*\)$/, '').trim()
-}
-
-function classifyMemberMention(separator: string, context: string): 'method' | 'property' {
-	if (separator === '#' || separator === '::') {
-		return 'method'
-	}
-	if (containsKeyword(context, methodKeywords)) {
-		return 'method'
-	}
-	if (containsKeyword(context, propertyKeywords)) {
-		return 'property'
-	}
-	return 'property'
-}
-
-function containsKeyword(context: string, keywords: readonly string[]): boolean {
-	for (const keyword of keywords) {
-		if (context.includes(keyword)) {
-			return true
+function isMermaidDiagram(content: string): boolean {
+	for (const rawLine of content.split(/\r?\n/)) {
+		const trimmed = rawLine.trim()
+		if (trimmed.length === 0) {
+			continue
 		}
+		return trimmed.startsWith('classDiagram')
 	}
 	return false
 }
 
-function addMention(map: Map<string, Set<string>>, className: string, memberName: string): void {
-	let entries = map.get(className)
-	if (!entries) {
-		entries = new Set()
-		map.set(className, entries)
+function collectDescriptionTokens(description: string): Set<string> {
+	const result = new Set<string>()
+	const matches = description.match(/[A-Za-z0-9_]+/g)
+	if (!matches) {
+		return result
 	}
-	entries.add(memberName)
+	for (const token of matches) {
+		result.add(token)
+		result.add(token.toLowerCase())
+		const capitalized = token[0]?.toUpperCase() + token.slice(1)
+		if (capitalized !== token) {
+			result.add(capitalized)
+		}
+	}
+	return result
+}
+
+function buildMemberIndex(mermaidClasses: Map<string, MermaidClass>, tsClasses: ClassDefinition[]) {
+	const index = new Map<string, { attributes: Set<string>; methods: Set<string> }>()
+	for (const [name, entry] of mermaidClasses) {
+		const attributes = new Set<string>()
+		for (const attribute of entry.attributes) {
+			if (attribute.name.length > 0) {
+				attributes.add(attribute.name)
+			}
+		}
+		const methods = new Set<string>()
+		for (const method of entry.methods) {
+			if (method.name.length > 0) {
+				methods.add(method.name)
+			}
+		}
+		index.set(name, { attributes, methods })
+	}
+	for (const tsClass of tsClasses) {
+		const entry = index.get(tsClass.name) ?? { attributes: new Set(), methods: new Set() }
+		for (const attribute of tsClass.properties) {
+			if (attribute.name.length > 0) {
+				entry.attributes.add(attribute.name)
+			}
+		}
+		for (const method of tsClass.methods) {
+			if (method.name.length > 0) {
+				entry.methods.add(method.name)
+			}
+		}
+		index.set(tsClass.name, entry)
+	}
+	return index
+}
+
+function determineIncludedClasses(memberIndex: Map<string, { attributes: Set<string>; methods: Set<string> }>, tokens: Set<string>) {
+	const result = new Set<string>()
+	for (const [className, members] of memberIndex) {
+		if (matchesToken(className, tokens)) {
+			result.add(className)
+			continue
+		}
+		let shouldAdd = false
+		for (const attribute of members.attributes) {
+			if (matchesToken(attribute, tokens)) {
+				shouldAdd = true
+				break
+			}
+		}
+		if (shouldAdd) {
+			result.add(className)
+			continue
+		}
+		for (const method of members.methods) {
+			if (matchesToken(method, tokens)) {
+				result.add(className)
+				break
+			}
+		}
+	}
+	return result
+}
+
+function matchesToken(value: string, tokens: Set<string>): boolean {
+	if (value.length === 0) {
+		return false
+	}
+	if (tokens.has(value)) {
+		return true
+	}
+	if (tokens.has(value.toLowerCase())) {
+		return true
+	}
+	return false
+}
+
+async function gatherClasses(sourceFiles: SourceFile[]): Promise<ClassDefinition[]> {
+	const entries: ClassDefinition[] = []
+	for (const file of sourceFiles) {
+		const definitions = await collectClassDefinitions(file.content)
+		if (definitions) {
+			entries.push(...definitions)
+		}
+	}
+	return entries
+}
+
+function mergeMermaidClasses(diagrams: MermaidDiagram[]): Map<string, MermaidClass> {
+	const result = new Map<string, MermaidClass>()
+	for (const diagram of diagrams) {
+		for (const entry of diagram.classes) {
+			const existing = result.get(entry.name)
+			if (!existing) {
+				result.set(entry.name, {
+					name: entry.name,
+					attributes: [...entry.attributes],
+					methods: [...entry.methods]
+				})
+				continue
+			}
+			mergeAttributes(existing.attributes, entry.attributes)
+			mergeMethods(existing.methods, entry.methods)
+		}
+	}
+	return result
+}
+
+function mergeMermaidRelations(diagrams: MermaidDiagram[]): MermaidRelation[] {
+	const result: MermaidRelation[] = []
+	for (const diagram of diagrams) {
+		result.push(...diagram.relations)
+	}
+	return result
+}
+
+function mergeAttributes(target: MermaidClassAttribute[], source: MermaidClassAttribute[]) {
+	const seen = new Set(target.map((attribute) => `${attribute.name}|${attribute.text}`))
+	for (const attribute of source) {
+		const key = `${attribute.name}|${attribute.text}`
+		if (seen.has(key)) {
+			continue
+		}
+		seen.add(key)
+		target.push(attribute)
+	}
+}
+
+function mergeMethods(target: MermaidClassMethod[], source: MermaidClassMethod[]) {
+	const seen = new Set(target.map((method) => `${method.name}|${method.text}`))
+	for (const method of source) {
+		const key = `${method.name}|${method.text}`
+		if (seen.has(key)) {
+			continue
+		}
+		seen.add(key)
+		target.push(method)
+	}
+}
+
+function buildClassBlocks(
+	includedClasses: Set<string>,
+	tokens: Set<string>,
+	mermaidClasses: Map<string, MermaidClass>,
+	tsClassMap: Map<string, ClassDefinition>
+): string[] {
+	const sorted = Array.from(includedClasses).sort((a, b) => a.localeCompare(b))
+	const blocks: string[] = []
+	for (const className of sorted) {
+		const members = buildMembersForClass(className, tokens, mermaidClasses, tsClassMap)
+		if (members.properties.length === 0 && members.methods.length === 0) {
+			blocks.push(`	class ${className}`)
+			continue
+		}
+		blocks.push(`	class ${className} {`)
+		for (const property of members.properties) {
+			blocks.push(`		${property}`)
+		}
+		for (const method of members.methods) {
+			blocks.push(`		${method}`)
+		}
+		blocks.push('	}')
+	}
+	return blocks
+}
+
+function buildMembersForClass(
+	className: string,
+	tokens: Set<string>,
+	mermaidClasses: Map<string, MermaidClass>,
+	tsClassMap: Map<string, ClassDefinition>
+): { properties: string[]; methods: string[] } {
+	const propertyEntries = new Map<string, string>()
+	const methodEntries = new Map<string, string>()
+	const tsClass = tsClassMap.get(className)
+	if (tsClass) {
+		for (const property of tsClass.properties) {
+			if (property.name.length === 0) {
+				continue
+			}
+			if (!matchesToken(property.name, tokens)) {
+				continue
+			}
+			const representation = property.type ? `${property.name}: ${property.type}` : property.name
+			propertyEntries.set(property.name, representation)
+		}
+		for (const method of tsClass.methods) {
+			if (method.name.length === 0) {
+				continue
+			}
+			if (!matchesToken(method.name, tokens)) {
+				continue
+			}
+			methodEntries.set(method.name, `${method.name}()`)
+		}
+	}
+	const mermaidClass = mermaidClasses.get(className)
+	if (mermaidClass) {
+		for (const attribute of mermaidClass.attributes) {
+			if (!matchesToken(attribute.name, tokens)) {
+				continue
+			}
+			if (!propertyEntries.has(attribute.name)) {
+				propertyEntries.set(attribute.name, attribute.text)
+			}
+		}
+		for (const method of mermaidClass.methods) {
+			if (!matchesToken(method.name, tokens)) {
+				continue
+			}
+			if (!methodEntries.has(method.name)) {
+				methodEntries.set(method.name, method.text)
+			}
+		}
+	}
+	return {
+		properties: Array.from(propertyEntries.values()),
+		methods: Array.from(methodEntries.values())
+	}
+}
+
+function buildRelations(
+	includedClasses: Set<string>,
+	tokens: Set<string>,
+	mermaidClasses: Map<string, MermaidClass>,
+	tsClassMap: Map<string, ClassDefinition>,
+	mermaidRelations: MermaidRelation[]
+): MermaidRelation[] {
+	const results: MermaidRelation[] = []
+	const seen = new Set<string>()
+	const addRelation = (relation: MermaidRelation) => {
+		const key = `${relation.from}|${relation.type}|${relation.to}|${relation.label ?? ''}`
+		if (seen.has(key)) {
+			return
+		}
+		seen.add(key)
+		results.push(relation)
+	}
+	for (const className of includedClasses) {
+		const tsClass = tsClassMap.get(className)
+		if (tsClass?.extends && includedClasses.has(tsClass.extends)) {
+			addRelation({ from: tsClass.extends, to: className, type: 'extends' })
+		}
+		if (tsClass) {
+			for (const property of tsClass.properties) {
+				if (property.name.length === 0 || !matchesToken(property.name, tokens)) {
+					continue
+				}
+				for (const target of findReferencedClasses(property.type, includedClasses)) {
+					addRelation({ from: className, to: target, type: 'has', label: property.name })
+				}
+			}
+			for (const method of tsClass.methods) {
+				if (method.name.length === 0 || !matchesToken(method.name, tokens)) {
+					continue
+				}
+				for (const call of method.calls) {
+					if (!includedClasses.has(call.targetClass)) {
+						continue
+					}
+					const label = call.targetMethod
+						? `${method.name} -> ${call.targetMethod}`
+						: method.name
+					addRelation({ from: className, to: call.targetClass, type: 'calls', label })
+				}
+			}
+		}
+		const mermaidClass = mermaidClasses.get(className)
+		if (mermaidClass) {
+			for (const attribute of mermaidClass.attributes) {
+				if (!matchesToken(attribute.name, tokens)) {
+					continue
+				}
+				for (const target of findReferencedClasses(attribute.type, includedClasses)) {
+					addRelation({ from: className, to: target, type: 'has', label: attribute.name })
+				}
+			}
+		}
+	}
+	for (const relation of mermaidRelations) {
+		if (!includedClasses.has(relation.from) || !includedClasses.has(relation.to)) {
+			continue
+		}
+		addRelation(relation)
+	}
+	return results
+}
+
+function findReferencedClasses(type: string | undefined, includedClasses: Set<string>): string[] {
+	if (!type) {
+		return []
+	}
+	const result: string[] = []
+	for (const className of includedClasses) {
+		const pattern = new RegExp(`(^|[^A-Za-z0-9_])${escapeRegExp(className)}([^A-Za-z0-9_]|$)`)
+		if (pattern.test(type)) {
+			result.push(className)
+		}
+	}
+	return result
+}
+
+function relationToLine(relation: MermaidRelation): string {
+	const arrow = arrowForType(relation.type)
+	const label = relation.label ? ` : ${relation.label}` : ''
+	return `	${relation.from} ${arrow} ${relation.to}${label}`
+}
+
+function arrowForType(type: MermaidRelationType): string {
+	switch (type) {
+		case 'extends':
+			return '<|--'
+		case 'has':
+			return 'o--'
+		case 'calls':
+			return '..>'
+		case 'association':
+			return '-->'
+        default:
+            return '-->'
+	}
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
