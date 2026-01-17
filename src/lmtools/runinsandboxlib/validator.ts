@@ -66,11 +66,13 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
 }
 
 function isAllowedSubCommand(command: CommandNode): boolean {
-    if (exactMatchCommand(['git', 'status'], command)) {
+    if (commandStartsWith(['git', 'status'], command) || commandStartsWith(['git', '--no-pager', 'status'], command)) {
         return true
-    }
-
-    if (exactMatchCommand(['git', 'status', /^(-[sb]+)?$/], command)) {
+    } else if (commandStartsWith(['git', 'log'], command) || commandStartsWith(['git', '--no-pager', 'log'], command)) {
+        return true
+    } else if (commandStartsWith(['git', 'diff'], command) || commandStartsWith(['git', '--no-pager', 'diff'], command)) {
+        return true
+    } else if (commandStartsWith(['git', 'show'], command) || commandStartsWith(['git', '--no-pager', 'show'], command)) {
         return true
     }
 
@@ -138,12 +140,9 @@ function isPotentialFilenameForSed(token: string): boolean {
 }
 
 /**
- * Returns true if the input exactly matches the pattern.
+ * Returns true if the input command starts with the given pattern.
  */
-function exactMatchCommand(pattern: (string | RegExp)[], command: CommandNode): boolean {
-    if (pattern.length !== command.args.length + 1) {
-        return false
-    }
+function commandStartsWith(pattern: (string | RegExp)[], command: CommandNode): boolean {
     if (pattern[0] !== command.command) {
         return false
     }
