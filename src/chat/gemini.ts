@@ -20,7 +20,6 @@ export class GeminiChatHandleManager {
             stream: vscode.ChatResponseStream,
             token: vscode.CancellationToken
         ): Promise<vscode.ChatResult | undefined> => {
-            debugObj('[Gemini (with Able)] request.references: ', request.references, this.extension.outputChannel)
             return this.responseForCommand(token, request, stream)
         }
     }
@@ -30,6 +29,7 @@ export class GeminiChatHandleManager {
         request: vscode.ChatRequest,
         stream: vscode.ChatResponseStream,
     ): Promise<vscode.ChatResult | undefined> {
+        debugObj('[Gemini CLI (with Able)] request.references: ', request.references, this.extension.outputChannel)
         const cmd = 'gemini'
         const model = request.command === 'pro' ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview'
         const args: string[] = ['--model', model]
