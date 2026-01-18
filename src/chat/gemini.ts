@@ -30,13 +30,18 @@ export class GeminiChatHandleManager {
         request: vscode.ChatRequest,
         stream: vscode.ChatResponseStream,
     ): Promise<vscode.ChatResult | undefined> {
-        const input = request.prompt
-
         const cmd = 'gemini'
-        const args: string[] = ['--model', 'gemini-3-flash-preview']
+        const model = request.command === 'pro' ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview'
+        const args: string[] = ['--model', model]
+        const systemPromptPath = '/Users/tamura/src/github/vscode-able/lib/geminicli/system.md'
 
         await new Promise<void>((resolve) => {
-            const child = spawn(cmd, args, { stdio: ['pipe', 'pipe', 'pipe'] })
+            const child = spawn(cmd, args,
+                {
+                    stdio: ['pipe', 'pipe', 'pipe'],
+                    env: { ...process.env, 'GEMINI_SYSTEM_MD': systemPromptPath }
+                }
+            )
             let stdout = ''
             let stderr = ''
 
@@ -81,7 +86,7 @@ export class GeminiChatHandleManager {
 
             // write input to stdin and close
             try {
-                child.stdin.write(input)
+                child.stdin.write(request.prompt)
                 child.stdin.end()
             } catch {
                 // ignore write errors

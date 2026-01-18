@@ -82,10 +82,16 @@
       },
       {
         "id": "able.geminiParticipant",
-        "fullName": "Gemini (with Able)",
+        "fullName": "Gemini CLI (with Able)",
         "name": "gemini",
-        "description": "Gemini (with Able)",
-        "isSticky": true
+        "description": "Gemini CLI (with Able)",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "pro",
+            "description": "Use Gemini 3 Pro model"
+          }
+        ]
       }
     ],
     "languageModelChatProviders": [
