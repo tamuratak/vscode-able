@@ -79,6 +79,13 @@
             "description": "Translate to Japanese"
           }
         ]
+      },
+      {
+        "id": "able.geminiParticipant",
+        "fullName": "Gemini (with Able)",
+        "name": "gemini",
+        "description": "Gemini (with Able)",
+        "isSticky": true
       }
     ],
     "languageModelChatProviders": [
