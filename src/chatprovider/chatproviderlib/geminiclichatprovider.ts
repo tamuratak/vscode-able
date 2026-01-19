@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatMessage, ProvideLanguageModelChatResponseOptions, Progress, LanguageModelChatInformation, LanguageModelChatProvider } from 'vscode'
 import { debugObj } from '../../utils/debug.js'
-import { renderMessageContent, renderMessages } from '../../utils/renderer.js'
+import { renderMessageContent } from '../../utils/renderer.js'
 import { tokenLength } from './openaicompatchatproviderlib/tokencount.js'
 import { exucuteGeminiCliCommand } from '../../utils/geminicli.js'
 
@@ -50,25 +50,25 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
     }
 
     async provideLanguageModelChatResponse(
-        _model: LanguageModelChatInformation,
+        model: LanguageModelChatInformation,
         messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[],
         _options: ProvideLanguageModelChatResponseOptions,
         progress: Progress<vscode.LanguageModelResponsePart2>,
         token: CancellationToken
     ) {
 
-        debugObj('Gemini (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
+//        debugObj('Gemini CLI (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
 
-        const allContent = ''
         const lastMessage = messages[messages.length - 1]
         const contentArray = await renderMessageContent(lastMessage)
         const prompt = contentArray.join('\n')
 
-        const ret = await exucuteGeminiCliCommand(prompt, 'gemini-3-flash-preview', '/Users/tamura/src/github/vscode-able/lib/geminicli/system.md', token)
+        debugObj('Gemini CLI Chat model: ', model, this.extension.outputChannel)
+        debugObj('Gemini CLI Chat prompt: ', prompt, this.extension.outputChannel)
+        const ret = await exucuteGeminiCliCommand(prompt, model.id, '/Users/tamura/src/github/vscode-able/lib/geminicli/system.md', token)
         progress.report(new vscode.LanguageModelTextPart(ret))
 
-        debugObj('Chat reply: ', allContent, this.extension.outputChannel)
-
+        debugObj('Gemini CLI Chat reply: ', ret, this.extension.outputChannel)
         return Promise.resolve()
     }
 

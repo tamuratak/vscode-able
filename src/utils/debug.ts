@@ -15,6 +15,8 @@ export function debugObj(
         } else {
             outputChannel.info(msg, [result])
         }
+    } else if (typeof obj === 'string') {
+        outputChannel.info(msg + obj)
     } else {
         outputChannel.info(msg + inspectReadable(obj))
     }
