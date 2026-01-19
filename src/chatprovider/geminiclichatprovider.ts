@@ -1,9 +1,9 @@
 import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatMessage, ProvideLanguageModelChatResponseOptions, Progress, LanguageModelChatInformation, LanguageModelChatProvider } from 'vscode'
-import { debugObj } from '../../utils/debug.js'
-import { renderMessageContent } from '../../utils/renderer.js'
-import { tokenLength } from './openaicompatchatproviderlib/tokencount.js'
-import { exucuteGeminiCliCommand } from '../../utils/geminicli.js'
+import { debugObj } from '../utils/debug.js'
+import { renderMessageContent } from '../utils/renderer.js'
+import { tokenLength } from './chatproviderlib/openaicompatchatproviderlib/tokencount.js'
+import { exucuteGeminiCliCommand } from '../utils/geminicli.js'
 
 
 export class GeminiCliChatProvider implements LanguageModelChatProvider<LanguageModelChatInformation> {
@@ -20,7 +20,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
             readonly outputChannel: vscode.LogOutputChannel,
         }
     ) {
-        this.extension.outputChannel.info('GeminiCliChatProvider initialized')
+        this.extension.outputChannel.info('Gemini CLI chat provider initialized')
     }
 
     provideLanguageModelChatInformation(): LanguageModelChatInformation[] {

@@ -11,7 +11,7 @@ import { RunInSandbox } from './lmtools/runinsandbox.js'
 import { renderToolResult } from './utils/toolresultrendering.js'
 import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwebpage.js'
 import { GeminiChatHandleManager } from './chat/gemini.js'
-import { GeminiCliChatProvider } from './chatprovider/chatproviderlib/geminiclichatprovider.js'
+import { GeminiCliChatProvider } from './chatprovider/geminiclichatprovider.js'
 
 
 class Extension {
