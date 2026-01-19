@@ -100,6 +100,10 @@
         "displayName": "Gemini with Able"
       },
       {
+        "vendor": "geminicli_with_able",
+        "displayName": "Gemini CLI with Able"
+      },
+      {
         "vendor": "openai_with_able",
         "displayName": "OpenAI with Able"
       },

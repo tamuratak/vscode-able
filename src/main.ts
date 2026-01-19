@@ -11,6 +11,7 @@ import { RunInSandbox } from './lmtools/runinsandbox.js'
 import { renderToolResult } from './utils/toolresultrendering.js'
 import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwebpage.js'
 import { GeminiChatHandleManager } from './chat/gemini.js'
+import { GeminiCliChatProvider } from './chatprovider/chatproviderlib/geminiclichatprovider.js'
 
 
 class Extension {
@@ -61,6 +62,7 @@ export function activate(context: vscode.ExtensionContext) {
     try {
         context.subscriptions.push(
             vscode.lm.registerLanguageModelChatProvider('gemini_with_able', new GeminiChatProvider(extension)),
+            vscode.lm.registerLanguageModelChatProvider('geminicli_with_able', new GeminiCliChatProvider(extension)),
             vscode.lm.registerLanguageModelChatProvider('openai_with_able', new OpenAIChatProvider(extension)),
             vscode.lm.registerLanguageModelChatProvider('groq_with_able', new GroqChatProvider(extension)),
         )

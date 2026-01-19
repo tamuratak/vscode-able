@@ -11,30 +11,39 @@ export async function renderMessages(
     for (const message of messages) {
         const roleHeader = getRoleHeader(message.role)
         result.push(roleHeader)
-
-        for (const part of message.content) {
-            if (part instanceof LanguageModelTextPart) {
-                result.push(part.value)
-            } else if (part instanceof LanguageModelToolCallPart) {
-                result.push(`**Tool Call: ${part.name}**`)
-                result.push('```json')
-                result.push(JSON.stringify(part.input, null, 2))
-                result.push('```')
-            } else if ((part instanceof vscode.LanguageModelToolResultPart2) || (part instanceof vscode.LanguageModelToolResultPart)) {
-                result.push(`**Tool Result (${part.callId}):**`)
-                result.push('```')
-                result.push(await renderToolResultPart(part))
-                result.push('```')
-            } else {
-                // Skip LanguageModelDataPart or LanguageModelThinkingPart
-                result.push('*[Data or Thinking part - not rendered]*')
-            }
-        }
-
+        const content = await renderMessageContent(message)
+        result.push(...content)
         result.push('') // Add empty line between messages
     }
 
     return result.join('\n')
+}
+
+export async function renderMessageContent(
+    message: LanguageModelChatMessage | vscode.LanguageModelChatMessage2
+) {
+    const result: string[] = []
+
+    for (const part of message.content) {
+        if (part instanceof LanguageModelTextPart) {
+            result.push(part.value)
+        } else if (part instanceof LanguageModelToolCallPart) {
+            result.push(`**Tool Call: ${part.name}**`)
+            result.push('```json')
+            result.push(JSON.stringify(part.input, null, 2))
+            result.push('```')
+        } else if ((part instanceof vscode.LanguageModelToolResultPart2) || (part instanceof vscode.LanguageModelToolResultPart)) {
+            result.push(`**Tool Result (${part.callId}):**`)
+            result.push('```')
+            result.push(await renderToolResultPart(part))
+            result.push('```')
+        } else {
+            // Skip LanguageModelDataPart or LanguageModelThinkingPart
+            result.push('*[Data or Thinking part - not rendered]*')
+        }
+    }
+
+    return result
 }
 
 function getRoleHeader(role: LanguageModelChatMessageRole): string {
