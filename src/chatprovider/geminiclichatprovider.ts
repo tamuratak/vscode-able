@@ -107,9 +107,16 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         }
         result.push(newUserPrompt)
         result.push(...sytemsPrompts)
-        result.push('<conversationHistory>\n')
+        result.push('<conversationHistory>')
         result.push(...conversationTurns)
-        result.push('\n</conversationHistory>')
+        result.push('</conversationHistory>')
+        result.push('<attachments>')
+        for (const attachment of attachments) {
+            result.push(`<attachment id="${attachment.id}" filePath="${attachment.filePath}">`)
+            result.push(attachment.content)
+            result.push('</attachment>')
+        }
+        result.push('</attachments>')
 
         return result.join('\n')
     }
