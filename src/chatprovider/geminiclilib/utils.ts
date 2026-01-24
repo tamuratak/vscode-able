@@ -9,8 +9,15 @@ const attachmentTagPattern = /<attachment\b([^>]*)>([\s\S]*?)<\/attachment>/gi
 const attributePattern = /(\w+)="([^"]*)"/g
 
 export function tweakUserPrompt(input: string) {
-    const withoutAttachments = input.replace(attachmentsBlockRegex, '')
+    const { newInput, attachments } = extractAttachments(input)
+    const withoutAttachments = newInput.replace(attachmentsBlockRegex, '')
     const userPrompt = withoutAttachments.replace(/^<user>\s*/i, '').replace(/\s*<\/user>$/i, '').trim()
+    return { userPrompt, attachments }
+}
+
+export function extractAttachments(input: string) {
+    const withoutAttachments = input.replace(attachmentsBlockRegex, '')
+    const newInput = withoutAttachments.replace(/^<user>\s*/i, '').replace(/\s*<\/user>$/i, '').trim()
     const attachments: { content: string, id: string, filePath: string, isSummarized: string }[] = []
     const attachmentsBlockMatch = input.match(attachmentsBlockRegex)
     if (attachmentsBlockMatch) {
@@ -25,9 +32,8 @@ export function tweakUserPrompt(input: string) {
             while ((attributeMatch = attributePattern.exec(attributeSource)) !== null) {
                 attributes[attributeMatch[1]] = attributeMatch[2]
             }
-            attachments.push({ content: attachmentTagMatch[2].trim(), id: attributes['id'], filePath: attributes['filePath'], isSummarized: attributes['isSummarized']})
+            attachments.push({ content: attachmentTagMatch[2].trim(), id: attributes['id'], filePath: attributes['filePath'], isSummarized: attributes['isSummarized'] })
         }
     }
-
-    return { userPrompt, attachments }
+    return { newInput, attachments }
 }
