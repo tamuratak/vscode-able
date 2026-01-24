@@ -6,8 +6,12 @@ suite('tweakUserPrompt', () => {
 		const input = `<user>
 please review the attached files
 <attachments>
-<attachment id="spec" filePath="/docs/spec.md">  specification content  </attachment>
-<attachment id="log" filePath="/logs/error.log">error log line 1\nerror log line 2</attachment>
+<attachment id="spec" filePath="/docs/spec.md">
+  specification content  
+</attachment>
+<attachment id="log" filePath="/logs/error.log">
+error log line 1\nerror log line 2
+</attachment>
 </attachments>
 </user>`
 		const actual = tweakUserPrompt(input)
@@ -34,8 +38,12 @@ suite('extractAttachments', () => {
 		const input = `<user>
 please review the attached files
 <attachments>
-<attachment id="spec" filePath="/docs/spec.md">  specification content  </attachment>
-<attachment id="log" filePath="/logs/error.log">error log line 1\nerror log line 2</attachment>
+<attachment id="spec" filePath="/docs/spec.md">
+  specification content  
+</attachment>
+<attachment id="log" filePath="/logs/error.log">
+error log line 1\nerror log line 2
+</attachment>
 </attachments>
 </user>`
 		const actual = extractAttachments(input)

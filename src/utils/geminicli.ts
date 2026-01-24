@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import { spawn } from 'node:child_process'
 
 
-export function exucuteGeminiCliCommand(
+export function executeGeminiCliCommand(
     prompt: string,
     model: string,
     systemPromptPath: string,

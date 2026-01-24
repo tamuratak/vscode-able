@@ -5,8 +5,8 @@ export interface Attachment {
     isSummarized?: string | undefined
 }
 
-const attachmentsBlockRegex = /<attachments>([\s\S]*?)<\/attachments>/
-const attachmentTagPattern = /<attachment\b([^>]*)>([\s\S]*?)<\/attachment>/gi
+const attachmentsBlockRegex = /^<attachments>([\s\S]*?)^<\/attachments>/m
+const attachmentTagPattern = /^<attachment\b([^>]*)>([\s\S]*?)^<\/attachment>/gm
 const attributePattern = /(\w+)="([^"]*)"/g
 
 export function tweakUserPrompt(input: string) {

@@ -3,7 +3,7 @@ import { CancellationToken, LanguageModelChatMessage, ProvideLanguageModelChatRe
 import { debugObj } from '../utils/debug.js'
 import { renderMessageWithTag } from '../utils/renderer.js'
 import { tokenLength } from './chatproviderlib/openaicompatchatproviderlib/tokencount.js'
-import { exucuteGeminiCliCommand } from '../utils/geminicli.js'
+import { executeGeminiCliCommand } from '../utils/geminicli.js'
 import { Attachment, extractAttachments, replaceInstsInSystemPrompt, tweakUserPrompt } from './geminiclilib/utils.js'
 
 
@@ -60,7 +60,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         debugObj('Gemini CLI Chat model: ', model, this.extension.outputChannel)
         const newPrompt = await this.generateContext(messages)
         debugObj('Gemini CLI Chat full prompt: ', newPrompt, this.extension.outputChannel)
-        const ret = await exucuteGeminiCliCommand(newPrompt, model.id, '/Users/tamura/src/github/vscode-able/lib/geminicli/system.md', token)
+        const ret = await executeGeminiCliCommand(newPrompt, model.id, '/Users/tamura/src/github/vscode-able/lib/geminicli/system.md', token)
         progress.report(new vscode.LanguageModelTextPart(ret))
         debugObj('Gemini CLI Chat reply: ', ret, this.extension.outputChannel)
         return Promise.resolve()
