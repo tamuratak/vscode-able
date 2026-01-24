@@ -40,7 +40,7 @@ please review the attached files
 </user>`
 		const actual = extractAttachments(input)
 		const expected = {
-			newInput: 'please review the attached files',
+			newInput: '<user>\nplease review the attached files\n\n</user>',
 			attachments: [
 				{ content: 'specification content', id: 'spec', filePath: '/docs/spec.md', isSummarized: undefined },
 				{ content: 'error log line 1\nerror log line 2', id: 'log', filePath: '/logs/error.log', isSummarized: undefined }
@@ -53,6 +53,6 @@ please review the attached files
 		const input = `<user>
 		just a plain prompt
 		</user>`
-		deepStrictEqual(extractAttachments(input), { newInput: 'just a plain prompt', attachments: [] })
+		deepStrictEqual(extractAttachments(input), { newInput: '<user>\n\t\tjust a plain prompt\n\t\t</user>', attachments: [] })
 	})
 })
