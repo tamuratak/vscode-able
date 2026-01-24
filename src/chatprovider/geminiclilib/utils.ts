@@ -1,8 +1,8 @@
 export interface Attachment {
     content: string,
-    id: string,
-    filePath: string,
-    isSummarized?: string
+    id: string | undefined,
+    filePath: string | undefined,
+    isSummarized?: string | undefined
 }
 
 const attachmentsBlockRegex = /<attachments>([\s\S]*?)<\/attachments>/

@@ -108,17 +108,22 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         result.push('<attachments>')
         const alreadyAdded = new Set<string>()
         for (const attachment of attachments) {
+            if (!attachment.filePath || !attachment.id) {
+                continue
+            }
             if (alreadyAdded.has(attachment.filePath)) {
                 continue
             }
             alreadyAdded.add(attachment.filePath)
             const attachedFileUri = vscode.Uri.file(attachment.filePath)
-            if (await vscode.workspace.fs.stat(attachedFileUri)) {
+            try {
                 const newContent = await vscode.workspace.fs.readFile(attachedFileUri)
                 const newContentStr = new TextDecoder().decode(newContent)
                 result.push(`<attachment id="${attachment.id}" filePath="${attachment.filePath}">`)
                 result.push(newContentStr)
                 result.push('</attachment>')
+            } catch (err) {
+                this.extension.outputChannel.error(`Failed to read attachment file: ${attachment.filePath}`, err as Error)
             }
         }
         result.push('</attachments>')
