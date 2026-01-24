@@ -106,7 +106,12 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         result.push(...conversationTurns)
         result.push('</conversationHistory>')
         result.push('<attachments>')
+        const alreadyAdded = new Set<string>()
         for (const attachment of attachments) {
+            if (alreadyAdded.has(attachment.filePath)) {
+                continue
+            }
+            alreadyAdded.add(attachment.filePath)
             const attachedFileUri = vscode.Uri.file(attachment.filePath)
             if (await vscode.workspace.fs.stat(attachedFileUri)) {
                 const newContent = await vscode.workspace.fs.readFile(attachedFileUri)
