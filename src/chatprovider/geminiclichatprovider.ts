@@ -4,6 +4,7 @@ import { debugObj } from '../utils/debug.js'
 import { renderMessageContent, renderMessages, renderMessageWithTag } from '../utils/renderer.js'
 import { tokenLength } from './chatproviderlib/openaicompatchatproviderlib/tokencount.js'
 import { exucuteGeminiCliCommand } from '../utils/geminicli.js'
+import { Attachment, extractAttachments, tweakUserPrompt } from './geminiclilib/utils.js'
 
 
 export class GeminiCliChatProvider implements LanguageModelChatProvider<LanguageModelChatInformation> {
@@ -75,24 +76,41 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         return tokenLength(text)
     }
 
-    async generateContextForAskMode(messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[]) {
+    async generateContext(messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[]) {
         const lastMessage = messages[messages.length - 1]
         const restMessages = lastMessage.role === vscode.LanguageModelChatMessageRole.User ? messages.slice(0, messages.length - 1) : messages
+        let newUserPrompt = ''
         const sytemsPrompts: string[] = []
         const conversationTurns: string[] = []
+        const attachments: Attachment[] = []
         const result: string[] = []
+
+        if (lastMessage.role === vscode.LanguageModelChatMessageRole.User) {
+            const turn = await renderMessageWithTag(lastMessage)
+            const { attachments: attachmentsInTurn, userPrompt } = tweakUserPrompt(turn)
+            newUserPrompt = userPrompt
+            attachments.push(...attachmentsInTurn)
+        }
         for (const message of restMessages) {
             if (message.role === vscode.LanguageModelChatMessageRole.System) {
                 const turn = await renderMessageWithTag(message)
                 sytemsPrompts.push(turn)
             } else if (message.role === vscode.LanguageModelChatMessageRole.User) {
                 const turn = await renderMessageWithTag(message)
-                conversationTurns.push(turn)
+                const { attachments: attachmentsInTurn, newInput } = extractAttachments(turn)
+                conversationTurns.push(newInput)
+                attachments.push(...attachmentsInTurn)
             } else if (message.role === vscode.LanguageModelChatMessageRole.Assistant) {
                 const turn = await renderMessageWithTag(message)
                 conversationTurns.push(turn)
             }
         }
+        result.push(newUserPrompt)
+        result.push(...sytemsPrompts)
+        result.push('<conversationHistory>\n')
+        result.push(...conversationTurns)
+        result.push('\n</conversationHistory>')
+
         return result.join('\n')
     }
 

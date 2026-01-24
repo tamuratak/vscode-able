@@ -1,7 +1,8 @@
-export interface AttachmentInfo {
-    id: string
-    filePath: string
-    content: string
+export interface Attachment {
+    content: string,
+    id: string,
+    filePath: string,
+    isSummarized?: string
 }
 
 const attachmentsBlockRegex = /<attachments>([\s\S]*?)<\/attachments>/
@@ -18,7 +19,7 @@ export function tweakUserPrompt(input: string) {
 export function extractAttachments(input: string) {
     const withoutAttachments = input.replace(attachmentsBlockRegex, '')
     const newInput = withoutAttachments.replace(/^<user>\s*/i, '').replace(/\s*<\/user>$/i, '').trim()
-    const attachments: { content: string, id: string, filePath: string, isSummarized: string }[] = []
+    const attachments: Attachment[] = []
     const attachmentsBlockMatch = input.match(attachmentsBlockRegex)
     if (attachmentsBlockMatch) {
         const attachmentsBlock = attachmentsBlockMatch[1]
