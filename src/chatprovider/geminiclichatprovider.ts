@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatMessage, ProvideLanguageModelChatResponseOptions, Progress, LanguageModelChatInformation, LanguageModelChatProvider } from 'vscode'
 import { debugObj } from '../utils/debug.js'
-import { renderMessageContent, renderMessages, renderMessageWithTag } from '../utils/renderer.js'
+import { renderMessageWithTag } from '../utils/renderer.js'
 import { tokenLength } from './chatproviderlib/openaicompatchatproviderlib/tokencount.js'
 import { exucuteGeminiCliCommand } from '../utils/geminicli.js'
 import { Attachment, extractAttachments, tweakUserPrompt } from './geminiclilib/utils.js'
@@ -58,16 +58,10 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         token: CancellationToken
     ) {
         debugObj('Gemini CLI Chat model: ', model, this.extension.outputChannel)
-        debugObj('Gemini CLI (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
-
-        const lastMessage = messages[messages.length - 1]
-        const contentArray = await renderMessageContent(lastMessage)
-        const prompt = contentArray.join('\n')
-
-//        debugObj('Gemini CLI Chat prompt: ', prompt, this.extension.outputChannel)
-        const ret = await exucuteGeminiCliCommand(prompt, model.id, '/Users/tamura/src/github/vscode-able/lib/geminicli/system.md', token)
+        const newPrompt = await this.generateContext(messages)
+        debugObj('Gemini CLI Chat full prompt: ', newPrompt, this.extension.outputChannel)
+        const ret = await exucuteGeminiCliCommand(newPrompt, model.id, '/Users/tamura/src/github/vscode-able/lib/geminicli/system.md', token)
         progress.report(new vscode.LanguageModelTextPart(ret))
-
         debugObj('Gemini CLI Chat reply: ', ret, this.extension.outputChannel)
         return Promise.resolve()
     }
@@ -76,7 +70,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         return tokenLength(text)
     }
 
-    async generateContext(messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[]) {
+    private async generateContext(messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[]) {
         const lastMessage = messages[messages.length - 1]
         const restMessages = lastMessage.role === vscode.LanguageModelChatMessageRole.User ? messages.slice(0, messages.length - 1) : messages
         let newUserPrompt = ''
@@ -112,9 +106,14 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         result.push('</conversationHistory>')
         result.push('<attachments>')
         for (const attachment of attachments) {
-            result.push(`<attachment id="${attachment.id}" filePath="${attachment.filePath}">`)
-            result.push(attachment.content)
-            result.push('</attachment>')
+            const attachedFileUri = vscode.Uri.file(attachment.filePath)
+            if (await vscode.workspace.fs.stat(attachedFileUri)) {
+                const newContent = await vscode.workspace.fs.readFile(attachedFileUri)
+                const newContentStr = new TextDecoder().decode(newContent)
+                result.push(`<attachment id="${attachment.id}" filePath="${attachment.filePath}">`)
+                result.push(newContentStr)
+                result.push('</attachment>')
+            }
         }
         result.push('</attachments>')
 
