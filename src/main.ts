@@ -10,16 +10,20 @@ import { WebSearchTool } from './lmtools/websearch.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
 import { renderToolResult } from './utils/toolresultrendering.js'
 import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwebpage.js'
+import { GeminiChatHandleManager } from './chat/gemini.js'
+import { GeminiCliChatProvider } from './chatprovider/geminiclichatprovider.js'
 
 
 class Extension {
     readonly chatHandleManager: ChatHandleManager
+    readonly geminiChatHandleManager: GeminiChatHandleManager
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
     readonly ableTaskProvider: MochaJsonTaskProvider
     readonly taskWatcher: TaskWatcher
 
     constructor() {
         this.chatHandleManager = new ChatHandleManager(this)
+        this.geminiChatHandleManager = new GeminiChatHandleManager(this)
         this.ableTaskProvider = new MochaJsonTaskProvider(this)
         this.taskWatcher = new TaskWatcher(this)
         setTimeout(async () => {
@@ -34,6 +38,10 @@ class Extension {
         return this.chatHandleManager.getHandler()
     }
 
+    getGeminiChatHandler() {
+        return this.geminiChatHandleManager.getHandler()
+    }
+
     dispose() {
         this.ableTaskProvider.dispose()
         this.outputChannel.dispose()
@@ -43,6 +51,7 @@ class Extension {
 }
 
 export const AbleChatParticipantId = 'able.chatParticipant'
+export const AbleGeminiChatParticipantId = 'able.geminiParticipant'
 
 export function activate(context: vscode.ExtensionContext) {
     const extension = new Extension()
@@ -53,6 +62,7 @@ export function activate(context: vscode.ExtensionContext) {
     try {
         context.subscriptions.push(
             vscode.lm.registerLanguageModelChatProvider('gemini_with_able', new GeminiChatProvider(extension)),
+            vscode.lm.registerLanguageModelChatProvider('geminicli_with_able', new GeminiCliChatProvider(extension)),
             vscode.lm.registerLanguageModelChatProvider('openai_with_able', new OpenAIChatProvider(extension)),
             vscode.lm.registerLanguageModelChatProvider('groq_with_able', new GroqChatProvider(extension)),
         )
@@ -78,6 +88,7 @@ export function activate(context: vscode.ExtensionContext) {
             void doSomething(extension)
         }),
         vscode.chat.createChatParticipant(AbleChatParticipantId, extension.getChatHandler()),
+        vscode.chat.createChatParticipant(AbleGeminiChatParticipantId, extension.getGeminiChatHandler()),
         vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.lm.registerTool('able_fetch_webpage', new FetchWebPageTool(extension)),
         vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove(extension)),

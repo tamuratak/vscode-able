@@ -79,12 +79,29 @@
             "description": "Translate to Japanese"
           }
         ]
+      },
+      {
+        "id": "able.geminiParticipant",
+        "fullName": "Gemini CLI (with Able)",
+        "name": "gemini",
+        "description": "Gemini CLI (with Able)",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "pro",
+            "description": "Use Gemini 3 Pro model"
+          }
+        ]
       }
     ],
     "languageModelChatProviders": [
       {
         "vendor": "gemini_with_able",
         "displayName": "Gemini with Able"
+      },
+      {
+        "vendor": "geminicli_with_able",
+        "displayName": "Gemini CLI with Able"
       },
       {
         "vendor": "openai_with_able",
