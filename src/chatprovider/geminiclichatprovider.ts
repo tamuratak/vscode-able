@@ -19,6 +19,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
     constructor(
         private readonly extension: {
             readonly outputChannel: vscode.LogOutputChannel,
+            readonly extensionUri: vscode.Uri
         }
     ) {
         this.extension.outputChannel.info('Gemini CLI chat provider initialized')
@@ -60,7 +61,9 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         debugObj('Gemini CLI Chat model: ', model, this.extension.outputChannel)
         const newPrompt = await this.generateContext(messages)
         debugObj('Gemini CLI Chat full prompt: ', newPrompt, this.extension.outputChannel)
-        const ret = await executeGeminiCliCommand(newPrompt, model.id, '/Users/tamura/src/github/vscode-able/lib/geminicli/system.md', token)
+        const systemPromptPath = vscode.Uri.joinPath(this.extension.extensionUri, './lib/geminicli/system.md').fsPath
+        debugObj('Gemini CLI Chat system prompt path: ', systemPromptPath, this.extension.outputChannel)
+        const ret = await executeGeminiCliCommand(newPrompt, model.id, systemPromptPath, token)
         progress.report(new vscode.LanguageModelTextPart(ret))
         debugObj('Gemini CLI Chat reply: ', ret, this.extension.outputChannel)
         return Promise.resolve()

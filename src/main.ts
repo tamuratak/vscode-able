@@ -20,12 +20,14 @@ class Extension {
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
     readonly ableTaskProvider: MochaJsonTaskProvider
     readonly taskWatcher: TaskWatcher
+    readonly extensionUri: vscode.Uri
 
-    constructor() {
+    constructor(context: vscode.ExtensionContext) {
         this.chatHandleManager = new ChatHandleManager(this)
         this.geminiChatHandleManager = new GeminiChatHandleManager(this)
         this.ableTaskProvider = new MochaJsonTaskProvider(this)
         this.taskWatcher = new TaskWatcher(this)
+        this.extensionUri = context.extensionUri
         setTimeout(async () => {
             const result = await vscode.lm.selectChatModels({ vendor: 'copilot' })
             this.outputChannel.info(`GitHub Copilot Chat available models: ${JSON.stringify(result, null, 2)}`)
@@ -54,7 +56,7 @@ export const AbleChatParticipantId = 'able.chatParticipant'
 export const AbleGeminiChatParticipantId = 'able.geminiParticipant'
 
 export function activate(context: vscode.ExtensionContext) {
-    const extension = new Extension()
+    const extension = new Extension(context)
     const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
     const openAiAuthProvider = new OpenAiApiAuthenticationProvider(extension, context.secrets)
     const groqAuthProvider = new GroqApiKeyAuthenticationProvider(extension, context.secrets)
