@@ -1,5 +1,5 @@
 import { deepStrictEqual } from 'node:assert'
-import { tweakUserPrompt } from '../../../../src/chatprovider/geminiclilib/utils'
+import { extractAttachments, tweakUserPrompt } from '../../../../src/chatprovider/geminiclilib/utils'
 
 suite('tweakUserPrompt', () => {
 	test('extracts each attachment and its attributes', () => {
@@ -27,6 +27,32 @@ please review the attached files
 		</user>`
 		deepStrictEqual(tweakUserPrompt(input), { userPrompt: 'just a plain prompt', attachments: [] })
 	})
+})
 
+suite('extractAttachments', () => {
+	test('returns trimmed prompt and attachments for a block', () => {
+		const input = `<user>
+please review the attached files
+<attachments>
+<attachment id="spec" filePath="/docs/spec.md">  specification content  </attachment>
+<attachment id="log" filePath="/logs/error.log">error log line 1\nerror log line 2</attachment>
+</attachments>
+</user>`
+		const actual = extractAttachments(input)
+		const expected = {
+			newInput: 'please review the attached files',
+			attachments: [
+				{ content: 'specification content', id: 'spec', filePath: '/docs/spec.md', isSummarized: undefined },
+				{ content: 'error log line 1\nerror log line 2', id: 'log', filePath: '/logs/error.log', isSummarized: undefined }
+			]
+		}
+		deepStrictEqual(actual, expected)
+	})
 
+	test('strips tags when no attachments exist', () => {
+		const input = `<user>
+		just a plain prompt
+		</user>`
+		deepStrictEqual(extractAttachments(input), { newInput: 'just a plain prompt', attachments: [] })
+	})
 })
