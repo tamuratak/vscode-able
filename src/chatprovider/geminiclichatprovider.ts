@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatMessage, ProvideLanguageModelChatResponseOptions, Progress, LanguageModelChatInformation, LanguageModelChatProvider } from 'vscode'
 import { debugObj } from '../utils/debug.js'
-import { renderMessageContent, renderMessages } from '../utils/renderer.js'
+import { renderMessageContent, renderMessages, renderMessageWithTag } from '../utils/renderer.js'
 import { tokenLength } from './chatproviderlib/openaicompatchatproviderlib/tokencount.js'
 import { exucuteGeminiCliCommand } from '../utils/geminicli.js'
 
@@ -41,7 +41,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
                 tooltip: 'Gemini CLI',
                 requiresAuthorization: true,
                 capabilities: {
-                    toolCalling: false,
+                    toolCalling: true,
                     imageInput: false
                 },
             })
@@ -56,15 +56,14 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         progress: Progress<vscode.LanguageModelResponsePart2>,
         token: CancellationToken
     ) {
-
+        debugObj('Gemini CLI Chat model: ', model, this.extension.outputChannel)
         debugObj('Gemini CLI (with Able) messages:\n', () => renderMessages(messages), this.extension.outputChannel)
 
         const lastMessage = messages[messages.length - 1]
         const contentArray = await renderMessageContent(lastMessage)
         const prompt = contentArray.join('\n')
 
-        debugObj('Gemini CLI Chat model: ', model, this.extension.outputChannel)
-        debugObj('Gemini CLI Chat prompt: ', prompt, this.extension.outputChannel)
+//        debugObj('Gemini CLI Chat prompt: ', prompt, this.extension.outputChannel)
         const ret = await exucuteGeminiCliCommand(prompt, model.id, '/Users/tamura/src/github/vscode-able/lib/geminicli/system.md', token)
         progress.report(new vscode.LanguageModelTextPart(ret))
 
@@ -74,6 +73,27 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
 
     async provideTokenCount(_model: LanguageModelChatInformation, text: string | LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<number> {
         return tokenLength(text)
+    }
+
+    async generateContextForAskMode(messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[]) {
+        const lastMessage = messages[messages.length - 1]
+        const restMessages = lastMessage.role === vscode.LanguageModelChatMessageRole.User ? messages.slice(0, messages.length - 1) : messages
+        const sytemsPrompts: string[] = []
+        const conversationTurns: string[] = []
+        const result: string[] = []
+        for (const message of restMessages) {
+            if (message.role === vscode.LanguageModelChatMessageRole.System) {
+                const turn = await renderMessageWithTag(message)
+                sytemsPrompts.push(turn)
+            } else if (message.role === vscode.LanguageModelChatMessageRole.User) {
+                const turn = await renderMessageWithTag(message)
+                conversationTurns.push(turn)
+            } else if (message.role === vscode.LanguageModelChatMessageRole.Assistant) {
+                const turn = await renderMessageWithTag(message)
+                conversationTurns.push(turn)
+            }
+        }
+        return result.join('\n')
     }
 
 }
