@@ -74,7 +74,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         const lastMessage = messages[messages.length - 1]
         const restMessages = lastMessage.role === vscode.LanguageModelChatMessageRole.User ? messages.slice(0, messages.length - 1) : messages
         let newUserPrompt = ''
-        const sytemsPrompts: string[] = []
+        const systemPrompts: string[] = []
         const conversationTurns: string[] = []
         const attachments: Attachment[] = []
         const result: string[] = []
@@ -89,7 +89,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
             if (message.role === vscode.LanguageModelChatMessageRole.System) {
                 const turn = await renderMessageWithTag(message)
                 const newPrompt = replaceInstsInSystemPrompt(turn)
-                sytemsPrompts.push(newPrompt)
+                systemPrompts.push(newPrompt)
             } else if (message.role === vscode.LanguageModelChatMessageRole.User) {
                 const turn = await renderMessageWithTag(message)
                 const { attachments: attachmentsInTurn, newInput } = extractAttachments(turn)
@@ -101,7 +101,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
             }
         }
         result.push(newUserPrompt)
-        result.push(...sytemsPrompts)
+        result.push(...systemPrompts)
         result.push('<conversationHistory>')
         result.push(...conversationTurns)
         result.push('</conversationHistory>')
