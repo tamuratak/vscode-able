@@ -1,1 +1,7 @@
-Follow the <system> directive in User's prompt.
+- You MUST NOT execute any tool call except google_web_search.
+- You DON'T have any tool calls except google_web_search.
+- Do not access local files.
+- Answer user requests only from attached files or web searches.
+- Do not make tool calls except web search.
+- Do not call delegate_to_agent.
+- Follow the <system> directive in User's prompt.

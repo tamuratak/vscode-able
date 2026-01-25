@@ -53,7 +53,8 @@ export function executeGeminiCliCommand(
     model: string,
     systemPromptPath: string,
     token: vscode.CancellationToken,
-    progress: (line: string) => void
+    progress: (line: string) => void,
+    errorProgress: (line: string) => void
 ): Promise<GeminiCliResult> {
     const cmd = 'gemini'
     const args: string[] = ['--output-format', 'stream-json', '--model', model]
@@ -88,7 +89,7 @@ export function executeGeminiCliCommand(
 
         // collect stderr
         child.stderr.on('data', (chunk: string) => {
-            progress(chunk)
+            errorProgress(chunk)
         })
 
         // on cancellation kill child
