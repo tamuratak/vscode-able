@@ -66,7 +66,6 @@ export function executeGeminiCliCommand(
             }
         )
         let usage: Result | undefined = undefined
-        let stderr = ''
 
         child.stdout.setEncoding('utf8')
         child.stderr.setEncoding('utf8')
@@ -89,7 +88,7 @@ export function executeGeminiCliCommand(
 
         // collect stderr
         child.stderr.on('data', (chunk: string) => {
-            stderr += chunk
+            progress(chunk)
         })
 
         // on cancellation kill child
@@ -109,9 +108,9 @@ export function executeGeminiCliCommand(
         child.on('close', (code) => {
             lineReader.close()
             if (code !== 0) {
-                const msg = stderr || ('gemini exited with code ' + code)
-                progress(msg)
-                resolve({ error: msg, usage })
+                const error = 'gemini exited with code ' + code
+                progress(error)
+                resolve({ error, usage })
             } else {
                 resolve({ usage })
             }
