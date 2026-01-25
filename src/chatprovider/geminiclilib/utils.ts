@@ -13,7 +13,7 @@ const attributePattern = /(\w+)="([^"]*)"/g
 export function tweakUserPrompt(input: string) {
     const { newInput, attachments } = extractAttachments(input)
     const withoutAttachments = newInput.replace(attachmentsBlockRegex, '')
-    const userPrompt = withoutAttachments.replace(/^<user>\s*/i, '').replace(/\s*<\/user>$/i, '').replace(reminderInstructionsRegex, '').trim()
+    const userPrompt = withoutAttachments.replace(reminderInstructionsRegex, '').trim()
     return { userPrompt, attachments }
 }
 
