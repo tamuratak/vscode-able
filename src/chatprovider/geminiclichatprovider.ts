@@ -68,7 +68,6 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
             progress.report(new vscode.LanguageModelTextPart(line))
             ret += line
         })
-        progress.report(new vscode.LanguageModelTextPart(ret))
         debugObj('Gemini CLI Chat reply: ', ret, this.extension.outputChannel)
         return Promise.resolve()
     }
