@@ -1,33 +1,91 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import * as vscode from 'vscode'
+import { createInterface } from 'node:readline'
 import { spawn } from 'node:child_process'
 
+interface StreamJsonBase {
+    type: string
+    timestamp: string
+}
+
+interface Init extends StreamJsonBase {
+    type: 'init'
+    model: string
+    session_id: string
+}
+
+interface Result extends StreamJsonBase {
+    type: 'result'
+    status: string
+    stats: {
+        total_tokens: number,
+        input_tokens: number,
+        output_tokens: number,
+        cached: number,
+        input: number,
+        duration_ms: number,
+        tool_calls: number
+    }
+}
+
+interface UserMessage extends StreamJsonBase {
+    type: 'message'
+    role: 'user'
+    content: string
+}
+
+interface AssistantMessage extends StreamJsonBase {
+    type: 'message'
+    role: 'assistant'
+    content: string
+}
+
+type StreamJson = Init | Result | UserMessage | AssistantMessage
+
+export interface GeminiCliResult {
+    error?: string | undefined,
+    usage?: Result | undefined
+
+}
 
 export function executeGeminiCliCommand(
     prompt: string,
     model: string,
     systemPromptPath: string,
-    token: vscode.CancellationToken
-): Promise<string> {
+    token: vscode.CancellationToken,
+    progress: (line: string) => void
+): Promise<GeminiCliResult> {
     const cmd = 'gemini'
-    const args: string[] = ['--model', model]
+    const args: string[] = ['--output-format', 'stream-json', '--model', model]
 
-    return new Promise<string>((resolve) => {
+    return new Promise<GeminiCliResult>((resolve) => {
         const child = spawn(cmd, args,
             {
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: { ...process.env, 'GEMINI_SYSTEM_MD': systemPromptPath }
             }
         )
-        let stdout = ''
+        let usage: Result | undefined = undefined
         let stderr = ''
 
         child.stdout.setEncoding('utf8')
         child.stderr.setEncoding('utf8')
 
-        // collect stdout
-        child.stdout.on('data', (chunk: string) => {
-            stdout += chunk
-        })
+        const lineReader = createInterface({ input: child.stdout })
+
+            lineReader.on('line', (line: string) => {
+                try {
+                    const json = JSON.parse(line) as StreamJson
+                    if (json.type === 'message' && json.role === 'assistant') {
+                        progress(json.content)
+                    } else if (json.type === 'result') {
+                        usage = json
+                    }
+                } catch {
+                    // ignore JSON parse errors
+                }
+            })
+
 
         // collect stderr
         child.stderr.on('data', (chunk: string) => {
@@ -44,15 +102,18 @@ export function executeGeminiCliCommand(
         })
 
         child.on('error', (err: Error) => {
-            resolve('Error: ' + err.message)
+            progress('Error: ' + err.message)
+            resolve({ error: err.message, usage })
         })
 
         child.on('close', (code) => {
+            lineReader.close()
             if (code !== 0) {
                 const msg = stderr || ('gemini exited with code ' + code)
-                resolve(msg)
+                progress(msg)
+                resolve({ error: msg, usage })
             } else {
-                resolve(stdout)
+                resolve({ usage })
             }
         })
 

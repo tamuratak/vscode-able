@@ -40,7 +40,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
                 version: modelId,
                 maxInputTokens: 1048576,
                 maxOutputTokens: 65536,
-                tooltip: 'Gemini CLI',
+                tooltip: 'Tool calls unsupported.',
                 requiresAuthorization: true,
                 capabilities: {
                     toolCalling: true,
@@ -60,12 +60,21 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
     ) {
         debugObj('Gemini CLI Chat model: ', model, this.extension.outputChannel)
         const newPrompt = await this.generateContext(messages)
-        debugObj('Gemini CLI Chat full prompt: ', newPrompt, this.extension.outputChannel)
+        debugObj('Gemini CLI Chat full prompt:\n', newPrompt, this.extension.outputChannel)
         const systemPromptPath = vscode.Uri.joinPath(this.extension.extensionUri, './lib/geminicli/system.md').fsPath
         debugObj('Gemini CLI Chat system prompt path: ', systemPromptPath, this.extension.outputChannel)
-        const ret = await executeGeminiCliCommand(newPrompt, model.id, systemPromptPath, token)
-        progress.report(new vscode.LanguageModelTextPart(ret))
-        debugObj('Gemini CLI Chat reply: ', ret, this.extension.outputChannel)
+        let ret = ''
+        const { error, usage } = await executeGeminiCliCommand(newPrompt, model.id, systemPromptPath, token, (line: string) => {
+            progress.report(new vscode.LanguageModelTextPart(line))
+            ret += line
+        })
+        debugObj('Gemini CLI Chat reply:\n', ret, this.extension.outputChannel)
+        if (error) {
+            debugObj('Gemini CLI Chat error: ', error, this.extension.outputChannel)
+        }
+        if (usage) {
+            debugObj('Gemini CLI Chat usage: ', usage, this.extension.outputChannel)
+        }
         return Promise.resolve()
     }
 
