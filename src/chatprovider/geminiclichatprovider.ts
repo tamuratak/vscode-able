@@ -4,7 +4,7 @@ import { debugObj } from '../utils/debug.js'
 import { renderMessageWithTag } from '../utils/renderer.js'
 import { tokenLength } from './chatproviderlib/openaicompatchatproviderlib/tokencount.js'
 import { executeGeminiCliCommand } from '../utils/geminicli.js'
-import { Attachment, extractAttachments, replaceInstsInSystemPrompt, tweakUserPrompt } from './geminiclilib/utils.js'
+import { Attachment, replaceInstsInSystemPrompt, tweakUserPrompt } from './geminiclilib/utils.js'
 
 
 export class GeminiCliChatProvider implements LanguageModelChatProvider<LanguageModelChatInformation> {
@@ -108,8 +108,8 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
                 systemPrompts.push(newPrompt)
             } else if (message.role === vscode.LanguageModelChatMessageRole.User) {
                 const turn = await renderMessageWithTag(message)
-                const { attachments: attachmentsInTurn, newInput } = extractAttachments(turn)
-                conversationTurns.push(newInput)
+                const { attachments: attachmentsInTurn, userPrompt } = tweakUserPrompt(turn)
+                conversationTurns.push(userPrompt)
                 attachments.push(...attachmentsInTurn)
             } else if (message.role === vscode.LanguageModelChatMessageRole.Assistant) {
                 const turn = await renderMessageWithTag(message)
