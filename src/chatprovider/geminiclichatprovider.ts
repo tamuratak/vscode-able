@@ -40,7 +40,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
                 version: modelId,
                 maxInputTokens: 1048576,
                 maxOutputTokens: 65536,
-                tooltip: 'Gemini CLI',
+                tooltip: 'Tool calls unsupported.',
                 requiresAuthorization: true,
                 capabilities: {
                     toolCalling: true,
