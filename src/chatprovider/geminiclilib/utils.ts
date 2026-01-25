@@ -5,14 +5,15 @@ export interface Attachment {
     isSummarized?: string | undefined
 }
 
-const attachmentsBlockRegex = /^<attachments>([\s\S]*?)^<\/attachments>/m
-const attachmentTagPattern = /^<attachment\b([^>]*)>([\s\S]*?)^<\/attachment>/gm
+const attachmentsBlockRegex = /^<attachments>$([\s\S]*?)^<\/attachments>$/m
+const attachmentTagPattern = /^<attachment\b([^>]*)>$([\s\S]*?)^<\/attachment>$/gm
+const reminderInstructionsRegex = /^<reminderInstructions>$[\s\S]*?^<\/reminderInstructions>$/gm
 const attributePattern = /(\w+)="([^"]*)"/g
 
 export function tweakUserPrompt(input: string) {
     const { newInput, attachments } = extractAttachments(input)
     const withoutAttachments = newInput.replace(attachmentsBlockRegex, '')
-    const userPrompt = withoutAttachments.replace(/^<user>\s*/i, '').replace(/\s*<\/user>$/i, '').trim()
+    const userPrompt = withoutAttachments.replace(/^<user>\s*/i, '').replace(/\s*<\/user>$/i, '').replace(reminderInstructionsRegex, '').trim()
     return { userPrompt, attachments }
 }
 

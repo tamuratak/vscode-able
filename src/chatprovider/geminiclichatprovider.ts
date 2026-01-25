@@ -116,7 +116,6 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
                 conversationTurns.push(turn)
             }
         }
-        result.push(newUserPrompt)
         result.push(...systemPrompts)
         result.push('<conversationHistory>')
         result.push(...conversationTurns)
@@ -143,6 +142,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
             }
         }
         result.push('</attachments>')
+        result.push(newUserPrompt)
 
         return result.join('\n')
     }
