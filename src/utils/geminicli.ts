@@ -42,23 +42,30 @@ interface AssistantMessage extends StreamJsonBase {
 
 type StreamJson = Init | Result | UserMessage | AssistantMessage
 
+export interface GeminiCliResult {
+    error?: string | undefined,
+    usage?: Result | undefined
+
+}
+
 export function executeGeminiCliCommand(
     prompt: string,
     model: string,
     systemPromptPath: string,
     token: vscode.CancellationToken,
     progress: (line: string) => void
-): Promise<void> {
+): Promise<GeminiCliResult> {
     const cmd = 'gemini'
     const args: string[] = ['--output-format', 'stream-json', '--model', model]
 
-    return new Promise<void>((resolve) => {
+    return new Promise<GeminiCliResult>((resolve) => {
         const child = spawn(cmd, args,
             {
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: { ...process.env, 'GEMINI_SYSTEM_MD': systemPromptPath }
             }
         )
+        let usage: Result | undefined = undefined
         let stderr = ''
 
         child.stdout.setEncoding('utf8')
@@ -71,6 +78,8 @@ export function executeGeminiCliCommand(
                     const json = JSON.parse(line) as StreamJson
                     if (json.type === 'message' && json.role === 'assistant') {
                         progress(json.content)
+                    } else if (json.type === 'result') {
+                        usage = json
                     }
                 } catch {
                     // ignore JSON parse errors
@@ -94,7 +103,7 @@ export function executeGeminiCliCommand(
 
         child.on('error', (err: Error) => {
             progress('Error: ' + err.message)
-            resolve()
+            resolve({ error: err.message, usage })
         })
 
         child.on('close', (code) => {
@@ -102,9 +111,9 @@ export function executeGeminiCliCommand(
             if (code !== 0) {
                 const msg = stderr || ('gemini exited with code ' + code)
                 progress(msg)
-                resolve()
+                resolve({ error: msg, usage })
             } else {
-                resolve()
+                resolve({ usage })
             }
         })
 
