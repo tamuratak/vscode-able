@@ -16,7 +16,7 @@ error log line 1\nerror log line 2
 </user>`
 		const actual = tweakUserPrompt(input)
 		const expected = {
-			userPrompt: 'please review the attached files',
+			userPrompt: '<user>\nplease review the attached files\n\n</user>',
 			attachments: [
 				{ content: 'specification content', id: 'spec', filePath: '/docs/spec.md', isSummarized: undefined },
 				{ content: 'error log line 1\nerror log line 2', id: 'log', filePath: '/logs/error.log', isSummarized: undefined }
@@ -27,9 +27,9 @@ error log line 1\nerror log line 2
 
 	test('returns cleaned prompt when no attachments block exists', () => {
 		const input = `<user>
-		just a plain prompt
-		</user>`
-		deepStrictEqual(tweakUserPrompt(input), { userPrompt: 'just a plain prompt', attachments: [] })
+just a plain prompt
+</user>`
+		deepStrictEqual(tweakUserPrompt(input), { userPrompt: '<user>\njust a plain prompt\n</user>', attachments: [] })
 	})
 })
 

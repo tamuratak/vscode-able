@@ -62,6 +62,7 @@ export function executeGeminiCliCommand(
     return new Promise<GeminiCliResult>((resolve) => {
         const child = spawn(cmd, args,
             {
+                cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: { ...process.env, 'GEMINI_SYSTEM_MD': systemPromptPath }
             }
