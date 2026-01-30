@@ -8,6 +8,8 @@
 
 /test/fixtures/repositorytree01/ignore/
 
+.DS_Store
+
 # Logs
 logs
 *.log
