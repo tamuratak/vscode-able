@@ -73,7 +73,7 @@ export class ChatHandleManager {
             throw new Error(`Unknown command: ${request.command}`)
         }
 
-        let responseText = ''
+        const responseTextArray: string[] = []
         const userInstruction = selected ? request.prompt : undefined
         const chunks = toCunks(input, 1024)
         for (const inputChunk of chunks) {
@@ -121,10 +121,10 @@ export class ChatHandleManager {
                 stream.markdown(responseChunk)
                 stream.markdown('\n\n')
             }
-            responseText += responseChunk + '\n\n'
+            responseTextArray.push(responseChunk)
         }
         if (selected) {
-            const edit = new vscode.TextEdit(selected.range, responseText)
+            const edit = new vscode.TextEdit(selected.range, responseTextArray.join('\n\n'))
             const uri = selected.uri
             stream.textEdit(uri, edit)
             return
