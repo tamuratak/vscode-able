@@ -37,12 +37,10 @@ export class ChatHandleManager {
                 const attachments = await getAttachmentFiles(request)
                 await this.copilotChatHandler.copilotChatResponse(
                     token,
-                    request,
                     SimplePrompt,
                     { input: request.prompt, attachments },
                     request.model,
-                    stream,
-                    [],
+                    stream
                 )
                 return
             }
@@ -90,7 +88,6 @@ export class ChatHandleManager {
             for (let i = 0; i < 2; i++) {
                 res = await this.copilotChatHandler.copilotChatResponse(
                     token,
-                    request,
                     ctor,
                     {
                         input: inputChunk,
@@ -139,7 +136,7 @@ export class ChatHandleManager {
     ): Promise<Map<string, string>> {
         const extractedProperNouns = extractProperNouns(input)
         const properNouns = removePluralForms(extractedProperNouns)
-        const properNounsResult = await this.copilotChatHandler.copilotChatResponse(token, request, ProperNounsPrompt, { properNouns }, request.model)
+        const properNounsResult = await this.copilotChatHandler.copilotChatResponse(token, ProperNounsPrompt, { properNouns }, request.model)
         const properNounsText = properNounsResult ? await processResponse(properNounsResult.chatResponse) : ''
         return parseNameMap(properNounsText)
     }

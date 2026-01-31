@@ -59,7 +59,7 @@
         "id": "able.chatParticipant",
         "fullName": "Able Chat",
         "name": "able",
-        "description": "Able to write well",
+        "description": "Chat histories are ignored, and tool calls are disabled in this mode.",
         "isSticky": true,
         "commands": [
           {
