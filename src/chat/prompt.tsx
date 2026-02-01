@@ -79,13 +79,13 @@ export class LatexInstructions extends PromptElement {
     }
 }
 
-export interface UserInputProps extends AttachmentsProps {
+interface UserInputProps extends AttachmentsProps {
     input: string
 }
 
-export interface SimplePromptProps extends UserInputProps {
+interface SimplePromptProps extends UserInputProps {
     instructionFilesInstruction?: string | undefined,
-    modeInstruction?: string | undefined,
+    modeInstruction: string | undefined,
     toolCallResultRounds?: ToolCallResultRoundProps[] | undefined
 }
 
@@ -120,13 +120,13 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
     }
 }
 
-export interface AskChatSystemPromptProps extends BasePromptElementProps {
+interface AskChatSystemPromptProps extends BasePromptElementProps {
     instructionFiles: FileReference[],
     instructionsText: string | undefined,
     modeInstruction: string | undefined,
 }
 
-export class AskChatSystemPrompt extends PromptElement<AskChatSystemPromptProps> {
+class AskChatSystemPrompt extends PromptElement<AskChatSystemPromptProps> {
     render(): PromptPiece {
         return (
             <UserMessage>
@@ -141,7 +141,7 @@ export class AskChatSystemPrompt extends PromptElement<AskChatSystemPromptProps>
 }
 
 interface AskChatPromptProps extends UserInputProps, HistoryMessagesProps {
-    selections?: SelectionReference[] | undefined,
+    selections: SelectionReference[] | undefined,
     instructionFiles: FileReference[],
     instructionsText: string | undefined,
     modeInstruction: string | undefined,
@@ -161,11 +161,11 @@ export class AskChatPrompt extends PromptElement<AskChatPromptProps> {
 
 interface AksUserMessageProps extends BasePromptElementProps {
     input: string
-    attachments?: FileReference[] | undefined
-    selections?: SelectionReference[] | undefined
+    attachments: FileReference[] | undefined
+    selections: SelectionReference[] | undefined
 }
 
-export class AskUserMessage extends PromptElement<AksUserMessageProps> {
+class AskUserMessage extends PromptElement<AksUserMessageProps> {
     render(): PromptPiece {
         return (
             <UserMessage>
@@ -544,7 +544,7 @@ interface AttachmentsProps extends BasePromptElementProps {
     attachments?: FileReference[] | undefined
 }
 
-export class Attachments extends PromptElement<AttachmentsProps> {
+class Attachments extends PromptElement<AttachmentsProps> {
     render(): PromptPiece {
         return (
             <Tag name="attachments">
@@ -564,7 +564,7 @@ interface SelectionsProps extends BasePromptElementProps {
     selections: SelectionReference[] | undefined
 }
 
-export class Selections extends PromptElement<SelectionsProps> {
+class Selections extends PromptElement<SelectionsProps> {
     render(): PromptPiece {
         return (
             <Tag name="selections">
@@ -580,11 +580,11 @@ export class Selections extends PromptElement<SelectionsProps> {
     }
 }
 
-export interface HistoryMessagesProps extends BasePromptElementProps {
+interface HistoryMessagesProps extends BasePromptElementProps {
     history: vscode.ChatContext['history']
 }
 
-export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
+class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     async render(): Promise<PromptPiece> {
         return (
             <>
