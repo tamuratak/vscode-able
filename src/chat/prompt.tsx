@@ -13,7 +13,6 @@ import {
 import type { RequestCommands } from './chat.js'
 import * as vscode from 'vscode'
 import path from 'node:path'
-import { FileElementProps } from './promptlib/fsprompts.js'
 import { Tag } from '../utils/tag.js'
 
 /* eslint-disable  @typescript-eslint/no-namespace */
@@ -130,7 +129,7 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
 }
 
 export interface AskChatSystemPromptProps extends BasePromptElementProps {
-    instructionFiles: FileElementProps[] | undefined,
+    instructionFiles: FileElement[] | undefined,
     instructionFilesInstruction?: string | undefined,
     modeInstruction?: string | undefined,
 }
@@ -150,7 +149,7 @@ export class AskChatSystemPrompt extends PromptElement<AskChatSystemPromptProps>
 }
 
 export interface AskChatPromptProps extends UserInputProps, HistoryMessagesProps {
-    instructionFiles: FileElementProps[] | undefined,
+    instructionFiles: FileElement[] | undefined,
     instructionFilesInstruction?: string | undefined,
     modeInstruction?: string | undefined,
 }
@@ -587,9 +586,13 @@ export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     }
 }
 
+interface FileElement {
+    uri: vscode.Uri,
+    content: string
+}
 
 interface AttachmentsProps extends BasePromptElementProps {
-    attachments?: FileElementProps[] | undefined
+    attachments?: FileElement[] | undefined
 }
 
 export class Attachments extends PromptElement<AttachmentsProps> {
