@@ -83,8 +83,8 @@
       {
         "id": "able.askParticipant",
         "fullName": "Able Ask",
-        "name": "ask",
-        "description": "Tool calls are disabled in this mode.",
+        "name": "rem",
+        "description": "Remember chat histories. Tool calls are disabled in this mode.",
         "isSticky": true
       }
     ],
