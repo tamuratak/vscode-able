@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import { FileElement } from '../prompt.js'
 
 
 /** Reference id for user's current visible code, i.e. the uri of the active document and the visible range */
@@ -13,10 +14,8 @@ export const vscodeSelectionId = 'vscode.selection'
 /** Reference id for #file reference*/
 export const vscodeFileId = 'vscode.file'
 
-export interface ReferenceElement {
+export interface ReferenceElement extends FileElement{
     kind: 'instructions' | 'file'
-    uri: vscode.Uri,
-    content: string
 }
 
 export async function getSelected(request: vscode.ChatRequest) {

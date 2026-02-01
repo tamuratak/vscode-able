@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { SimplePrompt } from './prompt.js'
+import { AskChatPrompt } from './prompt.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import { getAttachmentFiles, getInstructionFilesInstruction } from './chatlib/referenceutils.js'
 import { debugObj } from '../utils/debug.js'
@@ -25,13 +25,15 @@ export class AskChatHandleManager {
         ): Promise<vscode.ChatResult | undefined> => {
             debugObj('[Able Chat] request.references: ', request.references, this.extension.outputChannel)
 
-            const attachments = await getAttachmentFiles(request)
+            const references = await getAttachmentFiles(request)
+            const instructionFiles = references.filter(ref => ref.kind === 'instructions')
+            const attachments = references.filter(ref => ref.kind === 'file')
             const instructionFilesInstruction = getInstructionFilesInstruction(request)
             const modeInstruction = request.modeInstructions2?.content
             await this.copilotChatHandler.copilotChatResponse(
                 token,
-                SimplePrompt,
-                { input: request.prompt, attachments, instructionFilesInstruction, modeInstruction },
+                AskChatPrompt,
+                { input: request.prompt, attachments, instructionFiles, instructionFilesInstruction, modeInstruction },
                 request.model,
                 stream
             )

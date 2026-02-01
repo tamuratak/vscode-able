@@ -586,7 +586,7 @@ export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     }
 }
 
-interface FileElement {
+export interface FileElement {
     uri: vscode.Uri,
     content: string
 }
