@@ -4,6 +4,7 @@ import {
     PrioritizedList,
     PromptElement,
     PromptPiece,
+    SystemMessage,
     ToolCall,
     ToolMessage,
     ToolResult,
@@ -123,6 +124,51 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
                         </>
                     )) ?? ''
                 }
+            </>
+        )
+    }
+}
+
+export interface AskChatSystemPromptProps extends BasePromptElementProps {
+    instructionFiles: FileElementProps[] | undefined,
+    instructionFilesInstruction?: string | undefined,
+    modeInstruction?: string | undefined,
+}
+
+export class AskChatSystemPrompt extends PromptElement<AskChatSystemPromptProps> {
+    render(): PromptPiece {
+        return (
+            <SystemMessage>
+                <>
+                    { this.props.instructionFiles && this.props.instructionFiles.length > 0 && <Attachments attachments={this.props.instructionFiles} /> }
+                    { this.props.instructionFilesInstruction }<br/>
+                    { this.props.modeInstruction && <Tag name='modeInstructions'> {this.props.modeInstruction} </Tag> }
+                </>
+            </SystemMessage>
+        )
+    }
+}
+
+export interface AskChatPromptProps extends UserInputProps, HistoryMessagesProps {
+    instructionFiles: FileElementProps[] | undefined,
+    instructionFilesInstruction?: string | undefined,
+    modeInstruction?: string | undefined,
+}
+
+export class AskChatPrompt extends PromptElement<AskChatPromptProps> {
+    render(): PromptPiece {
+        return (
+            <>
+                <AskChatSystemPrompt {...this.props} />
+                <HistoryMessages history={this.props.history} />
+                <UserMessage>
+                    <>
+                        { this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} /> }
+                        <Tag name="userRequest">
+                            {this.props.input}
+                        </Tag>
+                    </>
+                </UserMessage>
             </>
         )
     }
