@@ -11,7 +11,7 @@ import {
 import * as vscode from 'vscode'
 import path from 'node:path'
 import { Tag } from '../utils/tag.js'
-import { FileReference, getAttachmentFiles, processReferencesInUserPrompt, SelectionReference } from './chatlib/referenceutils.js'
+import { FileReference, processReferencesInUserPrompt, SelectionReference } from './chatlib/referenceutils.js'
 
 /* eslint-disable  @typescript-eslint/no-namespace */
 declare global {
@@ -570,7 +570,7 @@ export class Selections extends PromptElement<SelectionsProps> {
             <Tag name="selections">
                 {
                     this.props.selections?.map((selection) =>
-                        <Tag name="selection" attrs={{ id: path.basename(selection.uri.fsPath), filePath: selection.uri.fsPath, range: `${selection.range.start.line + 1}:${selection.range.start.character + 1}-${selection.range.end.line + 1}:${selection.range.end.character + 1}` }}>
+                        <Tag name="selection" attrs={{ id: path.basename(selection.uri.fsPath), filePath: selection.uri.fsPath, startLine: selection.range.start.line + 1, endLine: selection.range.end.line + 1 }}>
                             {selection.text}
                         </Tag>
                     ) ?? ''
