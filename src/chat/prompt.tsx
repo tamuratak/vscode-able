@@ -90,13 +90,16 @@ export class LatexInstructions extends PromptElement {
 export interface MainPromptProps extends HistoryMessagesProps, AttachmentsProps {
     input: string,
     userInstruction?: string | undefined,
+    translationCorrespondenceList?: string | undefined
+}
+
+export interface SimplePromptProps extends MainPromptProps {
     instructionFilesInstruction?: string | undefined,
     modeInstruction?: string | undefined,
-    translationCorrespondenceList?: string | undefined,
     toolCallResultRounds?: ToolCallResultRoundProps[] | undefined
 }
 
-export class SimplePrompt extends PromptElement<MainPromptProps> {
+export class SimplePrompt extends PromptElement<SimplePromptProps> {
     render(): PromptPiece {
         return (
             <>
