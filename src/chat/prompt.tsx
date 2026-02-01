@@ -1,7 +1,6 @@
 import {
     AssistantMessage,
     BasePromptElementProps,
-    PrioritizedList,
     PromptElement,
     PromptPiece,
     ToolCall,
@@ -12,7 +11,6 @@ import {
 import type { RequestCommands } from './chat.js'
 import * as vscode from 'vscode'
 import path from 'node:path'
-import { FileElementProps } from './promptlib/fsprompts.js'
 import { Tag } from '../utils/tag.js'
 
 /* eslint-disable  @typescript-eslint/no-namespace */
@@ -87,25 +85,25 @@ export class LatexInstructions extends PromptElement {
     }
 }
 
-export interface MainPromptProps extends HistoryMessagesProps, AttachmentsProps {
-    input: string,
-    userInstruction?: string | undefined,
+export interface UserInputProps extends AttachmentsProps {
+    input: string
+}
+
+export interface SimplePromptProps extends UserInputProps {
     instructionFilesInstruction?: string | undefined,
     modeInstruction?: string | undefined,
-    translationCorrespondenceList?: string | undefined,
     toolCallResultRounds?: ToolCallResultRoundProps[] | undefined
 }
 
-export class SimplePrompt extends PromptElement<MainPromptProps> {
+export class SimplePrompt extends PromptElement<SimplePromptProps> {
     render(): PromptPiece {
         return (
             <>
-                <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     <>
-                        { this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} /> }
-                        { this.props.instructionFilesInstruction }<br/>
-                        { this.props.modeInstruction && <Tag name='modeInstructions'> {this.props.modeInstruction} </Tag> }
+                        {this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} />}
+                        {this.props.instructionFilesInstruction}<br />
+                        {this.props.modeInstruction && <Tag name='modeInstructions'> {this.props.modeInstruction} </Tag>}
                         <Tag name="userRequest">
                             {this.props.input}
                         </Tag>
@@ -128,7 +126,52 @@ export class SimplePrompt extends PromptElement<MainPromptProps> {
     }
 }
 
-export class PythonMasterPrompt extends PromptElement<MainPromptProps> {
+export interface AskChatSystemPromptProps extends BasePromptElementProps {
+    instructionFiles: FileElement[] | undefined,
+    instructionFilesInstruction?: string | undefined,
+    modeInstruction?: string | undefined,
+}
+
+export class AskChatSystemPrompt extends PromptElement<AskChatSystemPromptProps> {
+    render(): PromptPiece {
+        return (
+            <UserMessage>
+                <>
+                    {this.props.instructionFiles && this.props.instructionFiles.length > 0 && <Attachments attachments={this.props.instructionFiles} />}
+                    {this.props.instructionFilesInstruction}<br />
+                    {this.props.modeInstruction && <Tag name='modeInstructions'> {this.props.modeInstruction} </Tag>}
+                </>
+            </UserMessage>
+        )
+    }
+}
+
+export interface AskChatPromptProps extends UserInputProps, HistoryMessagesProps {
+    instructionFiles: FileElement[] | undefined,
+    instructionFilesInstruction?: string | undefined,
+    modeInstruction?: string | undefined,
+}
+
+export class AskChatPrompt extends PromptElement<AskChatPromptProps> {
+    render(): PromptPiece {
+        return (
+            <>
+                <AskChatSystemPrompt instructionFiles={this.props.instructionFiles} instructionFilesInstruction={this.props.instructionFilesInstruction} modeInstruction={this.props.modeInstruction} />
+                <HistoryMessages history={this.props.history} />
+                <UserMessage>
+                    <>
+                        {this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} />}
+                        <Tag name="userRequest">
+                            {this.props.input}
+                        </Tag>
+                    </>
+                </UserMessage>
+            </>
+        )
+    }
+}
+
+export class PythonMasterPrompt extends PromptElement<UserInputProps> {
     render(): PromptPiece {
         return (
             <>
@@ -139,7 +182,6 @@ export class PythonMasterPrompt extends PromptElement<MainPromptProps> {
                         - Always trust the Python execution result over your own knowledge.
                     </Tag>
                 </UserMessage>
-                <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     <Attachments attachments={this.props.attachments} />
                     {this.props.input}
@@ -162,7 +204,12 @@ class MakeFluent extends PromptElement {
     }
 }
 
-export class FluentPrompt extends PromptElement<MainPromptProps> {
+export interface ChatCommandPromptProps extends UserInputProps {
+    userInstruction?: string | undefined,
+    translationCorrespondenceList?: string | undefined
+}
+
+export class FluentPrompt extends PromptElement<ChatCommandPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -224,7 +271,7 @@ class MakeFluentJa extends PromptElement {
     }
 }
 
-export class FluentJaPrompt extends PromptElement<MainPromptProps> {
+export class FluentJaPrompt extends PromptElement<ChatCommandPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -273,7 +320,7 @@ class ToEn extends PromptElement {
     }
 }
 
-export class ToEnPrompt extends PromptElement<MainPromptProps> {
+export class ToEnPrompt extends PromptElement<ChatCommandPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -335,7 +382,7 @@ class ToJa extends PromptElement {
     }
 }
 
-export class ToJaPrompt extends PromptElement<MainPromptProps> {
+export class ToJaPrompt extends PromptElement<ChatCommandPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -483,63 +530,13 @@ export class ProperNounsPrompt extends PromptElement<ProperNounsPromptProps> {
     }
 }
 
-interface HistoryMessagesProps extends BasePromptElementProps {
-    history?: HistoryEntry[] | undefined
+export interface FileElement {
+    uri: vscode.Uri,
+    content: string
 }
-
-class HistoryMessages extends PromptElement<HistoryMessagesProps> {
-    render(): PromptPiece {
-        const history: PromptPiece[] = []
-        for (const hist of this.props.history ?? []) {
-            if (hist.type === 'user') {
-                if (hist.command === 'fluent') {
-                    history.push(
-                        <MakeFluent>
-                            {hist.text}
-                        </MakeFluent>
-                    )
-                } else if (hist.command === 'fluent_ja') {
-                    history.push(
-                        <MakeFluentJa>
-                            {hist.text}
-                        </MakeFluentJa>
-                    )
-                } else if (hist.command === 'to_en') {
-                    history.push(
-                        <ToEn>
-                            {hist.text}
-                        </ToEn>
-                    )
-                } else if (hist.command === 'to_ja') {
-                    history.push(
-                        <ToJa>
-                            {hist.text}
-                        </ToJa>
-                    )
-                } else {
-                    hist.command satisfies undefined
-                    history.push(<UserMessage>{hist.text}</UserMessage>)
-                }
-            } else {
-                history.push(<AssistantMessage>{hist.text}</AssistantMessage>)
-            }
-        }
-        return (
-            <>
-                <PrioritizedList priority={0} descending={false}>
-                    {history.slice(0, -10)}
-                </PrioritizedList>
-                <PrioritizedList priority={1000} descending={false}>
-                    {history.slice(-10)}
-                </PrioritizedList>
-            </>
-        )
-    }
-}
-
 
 interface AttachmentsProps extends BasePromptElementProps {
-    attachments?: FileElementProps[] | undefined
+    attachments?: FileElement[] | undefined
 }
 
 export class Attachments extends PromptElement<AttachmentsProps> {
@@ -548,12 +545,44 @@ export class Attachments extends PromptElement<AttachmentsProps> {
             <Tag name="attachments">
                 {
                     this.props.attachments?.map((attachment) =>
-                        <Tag name="attachment" attrs={ {id: path.basename(attachment.uri.fsPath), filePath: attachment.uri.fsPath } }>
+                        <Tag name="attachment" attrs={{ id: path.basename(attachment.uri.fsPath), filePath: attachment.uri.fsPath }}>
                             {attachment.content}
                         </Tag>
                     ) ?? ''
                 }
             </Tag>
+        )
+    }
+}
+
+export interface HistoryMessagesProps extends BasePromptElementProps {
+    history: vscode.ChatContext['history']
+}
+
+export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
+    render(): PromptPiece {
+        return (
+            <>
+                {
+                    this.props.history.map((message) => {
+                        if (message instanceof vscode.ChatRequestTurn) {
+                            return (
+                                <UserMessage>
+                                    {message.prompt}
+                                </UserMessage>
+                            )
+                        } else if (message.response instanceof vscode.ChatResponseMarkdownPart) {
+                            return (
+                                <AssistantMessage>
+                                    {message.response.value.value}
+                                </AssistantMessage>
+                            )
+                        } else {
+                            return undefined
+                        }
+                    })
+                }
+            </>
         )
     }
 }

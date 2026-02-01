@@ -64,7 +64,7 @@
         "commands": [
           {
             "name": "fluent",
-            "description": "Make fluent"
+            "description": "Make fluent"            
           },
           {
             "name": "fluent_ja",
@@ -79,6 +79,13 @@
             "description": "Translate to Japanese"
           }
         ]
+      },
+      {
+        "id": "able.askParticipant",
+        "fullName": "Able Ask",
+        "name": "ask",
+        "description": "Tool calls are disabled in this mode.",
+        "isSticky": true
       }
     ],
     "languageModelChatProviders": [

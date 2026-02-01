@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FluentJaPrompt, FluentPrompt, MainPromptProps, ProperNounsPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
+import { FluentJaPrompt, FluentPrompt, ProperNounsPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt, ChatCommandPromptProps } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
 import { getAttachmentFiles, getInstructionFilesInstruction, getSelected } from './chatlib/referenceutils.js'
@@ -56,7 +56,7 @@ export class ChatHandleManager {
         const model = request.model
         const selected = await getSelected(request)
         const input = selected?.text ?? request.prompt
-        let ctor: PromptElementCtor<MainPromptProps, unknown> | undefined
+        let ctor: PromptElementCtor<ChatCommandPromptProps, unknown> | undefined
         let properNounsTranslationMap: Map<string, string> | undefined
         if (request.command === 'fluent') {
             ctor = FluentPrompt

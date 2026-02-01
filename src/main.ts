@@ -11,10 +11,12 @@ import { RunInSandbox } from './lmtools/runinsandbox.js'
 import { renderToolResult } from './utils/toolresultrendering.js'
 import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwebpage.js'
 import { GeminiCliChatProvider } from './chatprovider/geminiclichatprovider.js'
+import { AskChatHandleManager } from './chat/ask.js'
 
 
 class Extension {
     readonly chatHandleManager: ChatHandleManager
+    readonly askChatHandleManager: AskChatHandleManager
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
     readonly ableTaskProvider: MochaJsonTaskProvider
     readonly taskWatcher: TaskWatcher
@@ -22,6 +24,7 @@ class Extension {
 
     constructor(context: vscode.ExtensionContext) {
         this.chatHandleManager = new ChatHandleManager(this)
+        this.askChatHandleManager = new AskChatHandleManager(this)
         this.ableTaskProvider = new MochaJsonTaskProvider(this)
         this.taskWatcher = new TaskWatcher(this)
         this.extensionUri = context.extensionUri
@@ -37,6 +40,10 @@ class Extension {
         return this.chatHandleManager.getHandler()
     }
 
+    getAskChatHandler() {
+        return this.askChatHandleManager.getHandler()
+    }
+
     dispose() {
         this.ableTaskProvider.dispose()
         this.outputChannel.dispose()
@@ -46,6 +53,7 @@ class Extension {
 }
 
 export const AbleChatParticipantId = 'able.chatParticipant'
+export const AskChatParticipantId = 'able.askParticipant'
 export const AbleGeminiChatParticipantId = 'able.geminiParticipant'
 
 export function activate(context: vscode.ExtensionContext) {
@@ -83,6 +91,7 @@ export function activate(context: vscode.ExtensionContext) {
             void doSomething(extension)
         }),
         vscode.chat.createChatParticipant(AbleChatParticipantId, extension.getChatHandler()),
+        vscode.chat.createChatParticipant(AskChatParticipantId, extension.getAskChatHandler()),
         vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.lm.registerTool('able_fetch_webpage', new FetchWebPageTool(extension)),
         vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove(extension)),

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { FileElementProps } from '../promptlib/fsprompts.js'
+import { FileElement } from '../prompt.js'
 
 
 /** Reference id for user's current visible code, i.e. the uri of the active document and the visible range */
@@ -14,6 +14,9 @@ export const vscodeSelectionId = 'vscode.selection'
 /** Reference id for #file reference*/
 export const vscodeFileId = 'vscode.file'
 
+export interface ReferenceElement extends FileElement{
+    kind: 'instructions' | 'file'
+}
 
 export async function getSelected(request: vscode.ChatRequest) {
     for (const ref of request.references) {
@@ -26,8 +29,8 @@ export async function getSelected(request: vscode.ChatRequest) {
     return
 }
 
-export async function getAttachmentFiles(request: vscode.ChatRequest): Promise<FileElementProps[]> {
-    const result: FileElementProps[] = []
+export async function getAttachmentFiles(request: vscode.ChatRequest): Promise<ReferenceElement[]> {
+    const result: ReferenceElement[] = []
     for (const ref of request.references) {
         if (ref.value instanceof vscode.Uri) {
             const uri = ref.value
@@ -35,7 +38,8 @@ export async function getAttachmentFiles(request: vscode.ChatRequest): Promise<F
                 const buf = await vscode.workspace.fs.readFile(uri)
                 const decoder = new TextDecoder()
                 const content = decoder.decode(buf)
-                result.push({ uri, content })
+                const kind = ref.id.startsWith('vscode.prompt.instructions') ? 'instructions' : 'file'
+                result.push({ uri, content, kind })
             } catch {
                 // ignore
             }
