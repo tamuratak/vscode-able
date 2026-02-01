@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import { FluentJaPrompt, FluentPrompt, MainPromptProps, ProperNounsPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
-import { getAttachmentFiles, getSelected } from './chatlib/referenceutils.js'
+import { getAttachmentFiles, getInstructions, getSelected } from './chatlib/referenceutils.js'
 import { debugObj } from '../utils/debug.js'
 import { convertMathEnv, removeLabel } from './chatlib/latex.js'
 import { toCunks } from './chatlib/chunk.js'
@@ -35,10 +35,11 @@ export class ChatHandleManager {
                 return this.responseForCommand(token, request, stream)
             } else {
                 const attachments = await getAttachmentFiles(request)
+                const instructionFiles = getInstructions(request)
                 await this.copilotChatHandler.copilotChatResponse(
                     token,
                     SimplePrompt,
-                    { input: request.prompt, attachments },
+                    { input: request.prompt, attachments, instructionFiles },
                     request.model,
                     stream
                 )

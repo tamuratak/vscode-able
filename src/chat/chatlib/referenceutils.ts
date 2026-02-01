@@ -43,3 +43,14 @@ export async function getAttachmentFiles(request: vscode.ChatRequest): Promise<F
     }
     return result
 }
+
+export function getInstructions(request: vscode.ChatRequest): string {
+    for (const ref of request.references) {
+        if (ref.id === 'vscode.prompt.instructions.text' && typeof ref.value === 'string') {
+            let instructions = ref.value
+            instructions = instructions.replace('If the file is not already available as attachment, use the #tool:readFile tool to acquire it.\n', '').trim()
+            return instructions
+        }
+    }
+    return ''
+}

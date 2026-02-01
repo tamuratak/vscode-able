@@ -11,7 +11,8 @@ import {
 } from '@vscode/prompt-tsx'
 import type { RequestCommands } from './chat.js'
 import * as vscode from 'vscode'
-import { FileElement, FileElementProps } from './promptlib/fsprompts.js'
+import path from 'node:path'
+import { FileElementProps } from './promptlib/fsprompts.js'
 import { Tag } from '../utils/tag.js'
 
 /* eslint-disable  @typescript-eslint/no-namespace */
@@ -89,6 +90,7 @@ export class LatexInstructions extends PromptElement {
 export interface MainPromptProps extends HistoryMessagesProps, AttachmentsProps {
     input: string,
     userInstruction?: string | undefined,
+    instructionFiles?: string | undefined,
     translationCorrespondenceList?: string | undefined,
     toolCallResultRounds?: ToolCallResultRoundProps[] | undefined
 }
@@ -98,9 +100,14 @@ export class SimplePrompt extends PromptElement<MainPromptProps> {
         return (
             <>
                 <HistoryMessages history={this.props.history} />
-                <Attachments attachments={this.props.attachments} />
                 <UserMessage>
-                    {this.props.input}
+                    <>
+                        <Attachments attachments={this.props.attachments} />
+                        {this.props.instructionFiles}<br/>
+                        <Tag name="userRequest">
+                            {this.props.input}
+                        </Tag>
+                    </>
                 </UserMessage>
                 {
                     // TODO: use DirectivePrompt
@@ -131,8 +138,8 @@ export class PythonMasterPrompt extends PromptElement<MainPromptProps> {
                     </Tag>
                 </UserMessage>
                 <HistoryMessages history={this.props.history} />
-                <Attachments attachments={this.props.attachments} />
                 <UserMessage>
+                    <Attachments attachments={this.props.attachments} />
                     {this.props.input}
                 </UserMessage>
             </>
@@ -536,20 +543,15 @@ interface AttachmentsProps extends BasePromptElementProps {
 export class Attachments extends PromptElement<AttachmentsProps> {
     render(): PromptPiece {
         return (
-            <>
+            <Tag name="attachments">
                 {
                     this.props.attachments?.map((attachment) =>
-                        <UserMessage>
-                            <FileElement
-                                uri={attachment.uri}
-                                content={attachment.content}
-                                description='This file was attached for context and should be used only as a reference when executing my instructions. Do not edit it.'
-                                metadata={attachment.metadata}
-                            />
-                        </UserMessage>
+                        <Tag name="attachment" attrs={ {id: path.basename(attachment.uri.fsPath), filePath: attachment.uri.fsPath } }>
+                            {attachment.content}
+                        </Tag>
                     ) ?? ''
                 }
-            </>
+            </Tag>
         )
     }
 }
