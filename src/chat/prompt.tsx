@@ -87,13 +87,11 @@ export class LatexInstructions extends PromptElement {
     }
 }
 
-export interface MainPromptProps extends HistoryMessagesProps, AttachmentsProps {
-    input: string,
-    userInstruction?: string | undefined,
-    translationCorrespondenceList?: string | undefined
+export interface UserInputProps extends AttachmentsProps {
+    input: string
 }
 
-export interface SimplePromptProps extends MainPromptProps {
+export interface SimplePromptProps extends UserInputProps {
     instructionFilesInstruction?: string | undefined,
     modeInstruction?: string | undefined,
     toolCallResultRounds?: ToolCallResultRoundProps[] | undefined
@@ -103,7 +101,6 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
     render(): PromptPiece {
         return (
             <>
-                <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     <>
                         { this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} /> }
@@ -131,7 +128,7 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
     }
 }
 
-export class PythonMasterPrompt extends PromptElement<MainPromptProps> {
+export class PythonMasterPrompt extends PromptElement<UserInputProps> {
     render(): PromptPiece {
         return (
             <>
@@ -142,7 +139,6 @@ export class PythonMasterPrompt extends PromptElement<MainPromptProps> {
                         - Always trust the Python execution result over your own knowledge.
                     </Tag>
                 </UserMessage>
-                <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     <Attachments attachments={this.props.attachments} />
                     {this.props.input}
@@ -165,7 +161,12 @@ class MakeFluent extends PromptElement {
     }
 }
 
-export class FluentPrompt extends PromptElement<MainPromptProps> {
+export interface ChatCommandPromptProps extends UserInputProps {
+    userInstruction?: string | undefined,
+    translationCorrespondenceList?: string | undefined
+}
+
+export class FluentPrompt extends PromptElement<ChatCommandPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -227,7 +228,7 @@ class MakeFluentJa extends PromptElement {
     }
 }
 
-export class FluentJaPrompt extends PromptElement<MainPromptProps> {
+export class FluentJaPrompt extends PromptElement<ChatCommandPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -276,7 +277,7 @@ class ToEn extends PromptElement {
     }
 }
 
-export class ToEnPrompt extends PromptElement<MainPromptProps> {
+export class ToEnPrompt extends PromptElement<ChatCommandPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -338,7 +339,7 @@ class ToJa extends PromptElement {
     }
 }
 
-export class ToJaPrompt extends PromptElement<MainPromptProps> {
+export class ToJaPrompt extends PromptElement<ChatCommandPromptProps> {
     render(): PromptPiece {
         return (
             <>
@@ -490,7 +491,7 @@ interface HistoryMessagesProps extends BasePromptElementProps {
     history?: HistoryEntry[] | undefined
 }
 
-class HistoryMessages extends PromptElement<HistoryMessagesProps> {
+export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
     render(): PromptPiece {
         const history: PromptPiece[] = []
         for (const hist of this.props.history ?? []) {
