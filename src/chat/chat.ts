@@ -33,7 +33,7 @@ export class ChatHandleManager {
             if (request.command) {
                 return this.responseForCommand(token, request, stream)
             } else {
-                const attachments = await getAttachmentFiles(request)
+                const attachments = await getAttachmentFiles(request.references)
                 const instructionFilesInstruction = getInstructionFilesInstruction(request)
                 const modeInstruction = request.modeInstructions2?.content
                 await this.copilotChatHandler.copilotChatResponse(

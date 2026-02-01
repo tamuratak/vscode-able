@@ -8,10 +8,10 @@ import {
     ToolResult,
     UserMessage,
 } from '@vscode/prompt-tsx'
-import type { RequestCommands } from './chat.js'
 import * as vscode from 'vscode'
 import path from 'node:path'
 import { Tag } from '../utils/tag.js'
+import { getAttachmentFiles } from './chatlib/referenceutils.js'
 
 /* eslint-disable  @typescript-eslint/no-namespace */
 declare global {
@@ -19,12 +19,6 @@ declare global {
         type Element = PromptPiece
         type ElementClass = PromptElement<BasePromptElementProps, unknown>
     }
-}
-
-export interface HistoryEntry {
-    type: 'user' | 'assistant',
-    command?: RequestCommands | undefined,
-    text: string
 }
 
 export interface ToolCallResultPair {
@@ -560,29 +554,42 @@ export interface HistoryMessagesProps extends BasePromptElementProps {
 }
 
 export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
-    render(): PromptPiece {
+    async render(): Promise<PromptPiece> {
         return (
             <>
                 {
-                    this.props.history.map((message) => {
+                    await Promise.all(this.props.history.map(async (message) => {
                         if (message instanceof vscode.ChatRequestTurn) {
                             return (
                                 <UserMessage>
-                                    {message.prompt}
+                                    <Attachments attachments={await getAttachments(message.references)} />
+                                    <Tag name="userRequest">
+                                        {message.prompt}
+                                    </Tag>
                                 </UserMessage>
                             )
-                        } else if (message.response instanceof vscode.ChatResponseMarkdownPart) {
+                        } else {
+                            let msg = ''
+                            for (const responsePart of message.response) {
+                                if (responsePart instanceof vscode.ChatResponseMarkdownPart) {
+                                    msg += responsePart.value.value
+                                }
+                            }
                             return (
                                 <AssistantMessage>
-                                    {message.response.value.value}
+                                    {msg}
                                 </AssistantMessage>
                             )
-                        } else {
-                            return undefined
                         }
-                    })
+                    }))
                 }
             </>
         )
     }
+}
+
+async function getAttachments(refs: readonly vscode.ChatPromptReference[]) {
+    const references = await getAttachmentFiles(refs);
+    const attachments = references.filter(ref => ref.kind === 'file')
+    return attachments
 }

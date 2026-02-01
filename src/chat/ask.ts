@@ -22,8 +22,7 @@ export class AskChatHandleManager {
             stream: vscode.ChatResponseStream,
             token: vscode.CancellationToken
         ): Promise<vscode.ChatResult | undefined> => {
-            const history = context.history.slice(1) // remove system prompt
-            const references = await getAttachmentFiles(request)
+            const references = await getAttachmentFiles(request.references)
             const instructionFiles = references.filter(ref => ref.kind === 'instructions')
             const attachments = references.filter(ref => ref.kind === 'file')
             const instructionFilesInstruction = getInstructionFilesInstruction(request)
@@ -31,7 +30,7 @@ export class AskChatHandleManager {
             await this.copilotChatHandler.copilotChatResponse(
                 token,
                 AskChatPrompt,
-                { input: request.prompt, history, attachments, instructionFiles, instructionFilesInstruction, modeInstruction },
+                { input: request.prompt, history: context.history, attachments, instructionFiles, instructionFilesInstruction, modeInstruction },
                 request.model,
                 stream
             )

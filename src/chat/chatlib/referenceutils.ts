@@ -29,9 +29,9 @@ export async function getSelected(request: vscode.ChatRequest) {
     return
 }
 
-export async function getAttachmentFiles(request: vscode.ChatRequest): Promise<ReferenceElement[]> {
+export async function getAttachmentFiles(references: readonly vscode.ChatPromptReference[]): Promise<ReferenceElement[]> {
     const result: ReferenceElement[] = []
-    for (const ref of request.references) {
+    for (const ref of references) {
         if (ref.value instanceof vscode.Uri) {
             const uri = ref.value
             try {
