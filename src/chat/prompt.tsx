@@ -11,7 +11,7 @@ import {
 import * as vscode from 'vscode'
 import path from 'node:path'
 import { Tag } from '../utils/tag.js'
-import { getAttachmentFiles } from './chatlib/referenceutils.js'
+import { FileReference, getAttachmentFiles, processReferencesInUserPrompt, SelectionReference } from './chatlib/referenceutils.js'
 
 /* eslint-disable  @typescript-eslint/no-namespace */
 declare global {
@@ -121,9 +121,9 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
 }
 
 export interface AskChatSystemPromptProps extends BasePromptElementProps {
-    instructionFiles: FileElement[] | undefined,
-    instructionFilesInstruction?: string | undefined,
-    modeInstruction?: string | undefined,
+    instructionFiles: FileReference[],
+    instructionsText: string | undefined,
+    modeInstruction: string | undefined,
 }
 
 export class AskChatSystemPrompt extends PromptElement<AskChatSystemPromptProps> {
@@ -132,7 +132,7 @@ export class AskChatSystemPrompt extends PromptElement<AskChatSystemPromptProps>
             <UserMessage>
                 <>
                     {this.props.instructionFiles && this.props.instructionFiles.length > 0 && <Attachments attachments={this.props.instructionFiles} />}
-                    {this.props.instructionFilesInstruction}<br />
+                    {this.props.instructionsText}<br />
                     {this.props.modeInstruction && <Tag name='modeInstructions'> {this.props.modeInstruction} </Tag>}
                 </>
             </UserMessage>
@@ -140,27 +140,43 @@ export class AskChatSystemPrompt extends PromptElement<AskChatSystemPromptProps>
     }
 }
 
-export interface AskChatPromptProps extends UserInputProps, HistoryMessagesProps {
-    instructionFiles: FileElement[] | undefined,
-    instructionFilesInstruction?: string | undefined,
-    modeInstruction?: string | undefined,
+interface AskChatPromptProps extends UserInputProps, HistoryMessagesProps {
+    selections?: SelectionReference[] | undefined,
+    instructionFiles: FileReference[],
+    instructionsText: string | undefined,
+    modeInstruction: string | undefined,
 }
 
 export class AskChatPrompt extends PromptElement<AskChatPromptProps> {
     render(): PromptPiece {
         return (
             <>
-                <AskChatSystemPrompt instructionFiles={this.props.instructionFiles} instructionFilesInstruction={this.props.instructionFilesInstruction} modeInstruction={this.props.modeInstruction} />
+                <AskChatSystemPrompt instructionFiles={this.props.instructionFiles} instructionsText={this.props.instructionsText} modeInstruction={this.props.modeInstruction} />
                 <HistoryMessages history={this.props.history} />
-                <UserMessage>
-                    <>
-                        {this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} />}
-                        <Tag name="userRequest">
-                            {this.props.input}
-                        </Tag>
-                    </>
-                </UserMessage>
+                <AskUserMessage input={this.props.input} attachments={this.props.attachments} selections={this.props.selections} />
             </>
+        )
+    }
+}
+
+interface AksUserMessageProps extends BasePromptElementProps {
+    input: string
+    attachments?: FileReference[] | undefined
+    selections?: SelectionReference[] | undefined
+}
+
+export class AskUserMessage extends PromptElement<AksUserMessageProps> {
+    render(): PromptPiece {
+        return (
+            <UserMessage>
+                <>
+                    {this.props.selections && this.props.selections.length > 0 && <Selections selections={this.props.selections} />}
+                    {this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} />}
+                    <Tag name="userRequest">
+                        {this.props.input}
+                    </Tag>
+                </>
+            </UserMessage>
         )
     }
 }
@@ -524,13 +540,8 @@ export class ProperNounsPrompt extends PromptElement<ProperNounsPromptProps> {
     }
 }
 
-export interface FileElement {
-    uri: vscode.Uri,
-    content: string
-}
-
 interface AttachmentsProps extends BasePromptElementProps {
-    attachments?: FileElement[] | undefined
+    attachments?: FileReference[] | undefined
 }
 
 export class Attachments extends PromptElement<AttachmentsProps> {
@@ -541,6 +552,26 @@ export class Attachments extends PromptElement<AttachmentsProps> {
                     this.props.attachments?.map((attachment) =>
                         <Tag name="attachment" attrs={{ id: path.basename(attachment.uri.fsPath), filePath: attachment.uri.fsPath }}>
                             {attachment.content}
+                        </Tag>
+                    ) ?? ''
+                }
+            </Tag>
+        )
+    }
+}
+
+interface SelectionsProps extends BasePromptElementProps {
+    selections: SelectionReference[] | undefined
+}
+
+export class Selections extends PromptElement<SelectionsProps> {
+    render(): PromptPiece {
+        return (
+            <Tag name="selections">
+                {
+                    this.props.selections?.map((selection) =>
+                        <Tag name="selection" attrs={{ id: path.basename(selection.uri.fsPath), filePath: selection.uri.fsPath, range: `${selection.range.start.line + 1}:${selection.range.start.character + 1}-${selection.range.end.line + 1}:${selection.range.end.character + 1}` }}>
+                            {selection.text}
                         </Tag>
                     ) ?? ''
                 }
@@ -560,13 +591,10 @@ export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
                 {
                     await Promise.all(this.props.history.map(async (message) => {
                         if (message instanceof vscode.ChatRequestTurn) {
+                            const {files, selections} = await processReferencesInUserPrompt(message.references);
+                            const attachments = files.filter(ref => ref.kind === 'file')
                             return (
-                                <UserMessage>
-                                    <Attachments attachments={await getAttachments(message.references)} />
-                                    <Tag name="userRequest">
-                                        {message.prompt}
-                                    </Tag>
-                                </UserMessage>
+                                <AskUserMessage input={message.prompt} attachments={attachments} selections={selections} />
                             )
                         } else {
                             let msg = ''
@@ -586,10 +614,4 @@ export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
             </>
         )
     }
-}
-
-async function getAttachments(refs: readonly vscode.ChatPromptReference[]) {
-    const references = await getAttachmentFiles(refs);
-    const attachments = references.filter(ref => ref.kind === 'file')
-    return attachments
 }
