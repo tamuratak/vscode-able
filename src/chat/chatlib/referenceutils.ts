@@ -44,7 +44,7 @@ export async function getAttachmentFiles(request: vscode.ChatRequest): Promise<F
     return result
 }
 
-export function getInstructions(request: vscode.ChatRequest): string {
+export function getInstructionFilesInstruction(request: vscode.ChatRequest): string {
     for (const ref of request.references) {
         if (ref.id === 'vscode.prompt.instructions.text' && typeof ref.value === 'string') {
             let instructions = ref.value

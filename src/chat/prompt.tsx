@@ -90,7 +90,7 @@ export class LatexInstructions extends PromptElement {
 export interface MainPromptProps extends HistoryMessagesProps, AttachmentsProps {
     input: string,
     userInstruction?: string | undefined,
-    instructionFiles?: string | undefined,
+    instructionFilesInstruction?: string | undefined,
     translationCorrespondenceList?: string | undefined,
     toolCallResultRounds?: ToolCallResultRoundProps[] | undefined
 }
@@ -103,7 +103,7 @@ export class SimplePrompt extends PromptElement<MainPromptProps> {
                 <UserMessage>
                     <>
                         <Attachments attachments={this.props.attachments} />
-                        {this.props.instructionFiles}<br/>
+                        {this.props.instructionFilesInstruction}<br/>
                         <Tag name="userRequest">
                             {this.props.input}
                         </Tag>
