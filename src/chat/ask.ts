@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { AskChatPrompt } from './prompt.js'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
-import { getAttachmentFiles, getInstructionFilesInstruction } from './chatlib/referenceutils.js'
+import { processReferencesInUserPrompt } from './chatlib/referenceutils.js'
 
 
 export class AskChatHandleManager {
@@ -22,15 +22,14 @@ export class AskChatHandleManager {
             stream: vscode.ChatResponseStream,
             token: vscode.CancellationToken
         ): Promise<vscode.ChatResult | undefined> => {
-            const references = await getAttachmentFiles(request.references)
-            const instructionFiles = references.filter(ref => ref.kind === 'instructions')
-            const attachments = references.filter(ref => ref.kind === 'file')
-            const instructionFilesInstruction = getInstructionFilesInstruction(request)
+            const { files, selections,instructionsText } = await processReferencesInUserPrompt(request.references)
+            const instructionFiles = files.filter(ref => ref.kind === 'instructions')
+            const attachments = files.filter(ref => ref.kind === 'file')
             const modeInstruction = request.modeInstructions2?.content
             await this.copilotChatHandler.copilotChatResponse(
                 token,
                 AskChatPrompt,
-                { input: request.prompt, history: context.history, attachments, instructionFiles, instructionFilesInstruction, modeInstruction },
+                { input: request.prompt, history: context.history, attachments, selections, instructionFiles, instructionsText, modeInstruction },
                 request.model,
                 stream
             )
