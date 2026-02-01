@@ -11,7 +11,7 @@ import {
 import * as vscode from 'vscode'
 import path from 'node:path'
 import { Tag } from '../utils/tag.js'
-import { FileReference, processReferencesInUserPrompt, SelectionReference } from './chatlib/referenceutils.js'
+import { FileReference, processReferences, SelectionReference } from './chatlib/referenceutils.js'
 
 /* eslint-disable  @typescript-eslint/no-namespace */
 declare global {
@@ -84,9 +84,9 @@ interface UserInputProps extends AttachmentsProps {
 }
 
 interface SimplePromptProps extends UserInputProps {
-    instructionFilesInstruction?: string | undefined,
-    modeInstruction: string | undefined,
-    toolCallResultRounds?: ToolCallResultRoundProps[] | undefined
+    selections: SelectionReference[] | undefined,
+    instructionsText: string | undefined,
+    modeInstruction: string | undefined
 }
 
 export class SimplePrompt extends PromptElement<SimplePromptProps> {
@@ -95,26 +95,15 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
             <>
                 <UserMessage>
                     <>
+                        {this.props.selections && this.props.selections.length > 0 && <Selections selections={this.props.selections} />}
                         {this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} />}
-                        {this.props.instructionFilesInstruction}<br />
+                        {this.props.instructionsText}<br />
                         {this.props.modeInstruction && <Tag name='modeInstructions'> {this.props.modeInstruction} </Tag>}
                         <Tag name="userRequest">
                             {this.props.input}
                         </Tag>
                     </>
                 </UserMessage>
-                {
-                    // TODO: use DirectivePrompt
-                    this.props.toolCallResultRounds?.map((e) => (
-                        <>
-                            <ToolCallResultRoundElement
-                                responseStr={e.responseStr}
-                                toolCallResultPairs={e.toolCallResultPairs}
-                            />
-                            <ToolResultDirectiveElement />
-                        </>
-                    )) ?? ''
-                }
             </>
         )
     }
@@ -591,7 +580,7 @@ class HistoryMessages extends PromptElement<HistoryMessagesProps> {
                 {
                     await Promise.all(this.props.history.map(async (message) => {
                         if (message instanceof vscode.ChatRequestTurn) {
-                            const {files, selections} = await processReferencesInUserPrompt(message.references);
+                            const {files, selections} = await processReferences(message.references);
                             const attachments = files.filter(ref => ref.kind === 'file')
                             return (
                                 <AskUserMessage input={message.prompt} attachments={attachments} selections={selections} />

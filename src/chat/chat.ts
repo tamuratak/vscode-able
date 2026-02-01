@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import { FluentJaPrompt, FluentPrompt, ProperNounsPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt, ChatCommandPromptProps } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
-import { getAttachmentFiles, getInstructionFilesInstruction, getSelected } from './chatlib/referenceutils.js'
+import { getSelected, processReferences } from './chatlib/referenceutils.js'
 import { debugObj } from '../utils/debug.js'
 import { convertMathEnv, removeLabel } from './chatlib/latex.js'
 import { toCunks } from './chatlib/chunk.js'
@@ -33,13 +33,13 @@ export class ChatHandleManager {
             if (request.command) {
                 return this.responseForCommand(token, request, stream)
             } else {
-                const attachments = await getAttachmentFiles(request.references)
-                const instructionFilesInstruction = getInstructionFilesInstruction(request)
+                const { files, selections, instructionsText} = await processReferences(request.references)
+
                 const modeInstruction = request.modeInstructions2?.content
                 await this.copilotChatHandler.copilotChatResponse(
                     token,
                     SimplePrompt,
-                    { input: request.prompt, attachments, instructionFilesInstruction, modeInstruction },
+                    { input: request.prompt, selections, attachments: files, instructionsText, modeInstruction },
                     request.model,
                     stream
                 )

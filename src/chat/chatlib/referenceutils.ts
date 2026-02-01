@@ -26,7 +26,7 @@ export interface SelectionReference {
     range: vscode.Range
 }
 
-export async function processReferencesInUserPrompt(references: readonly vscode.ChatPromptReference[]) {
+export async function processReferences(references: readonly vscode.ChatPromptReference[]) {
     const files: FileReference[] = []
     const selections: SelectionReference[] = []
     let instructionsText: string | undefined
@@ -64,34 +64,4 @@ export async function getSelected(request: vscode.ChatRequest) {
         }
     }
     return
-}
-
-export async function getAttachmentFiles(references: readonly vscode.ChatPromptReference[]): Promise<FileReference[]> {
-    const result: FileReference[] = []
-    for (const ref of references) {
-        if (ref.value instanceof vscode.Uri) {
-            const uri = ref.value
-            try {
-                const buf = await vscode.workspace.fs.readFile(uri)
-                const decoder = new TextDecoder()
-                const content = decoder.decode(buf)
-                const kind = ref.id.startsWith('vscode.prompt.instructions') ? 'instructions' : 'file'
-                result.push({ uri, content, kind })
-            } catch {
-                // ignore
-            }
-        }
-    }
-    return result
-}
-
-export function getInstructionFilesInstruction(request: vscode.ChatRequest): string {
-    for (const ref of request.references) {
-        if (ref.id === 'vscode.prompt.instructions.text' && typeof ref.value === 'string') {
-            let instructions = ref.value
-            instructions = instructions.replace('If the file is not already available as attachment, use the #tool:readFile tool to acquire it.\n', '').trim()
-            return instructions
-        }
-    }
-    return ''
 }
