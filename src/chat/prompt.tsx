@@ -101,9 +101,9 @@ export class SimplePrompt extends PromptElement<SimplePromptProps> {
             <>
                 <UserMessage>
                     <>
-                        { this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} /> }
-                        { this.props.instructionFilesInstruction }<br/>
-                        { this.props.modeInstruction && <Tag name='modeInstructions'> {this.props.modeInstruction} </Tag> }
+                        {this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} />}
+                        {this.props.instructionFilesInstruction}<br />
+                        {this.props.modeInstruction && <Tag name='modeInstructions'> {this.props.modeInstruction} </Tag>}
                         <Tag name="userRequest">
                             {this.props.input}
                         </Tag>
@@ -137,9 +137,9 @@ export class AskChatSystemPrompt extends PromptElement<AskChatSystemPromptProps>
         return (
             <UserMessage>
                 <>
-                    { this.props.instructionFiles && this.props.instructionFiles.length > 0 && <Attachments attachments={this.props.instructionFiles} /> }
-                    { this.props.instructionFilesInstruction }<br/>
-                    { this.props.modeInstruction && <Tag name='modeInstructions'> {this.props.modeInstruction} </Tag> }
+                    {this.props.instructionFiles && this.props.instructionFiles.length > 0 && <Attachments attachments={this.props.instructionFiles} />}
+                    {this.props.instructionFilesInstruction}<br />
+                    {this.props.modeInstruction && <Tag name='modeInstructions'> {this.props.modeInstruction} </Tag>}
                 </>
             </UserMessage>
         )
@@ -160,7 +160,7 @@ export class AskChatPrompt extends PromptElement<AskChatPromptProps> {
                 <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     <>
-                        { this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} /> }
+                        {this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} />}
                         <Tag name="userRequest">
                             {this.props.input}
                         </Tag>
@@ -545,7 +545,7 @@ export class Attachments extends PromptElement<AttachmentsProps> {
             <Tag name="attachments">
                 {
                     this.props.attachments?.map((attachment) =>
-                        <Tag name="attachment" attrs={ {id: path.basename(attachment.uri.fsPath), filePath: attachment.uri.fsPath } }>
+                        <Tag name="attachment" attrs={{ id: path.basename(attachment.uri.fsPath), filePath: attachment.uri.fsPath }}>
                             {attachment.content}
                         </Tag>
                     ) ?? ''
