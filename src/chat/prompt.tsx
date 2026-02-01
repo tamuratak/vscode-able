@@ -1,10 +1,8 @@
 import {
     AssistantMessage,
     BasePromptElementProps,
-    PrioritizedList,
     PromptElement,
     PromptPiece,
-    SystemMessage,
     ToolCall,
     ToolMessage,
     ToolResult,
@@ -137,13 +135,13 @@ export interface AskChatSystemPromptProps extends BasePromptElementProps {
 export class AskChatSystemPrompt extends PromptElement<AskChatSystemPromptProps> {
     render(): PromptPiece {
         return (
-            <SystemMessage>
+            <UserMessage>
                 <>
                     { this.props.instructionFiles && this.props.instructionFiles.length > 0 && <Attachments attachments={this.props.instructionFiles} /> }
                     { this.props.instructionFilesInstruction }<br/>
                     { this.props.modeInstruction && <Tag name='modeInstructions'> {this.props.modeInstruction} </Tag> }
                 </>
-            </SystemMessage>
+            </UserMessage>
         )
     }
 }
@@ -158,7 +156,7 @@ export class AskChatPrompt extends PromptElement<AskChatPromptProps> {
     render(): PromptPiece {
         return (
             <>
-                <AskChatSystemPrompt {...this.props} />
+                <AskChatSystemPrompt instructionFiles={this.props.instructionFiles} instructionFilesInstruction={this.props.instructionFilesInstruction} modeInstruction={this.props.modeInstruction} />
                 <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     <>
@@ -532,60 +530,6 @@ export class ProperNounsPrompt extends PromptElement<ProperNounsPromptProps> {
     }
 }
 
-interface HistoryMessagesProps extends BasePromptElementProps {
-    history?: HistoryEntry[] | undefined
-}
-
-export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
-    render(): PromptPiece {
-        const history: PromptPiece[] = []
-        for (const hist of this.props.history ?? []) {
-            if (hist.type === 'user') {
-                if (hist.command === 'fluent') {
-                    history.push(
-                        <MakeFluent>
-                            {hist.text}
-                        </MakeFluent>
-                    )
-                } else if (hist.command === 'fluent_ja') {
-                    history.push(
-                        <MakeFluentJa>
-                            {hist.text}
-                        </MakeFluentJa>
-                    )
-                } else if (hist.command === 'to_en') {
-                    history.push(
-                        <ToEn>
-                            {hist.text}
-                        </ToEn>
-                    )
-                } else if (hist.command === 'to_ja') {
-                    history.push(
-                        <ToJa>
-                            {hist.text}
-                        </ToJa>
-                    )
-                } else {
-                    hist.command satisfies undefined
-                    history.push(<UserMessage>{hist.text}</UserMessage>)
-                }
-            } else {
-                history.push(<AssistantMessage>{hist.text}</AssistantMessage>)
-            }
-        }
-        return (
-            <>
-                <PrioritizedList priority={0} descending={false}>
-                    {history.slice(0, -10)}
-                </PrioritizedList>
-                <PrioritizedList priority={1000} descending={false}>
-                    {history.slice(-10)}
-                </PrioritizedList>
-            </>
-        )
-    }
-}
-
 export interface FileElement {
     uri: vscode.Uri,
     content: string
@@ -607,6 +551,38 @@ export class Attachments extends PromptElement<AttachmentsProps> {
                     ) ?? ''
                 }
             </Tag>
+        )
+    }
+}
+
+export interface HistoryMessagesProps extends BasePromptElementProps {
+    history: vscode.ChatContext['history']
+}
+
+export class HistoryMessages extends PromptElement<HistoryMessagesProps> {
+    render(): PromptPiece {
+        return (
+            <>
+                {
+                    this.props.history.map((message) => {
+                        if (message instanceof vscode.ChatRequestTurn) {
+                            return (
+                                <UserMessage>
+                                    {message.prompt}
+                                </UserMessage>
+                            )
+                        } else if (message.response instanceof vscode.ChatResponseMarkdownPart) {
+                            return (
+                                <AssistantMessage>
+                                    {message.response.value.value}
+                                </AssistantMessage>
+                            )
+                        } else {
+                            return undefined
+                        }
+                    })
+                }
+            </>
         )
     }
 }
