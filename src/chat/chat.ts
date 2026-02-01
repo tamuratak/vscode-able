@@ -20,7 +20,6 @@ export class ChatHandleManager {
         }
     ) {
         this.copilotChatHandler = new CopilotChatHandler(extension)
-        this.extension.outputChannel.info('ChatHandleManager initialized')
     }
 
     getHandler(): vscode.ChatRequestHandler {
@@ -36,10 +35,11 @@ export class ChatHandleManager {
             } else {
                 const attachments = await getAttachmentFiles(request)
                 const instructionFilesInstruction = getInstructionFilesInstruction(request)
+                const modeInstruction = request.modeInstructions2?.content
                 await this.copilotChatHandler.copilotChatResponse(
                     token,
                     SimplePrompt,
-                    { input: request.prompt, attachments, instructionFilesInstruction },
+                    { input: request.prompt, attachments, instructionFilesInstruction, modeInstruction },
                     request.model,
                     stream
                 )

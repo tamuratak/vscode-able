@@ -91,6 +91,7 @@ export interface MainPromptProps extends HistoryMessagesProps, AttachmentsProps 
     input: string,
     userInstruction?: string | undefined,
     instructionFilesInstruction?: string | undefined,
+    modeInstruction?: string | undefined,
     translationCorrespondenceList?: string | undefined,
     toolCallResultRounds?: ToolCallResultRoundProps[] | undefined
 }
@@ -102,8 +103,9 @@ export class SimplePrompt extends PromptElement<MainPromptProps> {
                 <HistoryMessages history={this.props.history} />
                 <UserMessage>
                     <>
-                        <Attachments attachments={this.props.attachments} />
-                        {this.props.instructionFilesInstruction}<br/>
+                        { this.props.attachments && this.props.attachments.length > 0 && <Attachments attachments={this.props.attachments} /> }
+                        { this.props.instructionFilesInstruction }<br/>
+                        { this.props.modeInstruction && <Tag name='modeInstructions'> {this.props.modeInstruction} </Tag> }
                         <Tag name="userRequest">
                             {this.props.input}
                         </Tag>
