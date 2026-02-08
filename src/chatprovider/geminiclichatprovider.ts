@@ -59,6 +59,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         token: CancellationToken
     ) {
         debugObj('Gemini CLI Chat model: ', model, this.extension.outputChannel)
+        debugObj('Gemini CLI Chat user prompt: ', messages[messages.length - 1], this.extension.outputChannel)
         const newPrompt = await this.generateContext(messages)
         debugObj('Gemini CLI Chat full prompt:\n', newPrompt, this.extension.outputChannel)
         const systemPromptPath = vscode.Uri.joinPath(this.extension.extensionUri, './lib/geminicli/system.md').fsPath
