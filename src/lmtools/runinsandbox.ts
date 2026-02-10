@@ -46,6 +46,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
                 invocationMessage: 'Run command by using sandbox-exec'
             }
         }
+        debugObj('RunInSandbox prepareInvocation args: ', options.input, this.extension.outputChannel)
         return {
             confirmationMessages: {
                 title: 'Run command by using sandbox-exec',
