@@ -15,6 +15,12 @@ suite('validator', () => {
         assert.strictEqual(ok, true)
     })
 
+    test('allow cd /Users/tamura/src/github/vscode-copilot-chat && rg -n "visibility" src/vs/workbench/contrib/chat/common/promptSyntax/service/promptsServiceImpl.ts', async () => {
+        const cmd = 'cd /Users/tamura/src/github/vscode-copilot-chat && rg -n "visibility" src/vs/workbench/contrib/chat/common/promptSyntax/service/promptsServiceImpl.ts'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
     test("allow nl -ba /Users/tamura/src/github/vscode/src/vs/workbench/contrib/chat/browser/widget/chatListRenderer.ts | sed -n '1390,1465p;2200,2335p'", async () => {
         const cmd = "nl -ba /Users/tamura/src/github/vscode/src/vs/workbench/contrib/chat/browser/widget/chatListRenderer.ts | sed -n '1390,1465p;2200,2335p'"
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
