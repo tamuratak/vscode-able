@@ -2,7 +2,7 @@ import path from 'node:path'
 import { collectCommands, CommandNode, hasNoWriteRedirection } from './commandparser.js'
 
 const forbiddenCharacters = /[~]/
-const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'printf', 'sed', 'tail', 'grep'])
+const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'printf', 'sed', 'tail', 'grep', 'pwd'])
 
 export async function isAllowedCommand(command: string, workspaceRootPath: string | undefined): Promise<boolean> {
     if (forbiddenCharacters.test(command)) {
