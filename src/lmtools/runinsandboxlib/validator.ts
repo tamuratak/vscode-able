@@ -40,17 +40,21 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
         }
 
         if (cmd.command === 'sed') {
-            if (cmd.args.length >= 2) {
-                const last = cmd.args[cmd.args.length - 1]
-                if (isPotentialFilenameForSed(last)) {
-                    return false
+            const args = cmd.args
+            const rangeRegex = /^\d+,\d+.(;\s*\d+,\d+.)*$|^\d+p$/
+            const filePathRegex = /^\/[\S ]*$/
+            if (args.length === 2) {
+                const [first, second] = args
+                if (first === '-n' && rangeRegex.test(second)) {
+                    continue
+                }
+            } else if (args.length === 3) {
+                const [first, second, third] = args
+                if (first === '-n' && rangeRegex.test(second) && filePathRegex.test(third) && normalizedWorkspaceRoot && path.normalize(third).startsWith(normalizedWorkspaceRoot)) {
+                    continue
                 }
             }
-            for (const arg of cmd.args) {
-                if (/^-[iI]\b/.test(arg)) {
-                    return false
-                }
-            }
+            return false
         } else if (cmd.command === 'cd') {
             if (cmd.args.length !== 1) {
                 return false
@@ -101,7 +105,6 @@ function isConfirmationRequired(command: CommandNode): boolean {
         ['rg', /^--(pre|hostname-bin)\b/],
         ['find', /^-(delete|exec|execdir|fprint|fprintf|fls|ok|okdir)\b/],
         ['sed', /^(-[a-zA-Z]*(e|i|I|f)[a-zA-Z]*|--expression|--file|--in-place)\b/],
-        ['sed', /(\/e|\/w|\b[wW]\b)/],
         ['sort', /^-(o|S)\b/],
         ['tree', /^-o\b/],
     ]
@@ -118,25 +121,6 @@ function isConfirmationRequired(command: CommandNode): boolean {
     }
 
     return false
-}
-
-function isPotentialFilenameForSed(token: string): boolean {
-    if (token.length === 0) {
-        return false
-    }
-    if (token.startsWith('-')) {
-        return false
-    }
-
-    if (/^s\/.+\/.+\/[a-z]*$/.test(token)) {
-        return false
-    }
-
-    if (/^\d+,\d+.(;\s*\d+,\d+.)*$/.test(token) || /^\d+p$/.test(token)) {
-        return false
-    }
-
-    return true
 }
 
 /**
