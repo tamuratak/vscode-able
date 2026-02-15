@@ -27,6 +27,12 @@ suite('validator', () => {
         assert.strictEqual(ok, true)
     })
 
+    test("allow cd /Users/tamura/src/github/vscode-copilot-chat && sed -n '2320,2395p' src/vs/workbench/api/common/extHost.protocol.ts | cat -n", async () => {
+        const cmd = "cd /Users/tamura/src/github/vscode-copilot-chat && sed -n '2320,2395p' src/vs/workbench/api/common/extHost.protocol.ts | cat -n"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
     test("allow sed -n '100,150p' /Users/tamura/src/github/vscode-copilot-chat/src/vs/workbench/contrib/chat/browser/widget/chatListRenderer.ts", async () => {
         const cmd = "sed -n '100,150p' /Users/tamura/src/github/vscode-copilot-chat/src/vs/workbench/contrib/chat/browser/widget/chatListRenderer.ts"
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')

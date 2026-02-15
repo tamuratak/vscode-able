@@ -2,7 +2,7 @@ import path from 'node:path'
 import { collectCommands, CommandNode, hasNoWriteRedirection } from './commandparser.js'
 
 const forbiddenCharacters = /[~]/
-const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'printf', 'sed', 'tail', 'grep', 'pwd'])
+const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'printf', 'sed', 'tail', 'grep', 'pwd', 'wc'])
 
 export async function isAllowedCommand(command: string, workspaceRootPath: string | undefined): Promise<boolean> {
     if (forbiddenCharacters.test(command)) {
@@ -42,15 +42,14 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
         if (cmd.command === 'sed') {
             const args = cmd.args
             const rangeRegex = /^\d+,\d+.(;\s*\d+,\d+.)*$|^\d+p$/
-            const filePathRegex = /^\/[\S ]*$/
             if (args.length === 2) {
                 const [first, second] = args
                 if (first === '-n' && rangeRegex.test(second)) {
                     continue
                 }
             } else if (args.length === 3) {
-                const [first, second, third] = args
-                if (first === '-n' && rangeRegex.test(second) && filePathRegex.test(third) && normalizedWorkspaceRoot && path.normalize(third).startsWith(normalizedWorkspaceRoot)) {
+                const [first, second] = args
+                if (first === '-n' && rangeRegex.test(second)) {
                     continue
                 }
             }
