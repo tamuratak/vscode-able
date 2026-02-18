@@ -127,7 +127,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             LANG: process.env['LANG'] ?? 'C.UTF-8',
             LC_ALL: process.env['LC_ALL'] ?? 'C.UTF-8',
             HOME: process.env['HOME'] ?? workspaceDirs[0],
-            TMPDIR: this.tmpDir
+            TMPDIR: this.tmpDir,
+            GIT_PAGER: 'cat' // Disable git pager to avoid hanging
         }
         debugObj('RunInSandbox args: ', { args, cwd: workspaceDirs[0], env: minimalEnv }, this.extension.outputChannel)
         const child = spawn(seatbeltPath, args, {

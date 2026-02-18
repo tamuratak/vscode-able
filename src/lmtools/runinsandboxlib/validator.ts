@@ -69,16 +69,10 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
 }
 
 function isAllowedSubCommand(command: CommandNode): boolean {
-    if (commandStartsWith(['git', 'status'], command) || commandStartsWith(['git', '--no-pager', 'status'], command)) {
-        return true
-    } else if (commandStartsWith(['git', 'log'], command) || commandStartsWith(['git', '--no-pager', 'log'], command)) {
-        return true
-    } else if (commandStartsWith(['git', 'diff'], command) || commandStartsWith(['git', '--no-pager', 'diff'], command)) {
-        return true
-    } else if (commandStartsWith(['git', 'show'], command) || commandStartsWith(['git', '--no-pager', 'show'], command)) {
+    const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse)$/
+    if (commandStartsWith(['git', validGitSubCommandsRegex], command) || commandStartsWith(['git', '--no-pager', validGitSubCommandsRegex], command)) {
         return true
     }
-
     return false
 }
 
