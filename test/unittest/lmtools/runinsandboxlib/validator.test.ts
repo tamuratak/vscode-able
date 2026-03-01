@@ -33,6 +33,18 @@ suite('validator', () => {
         assert.strictEqual(ok, true)
     })
 
+    test("cd /Users/tamura/src/github/vscode && find src -maxdepth 2 -type f | sed -n '1,120p'", async () => {
+        const cmd = "cd /Users/tamura/src/github/vscode-copilot-chat && find src -maxdepth 2 -type f | sed -n '1,120p'"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test("cd /Users/tamura/src/github/vscode && find src -exec evil -maxdepth 2 -type f | sed -n '1,120p'", async () => {
+        const cmd = "cd /Users/tamura/src/github/vscode-copilot-chat && find src -exec evil -maxdepth 2 -type f | sed -n '1,120p'"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
     test("allow sed -n '100,150p' /Users/tamura/src/github/vscode-copilot-chat/src/vs/workbench/contrib/chat/browser/widget/chatListRenderer.ts", async () => {
         const cmd = "sed -n '100,150p' /Users/tamura/src/github/vscode-copilot-chat/src/vs/workbench/contrib/chat/browser/widget/chatListRenderer.ts"
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')

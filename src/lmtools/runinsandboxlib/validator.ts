@@ -34,7 +34,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
             continue
         }
 
-        const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'printf', 'sed', 'tail', 'grep', 'pwd', 'wc', 'true'])
+        const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'printf', 'sed', 'tail', 'grep', 'find', 'pwd', 'wc', 'true'])
         if (!allowedCommands.has(cmd.command)) {
             return false
         }
