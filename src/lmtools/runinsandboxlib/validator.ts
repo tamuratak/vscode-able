@@ -1,10 +1,9 @@
 import path from 'node:path'
 import { collectCommands, CommandNode, hasNoWriteRedirection } from './commandparser.js'
 
-const forbiddenCharacters = /[~]/
-const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'printf', 'sed', 'tail', 'grep', 'pwd', 'wc'])
 
 export async function isAllowedCommand(command: string, workspaceRootPath: string | undefined): Promise<boolean> {
+    const forbiddenCharacters = /[~]/
     if (forbiddenCharacters.test(command)) {
         return false
     }
@@ -31,10 +30,11 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
             return false
         }
 
-        if (isAllowedSubCommand(cmd)) {
+        if (isAllowedSubCommand(cmd, workspaceRootPath)) {
             continue
         }
 
+        const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'printf', 'sed', 'tail', 'grep', 'pwd', 'wc', 'true'])
         if (!allowedCommands.has(cmd.command)) {
             return false
         }
@@ -68,10 +68,16 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
     return true
 }
 
-function isAllowedSubCommand(command: CommandNode): boolean {
+function isAllowedSubCommand(command: CommandNode, workspaceRootPath: string | undefined): boolean {
     const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse)$/
     if (commandStartsWith(['git', validGitSubCommandsRegex], command) || commandStartsWith(['git', '--no-pager', validGitSubCommandsRegex], command)) {
         return true
+    } else if (commandStartsWith(['git', '-C', /.*/, '--no-pager', validGitSubCommandsRegex], command)) {
+        const cpath = command.args[1]
+        console.log(cpath)
+        if (workspaceRootPath && path.isAbsolute(cpath) && isInside(cpath, workspaceRootPath)) {
+            return true
+        }
     }
     return false
 }
@@ -161,4 +167,17 @@ function partialMatchCommand(pattern: (string | RegExp)[], command: CommandNode)
         }
         return false
     })
+}
+
+function isInside(childPath: string, parentPath: string): boolean {
+    if (!path.isAbsolute(childPath) || !path.isAbsolute(parentPath)) {
+        return false
+    }
+    const absoluteChild = path.resolve(childPath)
+    const absoluteParent = path.resolve(parentPath)
+    if (absoluteChild === absoluteParent) {
+        return true
+    }
+    const relative = path.relative(absoluteParent, absoluteChild)
+    return !!relative && !relative.startsWith('..') && !path.isAbsolute(relative)
 }

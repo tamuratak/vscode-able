@@ -93,6 +93,18 @@ suite('validator', () => {
         assert.strictEqual(ok, true)
     })
 
+    test('git -C /Users/tamura/src/github/vscode-copilot-chat --no-pager status -sb is allowed', async () => {
+        const cmd = 'git -C /Users/tamura/src/github/vscode-copilot-chat --no-pager status -sb'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('git -C /Users/tamura/src/github/vscode --no-pager status -sb is disallowed', async () => {
+        const cmd = 'git -C /Users/tamura/src/github/vscode --no-pager status -sb'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
     test('git push is disallowed', async () => {
         const cmd = 'git push origin main'
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
