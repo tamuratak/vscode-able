@@ -19,7 +19,9 @@ async function main() {
             extensionTestsPath,
             launchArgs: [
                 fixuresDir,
-                '--disable-extensions'
+                '--disable-extensions',
+                '--enable-proposed-api',
+                'tamuratak.able'
             ],
         })
     } catch (err) {
