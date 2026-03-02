@@ -6,7 +6,7 @@ export interface Attachment {
 }
 
 const attachmentsBlockRegex = /^<attachments>$([\s\S]*?)^<\/attachments>$/m
-const attachmentTagPattern = /^<attachment\b([^>]*)>$([\s\S]*?)^<\/attachment>$/gm
+const attachmentTagPattern = /^<attachment\b([^>]*)\/?>(?:$([\s\S]*?)^<\/attachment>)?$/gm
 const reminderInstructionsRegex = /^<reminderInstructions>$[\s\S]*?^<\/reminderInstructions>$/gm
 const attributePattern = /(\w+)="([^"]*)"/g
 
@@ -33,7 +33,7 @@ export function extractAttachments(input: string) {
             while ((attributeMatch = attributePattern.exec(attributeSource)) !== null) {
                 attributes[attributeMatch[1]] = attributeMatch[2]
             }
-            attachments.push({ content: attachmentTagMatch[2].trim(), id: attributes['id'], filePath: attributes['filePath'], isSummarized: attributes['isSummarized'] })
+            attachments.push({ content: attachmentTagMatch[2]?.trim(), id: attributes['id'], filePath: attributes['filePath'], isSummarized: attributes['isSummarized'] })
         }
     }
     return { newInput, attachments }
