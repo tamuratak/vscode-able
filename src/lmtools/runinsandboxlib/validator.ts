@@ -69,18 +69,44 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
 }
 
 function isAllowedSubCommand(command: CommandNode, workspaceRootPath: string | undefined): boolean {
-    const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse)$/
-    if (commandStartsWith(['git', validGitSubCommandsRegex], command) || commandStartsWith(['git', '--no-pager', validGitSubCommandsRegex], command)) {
-        return true
-    } else if (commandStartsWith(['git', '-C', /.*/, '--no-pager', validGitSubCommandsRegex], command)) {
-        const cpath = command.args[1]
-        console.log(cpath)
-        if (workspaceRootPath && path.isAbsolute(cpath) && isInside(cpath, workspaceRootPath)) {
-            return true
+    if (command.command === 'git') {
+        const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse)$/
+        const gitCmd = parseGitCommand(command)
+        if (gitCmd && gitCmd.subCommand && validGitSubCommandsRegex.test(gitCmd.subCommand)) {
+            const cpath = gitCmd.cPath
+            if (cpath) {
+                if (workspaceRootPath && path.isAbsolute(cpath) && isInside(cpath, workspaceRootPath)) {
+                    return true
+                }
+            } else {
+                return true
+            }
         }
     }
     return false
 }
+
+export function parseGitCommand(command: CommandNode) {
+    if (command.command !== 'git') {
+        return
+    }
+    const mainArgs: string[] = []
+    let cPath: string | undefined = undefined
+    for(let i = 0; i < command.args.length; i++) {
+        if (/^(status|log|diff|show|blame|rev-parse)$/.exec(command.args[i])) {
+            return { subCommand: command.args[i], subCommandArgs: command.args.slice(i + 1), mainArgs, cPath }
+        } else if (command.args[i] === '-C') {
+            cPath = command.args[i + 1]
+            i += 1
+        } else if (command.args[i] === '--no-pager') {
+            mainArgs.push(command.args[i])
+        } else {
+            return
+        }
+    }
+    return
+}
+
 
 //
 // https://github.com/microsoft/vscode/blob/698d618f29e978c2ca7f45570d148e6eb9aa2a66/src/vs/workbench/contrib/terminalContrib/chatAgentTools/common/terminalChatAgentToolsConfiguration.ts#L240
@@ -125,7 +151,7 @@ function isConfirmationRequired(command: CommandNode): boolean {
 /**
  * Returns true if the input command starts with the given pattern.
  */
-function commandStartsWith(pattern: (string | RegExp)[], command: CommandNode): boolean {
+export function commandStartsWith(pattern: (string | RegExp)[], command: CommandNode): boolean {
     if (pattern[0] !== command.command) {
         return false
     }
