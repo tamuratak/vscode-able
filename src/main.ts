@@ -12,6 +12,7 @@ import { renderToolResult } from './utils/toolresultrendering.js'
 import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwebpage.js'
 import { GeminiCliChatProvider } from './chatprovider/geminiclichatprovider.js'
 import { AskChatHandleManager } from './chat/ask.js'
+import { FixMathChatHandleManager } from './chat/fixmath.js'
 
 
 class Extension {
@@ -19,12 +20,14 @@ class Extension {
     readonly askChatHandleManager: AskChatHandleManager
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
     readonly ableTaskProvider: MochaJsonTaskProvider
+    readonly fixMathChatHandleManager: FixMathChatHandleManager
     readonly taskWatcher: TaskWatcher
     readonly extensionUri: vscode.Uri
 
     constructor(context: vscode.ExtensionContext) {
         this.chatHandleManager = new ChatHandleManager(this)
         this.askChatHandleManager = new AskChatHandleManager(this)
+        this.fixMathChatHandleManager = new FixMathChatHandleManager(this)
         this.ableTaskProvider = new MochaJsonTaskProvider(this)
         this.taskWatcher = new TaskWatcher(this)
         this.extensionUri = context.extensionUri
@@ -44,6 +47,10 @@ class Extension {
         return this.askChatHandleManager.getHandler()
     }
 
+    getFixMathChatHandler() {
+        return this.fixMathChatHandleManager.getHandler()
+    }
+
     dispose() {
         this.ableTaskProvider.dispose()
         this.outputChannel.dispose()
@@ -51,10 +58,6 @@ class Extension {
     }
 
 }
-
-export const AbleChatParticipantId = 'able.chatParticipant'
-export const AskChatParticipantId = 'able.askParticipant'
-export const AbleGeminiChatParticipantId = 'able.geminiParticipant'
 
 export function activate(context: vscode.ExtensionContext) {
     const extension = new Extension(context)
@@ -90,8 +93,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('able.doSomething', () => {
             void doSomething(extension)
         }),
-        vscode.chat.createChatParticipant(AbleChatParticipantId, extension.getChatHandler()),
-        vscode.chat.createChatParticipant(AskChatParticipantId, extension.getAskChatHandler()),
+        vscode.chat.createChatParticipant('able.chatParticipant', extension.getChatHandler()),
+        vscode.chat.createChatParticipant( 'able.askParticipant', extension.getAskChatHandler()),
+        vscode.chat.createChatParticipant( 'able.fixMathParticipant', extension.getFixMathChatHandler()),
         vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.lm.registerTool('able_fetch_webpage', new FetchWebPageTool(extension)),
         vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove(extension)),
