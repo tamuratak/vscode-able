@@ -1,5 +1,7 @@
 import { strict as assert } from 'assert'
-import { scanHtmlTag, scanMatchingHtmlTag } from '../../../src/chat/fixmathlib/fix'
+import { scanHtml, scanHtmlTag, scanMatchingHtmlTag } from '../../../src/chat/fixmathlib/fix'
+
+
 
 
 suite('fixmath.scanHtmlTag', () => {
@@ -64,6 +66,7 @@ suite('fixmath.scanHtmlTag', () => {
 
 })
 
+
 suite('fixmath.scanMatchingHtmlTag', () => {
 
     test('non-tag index returns index of next <', () => {
@@ -108,3 +111,4 @@ suite('fixmath.scanMatchingHtmlTag', () => {
     })
 
 })
+

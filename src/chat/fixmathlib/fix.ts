@@ -18,18 +18,21 @@ export function doFixMath(text: string) {
 }
 
 
-export function scanHtml(text: string, index: number) {
-    if (index < 0) { index = 0 }
-    if (index >= text.length) { return '' }
-    if (text[index] !== '<') {
-        let i = index
-        while (i < text.length && text[i] !== '<') {
-            i++
+export function scanHtml(text: string) {
+    const result: string[] = []
+    let index = 0
+    while (true) {
+        const pos = scanHtmlTag(text, index)
+        if (!text.startsWith('<')) {
+            const part = text.slice(index, pos)
+            result.push(part)
         }
-        return text.slice(index, i)
+        if (pos >= text.length) {
+            break
+        }
+        index = pos
     }
-    const end = scanHtmlTag(text, index)
-    return text.slice(index, end)
+    return result
 }
 
 export function scanMatchingHtmlTag(text: string, index: number) {
