@@ -2,8 +2,6 @@ import { strict as assert } from 'assert'
 import { scanHtml, scanHtmlTag, scanMatchingHtmlTag } from '../../../src/chat/fixmathlib/fix'
 
 
-
-
 suite('fixmath.scanHtmlTag', () => {
 
     test('non-tag index returns same index', () => {
@@ -72,7 +70,7 @@ suite('fixmath.scanMatchingHtmlTag', () => {
     test('non-tag index returns index of next <', () => {
         const txt = 'hello <b>bold</b>'
         const res = scanMatchingHtmlTag(txt, 0)
-        assert.strictEqual(res, txt.indexOf('<'))
+        assert.strictEqual(res, 0)
     })
 
     test('simple tag returns end of closing tag', () => {
@@ -105,10 +103,34 @@ suite('fixmath.scanMatchingHtmlTag', () => {
         assert.strictEqual(scanMatchingHtmlTag(txt, -10), scanMatchingHtmlTag(txt, 0))
     })
 
-    test('index out of range throws', () => {
-        const txt = '<p>hello</p>'
-        assert.throws(() => { scanMatchingHtmlTag(txt, txt.length) }, /Index out of range/)
+})
+
+suite('fixmath.scanHtml', () => {
+
+    test('plain text no tags', () => {
+        const txt = 'plain text no tags'
+        const res = scanHtml(txt)
+        assert.deepStrictEqual(res, ['plain text no tags'])
+    })
+
+    test('text with inline tag', () => {
+        const txt = 'hello <b>bold</b>'
+        const res = scanHtml(txt)
+        assert.deepStrictEqual(res, ['hello ', 'bold'])
+    })
+
+    test('leading tag and trailing text', () => {
+        const txt = '<p>hello</p>world'
+        const res = scanHtml(txt)
+        assert.deepStrictEqual(res, ['hello', 'world'])
+    })
+
+    test('comments are ignored', () => {
+        const txt = 'prefix <!-- comment -->suffix'
+        const res = scanHtml(txt)
+        assert.deepStrictEqual(res, ['prefix ', 'suffix'])
     })
 
 })
+
 

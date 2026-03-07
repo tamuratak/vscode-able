@@ -21,30 +21,31 @@ export function doFixMath(text: string) {
 export function scanHtml(text: string) {
     const result: string[] = []
     let index = 0
-    while (true) {
-        const pos = scanHtmlTag(text, index)
-        if (!text.startsWith('<')) {
-            const part = text.slice(index, pos)
-            result.push(part)
+    const length = text.length
+    while (index < length) {
+        if (text[index] === '<') {
+            // at a tag, skip over it
+            const pos = scanHtmlTag(text, index)
+            if (pos <= index) {
+                // safety: advance to avoid infinite loop
+                index++
+            } else {
+                index = pos
+            }
+        } else {
+            // collect text until next '<'
+            const next = text.indexOf('<', index)
+            const pos = next === -1 ? length : next
+            result.push(text.slice(index, pos))
+            index = pos
         }
-        if (pos >= text.length) {
-            break
-        }
-        index = pos
     }
     return result
 }
 
 export function scanMatchingHtmlTag(text: string, index: number) {
     if (index < 0) { index = 0 }
-    if (index >= text.length) { throw new Error('Index out of range') }
-    if (text[index] !== '<') {
-        let i = index
-        while (i < text.length && text[i] !== '<') {
-            i++
-        }
-        return i
-    }
+    if (index >= text.length || text[index] !== '<') { return index }
 
     // Simple tags that do not have matching end tags in HTML
     const voidTags = new Set([
