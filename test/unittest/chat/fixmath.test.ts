@@ -1,59 +1,65 @@
 import { strict as assert } from 'assert'
-import { scanHtml, scanMatchingHtmlTag } from '../../../src/chat/fixmathlib/fix'
+import { scanHtmlTag, scanMatchingHtmlTag } from '../../../src/chat/fixmathlib/fix'
 
-suite('fixmath.scanHtml', () => {
 
-    test('non-tag returns up to next <', () => {
+suite('fixmath.scanHtmlTag', () => {
+
+    test('non-tag index returns same index', () => {
         const txt = 'hello <b>bold</b>'
-        const res = scanHtml(txt, 0)
-        assert.strictEqual(res, 'hello ')
+        const res = scanHtmlTag(txt, 0)
+        assert.strictEqual(res, 0)
     })
 
-    test('returns opening tag including attributes with quoted >', () => {
+    test('returns end index for opening tag with quoted > inside attribute', () => {
         const txt = '<a href="http://example.com?q=1>2">link</a>'
-        const res = scanHtml(txt, 0)
-        assert.strictEqual(res, '<a href="http://example.com?q=1>2">')
+        const res = scanHtmlTag(txt, 0)
+        const expected = txt.indexOf('">link') + 2
+        assert.strictEqual(res, expected)
     })
 
     test('handles single-quoted attributes with > inside', () => {
         const txt = "<img alt='a > b' src='x'>rest"
-        const res = scanHtml(txt, 0)
-        assert.strictEqual(res, "<img alt='a > b' src='x'>")
+        const res = scanHtmlTag(txt, 0)
+        const expected = txt.indexOf("'>rest") + 2
+        assert.strictEqual(res, expected)
     })
 
     test('handles html comments', () => {
         const txt = 'prefix <!-- a comment -->suffix'
         const start = txt.indexOf('<!--')
-        const res = scanHtml(txt, start)
-        assert.strictEqual(res, '<!-- a comment -->')
+        const res = scanHtmlTag(txt, start)
+        const expected = txt.indexOf('-->', start) + 3
+        assert.strictEqual(res, expected)
     })
 
     test('handles cdata sections', () => {
         const txt = 'prefix <![CDATA[ some > data ]]> end'
         const start = txt.indexOf('<![CDATA[')
-        const res = scanHtml(txt, start)
-        assert.strictEqual(res, '<![CDATA[ some > data ]]>')
+        const res = scanHtmlTag(txt, start)
+        const expected = txt.indexOf(']]>', start) + 3
+        assert.strictEqual(res, expected)
     })
 
     test('handles processing instructions', () => {
         const txt = '<?xml version="1.0"?>\n<root/>'
-        const res = scanHtml(txt, 0)
-        assert.strictEqual(res, '<?xml version="1.0"?>')
+        const res = scanHtmlTag(txt, 0)
+        const expected = txt.indexOf('?>') + 2
+        assert.strictEqual(res, expected)
     })
 
-    test('index out of range returns empty string', () => {
+    test('index out of range returns same index', () => {
         const txt = '<p>hello</p>'
-        assert.strictEqual(scanHtml(txt, txt.length), '')
+        assert.strictEqual(scanHtmlTag(txt, txt.length), txt.length)
     })
 
     test('negative index treated as 0', () => {
         const txt = '<p>hi</p>'
-        assert.strictEqual(scanHtml(txt, -10), '<p>')
+        assert.strictEqual(scanHtmlTag(txt, -10), scanHtmlTag(txt, 0))
     })
 
-    test('non-tag with no following < returns rest', () => {
+    test('non-tag with no following < returns same index', () => {
         const txt = 'plain text no tags'
-        assert.strictEqual(scanHtml(txt, 0), 'plain text no tags')
+        assert.strictEqual(scanHtmlTag(txt, 0), 0)
     })
 
 })
