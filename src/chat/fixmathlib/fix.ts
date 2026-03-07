@@ -32,7 +32,99 @@ export function scanHtml(text: string, index: number) {
     return text.slice(index, end)
 }
 
-function scanHtmlTag(text: string, index: number): number {
+export function scanMatchingHtmlTag(text: string, index: number) {
+    if (index < 0) { index = 0 }
+    if (index >= text.length) { throw new Error('Index out of range') }
+    if (text[index] !== '<') {
+        let i = index
+        while (i < text.length && text[i] !== '<') {
+            i++
+        }
+        return i
+    }
+
+    // Simple tags that do not have matching end tags in HTML
+    const voidTags = new Set([
+        'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr'
+    ])
+
+    const startTagEnd = scanHtmlTag(text, index)
+    const startTag = text.slice(index, startTagEnd)
+
+    // comments, cdata, processing instructions are standalone
+    if (startTag.startsWith('<!--') || startTag.startsWith('<![CDATA[') || startTag.startsWith('<?')) {
+        return startTagEnd
+    }
+
+    // extract tag name
+    const m = /^<\s*([A-Za-z0-9:_-]+)/.exec(startTag)
+    if (!m) { return startTagEnd }
+    const tagName = m[1].toLowerCase()
+
+    // self-closing start tag like <img />
+    if (/\/\s*>$/.test(startTag) || voidTags.has(tagName)) {
+        return startTagEnd
+    }
+
+    // find matching closing tag, accounting for nested same tags
+    let depth = 1
+    let pos = startTagEnd
+    const length = text.length
+    while (pos < length) {
+        const next = text.indexOf('<', pos)
+        if (next === -1) {
+            return length
+        }
+
+        // Skip comments/CDATA/PI
+        if (text.startsWith('<!--', next) || text.startsWith('<![CDATA[', next) || text.startsWith('<?', next)) {
+            pos = scanHtmlTag(text, next)
+            continue
+        }
+
+        const after = text[next + 1]
+        if (after === '/') {
+            // closing tag
+            const cm = /^<\/<\s*([A-Za-z0-9:_-]+)/.exec(text.slice(next))
+            if (cm) {
+                const name = cm[1].toLowerCase()
+                const endPos = scanHtmlTag(text, next)
+                if (name === tagName) {
+                    depth--
+                    if (depth === 0) {
+                        return endPos
+                    }
+                }
+                pos = endPos
+                continue
+            } else {
+                pos = next + 2
+                continue
+            }
+        } else {
+            // opening tag
+            const om = /^<\s*([A-Za-z0-9:_-]+)/.exec(text.slice(next))
+            if (om) {
+                const name = om[1].toLowerCase()
+                const endPos = scanHtmlTag(text, next)
+                const tagText = text.slice(next, endPos)
+                const selfClose = /\/\s*>$/.test(tagText) || voidTags.has(name)
+                if (!selfClose && name === tagName) {
+                    depth++
+                }
+                pos = endPos
+                continue
+            } else {
+                pos = next + 1
+                continue
+            }
+        }
+    }
+
+    return length
+}
+
+export function scanHtmlTag(text: string, index: number): number {
     const length = text.length
     if (index < 0) { index = 0 }
     if (index >= length || text[index] !== '<') { return index }
