@@ -85,7 +85,7 @@ export function scanMatchingHtmlTag(text: string, index: number) {
         const after = text[next + 1]
         if (after === '/') {
             // closing tag
-            const cm = /^<\/<\s*([A-Za-z0-9:_-]+)/.exec(text.slice(next))
+            const cm = /^<\/\s*([A-Za-z0-9:_-]+)/.exec(text.slice(next))
             if (cm) {
                 const name = cm[1].toLowerCase()
                 const endPos = scanHtmlTag(text, next)
