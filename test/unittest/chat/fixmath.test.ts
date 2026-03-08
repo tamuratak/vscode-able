@@ -1,5 +1,7 @@
-import { strict as assert } from 'assert'
-import { scanHtml, scanHtmlTag, scanMatchingHtmlTag, convertTableToMarkdown } from '../../../src/chat/fixmathlib/fix'
+import { strict as assert } from 'node:assert'
+import { scanHtml } from '../../../src/chat/fixmathlib/fix.js'
+import { convertTableToMarkdown } from '../../../src/chat/fixmathlib/table.js'
+import { scanHtmlTag, scanMatchingHtmlTag } from '../../../src/chat/fixmathlib/html.js'
 
 
 suite('fixmath.scanHtmlTag', () => {
