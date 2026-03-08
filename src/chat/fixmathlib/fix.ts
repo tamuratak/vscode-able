@@ -1,22 +1,33 @@
 
 
 export function doFixMath(text: string) {
-    const fixedLines: string[] = []
-    for (const line of text.split('\n')) {
-        if (/^\s*\$\$\s*$/.exec(line)) {
-            // $$ only line is ok.
-            fixedLines.push(line)
-        } else if (/^\s*\\[[\]]\s*$/.exec(line)) {
-            // Replace \[ and \] only line with $$.
-            fixedLines.push(line.replace(/^(\s*)\\[[\]](\s*)$/, '$1$$$$$2'))
-        } else {
-            // Replace $$, \(, and \) with $.
-            fixedLines.push(line.replace(/\\[()]/g, '$$').replace(/\$\$/g, '$$'))
+    if (/<span/.exec(text)) {
+        const result = scanHtml(text)
+        return result.join('')
+    } else {
+        const fixedLines: string[] = []
+        for (const line of text.split('\n')) {
+            if (/^\s*\$\$\s*$/.exec(line)) {
+                // $$ only line is ok.
+                fixedLines.push(line)
+            } else if (/^\s*\\\$\$((?!\$\$).)*?\$\$\s*$/.exec(line)) {
+                fixedLines.push(line)
+            } else if (/^\s*\\[[\]]\s*$/.exec(line)) {
+                // Replace \[ and \] only line with $$.
+                fixedLines.push(line.replace(/^(\s*)\\[[\]](\s*)$/, '$1$$$$$2'))
+            } else {
+                // Replace $$, \(, and \) with $.
+                fixedLines.push(line.replace(/\\[()]/g, '$$').replace(/\$\$/g, '$$'))
+            }
         }
+        return fixedLines.join('\n')
     }
-    return fixedLines.join('\n')
 }
 
+function unescapeHtml(text: string) {
+    return text.replace(/&lt;/g, '<')
+               .replace(/&gt;/g, '>')
+}
 
 export function scanHtml(text: string) {
     const result: string[] = []
@@ -36,7 +47,7 @@ export function scanHtml(text: string) {
                     const mathText = inlineMathMatch[1]
                     const mathEnd = scanMatchingHtmlTag(text, index)
                     if (mathEnd > pos) {
-                        result.push('$' + mathText + '$')
+                        result.push('$', unescapeHtml(mathText), '$')
                         index = mathEnd
                     } else {
                         index = pos
@@ -49,7 +60,7 @@ export function scanHtml(text: string) {
                     const mathText = blockMathMatch[1]
                     const mathEnd = scanMatchingHtmlTag(text, index)
                     if (mathEnd > pos) {
-                        result.push('\n$$\n' + mathText + '\n$$\n')
+                        result.push('\n$$\n', unescapeHtml(mathText), '\n$$\n')
                         index = mathEnd
                     } else {
                         index = pos
@@ -57,6 +68,30 @@ export function scanHtml(text: string) {
                     continue
                 }
 
+                if (/<table /i.test(tagText)) {
+                    const tableEnd = scanMatchingHtmlTag(text, index)
+                    if (tableEnd > pos) {
+                        // skip tables entirely
+                        let tableHtml = text.slice(index, tableEnd)
+                        tableHtml = tableHtml.replace(/data-path-to-node="[^"]*?"/g, '')
+                        result.push(tableHtml)
+                        index = tableEnd
+                    } else {
+                        index = pos
+                    }
+                    continue
+                }
+
+                const headingMatch = /<h([1-6])\b/i.exec(tagText)
+                if (headingMatch) {
+                    const level = headingMatch[1]
+                    result.push('\n', '#'.repeat(parseInt(level)), ' ')
+                    index = pos
+                    continue
+                }
+                if (/<\/h[1-6]>/.test(tagText)) {
+                    result.push('\n\n')
+                }
 
                 index = pos
             }
