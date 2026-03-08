@@ -72,8 +72,10 @@ export function scanHtml(text: string) {
                     const tableEnd = scanMatchingHtmlTag(text, index)
                     if (tableEnd > pos) {
                         const tableHtml = text.slice(index + tagText.length, tableEnd)
-                        const tableText = scanHtml(tableHtml).join('')
-                        result.push('\n\n', '<table>', tableText, '</table>', '\n\n')
+                        const markdown = convertTableToMarkdown(tableHtml)
+                        if (markdown) {
+                            result.push('\n\n', markdown, '\n\n')
+                        }
                         index = tableEnd
                     } else {
                         index = pos
@@ -241,7 +243,7 @@ export function scanHtmlTag(text: string, index: number): number {
 }
 
 
-type TableRow = {
+interface TableRow {
     cells: string[],
     isHeader: boolean
 }
@@ -254,12 +256,9 @@ function convertTableToMarkdown(tableHtml: string): string {
     let index = 0
     const length = tableHtml.length
     while (index < length) {
-        let nextTagIndex = lowerHtml.indexOf('<', index)
+        const nextTagIndex = lowerHtml.indexOf('<', index)
         if (nextTagIndex === -1) {
             break
-        }
-        if (nextTagIndex > index) {
-            index = nextTagIndex
         }
         const tagEnd = scanHtmlTag(tableHtml, nextTagIndex)
         if (tagEnd <= nextTagIndex) {
@@ -295,9 +294,6 @@ function convertTableToMarkdown(tableHtml: string): string {
             continue
         }
         if (lowerHtml.startsWith('<tr', nextTagIndex)) {
-            if (currentRow) {
-                rows.push(currentRow)
-            }
             currentRow = { cells: [], isHeader: currentSection === 'thead' }
             index = tagEnd
             continue
@@ -310,12 +306,17 @@ function convertTableToMarkdown(tableHtml: string): string {
             index = tagEnd
             continue
         }
-        if (lowerHtml.startsWith('<td', nextTagIndex)) {
+        if (lowerHtml.startsWith('<td', nextTagIndex) || lowerHtml.startsWith('<th', nextTagIndex)) {
             if (!currentRow) {
                 currentRow = { cells: [], isHeader: currentSection === 'thead' }
             }
+            const isHeaderCell = lowerHtml.startsWith('<th', nextTagIndex)
+            if (isHeaderCell) {
+                currentRow.isHeader = true
+            }
             const cellContentStart = tagEnd
-            const closingIndex = lowerHtml.indexOf('</td', cellContentStart)
+            const closingTag = isHeaderCell ? '</th' : '</td'
+            const closingIndex = lowerHtml.indexOf(closingTag, cellContentStart)
             if (closingIndex === -1) {
                 index = tagEnd
                 continue
@@ -326,11 +327,11 @@ function convertTableToMarkdown(tableHtml: string): string {
             index = closingEnd
             continue
         }
-        if (lowerHtml.startsWith('</td', nextTagIndex)) {
+        if (lowerHtml.startsWith('</td', nextTagIndex) || lowerHtml.startsWith('</th', nextTagIndex)) {
             index = tagEnd
             continue
         }
-        index = nextTagIndex + 1
+        index = tagEnd
     }
     if (currentRow) {
         rows.push(currentRow)
