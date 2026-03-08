@@ -10,7 +10,7 @@ export function doFixMath(text: string) {
             if (/^\s*\$\$\s*$/.exec(line)) {
                 // $$ only line is ok.
                 fixedLines.push(line)
-            } else if (/^\s*\\\$\$((?!\$\$).)*?\$\$\s*$/.exec(line)) {
+            } else if (/^\s*\$\$((?!\$\$).)*?\$\$\s*$/.exec(line)) {
                 fixedLines.push(line)
             } else if (/^\s*\\[[\]]\s*$/.exec(line)) {
                 // Replace \[ and \] only line with $$.
@@ -68,7 +68,7 @@ export function scanHtml(text: string) {
                     continue
                 }
 
-                if (/<table /i.test(tagText)) {
+                if (/<table[ >]/i.test(tagText)) {
                     const tableEnd = scanMatchingHtmlTag(text, index)
                     if (tableEnd > pos) {
                         let tableHtml = text.slice(index + tagText.length, tableEnd)
