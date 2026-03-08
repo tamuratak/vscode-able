@@ -30,6 +30,34 @@ export function scanHtml(text: string) {
                 // safety: advance to avoid infinite loop
                 index++
             } else {
+                const tagText = text.slice(index, pos);
+                const inlineMathMatch = /^<span class="math-inline" data-math="([^"]*)"/.exec(tagText)
+                if (inlineMathMatch) {
+                    const mathText = inlineMathMatch[1]
+                    const mathEnd = scanMatchingHtmlTag(text, index)
+                    if (mathEnd > pos) {
+                        result.push('$' + mathText + '$')
+                        index = mathEnd
+                    } else {
+                        index = pos
+                    }
+                    continue
+                }
+
+                const blockMathMatch = /^<div class="math-block" data-math="([^"]*)"/.exec(tagText)
+                if (blockMathMatch) {
+                    const mathText = blockMathMatch[1]
+                    const mathEnd = scanMatchingHtmlTag(text, index)
+                    if (mathEnd > pos) {
+                        result.push('\n$$\n' + mathText + '\n$$\n')
+                        index = mathEnd
+                    } else {
+                        index = pos
+                    }
+                    continue
+                }
+
+
                 index = pos
             }
         } else {
