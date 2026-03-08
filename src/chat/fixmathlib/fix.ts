@@ -31,7 +31,7 @@ export function scanHtml(text: string) {
                 index++
             } else {
                 const tagText = text.slice(index, pos);
-                const inlineMathMatch = /^<span class="math-inline" data-math="([^"]*)"/.exec(tagText)
+                const inlineMathMatch = /^<span class="math-inline" data-math="([^"]*?)"/.exec(tagText)
                 if (inlineMathMatch) {
                     const mathText = inlineMathMatch[1]
                     const mathEnd = scanMatchingHtmlTag(text, index)
@@ -44,7 +44,7 @@ export function scanHtml(text: string) {
                     continue
                 }
 
-                const blockMathMatch = /^<div class="math-block" data-math="([^"]*)"/.exec(tagText)
+                const blockMathMatch = /^<div class="math-block" data-math="([^"]*?)"/.exec(tagText)
                 if (blockMathMatch) {
                     const mathText = blockMathMatch[1]
                     const mathEnd = scanMatchingHtmlTag(text, index)
