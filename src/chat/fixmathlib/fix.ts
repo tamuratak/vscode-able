@@ -100,6 +100,32 @@ export function scanHtml(text: string) {
                 }
                 if (/<\/h[1-6]>/.test(tagText)) {
                     result.push('\n\n')
+                    index = pos
+                    continue
+                }
+
+                const linkMatch = /<a\s+[^>]*href="([^"]*?)"/i.exec(tagText)
+                if (linkMatch) {
+                    const href = linkMatch[1]
+                    const linkEnd = scanMatchingHtmlTag(text, index)
+                    if (linkEnd > pos) {
+                        const linkText = scanHtml(text.slice(pos, linkEnd - ('</a>'.length))).join('')
+                        result.push(linkText, ' (', href, ') ')
+                        index = linkEnd
+                    } else {
+                        index = pos
+                    }
+                    continue
+                }
+
+                if (/^<(thinking-panel|deep-research-source-lists)/i.test(tagText)) {
+                    const panelEnd = scanMatchingHtmlTag(text, index)
+                    if (panelEnd > pos) {
+                        index = panelEnd
+                    } else {
+                        index = pos
+                    }
+                    continue
                 }
 
                 index = pos
