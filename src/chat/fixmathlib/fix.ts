@@ -71,8 +71,9 @@ export function scanHtml(text: string) {
                 if (/<table /i.test(tagText)) {
                     const tableEnd = scanMatchingHtmlTag(text, index)
                     if (tableEnd > pos) {
-                        const tableHtml = text.slice(index + tagText.length, tableEnd)
-                        const markdown = convertTableToMarkdown(tableHtml)
+                        let tableHtml = text.slice(index + tagText.length, tableEnd)
+                        tableHtml = scanHtml(tableHtml).join('')
+                        const markdown = convertTableToMarkdown('<table>' + tableHtml + '</table>')
                         if (markdown) {
                             result.push('\n\n', markdown, '\n\n')
                         }
