@@ -1,6 +1,6 @@
 
 
-export function scanHtmlTag2(text: string, index: number): number {
+export function scanHtmlImpl(text: string, index: number): number {
     const length = text.length
     if (index >= length) {
         return 0

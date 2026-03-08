@@ -1,3 +1,4 @@
+import { scanHtmlImpl } from './utils.js'
 
 export function scanMatchingHtmlTag(text: string, index: number) {
     if (index < 0) { index = 0 }
@@ -112,19 +113,9 @@ export function scanHtmlTag(text: string, index: number): number {
     }
 
     // Normal tag: skip until unquoted '>' is found
-    let i = index + 1
-    let inSingleQuote = false
-    let inDoubleQuote = false
-    while (i < length) {
-        const ch = text[i]
-        if (ch === '"' && !inSingleQuote) {
-            inDoubleQuote = !inDoubleQuote
-        } else if (ch === '\'' && !inDoubleQuote) {
-            inSingleQuote = !inSingleQuote
-        } else if (ch === '>' && !inSingleQuote && !inDoubleQuote) {
-            return i + 1
-        }
-        i++
+    const pos = scanHtmlImpl(text, index)
+    if (pos && pos > index) {
+        return pos
     }
     return length
 }
