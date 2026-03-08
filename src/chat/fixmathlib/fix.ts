@@ -248,7 +248,7 @@ interface TableRow {
     isHeader: boolean
 }
 
-function convertTableToMarkdown(tableHtml: string): string {
+export function convertTableToMarkdown(tableHtml: string): string {
     const rows: TableRow[] = []
     const lowerHtml = tableHtml.toLowerCase()
     let currentSection: 'thead' | 'tbody' | 'none' = 'none'
