@@ -1,4 +1,4 @@
-import { scanHtmlTag, scanMatchingHtmlTag } from './html.js'
+import { scanHtmlTag, extractMatchingHtmlTag } from './html.js'
 import { convertTableToMarkdown } from './table.js'
 
 
@@ -47,7 +47,7 @@ export function scanHtml(text: string) {
                 const inlineMathMatch = /^<span class="math-inline" data-math="([^"]*?)"/.exec(tagText)
                 if (inlineMathMatch) {
                     const mathText = inlineMathMatch[1]
-                    const mathEnd = scanMatchingHtmlTag(text, index)
+                    const mathEnd = extractMatchingHtmlTag(text, index)
                     if (mathEnd > pos) {
                         result.push('$', unescapeHtml(mathText), '$')
                         index = mathEnd
@@ -60,7 +60,7 @@ export function scanHtml(text: string) {
                 const blockMathMatch = /^<div class="math-block" data-math="([^"]*?)"/.exec(tagText)
                 if (blockMathMatch) {
                     const mathText = blockMathMatch[1]
-                    const mathEnd = scanMatchingHtmlTag(text, index)
+                    const mathEnd = extractMatchingHtmlTag(text, index)
                     if (mathEnd > pos) {
                         result.push('\n$$\n', unescapeHtml(mathText), '\n$$\n')
                         index = mathEnd
@@ -71,7 +71,7 @@ export function scanHtml(text: string) {
                 }
 
                 if (/<table[ >]/i.test(tagText)) {
-                    const tableEnd = scanMatchingHtmlTag(text, index)
+                    const tableEnd = extractMatchingHtmlTag(text, index)
                     if (tableEnd > pos) {
                         let tableHtml = text.slice(index + tagText.length, tableEnd)
                         tableHtml = scanHtml(tableHtml).join('')
@@ -107,7 +107,7 @@ export function scanHtml(text: string) {
                 const linkMatch = /<a\s+[^>]*href="([^"]*?)"/i.exec(tagText)
                 if (linkMatch) {
                     const href = linkMatch[1]
-                    const linkEnd = scanMatchingHtmlTag(text, index)
+                    const linkEnd = extractMatchingHtmlTag(text, index)
                     if (linkEnd > pos) {
                         const linkText = scanHtml(text.slice(pos, linkEnd - ('</a>'.length))).join('')
                         result.push(linkText, ' (', href, ') ')
@@ -119,7 +119,7 @@ export function scanHtml(text: string) {
                 }
 
                 if (/^<(thinking-panel|deep-research-source-lists)/i.test(tagText)) {
-                    const panelEnd = scanMatchingHtmlTag(text, index)
+                    const panelEnd = extractMatchingHtmlTag(text, index)
                     if (panelEnd > pos) {
                         index = panelEnd
                     } else {

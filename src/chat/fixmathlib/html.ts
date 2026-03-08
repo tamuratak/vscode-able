@@ -1,6 +1,6 @@
 import { scanHtmlImpl } from './utils.js'
 
-export function scanMatchingHtmlTag(text: string, index: number) {
+export function extractMatchingHtmlTag(text: string, index: number) {
     if (index < 0) { index = 0 }
     if (index >= text.length || text[index] !== '<') { return index }
 

@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert'
 import { scanHtml } from '../../../src/chat/fixmathlib/fix.js'
 import { convertTableToMarkdown } from '../../../src/chat/fixmathlib/table.js'
-import { scanHtmlTag, scanMatchingHtmlTag } from '../../../src/chat/fixmathlib/html.js'
+import { scanHtmlTag, extractMatchingHtmlTag } from '../../../src/chat/fixmathlib/html.js'
 
 
 suite('fixmath.scanHtmlTag', () => {
@@ -71,38 +71,38 @@ suite('fixmath.scanMatchingHtmlTag', () => {
 
     test('non-tag index returns index of next <', () => {
         const txt = 'hello <b>bold</b>'
-        const res = scanMatchingHtmlTag(txt, 0)
+        const res = extractMatchingHtmlTag(txt, 0)
         assert.strictEqual(res, 0)
     })
 
     test('simple tag returns end of closing tag', () => {
         const txt = '<p>hello</p>world'
-        const res = scanMatchingHtmlTag(txt, 0)
+        const res = extractMatchingHtmlTag(txt, 0)
         assert.strictEqual(res, txt.indexOf('</p>') + '</p>'.length)
     })
 
     test('nested same tags are matched correctly', () => {
         const txt = '<div><div>inner</div></div>rest'
-        const res = scanMatchingHtmlTag(txt, 0)
+        const res = extractMatchingHtmlTag(txt, 0)
         assert.strictEqual(res, txt.lastIndexOf('</div>') + '</div>'.length)
     })
 
     test('void tag returns end of start tag', () => {
         const txt = '<br>after'
-        const res = scanMatchingHtmlTag(txt, 0)
+        const res = extractMatchingHtmlTag(txt, 0)
         assert.strictEqual(res, txt.indexOf('<br>') + '<br>'.length)
     })
 
     test('comments are standalone', () => {
         const txt = 'prefix <!-- comment -->suffix'
         const start = txt.indexOf('<!--')
-        const res = scanMatchingHtmlTag(txt, start)
+        const res = extractMatchingHtmlTag(txt, start)
         assert.strictEqual(res, txt.indexOf('-->', start) + 3)
     })
 
     test('negative index treated as 0', () => {
         const txt = '<p>hi</p>'
-        assert.strictEqual(scanMatchingHtmlTag(txt, -10), scanMatchingHtmlTag(txt, 0))
+        assert.strictEqual(extractMatchingHtmlTag(txt, -10), extractMatchingHtmlTag(txt, 0))
     })
 
 })
