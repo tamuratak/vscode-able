@@ -71,21 +71,25 @@ export function scanHtml(text: string) {
                 if (/<table /i.test(tagText)) {
                     const tableEnd = scanMatchingHtmlTag(text, index)
                     if (tableEnd > pos) {
-                        // skip tables entirely
-                        let tableHtml = text.slice(index, tableEnd)
-                        tableHtml = tableHtml.replace(/data-path-to-node="[^"]*?"/g, '')
-                        result.push(tableHtml)
+                        const tableHtml = text.slice(index + tagText.length, tableEnd)
+                        const tableText = scanHtml(tableHtml).join('')
+                        result.push('\n\n', '<table>', tableText, '</table>', '\n\n')
                         index = tableEnd
                     } else {
                         index = pos
                     }
                     continue
                 }
+                if (/<\/?(tr|td|thead|tbody)>/.exec(tagText)) {
+                    result.push(tagText)
+                    index = pos
+                    continue
+                }
 
                 const headingMatch = /<h([1-6])\b/i.exec(tagText)
                 if (headingMatch) {
                     const level = headingMatch[1]
-                    result.push('\n', '#'.repeat(parseInt(level)), ' ')
+                    result.push('\n\n', '#'.repeat(parseInt(level)), ' ')
                     index = pos
                     continue
                 }
