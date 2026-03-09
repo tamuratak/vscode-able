@@ -93,7 +93,7 @@ suite('fixmath.scanHtmlTag', () => {
 
 })
 
-suite('fixmath.scanMatchingHtmlTag', () => {
+suite('fixmath.extractMatchingHtmlTag', () => {
 
     test('non-tag index returns index of next <', () => {
         const txt = 'hello <b>bold</b>'
