@@ -45,4 +45,21 @@ suite('fixmath.convertTableToMarkdown', () => {
         assert.strictEqual(convertTableToMarkdown(tableHtml), expected)
     })
 
+    test('returns empty string when table has no cells', () => {
+        const tableHtml = '<table></table>'
+        assert.strictEqual(convertTableToMarkdown(tableHtml), '')
+    })
+
+    test('pads header row when body expands columns', () => {
+        const tableHtml = '<table><tr><th>Alpha</th><th>Beta</th></tr><tbody><tr><td>1</td><td>2</td><td>3</td></tr></tbody></table>'
+        const expected = '| Alpha | Beta |  |\n| --- | --- | --- |\n| 1 | 2 | 3 |'
+        assert.strictEqual(convertTableToMarkdown(tableHtml), expected)
+    })
+
+    test('escapes pipes and normalizes whitespace in cells', () => {
+        const tableHtml = '<table><tr><th>Pipe|Header</th><th>Line</th></tr><tr><td>  a | b  </td><td><span>  spaced\ntext</span></td></tr></table>'
+        const expected = '| Pipe\\|Header | Line |\n| --- | --- |\n| a \\| b | spaced text |'
+        assert.strictEqual(convertTableToMarkdown(tableHtml), expected)
+    })
+
 })

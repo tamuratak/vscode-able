@@ -1,5 +1,5 @@
 import { unescapeHtml } from './fix.js'
-import { scanHtmlTag } from './html.js'
+import { extractMatchingHtmlTag, scanHtmlTag } from './html.js'
 
 
 interface TableRow {
@@ -7,187 +7,147 @@ interface TableRow {
     isHeader: boolean
 }
 
-export function convertTableToMarkdown(tableHtml: string): string {
-    const rows: TableRow[] = []
-    const lowerHtml = tableHtml.toLowerCase()
-    let currentSection: 'thead' | 'tbody' | 'none' = 'none'
-    let currentRow: TableRow | null = null
-    let index = 0
-    const length = tableHtml.length
-    while (index < length) {
-        const nextTagIndex = lowerHtml.indexOf('<', index)
-        if (nextTagIndex === -1) {
-            break
-        }
-        const tagEnd = scanHtmlTag(tableHtml, nextTagIndex)
-        if (tagEnd <= nextTagIndex) {
-            index = nextTagIndex + 1
-            continue
-        }
-        if (lowerHtml.startsWith('<thead', nextTagIndex)) {
-            currentSection = 'thead'
-            index = tagEnd
-            continue
-        }
-        if (lowerHtml.startsWith('</thead', nextTagIndex)) {
-            currentSection = 'none'
-            index = tagEnd
-            continue
-        }
-        if (lowerHtml.startsWith('<tbody', nextTagIndex)) {
-            currentSection = 'tbody'
-            index = tagEnd
-            continue
-        }
-        if (lowerHtml.startsWith('</tbody', nextTagIndex)) {
-            currentSection = 'none'
-            index = tagEnd
-            continue
-        }
-        if (lowerHtml.startsWith('<table', nextTagIndex)) {
-            index = tagEnd
-            continue
-        }
-        if (lowerHtml.startsWith('</table', nextTagIndex)) {
-            index = tagEnd
-            continue
-        }
-        if (lowerHtml.startsWith('<tr', nextTagIndex)) {
-            currentRow = { cells: [], isHeader: currentSection === 'thead' }
-            index = tagEnd
-            continue
-        }
-        if (lowerHtml.startsWith('</tr', nextTagIndex)) {
-            if (currentRow) {
-                rows.push(currentRow)
-                currentRow = null
-            }
-            index = tagEnd
-            continue
-        }
-        if (lowerHtml.startsWith('<td', nextTagIndex) || lowerHtml.startsWith('<th', nextTagIndex)) {
-            if (!currentRow) {
-                currentRow = { cells: [], isHeader: currentSection === 'thead' }
-            }
-            const isHeaderCell = lowerHtml.startsWith('<th', nextTagIndex)
-            if (isHeaderCell) {
-                currentRow.isHeader = true
-            }
-            const cellContentStart = tagEnd
-            const closingTag = isHeaderCell ? '</th' : '</td'
-            const closingIndex = lowerHtml.indexOf(closingTag, cellContentStart)
-            if (closingIndex === -1) {
-                index = tagEnd
+const anchorClosingTagLength = 4
+
+function normalizeCellValue(raw: string) {
+    const collapsed = unescapeHtml(raw).replace(/\s+/g, ' ').trim()
+    return collapsed.replace(/\|/g, '\\|')
+}
+
+function extractTextFromCell(html: string) {
+    const parts: string[] = []
+    let cursor = 0
+    while (cursor < html.length) {
+        if (html[cursor] === '<') {
+            const tagEnd = scanHtmlTag(html, cursor)
+            if (tagEnd <= cursor) {
+                cursor++
                 continue
             }
-            const closingEnd = scanHtmlTag(tableHtml, closingIndex)
-            const cellHtml = tableHtml.slice(cellContentStart, closingIndex)
-            currentRow.cells.push(convertTableCellHtmlToMarkdown(cellHtml))
-            index = closingEnd
+            const tagText = html.slice(cursor, tagEnd)
+            if (tagText.startsWith('</')) {
+                cursor = tagEnd
+                continue
+            }
+            const nameMatch = /^<\s*([a-zA-Z][a-zA-Z0-9:-]*)/.exec(tagText)
+            if (nameMatch) {
+                const tagName = nameMatch[1].toLowerCase()
+                if (tagName === 'a') {
+                    const hrefMatch = /href\s*=\s*(?:"([^"]*?)"|'([^']*?)')/i.exec(tagText)
+                    const href = hrefMatch?.[1] ?? hrefMatch?.[2]
+                    const anchorEnd = extractMatchingHtmlTag(html, cursor)
+                    if (anchorEnd > tagEnd) {
+                        const innerHtml = html.slice(tagEnd, anchorEnd - anchorClosingTagLength)
+                        const linkText = extractTextFromCell(innerHtml)
+                        if (href) {
+                            parts.push('[', linkText, '](', href, ')')
+                        } else {
+                            parts.push(linkText)
+                        }
+                        cursor = anchorEnd
+                        continue
+                    }
+                }
+            }
+            cursor = tagEnd
             continue
         }
-        if (lowerHtml.startsWith('</td', nextTagIndex) || lowerHtml.startsWith('</th', nextTagIndex)) {
-            index = tagEnd
+        const nextTag = html.indexOf('<', cursor)
+        const segmentEnd = nextTag === -1 ? html.length : nextTag
+        parts.push(html.slice(cursor, segmentEnd))
+        cursor = segmentEnd
+    }
+    return parts.join('')
+}
+
+function parseTableRows(tableHtml: string) {
+    const rows: TableRow[] = []
+    let index = 0
+    let inThead = false
+    let currentRow: TableRow | null = null
+    while (index < tableHtml.length) {
+        const openTag = tableHtml.indexOf('<', index)
+        if (openTag === -1) {
+            break
+        }
+        const tagEnd = scanHtmlTag(tableHtml, openTag)
+        if (tagEnd <= openTag) {
+            index = openTag + 1
             continue
         }
+        const tagText = tableHtml.slice(openTag, tagEnd)
         index = tagEnd
+        const match = /^<\s*(\/?)\s*([a-zA-Z][a-zA-Z0-9:-]*)/.exec(tagText)
+        if (!match) {
+            continue
+        }
+        const isClosing = match[1] === '/'
+        const tagName = match[2].toLowerCase()
+        if (tagName === 'thead') {
+            inThead = !isClosing
+            continue
+        }
+        if (tagName === 'tr') {
+            if (isClosing) {
+                currentRow = null
+            } else {
+                currentRow = { cells: [], isHeader: inThead }
+                rows.push(currentRow)
+            }
+            continue
+        }
+        if ((tagName === 'td' || tagName === 'th') && !isClosing && currentRow) {
+            const cellEnd = extractMatchingHtmlTag(tableHtml, openTag)
+            const closingTag = '</' + tagName + '>'
+            const safeInnerEnd = cellEnd > tagEnd ? Math.max(tagEnd, cellEnd - closingTag.length) : tagEnd
+            const cellHtml = tableHtml.slice(tagEnd, safeInnerEnd)
+            currentRow.cells.push(normalizeCellValue(extractTextFromCell(cellHtml)))
+            if (tagName === 'th') {
+                currentRow.isHeader = true
+            }
+            index = cellEnd > tagEnd ? cellEnd : tagEnd
+            continue
+        }
     }
-    if (currentRow) {
-        rows.push(currentRow)
-    }
-    if (rows.length === 0) {
+    return rows
+}
+
+function buildRowLine(cells: string[]) {
+    return '| ' + cells.join(' | ') + ' |'
+}
+
+/**
+ * Converts HTML table to Markdown format. Handles <thead> for header rows, but if not present uses first row as header. Extracts text content from cells, converting links to markdown format. Pads rows with fewer cells to match column count. Normalizes whitespace and escapes pipe characters in cell content.
+ * @param tableHtml HTML string containing a single <table> element.
+ * @returns
+ */
+export function convertTableToMarkdown(tableHtml: string): string {
+
+    const rows = parseTableRows(tableHtml)
+    const populatedRows = rows.filter(row => row.cells.length > 0)
+    if (populatedRows.length === 0) {
         return ''
     }
-    let headerIndex = rows.findIndex((row) => row.isHeader)
-    if (headerIndex === -1) {
-        headerIndex = 0
-    }
-    const headerRow = rows[headerIndex]
-    const bodyRows = rows.filter((_, idx) => idx !== headerIndex)
-    let columnCount = headerRow.cells.length
-    for (const row of bodyRows) {
-        if (row.cells.length > columnCount) {
-            columnCount = row.cells.length
-        }
-    }
+    const columnCount = populatedRows.reduce((max, row) => Math.max(max, row.cells.length), 0)
     if (columnCount === 0) {
         return ''
     }
-    const resultLines: string[] = []
-    resultLines.push(formatMarkdownRow(headerRow.cells, columnCount))
-    resultLines.push(formatDivider(columnCount))
+    for (const row of populatedRows) {
+        while (row.cells.length < columnCount) {
+            row.cells.push('')
+        }
+    }
+    let headerIndex = populatedRows.findIndex(row => row.isHeader)
+    if (headerIndex === -1) {
+        headerIndex = 0
+    }
+    const headerRow = populatedRows[headerIndex]
+    const bodyRows = populatedRows.filter((_, index) => index !== headerIndex)
+    const headerLine = buildRowLine(headerRow.cells)
+    const separatorLine = buildRowLine(headerRow.cells.map(() => '---'))
+    const lines = [headerLine, separatorLine]
     for (const row of bodyRows) {
-        resultLines.push(formatMarkdownRow(row.cells, columnCount))
+        lines.push(buildRowLine(row.cells))
     }
-    return resultLines.join('\n')
-}
-
-function formatMarkdownRow(cells: string[], columnCount: number) {
-    const padded: string[] = []
-    for (const cell of cells) {
-        padded.push(escapeMarkdownCell(cell))
-    }
-    while (padded.length < columnCount) {
-        padded.push('')
-    }
-    return '| ' + padded.join(' | ') + ' |'
-}
-
-function formatDivider(columnCount: number) {
-    const separators: string[] = []
-    for (let i = 0; i < columnCount; i++) {
-        separators.push('---')
-    }
-    return '| ' + separators.join(' | ') + ' |'
-}
-
-function convertTableCellHtmlToMarkdown(cellHtml: string) {
-    let result = ''
-    let offset = 0
-    const lowerCell = cellHtml.toLowerCase()
-    while (offset < cellHtml.length) {
-        const anchorIndex = lowerCell.indexOf('<a', offset)
-        if (anchorIndex === -1) {
-            result += cellHtml.slice(offset)
-            break
-        }
-        result += cellHtml.slice(offset, anchorIndex)
-        const tagEnd = scanHtmlTag(cellHtml, anchorIndex)
-        if (tagEnd <= anchorIndex) {
-            offset = anchorIndex + 2
-            continue
-        }
-        const href = extractHrefFromAnchorTag(cellHtml.slice(anchorIndex, tagEnd))
-        const closeIndex = lowerCell.indexOf('</a', tagEnd)
-        if (closeIndex === -1) {
-            result += cellHtml.slice(anchorIndex, tagEnd)
-            offset = tagEnd
-            continue
-        }
-        const closeEnd = scanHtmlTag(cellHtml, closeIndex)
-        const innerText = convertTableCellHtmlToMarkdown(cellHtml.slice(tagEnd, closeIndex))
-        if (href) {
-            result += '[' + innerText + '](' + href + ')'
-        } else {
-            result += innerText
-        }
-        offset = closeEnd
-    }
-    return normalizeTableCellText(result)
-}
-
-function escapeMarkdownCell(value: string) {
-    return value.replace(/\|/g, '\\|')
-}
-
-function normalizeTableCellText(value: string) {
-    return unescapeHtml(value)
-        .replace(/[\r\n]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-}
-
-function extractHrefFromAnchorTag(tag: string) {
-    const match = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/i.exec(tag)
-    return match ? match[1] ?? match[2] ?? match[3] ?? '' : ''
+    return lines.join('\n')
 }

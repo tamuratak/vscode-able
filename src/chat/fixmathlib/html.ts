@@ -4,94 +4,74 @@
  * @param index The index of the opening tag.
  * @returns The index of the end of the matching closing tag, or 0 if not found or if the index is not at an opening tag.
  */
-
 export function extractMatchingHtmlTag(text: string, index: number) {
-    if (index < 0 || index >= text.length || text[index] !== '<') {
+    const length = text.length
+    if (index < 0 || index >= length || text[index] !== '<') {
         return 0
     }
-
-    // Simple tags that do not have matching end tags in HTML
-    const voidTags = new Set([
-        'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr'
+    const startPos = scanHtmlTag(text, index)
+    if (startPos <= index) {
+        return 0
+    }
+    const tagText = text.slice(index, startPos)
+    if (tagText.startsWith('<!--') || tagText.startsWith('<![CDATA[') || tagText.startsWith('<?') || tagText[1] === '!') {
+        return startPos
+    }
+    if (tagText.startsWith('</')) {
+        return 0
+    }
+    const openingMatch = /^<([a-zA-Z][a-zA-Z0-9:-]*)/.exec(tagText)
+    if (!openingMatch) {
+        return 0
+    }
+    const tagName = openingMatch[1].toLowerCase()
+    const selfClosingTag = /\/\s*>$/.test(tagText)
+    const voidHtmlTags = new Set([
+        'area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input', 'keygen', 'link',
+        'meta', 'param', 'source', 'track', 'wbr'
     ])
-
-    const startTagEnd = scanHtmlTag(text, index)
-    const startTag = text.slice(index, startTagEnd)
-
-    // comments, cdata, processing instructions are standalone
-    if (startTag.startsWith('<!--') || startTag.startsWith('<![CDATA[') || startTag.startsWith('<?')) {
-        return startTagEnd
+    if (selfClosingTag || voidHtmlTags.has(tagName)) {
+        return startPos
     }
-
-    // extract tag name
-    const m = /^<\s*([A-Za-z0-9:_-]+)/.exec(startTag)
-    if (!m) { return startTagEnd }
-    const tagName = m[1].toLowerCase()
-
-    // self-closing start tag like <img />
-    if (/\/\s*>$/.test(startTag) || voidTags.has(tagName)) {
-        return startTagEnd
-    }
-
-    // find matching closing tag, accounting for nested same tags
     let depth = 1
-    let pos = startTagEnd
-    const length = text.length
-    while (pos < length) {
-        const next = text.indexOf('<', pos)
-        if (next === -1) {
-            return 0
+    let cursor = startPos
+    while (cursor < length) {
+        const nextStart = text.indexOf('<', cursor)
+        if (nextStart === -1) {
+            break
         }
-
-        // Skip comments/CDATA/PI
-        if (text.startsWith('<!--', next) || text.startsWith('<![CDATA[', next) || text.startsWith('<?', next)) {
-            pos = scanHtmlTag(text, next)
+        const nextEnd = scanHtmlTag(text, nextStart)
+        if (nextEnd <= nextStart) {
+            cursor = nextStart + 1
             continue
         }
-
-        const after = text[next + 1]
-        if (after === '/') {
-            // closing tag
-            const cmRe = /<\/\s*([A-Za-z0-9:_-]+)/y
-            cmRe.lastIndex = next
-            const cm = cmRe.exec(text)
-            if (cm) {
-                const name = cm[1].toLowerCase()
-                const endPos = scanHtmlTag(text, next)
-                if (name === tagName) {
+        const nextTagText = text.slice(nextStart, nextEnd)
+        if (nextTagText.startsWith('</')) {
+            const closingMatch = /^<\/\s*([a-zA-Z][a-zA-Z0-9:-]*)/.exec(nextTagText)
+            if (closingMatch) {
+                const closingName = closingMatch[1].toLowerCase()
+                if (closingName === tagName) {
                     depth--
                     if (depth === 0) {
-                        return endPos
+                        return nextEnd
                     }
                 }
-                pos = endPos
-                continue
-            } else {
-                pos = next + 2
-                continue
             }
-        } else {
-            // opening tag
-            const omRe = /<\s*([A-Za-z0-9:_-]+)/y
-            omRe.lastIndex = next
-            const om = omRe.exec(text)
-            if (om) {
-                const name = om[1].toLowerCase()
-                const endPos = scanHtmlTag(text, next)
-                const tagText = text.slice(next, endPos)
-                const selfClose = /\/\s*>$/.test(tagText) || voidTags.has(name)
-                if (!selfClose && name === tagName) {
+            cursor = nextEnd
+            continue
+        }
+        const nestedMatch = /^<\s*([a-zA-Z][a-zA-Z0-9:-]*)/.exec(nextTagText)
+        if (nestedMatch) {
+            const nestedName = nestedMatch[1].toLowerCase()
+            if (nestedName === tagName) {
+                const nestedSelfClosing = /\/\s*>$/.test(nextTagText)
+                if (!nestedSelfClosing && !voidHtmlTags.has(nestedName)) {
                     depth++
                 }
-                pos = endPos
-                continue
-            } else {
-                pos = next + 1
-                continue
             }
         }
+        cursor = nextEnd
     }
-
     return 0
 }
 
@@ -136,7 +116,7 @@ export function scanHtmlImpl(text: string, index: number): number {
     }
     const oneCharTag = /<\w\b/y
     oneCharTag.lastIndex = index
-    const aTag = /<[abipsqu]\b/y
+    const aTag = /<[abipsqu]\b/iy
     aTag.lastIndex = index
     if (oneCharTag.test(text) && !aTag.test(text)) {
         return 0
