@@ -92,7 +92,7 @@ export function extractMatchingHtmlTag(text: string, index: number) {
 export function scanHtmlTag(text: string, index: number): number {
     const length = text.length
     if (index < 0) { index = 0 }
-    if (index >= length || text[index] !== '<') { return index }
+    if (index >= length || text[index] !== '<') { return 0 }
 
     // HTML comment
     if (text.startsWith('<!--', index)) {
@@ -117,5 +117,5 @@ export function scanHtmlTag(text: string, index: number): number {
     if (pos && pos > index) {
         return pos
     }
-    return length
+    return 0
 }
