@@ -9,6 +9,12 @@ suite('fixmath.scanHtmlImpl', () => {
         assert.strictEqual(scanHtmlImpl(txt, 0), txt.indexOf('>') + 1)
     })
 
+    test('simple response-element opening tag moves past closing bracket', () => {
+        const txt = '<response-element>text'
+        assert.strictEqual(scanHtmlImpl(txt, 0), txt.indexOf('>') + 1)
+    })
+
+
     test('closing tag returns full closing', () => {
         const txt = '</p>text'
         assert.strictEqual(scanHtmlImpl(txt, 0), txt.indexOf('>') + 1)
@@ -105,6 +111,12 @@ suite('fixmath.extractMatchingHtmlTag', () => {
         const txt = '<p>hello</p>world'
         const res = extractMatchingHtmlTag(txt, 0)
         assert.strictEqual(res, txt.indexOf('</p>') + '</p>'.length)
+    })
+
+    test('simple response-element tag returns end of closing tag', () => {
+        const txt = '<response-element>hello</response-element>world'
+        const res = extractMatchingHtmlTag(txt, 0)
+        assert.strictEqual(res, txt.indexOf('</response-element>') + '</response-element>'.length)
     })
 
     test('nested same tags are matched correctly', () => {

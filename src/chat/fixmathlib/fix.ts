@@ -4,7 +4,7 @@ import { convertTableToMarkdown } from './table.js'
 
 export function doFixMath(text: string) {
     if (/<span/.exec(text)) {
-        const result = scanHtml(text)
+        const result = transformHtmlToMarkdown(text)
         return result.join('')
     } else {
         const fixedLines: string[] = []
@@ -31,7 +31,7 @@ export function unescapeHtml(text: string) {
                .replace(/&gt;/g, '>')
 }
 
-export function scanHtml(text: string) {
+export function transformHtmlToMarkdown(text: string) {
     const result: string[] = []
     let index = 0
     const length = text.length
@@ -74,7 +74,7 @@ export function scanHtml(text: string) {
                     const tableEnd = extractMatchingHtmlTag(text, index)
                     if (tableEnd > pos) {
                         let tableHtml = text.slice(index + tagText.length, tableEnd)
-                        tableHtml = scanHtml(tableHtml).join('')
+                        tableHtml = transformHtmlToMarkdown(tableHtml).join('')
                         const markdown = convertTableToMarkdown('<table>' + tableHtml + '</table>')
                         if (markdown) {
                             result.push('\n\n', markdown, '\n\n')
@@ -109,8 +109,12 @@ export function scanHtml(text: string) {
                     const href = linkMatch[1]
                     const linkEnd = extractMatchingHtmlTag(text, index)
                     if (linkEnd > pos) {
-                        const linkText = scanHtml(text.slice(pos, linkEnd - ('</a>'.length))).join('')
-                        result.push(linkText, ' (', href, ') ')
+                        const linkText = transformHtmlToMarkdown(text.slice(pos, linkEnd - ('</a>'.length))).join('')
+                        if (linkText.trim() === href.trim()) {
+                            result.push(href)
+                        } else {
+                            result.push(linkText, ' (', href, ') ')
+                        }
                         index = linkEnd
                     } else {
                         index = pos

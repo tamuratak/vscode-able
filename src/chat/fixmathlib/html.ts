@@ -20,7 +20,7 @@ export function extractMatchingHtmlTag(text: string, index: number) {
     if (tagText.startsWith('</')) {
         return 0
     }
-    const openingMatch = /^<([a-zA-Z][a-zA-Z0-9:-]*)/.exec(tagText)
+    const openingMatch = /^<([a-zA-Z][\w:-]*)/.exec(tagText)
     if (!openingMatch) {
         return 0
     }
@@ -47,7 +47,7 @@ export function extractMatchingHtmlTag(text: string, index: number) {
         }
         const nextTagText = text.slice(nextStart, nextEnd)
         if (nextTagText.startsWith('</')) {
-            const closingMatch = /^<\/\s*([a-zA-Z][a-zA-Z0-9:-]*)/.exec(nextTagText)
+            const closingMatch = /^<\/\s*([a-zA-Z][\w:-]*)/.exec(nextTagText)
             if (closingMatch) {
                 const closingName = closingMatch[1].toLowerCase()
                 if (closingName === tagName) {
@@ -60,7 +60,7 @@ export function extractMatchingHtmlTag(text: string, index: number) {
             cursor = nextEnd
             continue
         }
-        const nestedMatch = /^<\s*([a-zA-Z][a-zA-Z0-9:-]*)/.exec(nextTagText)
+        const nestedMatch = /^<\s*([a-zA-Z][\w:-]*)/.exec(nextTagText)
         if (nestedMatch) {
             const nestedName = nestedMatch[1].toLowerCase()
             if (nestedName === tagName) {
@@ -121,9 +121,9 @@ export function scanHtmlImpl(text: string, index: number): number {
     if (oneCharTag.test(text) && !aTag.test(text)) {
         return 0
     }
-    const htmlOpeningTagRegex = /<\w+\s*\/?>/y
-    const htmlClosingTagRegex = /<\/\w+>/y
-    const htmlOpeningTagRegexWithAttr = /(<\w+\s+([-_a-z0-9]+\s*=\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\s*|[-_a-z0-9]+\s*)*?\/?>)/iy
+    const htmlOpeningTagRegex = /<[\w:-]+\s*\/?>/y
+    const htmlClosingTagRegex = /<\/[\w:-]+>/y
+    const htmlOpeningTagRegexWithAttr = /(<[\w:-]+\s+([\w:-]+\s*=\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\s*|[\w:-]+\s*)*?\/?>)/iy
 
     htmlOpeningTagRegex.lastIndex = index
     htmlClosingTagRegex.lastIndex = index
