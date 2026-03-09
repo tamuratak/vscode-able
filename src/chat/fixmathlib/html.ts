@@ -1,4 +1,9 @@
-
+/**
+ * Extracts the matching closing tag for a given HTML tag.
+ * @param text The HTML text to search.
+ * @param index The index of the opening tag.
+ * @returns The index of the end of the matching closing tag, or 0 if not found or if the index is not at an opening tag.
+ */
 
 export function extractMatchingHtmlTag(text: string, index: number) {
     if (index < 0 || index >= text.length || text[index] !== '<') {
@@ -35,7 +40,7 @@ export function extractMatchingHtmlTag(text: string, index: number) {
     while (pos < length) {
         const next = text.indexOf('<', pos)
         if (next === -1) {
-            return length
+            return 0
         }
 
         // Skip comments/CDATA/PI
@@ -87,7 +92,7 @@ export function extractMatchingHtmlTag(text: string, index: number) {
         }
     }
 
-    return length
+    return 0
 }
 
 export function scanHtmlTag(text: string, index: number): number {
