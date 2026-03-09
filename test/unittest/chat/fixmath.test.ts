@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert'
-import { scanHtml } from '../../../src/chat/fixmathlib/fix.js'
+import { transformHtmlToMarkdown } from '../../../src/chat/fixmathlib/fix.js'
 import { convertTableToMarkdown } from '../../../src/chat/fixmathlib/table.js'
 
 
@@ -7,25 +7,25 @@ suite('fixmath.scanHtml', () => {
 
     test('plain text no tags', () => {
         const txt = 'plain text no tags'
-        const res = scanHtml(txt)
+        const res = transformHtmlToMarkdown(txt)
         assert.deepStrictEqual(res, ['plain text no tags'])
     })
 
     test('text with inline tag', () => {
         const txt = 'hello <b>bold</b>'
-        const res = scanHtml(txt)
+        const res = transformHtmlToMarkdown(txt)
         assert.deepStrictEqual(res, ['hello ', 'bold'])
     })
 
     test('leading tag and trailing text', () => {
         const txt = '<p>hello</p>world'
-        const res = scanHtml(txt)
+        const res = transformHtmlToMarkdown(txt)
         assert.deepStrictEqual(res, ['hello', 'world'])
     })
 
     test('comments are ignored', () => {
         const txt = 'prefix <!-- comment -->suffix'
-        const res = scanHtml(txt)
+        const res = transformHtmlToMarkdown(txt)
         assert.deepStrictEqual(res, ['prefix ', 'suffix'])
     })
 
