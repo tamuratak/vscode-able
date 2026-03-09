@@ -1,8 +1,9 @@
 
 
 export function extractMatchingHtmlTag(text: string, index: number) {
-    if (index < 0) { index = 0 }
-    if (index >= text.length || text[index] !== '<') { return index }
+    if (index < 0 || index >= text.length || text[index] !== '<') {
+        return 0
+    }
 
     // Simple tags that do not have matching end tags in HTML
     const voidTags = new Set([

@@ -128,7 +128,7 @@ suite('fixmath.extractMatchingHtmlTag', () => {
 
     test('negative index treated as 0', () => {
         const txt = '<p>hi</p>'
-        assert.strictEqual(extractMatchingHtmlTag(txt, -10), extractMatchingHtmlTag(txt, 0))
+        assert.strictEqual(extractMatchingHtmlTag(txt, -10), 0)
     })
 
 })
