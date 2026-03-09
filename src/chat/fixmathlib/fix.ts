@@ -110,7 +110,11 @@ export function transformHtmlToMarkdown(text: string) {
                     const linkEnd = extractMatchingHtmlTag(text, index)
                     if (linkEnd > pos) {
                         const linkText = transformHtmlToMarkdown(text.slice(pos, linkEnd - ('</a>'.length))).join('')
-                        result.push(linkText, ' (', href, ') ')
+                        if (linkText.trim() === href.trim()) {
+                            result.push(href)
+                        } else {
+                            result.push(linkText, ' (', href, ') ')
+                        }
                         index = linkEnd
                     } else {
                         index = pos
