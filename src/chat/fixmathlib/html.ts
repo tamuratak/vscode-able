@@ -99,14 +99,14 @@ export function scanHtmlTag(text: string, index: number): number {
     }
 
     // Normal tag: skip until unquoted '>' is found
-    const pos = scanHtmlImpl(text, index)
+    const pos = scanHtmlTagImpl(text, index)
     if (pos && pos > index) {
         return pos
     }
     return 0
 }
 
-export function scanHtmlImpl(text: string, index: number): number {
+export function scanHtmlTagImpl(text: string, index: number): number {
     const length = text.length
     if (index >= length) {
         return 0

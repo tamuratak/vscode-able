@@ -1,38 +1,38 @@
 import { strict as assert } from 'node:assert'
-import { scanHtmlTag, extractMatchingHtmlTag, scanHtmlImpl } from '../../../src/chat/fixmathlib/html.js'
+import { scanHtmlTag, extractMatchingHtmlTag, scanHtmlTagImpl } from '../../../src/chat/fixmathlib/html.js'
 
 
 suite('fixmath.scanHtmlImpl', () => {
 
     test('simple opening tag moves past closing bracket', () => {
         const txt = '<p>text'
-        assert.strictEqual(scanHtmlImpl(txt, 0), txt.indexOf('>') + 1)
+        assert.strictEqual(scanHtmlTagImpl(txt, 0), txt.indexOf('>') + 1)
     })
 
     test('simple response-element opening tag moves past closing bracket', () => {
         const txt = '<response-element>text'
-        assert.strictEqual(scanHtmlImpl(txt, 0), txt.indexOf('>') + 1)
+        assert.strictEqual(scanHtmlTagImpl(txt, 0), txt.indexOf('>') + 1)
     })
 
 
     test('closing tag returns full closing', () => {
         const txt = '</p>text'
-        assert.strictEqual(scanHtmlImpl(txt, 0), txt.indexOf('>') + 1)
+        assert.strictEqual(scanHtmlTagImpl(txt, 0), txt.indexOf('>') + 1)
     })
 
     test('self-closing tag with attributes matches end', () => {
         const txt = '<img src="image.png" alt="a > b" />rest'
-        assert.strictEqual(scanHtmlImpl(txt, 0), txt.indexOf('/>') + 2)
+        assert.strictEqual(scanHtmlTagImpl(txt, 0), txt.indexOf('/>') + 2)
     })
 
     test('index not at tag returns 0', () => {
         const txt = 'prefix <b>bold</b>'
-        assert.strictEqual(scanHtmlImpl(txt, 0), 0)
+        assert.strictEqual(scanHtmlTagImpl(txt, 0), 0)
     })
 
     test('non-tag at < returns 0', () => {
         const txt = '< invalid'
-        assert.strictEqual(scanHtmlImpl(txt, 0), 0)
+        assert.strictEqual(scanHtmlTagImpl(txt, 0), 0)
     })
 
 })
