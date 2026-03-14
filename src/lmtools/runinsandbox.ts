@@ -10,6 +10,7 @@ import { CommandResultPrompt } from './toolresult.js'
 import { createLanguageModelPromptTsxPart } from '../utils/prompttsxhelper.js'
 import { isAllowedCommand } from './runinsandboxlib/validator.js'
 import { wrapLongLines } from './runinsandboxlib/utils.js'
+import { findScripts } from './runinsandboxlib/commandparser.js'
 
 
 export interface RunInSandboxInput {
@@ -47,10 +48,18 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             }
         }
         debugObj('RunInSandbox prepareInvocation args: ', options.input, this.extension.outputChannel)
+        const foundCodes = await findScripts(options.input.command)
+        let codesInMessage = ''
+        if (foundCodes.length > 0) {
+            codesInMessage = '\n\nFound the following embedded scripts in the command:\n'
+            for (const code of foundCodes) {
+                codesInMessage += '```' + code.kind + '\n' + code.code.trim() + '\n```' + '\n\n'
+            }
+        }
         return {
             confirmationMessages: {
                 title: 'Run command by using sandbox-exec',
-                message: options.input.explanation + '\n\n```sh\n' + wrapLongLines(options.input.command) + '\n```'
+                message: options.input.explanation + '\n\n```sh\n' + wrapLongLines(options.input.command) + '\n```' + '\n\n' + codesInMessage
             }
         }
     }
