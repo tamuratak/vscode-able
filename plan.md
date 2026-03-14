@@ -6,6 +6,7 @@
 - macOS + Node v22 前提で、accidental misuse 防止レベルの安全性を Seatbelt 以外の手段で強化する
 - Playwright REPL で import / require / eval を禁止する
 - 将来拡張を前提にせず、Playwright 以外の helper 追加を許可しない
+- Playwright API 呼び出しのため top-level await を必須でサポートする
 
 ## 2. 変更後の前提（確定）
 - seatbelt は使用しない
@@ -16,6 +17,7 @@
 - tree-sitter は利用可能（実装参考: src/lmtools/runinsandboxlib/commandparser.ts）
 - vm は強固なセキュリティ境界ではない前提で利用する（誤用防止用途）
 - Playwright 以外の helper/API 注入は行わない
+- 対象スコープは Web の Playwright のみ（Electron は対象外）
 
 ## 3. アーキテクチャ方針
 
@@ -27,6 +29,10 @@
   - browser launch / close API
   - 任意ツール呼び出し API
   - Playwright 以外の helper/API
+
+### 3.3 利用条件
+- feature gate が有効な場合のみツール公開する
+- 直接ツール呼び出しは playwrightrepl_exec / playwrightrepl_reset に限定する
 
 ### 3.2 実行モデル
 - Host（TypeScript）
@@ -62,6 +68,7 @@
 - timeout は vm 実行オプションとプロセス kill の二重化で扱う
 - microtask の timeout すり抜け対策として context 作成時に microtaskMode を afterEvaluate に設定する
 - queueMicrotask / process.nextTick / setTimeout / setImmediate は Kernel に注入しない
+- 実行オプションとして先頭行 pragma による timeout 上書きを限定的に許可する
 
 ## 5. Playwright REPL の禁止仕様（重要）
 
@@ -81,6 +88,11 @@
 - 例外は設けない（初版）
 - 必要機能は Host 注入 API（pw.page, pw.context, pw.helpers）で提供
 - 必要機能は Playwright 操作に限定し、将来拡張用 helper は追加しない
+
+### 5.4 top-level await 仕様
+- playwrightrepl_exec は top-level await を受け付ける
+- 1 セル内で await を使った Playwright 操作をそのまま実行できる
+- セル失敗時に既存の Playwright ハンドル（pw.page, pw.context）が壊れていなければ維持する
 
 ## 6. tree-sitter による事前検査設計
 
@@ -140,8 +152,15 @@
 - LLM 実行中に起動設定を変更不可
 - 設定変更は reset 後に反映
 - 設定スキーマは extension の contributes.configuration で定義する
+- playwrightrepl_reset は回復用操作として扱い、通常フローでの常用を前提にしない
 
-## 9. フェーズ計画
+## 9. screenshot 出力仕様（最小）
+- 形式は image/jpeg と image/png をサポートする
+- 1 実行で複数枚の screenshot を返せる
+- 画像ごとに最大バイト数と 1 実行あたりの総量上限を設定する
+- screenshot は Playwright の page.screenshot() 出力を受理対象とする
+
+## 10. フェーズ計画
 
 ### Phase 0: 要件固定と禁止仕様定義（0.5 日）
 - 成果物
@@ -157,6 +176,7 @@
 - timeout + kill + restart
 - Exit 条件
   - 安定して往復できる
+  - top-level await の最小セルが成功する
 
 ### Phase 2: tree-sitter ガード実装（1.5 日）
 - JavaScript parser 初期化
@@ -178,9 +198,11 @@
 - reset 時の再生成
 - Exit 条件
   - セル跨ぎで page を再利用できる
+  - セル失敗後も有効なハンドルは再利用できる
 
 ### Phase 5: 出力制御とエラー分類（1 日）
 - ログ・出力の上限
+- screenshot（jpeg/png）出力とサイズ上限
 - エラー分類
   - syntax_guard
   - runtime_guard
@@ -196,9 +218,11 @@
   - parser 初期化失敗時ハンドリング
   - timeout リカバリ
   - microtaskMode=afterEvaluate 前提の timeout 回帰
+  - top-level await セル実行
 - 結合
   - page 永続化
   - reset 再初期化
+  - screenshot 複数枚返却
 - セキュリティ回帰
   - import / require / eval を拒否
   - new Function を拒否
@@ -207,13 +231,15 @@
 - Exit 条件
   - 主要経路と既知の禁止仕様が自動テストで担保
 
-## 10. 非目標
+## 11. 非目標
 - seatbelt を使ったサンドボックス再導入
 - 汎用 js_repl 化
 - Linux / Windows 対応
 - 任意 npm パッケージ import 許可
+- Electron 向け Playwright 運用（_electron launch や BrowserWindow.capturePage）
+- screenshot の CSS 正規化や座標再投影の高度機能
 
-## 11. リスクと対策
+## 12. リスクと対策
 - リスク: AST ルール漏れ
   - 対策: runtime 制約を併用し二重化
 - リスク: parser 初期化失敗で guard が無効化
@@ -224,8 +250,12 @@
   - 対策: accidental misuse 防止用途に限定し、OS サンドボックス相当の保証は非提供と明記
 - リスク: microtask/非同期キュー経由の timeout すり抜け
   - 対策: afterEvaluate + 非同期スケジューラ非注入 + timeout 超過時のプロセス kill
+- リスク: top-level await 非対応だと Playwright 操作が冗長化し運用ミスが増える
+  - 対策: top-level await を必須要件化し初期フェーズで疎通テストを置く
+- リスク: screenshot 出力が肥大化してプロトコルを圧迫する
+  - 対策: 画像形式制限（jpeg/png）とサイズ上限を適用する
 
-## 12. 受け入れ条件
+## 13. 受け入れ条件
 - seatbelt を利用しない
 - Playwright REPL で import / require / eval が実行不能
 - LLM が browser launch API を直接呼べない
@@ -233,12 +263,17 @@
 - macOS + Node v22 で継続実行と reset が機能
 - accidental misuse 防止レベルでの制約が動作し、強固なセキュリティ境界は提供しないことが文書化されている
 - Playwright 以外の helper/API が追加されていない
+- top-level await セルが実行できる
+- screenshot を jpeg/png で返却でき、上限超過時に明示的エラーとなる
+- 対象スコープが Web Playwright のみに限定されている
 
-## 13. 直近の着手順
+## 14. 直近の着手順
 1. tree-sitter JavaScript parser モジュール追加
 2. banned syntax query 実装
 3. playwrightrepl_exec に事前検査フック追加
 4. vm runtime ガード追加（afterEvaluate を含む）
 5. Playwright 固定ハンドル注入
 6. 設定スキーマ（able.playwrightrepl.runtime.*）追加
-7. 禁止仕様テスト追加
+7. top-level await 疎通テスト追加
+8. screenshot（jpeg/png, 複数枚, サイズ上限）テスト追加
+9. 禁止仕様テスト追加
