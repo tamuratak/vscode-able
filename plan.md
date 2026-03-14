@@ -1,226 +1,223 @@
-# TypeScript + Node.js で js_repl 相当を実装するための計画
+# Playwright 専用 REPL 実装計画（Node v22 / macOS 前提）
 
-## 目的
-- 永続セッション型の JavaScript 実行環境を提供する。
-- top-level await を許可する。
-- 実行環境を安全に制限する。
-- 将来的にブラウザ自動化（例: Playwright）と連携できる構成にする。
+## 1. この計画の目的
+- OpenAI Codex CLI の js_repl の設計を参考にしつつ、同等機能をそのまま移植せず、Playwright 専用の実行機構として再設計する
+- LLM が任意にブラウザを起動できない構造を維持しながら、ページ操作と観測を継続可能な REPL 体験を実現する
+- Node v22 上で「VM 単体はセキュリティ境界にならない」前提で、安全性を多層化する
 
-## ゴール定義
-- 1回目の実装で達成する範囲:
-  - Node 子プロセスで常駐カーネルを動かす。
-  - JSON Lines プロトコルで Host と Kernel が通信する。
-  - セル間でトップレベル変数を持続させる。
-  - 実行タイムアウトとリセット機能を持つ。
-  - 最低限のモジュール import 制御と危険 API 制限を持つ。
-- 後続フェーズで拡張する範囲:
-  - Host 側の汎用ツール呼び出しブリッジ。
-  - 画像出力ブリッジ（スクリーンショット共有など）。
-  - プラットフォーム別 OS サンドボックス強化。
+## 2. 追加要件を反映した前提
+- 対象プラットフォームは macOS のみ
+- Node は v22 系を前提（最低要件は 22.22.0 相当を推奨）
+- Playwright 専用機能とし、汎用 js_repl にはしない
+- ブラウザ起動設定はユーザーが設定で管理する
+- LLM には browser launch API を tool call として公開しない
+- Webview runtime は代替案として比較検討する
 
-## 全体アーキテクチャ
-- Host プロセス（TypeScript）
-  - カーネル起動・監視
-  - リクエスト管理（exec_id 単位）
-  - タイムアウト管理
-  - ツール呼び出しディスパッチ
-- Kernel プロセス（Node.js）
-  - vm.SourceTextModule ベースでセル実行
-  - セル間状態保持
-  - 動的 import 解決
-  - Host への run_tool / emit_image 要求
-- 通信方式
-  - stdin/stdout の JSON Lines
-  - メッセージ種別: exec / exec_result / run_tool / run_tool_result / emit_image / emit_image_result
+## 3. 既存調査の要点（実装判断に使う事実）
+- 既存 codex の js_repl は Node 子プロセス + vm.SourceTextModule + JSON Lines プロトコル構成
+- Node の vm は公式に「セキュリティ機構ではない」と明記
+- 既存 codex でも VM 制約に加えて OS sandbox を併用する設計
+- Playwright は既存 js_repl の専用機能ではなく、補助 API とツール連携で扱っている
 
-## フェーズ別計画
+## 4. 方針決定
 
-### Phase 0: 要件固定（0.5日）
-- 実行対象 Node の最小バージョンを決める（例: 22.x）。
-- 非機能要件を決める。
-  - セル実行上限時間
-  - 1セルあたり出力上限
-  - 同時実行数
-- セキュリティ方針を決める。
-  - 禁止組み込みモジュール
-  - ネットワーク可否
-  - ファイルアクセス可否
-- 成果物:
+### 4.1 機能の切り分け
+- 新機能名は仮に playwrightrepl とする
+- 公開ツールは以下のみ
+  - playwrightrepl_exec
+  - playwrightrepl_reset
+- 直接公開しないもの
+  - browser launch
+  - browser close
+  - 任意ツール実行の汎用 API
+
+### 4.2 実行モデル
+- Host（TypeScript）
+  - Node 子プロセス（Kernel）を起動
+  - ユーザー設定から Playwright launch options を読み込む
+  - Browser/Context/Page を事前作成し、Kernel へは「既に起動済みページ」だけを提供
+- Kernel（Node）
+  - セル実行（top-level await 対応）
+  - 永続状態（page, context, 軽量ユーティリティ）
+  - JS 実行結果を Host へ返却
+
+### 4.3 Playwright 専用化の具体策
+- Kernel には playwright モジュール自体を露出しない
+- 代わりに Host が注入する固定オブジェクトのみ使用可能
+  - pw.page
+  - pw.context
+  - pw.helpers（安全なラッパーのみ）
+- import 制御で以下を禁止
+  - node:child_process
+  - node:worker_threads
+  - node:inspector
+  - playwright（再起動や別ブラウザ生成を防止）
+
+## 5. セキュリティ設計（Node runtime を本当に安全化する）
+
+### 5.1 設計原則
+- VM は隔離の補助であり、境界はプロセスと OS 側で作る
+- 1 セッション = 1 Kernel プロセス
+- Timeout 発生時はプロセス破棄し、状態を再構築
+
+### 5.2 多層防御
+- 第1層: プロトコル制約
+  - JSON Lines の厳格パース
+  - 入出力サイズ上限
+  - 実行時間上限
+- 第2層: VM 制約
+  - contextCodeGeneration.strings を false
+  - contextCodeGeneration.wasm を false
+  - process, require, Buffer など危険グローバル非公開
+- 第3層: Node プロセス制約
+  - --experimental-vm-modules 以外の不要フラグ禁止
+  - env ホワイトリスト
+  - cwd 固定
+  - stdio プロトコル保護（任意書き込み抑止）
+- 第4層: macOS サンドボックス
+  - seatbelt プロファイル適用
+  - デフォルト deny、必要最小限のみ許可
+
+### 5.3 macOS ポリシー草案
+- 許可
+  - Playwright 実行に必要なブラウザプロセス生成
+  - ユーザー指定ディレクトリ配下の限定読み取り
+  - 一時ディレクトリ配下への書き込み
+- 禁止
+  - 任意の追加プロセス生成
+  - 未許可ディレクトリへの書き込み
+  - 設定で許可されていない外部通信
+
+## 6. ブラウザ起動の「ユーザー設定のみ」設計
+
+### 6.1 設定項目（例）
+- playwrightrepl.runtime.browser
+- playwrightrepl.runtime.channel
+- playwrightrepl.runtime.headless
+- playwrightrepl.runtime.executablepath
+- playwrightrepl.runtime.launchoptions
+- playwrightrepl.runtime.contextoptions
+- playwrightrepl.runtime.networkpolicy
+
+### 6.2 制御ルール
+- 起動設定の解決は Host だけが行う
+- LLM からは起動設定を変更できない
+- 実行中に設定変更があっても、次回 reset まで反映しない
+
+## 7. Webview runtime 代替案の評価
+
+### 7.1 Node runtime 案（本線）
+- 長所
+  - Playwright 連携が素直
+  - 既存 js_repl の知見を活用しやすい
+- 短所
+  - サンドボックスを OS で補う必要がある
+
+### 7.2 Webview runtime 案（代替）
+- 長所
+  - VS Code 側の分離モデルを利用しやすい
+- 短所
+  - Playwright 実行主体との境界が複雑
+  - Node API と同等の制御を再構築しにくい
+
+### 7.3 結論
+- Phase 1 は Node runtime を採用
+- Webview は「監視 UI と可視化」に限定して別トラックで検証
+
+## 8. 実装フェーズ
+
+### Phase 0: 要件凍結と脅威分析（0.5 日）
+- assets
   - requirements.md
-  - threat-model.md
+  - threatmodel.md
+  - sandboxpolicy.md
+- Exit 条件
+  - 攻撃面（RCE, FS, Network, Protocol 汚染）への対策が定義済み
 
-### Phase 1: 最小カーネル起動（1日）
-- Host から Node 子プロセスを起動する。
-- kernel.js（または kernel.mjs）を一時ディレクトリへ配置して起動する。
-- JSON Lines で疎通確認する（echo レベル）。
-- 異常終了監視と自動再起動方針を入れる。
-- 完了条件:
-  - exec を送ると固定の exec_result が返る。
-  - カーネル異常終了を Host が検知できる。
+### Phase 1: 最小 Host/Kernel 疎通（1 日）
+- Node v22 互換確認
+- Kernel 起動/終了/再起動
+- exec -> exec_result 往復
+- Exit 条件
+  - 最小コード実行が安定
 
-### Phase 2: 実行エンジン（2日）
-- vm.createContext を作り、SourceTextModule でセルを実行する。
-- top-level await を実現する。
-- セル間状態の持続戦略を実装する。
-  - 前回セルの公開バインディングを次セルに再導入
-- console 出力のキャプチャを実装する。
-- タイムアウト実装:
-  - Host 側 timeout
-  - timeout 時にカーネル再起動
-- 完了条件:
-  - 連続セルで変数が再利用できる。
-  - エラー時に既存状態が壊れない。
+### Phase 2: Playwright セッション固定化（1.5 日）
+- Host で BrowserContext/Page 生成
+- Kernel へ固定ハンドル注入
+- reset で安全に再作成
+- Exit 条件
+  - セル跨ぎで page が再利用される
 
-### Phase 3: import 制御（1.5日）
-- 解決順序を設計する。
-  - 環境変数で指定した module roots
-  - 設定ファイルの module roots
-  - 実行作業ディレクトリ
-- 動的 import を実装する。
-- ローカルファイル import を制限する。
-  - .js/.mjs のみ許可
-  - ディレクトリ import 禁止
-- 危険組み込みモジュール禁止を実装する。
-  - process
-  - child_process
-  - worker_threads
-- 完了条件:
-  - 許可ケースは読み込める。
-  - 禁止ケースは明確なエラーになる。
+### Phase 3: 安全化レイヤー実装（2 日）
+- import 制限
+- VM 制約
+- Timeout + kill + clean restart
+- env/cwd/stdout 制約
+- Exit 条件
+  - 主要逸脱ケースが拒否される
 
-### Phase 4: ツールブリッジ（2日）
-- Kernel のグローバルに helper API を注入する。
-  - repl.tool(name, args)
-  - repl.cwd / repl.homeDir / repl.tmpDir
-- run_tool メッセージ往復を実装する。
-- 再帰防止を入れる。
-  - 内部ツール自身を tool() で呼べないようにする
-- ログ設計:
-  - info で要約
-  - trace で生データ
-- 完了条件:
-  - JS 内から Host の任意ツールが呼べる。
-  - 失敗時エラーが JavaScript 側に伝播する。
+### Phase 4: macOS sandbox 適用（2 日）
+- seatbelt プロファイル作成
+- ローカルファイル/通信/子プロセス制御
+- Playwright 必須権限の最小化調整
+- Exit 条件
+  - E2E で Playwright が動作し、不要権限は拒否
 
-### Phase 5: 画像ブリッジ（1日）
-- repl.emitImage(imageLike) を実装する。
-- 受理形式を定義する。
-  - data URL
-  - bytes + mimeType
-  - ツール出力オブジェクト（画像1件のみ）
-- 混在制限を実装する。
-  - テキスト + 画像混在は拒否
-- 完了条件:
-  - JS 側で emitImage を呼ぶと Host の最終出力へ画像が載る。
+### Phase 5: 出力モデル整備（1 日）
+- テキストログ整形
+- スクリーンショット返却形式統一（jpeg/png）
+- エラー分類（ユーザーコード/制約違反/実行基盤）
+- Exit 条件
+  - 失敗時の原因が判別可能
 
-### Phase 6: sandbox 強化（2日）
-- まずは Node プロセス環境を最小化する。
-  - 環境変数ホワイトリスト
-  - 作業ディレクトリ固定
-- OS サンドボックスを段階導入する。
-  - macOS: seatbelt
-  - Linux: seccomp/landlock 系ラッパー
-  - Windows: restricted token
-- ネットワーク制限時の明示フラグを子プロセスへ渡す。
-- 完了条件:
-  - ポリシー別に許可/拒否が再現性を持って動く。
+### Phase 6: テストと運用ガード（2 日）
+- 単体
+  - 設定解決
+  - import 制限
+  - timeout
+- 結合
+  - ページ状態持続
+  - reset 後再初期化
+- 逸脱
+  - 禁止モジュール import
+  - stdout 汚染
+  - 過大出力
+- Exit 条件
+  - 主要経路が自動テスト化
 
-### Phase 7: Playwright 連携（1日）
-- 専用統合ではなく、汎用ツール連携として実装する。
-- 2経路をサポートする。
-  - カーネル内で playwright を import して直接利用
-  - Host 側 Playwright ツールを repl.tool() で呼び出し
-- スクリーンショット共有を標準化する。
-  - page.screenshot() の bytes を emitImage へ渡す
-- 完了条件:
-  - ブラウザ操作結果をテキストと画像で返せる。
+## 9. 提供インターフェース（初版）
+- playwrightrepl_exec
+  - 入力: 生の JavaScript（freeform）
+  - 出力: text + optional image
+- playwrightrepl_reset
+  - セッション破棄と再初期化
 
-### Phase 8: テストと安定化（2日）
-- 単体テスト
-  - import 解決
-  - 禁止モジュール
-  - タイムアウト
-- 結合テスト
-  - 連続セル状態保持
-  - run_tool 往復
-  - emitImage 往復
-- 障害テスト
-  - カーネルクラッシュ
-  - 壊れた JSON 行
-  - 標準出力の不正書き込み
-- 完了条件:
-  - 主要フローと異常系が自動テストで担保される。
+## 10. 非目標（初版でやらないこと）
+- 汎用 js_repl 化
+- LLM からの browser launch API 呼び出し
+- クロスプラットフォーム対応（Linux/Windows）
+- 任意 npm パッケージの自由 import
 
-## 推奨ディレクトリ構成
-```text
-project/
-  src/
-    host/
-      JsReplManager.ts
-      KernelProcess.ts
-      MessageProtocol.ts
-      ToolBridge.ts
-      SandboxPolicy.ts
-    kernel/
-      kernel.mjs
-      moduleResolver.mjs
-      stateCarryover.mjs
-      emitImage.mjs
-  test/
-    unit/
-    integration/
-  docs/
-    requirements.md
-    protocol.md
-    sandbox.md
-```
+## 11. リスクと対策
+- リスク: VM 依存の安全化の過信
+  - 対策: OS sandbox とプロセス隔離を主境界にする
+- リスク: Playwright 実行に必要な権限が過大化
+  - 対策: deny-by-default で許可を段階追加
+- リスク: ユーザー設定と実行時状態の不一致
+  - 対策: 設定スナップショットをセッション開始時に固定
 
-## メッセージプロトコル案（最小）
-- Host -> Kernel
-  - exec: { type, id, code, timeoutMs }
-  - run_tool_result: { type, id, ok, response, error }
-  - emit_image_result: { type, id, ok, error }
-- Kernel -> Host
-  - exec_result: { type, id, ok, output, error }
-  - run_tool: { type, id, execId, toolName, arguments }
-  - emit_image: { type, id, execId, imageUrl, detail }
+## 12. 受け入れ条件
+- LLM が browser launch API を直接呼べない
+- ユーザー設定のみでブラウザ起動条件を制御できる
+- Node v22 + macOS で安定動作する
+- 主要な逸脱行為が拒否される
+- Playwright 操作の継続実行と reset が機能する
 
-## セキュリティチェックリスト
-- process グローバル非公開
-- child_process import 拒否
-- worker_threads import 拒否
-- stdin/stdout へユーザーコードが直接書かないよう注意喚起
-- リクエストごとの最大サイズ制限
-- stderr tail を保持して障害解析可能にする
-
-## 最初の2週間スケジュール例
-- Week 1
-  - Day 1: Phase 0
-  - Day 2: Phase 1
-  - Day 3-4: Phase 2
-  - Day 5: Phase 3
-- Week 2
-  - Day 1-2: Phase 4
-  - Day 3: Phase 5
-  - Day 4: Phase 6
-  - Day 5: Phase 7 + Phase 8 着手
-
-## 主要リスクと対策
-- リスク: VM の状態持続仕様が複雑
-  - 対策: まず「成功セルのみ状態反映」で開始し、失敗セルの部分反映は後段で導入
-- リスク: モジュール解決が環境差で不安定
-  - 対策: roots を明示設定し、暗黙の親探索を禁止
-- リスク: サンドボックス差異（OS依存）
-  - 対策: 共通インターフェースを定義し、OS別実装を差し替え
-- リスク: 画像出力の形式揺れ
-  - 対策: 受理形式を厳格化し、バリデーション失敗を明示
-
-## 実装開始時の最小タスク
-1. MessageProtocol.ts を作る（型定義と JSON schema）。
-2. KernelProcess.ts で Node 起動・入出力処理を作る。
-3. kernel.mjs で exec -> exec_result の最小往復を作る。
-4. 連続セル状態保持を入れる。
-5. timeout と reset を入れる。
-6. import 制限を入れる。
-7. tool ブリッジを入れる。
-8. emitImage を入れる。
+## 13. 直近の実装順（着手タスク）
+1. 設定スキーマ定義（runtime/launch/context/network）
+2. Host 側セッションマネージャ作成
+3. Kernel 最小実装（exec/reset）
+4. Playwright 固定オブジェクト注入
+5. import/VM 制限実装
+6. macOS sandbox 接続
+7. 結合テスト整備
