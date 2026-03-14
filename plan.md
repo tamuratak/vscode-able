@@ -3,8 +3,9 @@
 ## 1. 目的
 - OpenAI Codex CLI の js_repl をそのまま移植せず、Playwright 専用 REPL を実装する
 - LLM がブラウザ起動 API を直接呼べない構造を維持する
-- macOS + Node v22 前提で、安全性を Seatbelt 以外の手段で強化する
+- macOS + Node v22 前提で、accidental misuse 防止レベルの安全性を Seatbelt 以外の手段で強化する
 - Playwright REPL で import / require / eval を禁止する
+- 将来拡張を前提にせず、Playwright 以外の helper 追加を許可しない
 
 ## 2. 変更後の前提（確定）
 - seatbelt は使用しない
@@ -13,6 +14,8 @@
 - browser の起動条件はユーザー設定のみで制御
 - LLM には browser launch API を公開しない
 - tree-sitter は利用可能（実装参考: src/lmtools/runinsandboxlib/commandparser.ts）
+- vm は強固なセキュリティ境界ではない前提で利用する（誤用防止用途）
+- Playwright 以外の helper/API 注入は行わない
 
 ## 3. アーキテクチャ方針
 
@@ -23,14 +26,16 @@
 - 非公開
   - browser launch / close API
   - 任意ツール呼び出し API
+  - Playwright 以外の helper/API
 
 ### 3.2 実行モデル
 - Host（TypeScript）
   - Playwright BrowserContext / Page のライフサイクルを管理
   - Kernel プロセスを起動・監視
   - REPL 入力の静的検査（tree-sitter）を実施
+  - 設定の解決・反映（able.playwrightrepl.runtime.*）を一元管理
 - Kernel（Node）
-  - 許可済みコードのみ実行
+  - 許可済みコードのみ実行（誤用防止向け能力制限）
   - セル間状態を保持
   - 出力を JSON Lines で Host に返却
 
@@ -42,6 +47,10 @@
 - 防御 3: プロセス分離と強制リセット（timeout / crash 時 kill）
 - 防御 4: I/O とプロトコル制限（サイズ・時間・回数制限）
 
+注記:
+- 本設計は accidental misuse 防止を目的とする
+- vm を単独のセキュリティ境界として扱わない
+
 ### 4.2 具体的な強化項目
 - Kernel は専用子プロセスで実行（1 セッション 1 プロセス）
 - timeout 時は即 kill して新規プロセスで再初期化
@@ -50,6 +59,9 @@
 - stdout/stderr の直接利用を禁止し protocol 汚染を防止
 - 1 実行あたりの入力・出力サイズ上限
 - 1 実行あたりの最大実行時間
+- timeout は vm 実行オプションとプロセス kill の二重化で扱う
+- microtask の timeout すり抜け対策として context 作成時に microtaskMode を afterEvaluate に設定する
+- queueMicrotask / process.nextTick / setTimeout / setImmediate は Kernel に注入しない
 
 ## 5. Playwright REPL の禁止仕様（重要）
 
@@ -68,6 +80,7 @@
 ### 5.3 例外方針
 - 例外は設けない（初版）
 - 必要機能は Host 注入 API（pw.page, pw.context, pw.helpers）で提供
+- 必要機能は Playwright 操作に限定し、将来拡張用 helper は追加しない
 
 ## 6. tree-sitter による事前検査設計
 
@@ -87,6 +100,11 @@
 - call_expression で callee が require
 - call_expression で callee が eval
 - new_expression で constructor が Function
+- call_expression で callee が setTimeout / setInterval かつ第一引数が文字列
+
+注記:
+- AST 検出は既知パターン拒否として扱う
+- 未検出経路はランタイム制約で拒否する
 
 ### 6.3 返却エラー設計
 - 構文拒否時は実行しない
@@ -99,26 +117,29 @@
 ## 7. ランタイム制約（tree-sitter すり抜け対策）
 - vm context で contextCodeGeneration.strings = false
 - vm context で contextCodeGeneration.wasm = false
+- vm context 作成時に microtaskMode = 'afterEvaluate' を指定
 - global から require / process / module / Buffer を非公開
 - import を許可しない linker を使用
 - 文字列評価系 API をラップして拒否
 - Host 注入オブジェクトを freeze して書き換え耐性を上げる
+- outer context の関数/Promise を Kernel 側へ共有しない
 
 ## 8. ブラウザ起動のユーザー設定固定
 
 ### 8.1 設定項目
-- playwrightrepl.runtime.browser
-- playwrightrepl.runtime.channel
-- playwrightrepl.runtime.headless
-- playwrightrepl.runtime.executablepath
-- playwrightrepl.runtime.launchoptions
-- playwrightrepl.runtime.contextoptions
-- playwrightrepl.runtime.networkpolicy
+- able.playwrightrepl.runtime.browser
+- able.playwrightrepl.runtime.channel
+- able.playwrightrepl.runtime.headless
+- able.playwrightrepl.runtime.executablePath
+- able.playwrightrepl.runtime.launchOptions
+- able.playwrightrepl.runtime.contextOptions
+- able.playwrightrepl.runtime.networkPolicy
 
 ### 8.2 制御ルール
 - 起動設定の解決は Host のみ
 - LLM 実行中に起動設定を変更不可
 - 設定変更は reset 後に反映
+- 設定スキーマは extension の contributes.configuration で定義する
 
 ## 9. フェーズ計画
 
@@ -142,14 +163,14 @@
 - 禁止ルール query 実装
 - 拒否レスポンス整備
 - Exit 条件
-  - 禁止文法が実行前に全て拒否される
+  - 既知の禁止文法パターンが実行前に拒否される
 
 ### Phase 3: ランタイム能力制限（1.5 日）
 - vm context 制約
 - global 制約
 - linker で import 拒否
 - Exit 条件
-  - tree-sitter 回避入力でも実行時に拒否される
+  - tree-sitter 未検出の主要回避入力が実行時に拒否される
 
 ### Phase 4: Playwright 固定ハンドル統合（1.5 日）
 - Host で BrowserContext / Page 管理
@@ -167,21 +188,24 @@
   - infrastructure
 - Exit 条件
   - 失敗原因の切り分けが可能
+  - stdio protocol 汚染を検知・隔離できる
 
 ### Phase 6: テスト（2 日）
 - 単体
   - tree-sitter ルール検出
   - parser 初期化失敗時ハンドリング
   - timeout リカバリ
+  - microtaskMode=afterEvaluate 前提の timeout 回帰
 - 結合
   - page 永続化
   - reset 再初期化
 - セキュリティ回帰
   - import / require / eval を拒否
   - new Function を拒否
+  - setTimeout("...") / setInterval("...") を拒否
   - protocol 汚染入力を拒否
 - Exit 条件
-  - 主要経路と禁止仕様が自動テストで担保
+  - 主要経路と既知の禁止仕様が自動テストで担保
 
 ## 10. 非目標
 - seatbelt を使ったサンドボックス再導入
@@ -196,6 +220,10 @@
   - 対策: fail-closed（検査不能なら実行拒否）
 - リスク: 長時間タスクでセッションが不安定
   - 対策: 短時間セル指向 + timeout + 自動再起動
+- リスク: vm の仕様上、強固な分離を提供しない
+  - 対策: accidental misuse 防止用途に限定し、OS サンドボックス相当の保証は非提供と明記
+- リスク: microtask/非同期キュー経由の timeout すり抜け
+  - 対策: afterEvaluate + 非同期スケジューラ非注入 + timeout 超過時のプロセス kill
 
 ## 12. 受け入れ条件
 - seatbelt を利用しない
@@ -203,11 +231,14 @@
 - LLM が browser launch API を直接呼べない
 - ユーザー設定でのみ browser 起動条件を制御可能
 - macOS + Node v22 で継続実行と reset が機能
+- accidental misuse 防止レベルでの制約が動作し、強固なセキュリティ境界は提供しないことが文書化されている
+- Playwright 以外の helper/API が追加されていない
 
 ## 13. 直近の着手順
 1. tree-sitter JavaScript parser モジュール追加
 2. banned syntax query 実装
 3. playwrightrepl_exec に事前検査フック追加
-4. vm runtime ガード追加
+4. vm runtime ガード追加（afterEvaluate を含む）
 5. Playwright 固定ハンドル注入
-6. 禁止仕様テスト追加
+6. 設定スキーマ（able.playwrightrepl.runtime.*）追加
+7. 禁止仕様テスト追加
