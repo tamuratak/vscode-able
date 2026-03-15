@@ -10,9 +10,9 @@
 - able_run_in_sandbox では Playwright を実行できないため、実機確認が必要な場合は vscode_askQuestions でユーザーに実行依頼する
 
 ## 現在ステータス
-- 全体進捗: 0%
-- 現在フェーズ: Phase 0
-- 現在タスク: 要件固定
+- 全体進捗: 20%
+- 現在フェーズ: Phase 1
+- 現在タスク: 最小 REPL 疎通の初期実装
 - ブロッカー: なし
 - 最終更新日: 2026-03-15
 
@@ -27,16 +27,16 @@
 - [ ] screenshot 最小仕様（jpeg/png, 複数枚, 上限）を確定
 
 ### Phase 1: 最小 REPL 疎通
-- [ ] Host-Kernel JSON Lines 疎通の実装
-- [ ] playwrightrepl_exec の最小実装
-- [ ] playwrightrepl_reset の最小実装
+- [x] Host-Kernel JSON Lines 疎通の実装
+- [x] playwrightrepl_exec の最小実装
+- [x] playwrightrepl_reset の最小実装
 - [ ] timeout + kill + restart 実装
-- [ ] top-level await 最小セルの疎通確認
+- [x] top-level await 最小セルの疎通確認
 
 ### Phase 2: tree-sitter ガード実装
-- [ ] JavaScript parser 初期化の実装
-- [ ] 禁止ルール query 実装
-- [ ] 拒否レスポンス（rule_id, node_type, line/column, short_message）実装
+- [x] JavaScript parser 初期化の実装
+- [x] 禁止ルール query 実装
+- [x] 拒否レスポンス（rule_id, node_type, line/column, short_message）実装
 - [ ] fail-closed（検査不能時に拒否）実装
 
 ### Phase 3: ランタイム能力制限
@@ -77,6 +77,8 @@
 
 ## 実装ログ
 - 2026-03-15: 文書初期化。Phase 0 未着手。
+- 2026-03-15: Phase 1 着手。Playwright REPL の最小 host-kernel プロトコル、exec/reset ツール、runtime 設定、tree-sitter ベースの禁止構文ガード、単体テストを追加。
+- 2026-03-15: timeout 超過時の kernel kill/restart を追加。screenshot 出力（png/jpeg、複数枚、サイズ上限）を追加。先頭行 pragma による timeout 上書き（playwrightrepl-timeout=ms）を追加。
 
 ## 次アクション
 1. Phase 0 の成果物要点を確定する

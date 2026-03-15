@@ -13,6 +13,7 @@ import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwe
 import { GeminiCliChatProvider } from './chatprovider/geminiclichatprovider.js'
 import { AskChatHandleManager } from './chat/ask.js'
 import { FixMathChatHandleManager } from './chat/fixmath.js'
+import { PlaywrightReplExecTool, PlaywrightReplResetTool } from './playwright_repl/tool.js'
 
 
 class Extension {
@@ -101,6 +102,8 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove(extension)),
         vscode.lm.registerTool('able_web_search', new WebSearchTool(extension)),
         vscode.lm.registerTool('able_run_in_sandbox', new RunInSandbox(extension)),
+        vscode.lm.registerTool('able_playwrightrepl_exec', new PlaywrightReplExecTool(extension)),
+        vscode.lm.registerTool('able_playwrightrepl_reset', new PlaywrightReplResetTool(extension)),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()
     )

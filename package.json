@@ -234,6 +234,61 @@
             "explanation"
           ]
         }
+      },
+      {
+        "name": "able_playwrightrepl_exec",
+        "toolReferenceName": "playwrightrepl_exec",
+        "tags": [
+          "playwright",
+          "browser"
+        ],
+        "displayName": "Playwright REPL Exec",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(browser)",
+        "userDescription": "Run JavaScript in a Playwright-focused REPL.",
+        "modelDescription": "Executes JavaScript in a Playwright-focused REPL with syntax guards. Use top-level await for page actions.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "JavaScript code to execute in the Playwright REPL."
+            },
+            "explanation": {
+              "type": "string",
+              "description": "A short explanation of why this execution is needed."
+            }
+          },
+          "required": [
+            "code",
+            "explanation"
+          ]
+        }
+      },
+      {
+        "name": "able_playwrightrepl_reset",
+        "toolReferenceName": "playwrightrepl_reset",
+        "tags": [
+          "playwright",
+          "browser"
+        ],
+        "displayName": "Playwright REPL Reset",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(debug-restart)",
+        "userDescription": "Reset the Playwright REPL state and browser session.",
+        "modelDescription": "Resets Playwright REPL state and recreates browser resources when recovery is required.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "description": "Why reset is requested."
+            }
+          },
+          "required": [
+            "reason"
+          ]
+        }
       }
     ],
     "commands": [
@@ -380,6 +435,74 @@
             "items": {
               "type": "string"
             },
+            "scope": "machine"
+          },
+          "able.playwrightrepl.runtime.browser": {
+            "type": "string",
+            "description": "Browser type used by the Playwright REPL.",
+            "default": "chromium",
+            "enum": [
+              "chromium",
+              "firefox",
+              "webkit"
+            ],
+            "scope": "machine"
+          },
+          "able.playwrightrepl.runtime.channel": {
+            "type": "string",
+            "description": "Optional browser channel for Playwright launch.",
+            "default": "",
+            "scope": "machine"
+          },
+          "able.playwrightrepl.runtime.headless": {
+            "type": "boolean",
+            "description": "Whether Playwright launches in headless mode.",
+            "default": true,
+            "scope": "machine"
+          },
+          "able.playwrightrepl.runtime.executablePath": {
+            "type": "string",
+            "description": "Optional browser executable path for Playwright launch.",
+            "default": "",
+            "scope": "machine"
+          },
+          "able.playwrightrepl.runtime.timeoutMs": {
+            "type": "number",
+            "description": "Maximum execution time in milliseconds for one REPL cell.",
+            "default": 15000,
+            "minimum": 1000,
+            "scope": "machine"
+          },
+          "able.playwrightrepl.runtime.screenshotMaxBytes": {
+            "type": "number",
+            "description": "Maximum bytes allowed for a single screenshot.",
+            "default": 5242880,
+            "minimum": 1024,
+            "scope": "machine"
+          },
+          "able.playwrightrepl.runtime.screenshotTotalMaxBytes": {
+            "type": "number",
+            "description": "Maximum total screenshot bytes allowed in one REPL execution.",
+            "default": 10485760,
+            "minimum": 1024,
+            "scope": "machine"
+          },
+          "able.playwrightrepl.runtime.launchOptions": {
+            "type": "object",
+            "description": "Reserved for future launch options.",
+            "default": {},
+            "scope": "machine"
+          },
+          "able.playwrightrepl.runtime.contextOptions": {
+            "type": "object",
+            "description": "Reserved for future browser context options.",
+            "default": {},
+            "scope": "machine"
+          },
+          "able.playwrightrepl.runtime.networkPolicy": {
+            "type": "object",
+            "description": "Reserved for future network policy settings.",
+            "default": {},
             "scope": "machine"
           }
         }
