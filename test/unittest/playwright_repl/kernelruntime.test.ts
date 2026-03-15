@@ -67,6 +67,26 @@ suite('playwright repl kernel runtime guards', function () {
         assert.match(result.error, /timed out/i)
     })
 
+    test('supports top level await style code execution', async () => {
+        const harness = createKernelHarness(children)
+        const result = await harness.exec([
+            "const value = await Promise.resolve('ok')",
+            'return value',
+        ].join('\n'), 200)
+
+        assert.strictEqual(result.ok, true)
+        assert.strictEqual(result.value, 'ok')
+    })
+
+    test('captures top level await rejection as error result', async () => {
+        const harness = createKernelHarness(children)
+        const result = await harness.exec("await Promise.reject(new Error('boom'))", 200)
+
+        assert.strictEqual(result.ok, false)
+        assert.ok(result.error)
+        assert.match(result.error, /boom/i)
+    })
+
     test('hides require process module Buffer and queue APIs from global scope', async () => {
         const harness = createKernelHarness(children)
         const result = await harness.exec([
@@ -102,10 +122,58 @@ suite('playwright repl kernel runtime guards', function () {
         assert.ok(result.error)
         assert.match(result.error, /import is disabled in playwright repl/i)
     })
+
+    test('ignores non json protocol pollution and continues processing next exec', async () => {
+        const harness = createKernelHarness(children)
+        harness.sendRawLine('this is not json')
+
+        const result = await harness.exec("return 'ok'", 200)
+        assert.strictEqual(result.ok, true)
+        assert.strictEqual(result.value, 'ok')
+    })
+
+    test('reinitializes runtime state after reset', async () => {
+        const harness = createKernelHarness(children)
+        const beforeReset = await harness.exec([
+            'globalThis.persistedValue = 42',
+            'return String(globalThis.persistedValue)',
+        ].join('\n'), 200)
+        assert.strictEqual(beforeReset.ok, true)
+        assert.strictEqual(beforeReset.value, '42')
+
+        const resetResult = await harness.reset()
+        assert.strictEqual(resetResult.ok, true)
+
+        const afterReset = await harness.exec('return typeof globalThis.persistedValue', 200)
+        assert.strictEqual(afterReset.ok, true)
+        assert.strictEqual(afterReset.value, 'undefined')
+    })
+
+    test('exposes frozen pw api facade', async () => {
+        const harness = createKernelHarness(children)
+        const result = await harness.exec([
+            'return JSON.stringify({',
+            '  pw: Object.isFrozen(pw),',
+            '  page: Object.isFrozen(pw.page),',
+            '  context: Object.isFrozen(pw.context),',
+            '  helpers: Object.isFrozen(pw.helpers)',
+            '})',
+        ].join('\n'), 200)
+
+        assert.strictEqual(result.ok, true)
+        assert.strictEqual(result.value, JSON.stringify({
+            pw: true,
+            page: true,
+            context: true,
+            helpers: true,
+        }))
+    })
 })
 
 function createKernelHarness(children: ChildProcessWithoutNullStreams[]): {
     exec: (code: string, timeoutms?: number) => Promise<ExecResult>
+    reset: () => Promise<ExecResult>
+    sendRawLine: (line: string) => void
 } {
     const kernelPath = path.resolve(__dirname, '../../../src/playwright_repl/kernel.js')
     const child = spawn(process.execPath, [kernelPath], {
@@ -178,6 +246,17 @@ function createKernelHarness(children: ChildProcessWithoutNullStreams[]): {
                 code,
                 timeoutms,
             })
+        },
+        reset: () => {
+            const id = `reset-${String(sequence)}`
+            sequence += 1
+            return request({
+                type: 'reset',
+                id,
+            })
+        },
+        sendRawLine: (line: string) => {
+            child.stdin.write(`${line}\n`)
         },
     }
 }

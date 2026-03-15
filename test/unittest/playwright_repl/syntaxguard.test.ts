@@ -1,8 +1,12 @@
 import * as assert from 'node:assert'
-import { suite, test } from 'mocha'
-import { findFirstBannedSyntax } from '../../../src/playwright_repl/syntaxguard.js'
+import { suite, teardown, test } from 'mocha'
+import { findFirstBannedSyntax, forcesyntaxguardinitfailurefortest, restoresyntaxguardfortest } from '../../../src/playwright_repl/syntaxguard.js'
 
 suite('playwright repl syntax guard', () => {
+    teardown(() => {
+        restoresyntaxguardfortest()
+    })
+
     test('blocks import declaration', async () => {
         const violation = await findFirstBannedSyntax("import fs from 'node:fs'")
         assert.ok(violation)
@@ -54,5 +58,13 @@ suite('playwright repl syntax guard', () => {
         const violation = await findFirstBannedSyntax("setInterval('console.log(1)', 10)")
         assert.ok(violation)
         assert.strictEqual(violation.ruleid, 'timer.string')
+    })
+
+    test('fails closed when parser is unavailable', async () => {
+        forcesyntaxguardinitfailurefortest()
+
+        const violation = await findFirstBannedSyntax('const safe = 1')
+        assert.ok(violation)
+        assert.strictEqual(violation.ruleid, 'guard.init_failed')
     })
 })

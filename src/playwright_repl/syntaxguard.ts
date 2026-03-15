@@ -7,7 +7,7 @@ const javascriptLanguagePath = nodeRequire.resolve('@vscode/tree-sitter-wasm/was
 
 let parser: treeSitter.Parser | undefined
 
-const parserInitialization = ensureParserInitialized()
+let parserInitialization: Promise<void> = ensureParserInitialized()
 
 async function ensureParserInitialized(): Promise<void> {
     try {
@@ -56,6 +56,16 @@ export async function findFirstBannedSyntax(source: string): Promise<BannedSynta
     } finally {
         tree.delete()
     }
+}
+
+export function forcesyntaxguardinitfailurefortest(): void {
+    parser = undefined
+    parserInitialization = Promise.resolve()
+}
+
+export function restoresyntaxguardfortest(): void {
+    parser = undefined
+    parserInitialization = ensureParserInitialized()
 }
 
 function inspectNode(node: treeSitter.Node, source: string): BannedSyntaxViolation | undefined {

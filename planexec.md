@@ -10,9 +10,9 @@
 - able_run_in_sandbox では Playwright を実行できないため、実機確認が必要な場合は vscode_askQuestions でユーザーに実行依頼する
 
 ## 現在ステータス
-- 全体進捗: 30%
-- 現在フェーズ: Phase 1
-- 現在タスク: 最小 REPL 疎通の初期実装
+- 全体進捗: 73%
+- 現在フェーズ: Phase 6
+- 現在タスク: pw API freeze 回帰テスト追加
 - ブロッカー: なし
 - 最終更新日: 2026-03-15
 
@@ -37,7 +37,7 @@
 - [x] JavaScript parser 初期化の実装
 - [x] 禁止ルール query 実装
 - [x] 拒否レスポンス（rule_id, node_type, line/column, short_message）実装
-- [ ] fail-closed（検査不能時に拒否）実装
+- [x] fail-closed（検査不能時に拒否）実装
 
 ### Phase 3: ランタイム能力制限
 - [x] contextCodeGeneration.strings = false 適用
@@ -63,17 +63,17 @@
 
 ### Phase 6: テスト
 - [x] 単体: tree-sitter ルール検出
-- [ ] 単体: parser 初期化失敗時ハンドリング
+- [x] 単体: parser 初期化失敗時ハンドリング
 - [x] 単体: timeout リカバリ
 - [x] 単体: microtaskMode=afterEvaluate 回帰
-- [ ] 単体: top-level await セル実行
+- [x] 単体: top-level await セル実行
 - [ ] 結合: page 永続化
-- [ ] 結合: reset 再初期化
+- [x] 結合: reset 再初期化
 - [ ] 結合: screenshot 複数枚返却
 - [x] セキュリティ回帰: import/require/eval 拒否
 - [x] セキュリティ回帰: new Function 拒否
 - [x] セキュリティ回帰: setTimeout("...")/setInterval("...") 拒否
-- [ ] セキュリティ回帰: protocol 汚染入力拒否
+- [x] セキュリティ回帰: protocol 汚染入力拒否
 
 ## 実装ログ
 - 2026-03-15: 文書初期化。Phase 0 未着手。
@@ -85,8 +85,32 @@
 - 2026-03-15: dynamic import 実行拒否と process/module/Buffer 非公開化を検証する回帰テストを追加し、Phase 3 の能力制限項目を実装済みとして更新。
 - 2026-03-15: playwrightrepl_exec の失敗時エラー分類（runtime_guard/playwright_runtime/infrastructure）を実装し、分類関数の単体テストを追加。
 - 2026-03-15: kernel runtime テストは deterministic な timeout 系回帰（同期無限ループ / microtask 無限ループ）に絞って安定化。
+- 2026-03-15: kernel fallback（vm.Script）で Promise が未解決のままになる問題を修正。context 内マイクロタスクをポンプして top-level await 相当の結果を待機できるようにした。
+- 2026-03-15: Node v22 環境で dynamic import が vm の制約により kernel を異常終了させる問題を修正。実行前ガードで import() を拒否して通常のエラー応答を返すようにした。
+- 2026-03-15: kernel runtime に top-level await 実行の単体テストを追加し、Phase 6 の該当項目を完了に更新。
+- 2026-03-15: kernel へ非 JSON 行を送っても後続の exec が正常処理されることを確認する protocol 汚染耐性テストを追加。
+- 2026-03-15: syntax guard にテスト用フックを追加し、parser 不在時に guard.init_failed を返す fail-closed 回帰テストを追加。
+- 2026-03-15: timeout pragma の境界値（100/60000）と不正フォーマット（小数/単位付き/2 行目指定）の単体テストを追加。
+- 2026-03-15: screenshot バイト上限判定を純粋関数へ切り出し、単体で境界値（ちょうど上限 / 超過）を検証するテストを追加。
+- 2026-03-15: kernel runtime に top-level await の reject 経路テストを追加し、Promise rejection がエラー結果として返ることを確認。
+- 2026-03-15: kernel runtime に reset 後の状態初期化回帰テストを追加し、global 汚染が残らないことを確認。
+- 2026-03-15: kernel runtime に pw API facade（pw/page/context/helpers）が freeze 済みであることを確認する回帰テストを追加。
 
 ## 次アクション
-1. Phase 0 の成果物要点を確定する
-2. src/playwright_repl の最小構成を作成する
-3. test/unittest/playwright_repl の最小構成を作成する
+1. 結合: page 永続化テストの実装または実行手順の確立
+2. 結合: screenshot 複数枚返却の実行手順を確立する
+3. 結合: 実機での Playwright 回帰テスト実行依頼フローを運用する
+
+## 実機結合テスト実行フロー（Playwright 必須）
+1. VS Code のタスク `task-test-json` を実行する
+2. 実行結果 JSON から `playwright_repl` 配下の失敗テストを抽出する
+3. `page` 永続化シナリオを確認する
+	- 1 回目セルで `await pw.page.goto(...)` を実行
+	- 2 回目セルで `await pw.page.url()` を実行
+	- 遷移状態が維持されることを確認
+4. `reset` 再初期化シナリオを確認する
+	- `playwrightrepl_reset` 実行前後で page 状態が初期化されることを確認
+5. screenshot 複数枚返却シナリオを確認する
+	- 1 セル内で `pw.page.screenshot('png')` / `pw.page.screenshot('jpeg')` を複数回実行
+	- 返却配列件数と各 `bytes` が上限内であることを確認
+6. 不一致が出た場合は失敗ケースを `planexec.md` の実装ログに追記して修正を開始する

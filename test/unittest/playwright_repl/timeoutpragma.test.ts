@@ -22,4 +22,25 @@ suite('playwright repl timeout pragma', () => {
         const value = extractTimeoutOverrideMs('// playwrightrepl-timeout=70000')
         assert.strictEqual(value, undefined)
     })
+
+    test('accepts minimum and maximum boundary values', () => {
+        const minValue = extractTimeoutOverrideMs('// playwrightrepl-timeout=100')
+        const maxValue = extractTimeoutOverrideMs('// playwrightrepl-timeout=60000')
+
+        assert.strictEqual(minValue, 100)
+        assert.strictEqual(maxValue, 60000)
+    })
+
+    test('returns undefined when pragma is not in the first line', () => {
+        const value = extractTimeoutOverrideMs('await pw.page.title()\n// playwrightrepl-timeout=2500')
+        assert.strictEqual(value, undefined)
+    })
+
+    test('returns undefined for malformed pragma value', () => {
+        const decimalValue = extractTimeoutOverrideMs('// playwrightrepl-timeout=2500.5')
+        const suffixValue = extractTimeoutOverrideMs('// playwrightrepl-timeout=2500ms')
+
+        assert.strictEqual(decimalValue, undefined)
+        assert.strictEqual(suffixValue, undefined)
+    })
 })

@@ -4,6 +4,7 @@ import * as readline from 'node:readline'
 import { Browser, BrowserContext, chromium, firefox, LaunchOptions, Page, webkit } from 'playwright'
 import { LogOutputChannel } from 'vscode'
 import { PlaywrightReplExecRequest, PlaywrightReplExecResult, PlaywrightReplHostCallRequest, PlaywrightReplHostCallResult, PlaywrightReplHostToKernelMessage, PlaywrightReplKernelToHostMessage, PlaywrightReplResetRequest, PlaywrightReplScreenshot } from './protocol.js'
+import { accumulateScreenshotBytes } from './screenshotlimits.js'
 
 interface PendingExecution {
     resolve: (result: PlaywrightReplExecResult) => void
@@ -310,14 +311,12 @@ export class PlaywrightReplSession {
                     type: format,
                 })
                 const bytes = data.byteLength
-                if (bytes > runtimeConfig.screenshotmaxbytes) {
-                    throw new Error(`screenshot too large: ${String(bytes)} bytes`)
-                }
-
-                const totalBytes = this.currentExecutionScreenshotBytes + bytes
-                if (totalBytes > runtimeConfig.screenshottotalmaxbytes) {
-                    throw new Error(`total screenshot bytes exceeded: ${String(totalBytes)} bytes`)
-                }
+                const totalBytes = accumulateScreenshotBytes(
+                    this.currentExecutionScreenshotBytes,
+                    bytes,
+                    runtimeConfig.screenshotmaxbytes,
+                    runtimeConfig.screenshottotalmaxbytes,
+                )
 
                 const mimetype = format === 'png' ? 'image/png' : 'image/jpeg'
                 this.currentExecutionScreenshots.push({
