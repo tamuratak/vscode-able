@@ -33,6 +33,7 @@
   - 安定性: locator ベース操作や待機 API が不足
   - データ取得: DOM 評価系 API が不足
   - ネットワーク制御: route / response wait 系が不足
+  - セキュリティ: 外部ネットワークアクセスの既定拒否が未整備
   - デバッグ性: console/request イベント可視化が不足
 
 ## 2. Playwright docs との差分（根拠）
@@ -90,6 +91,14 @@
 ### P0（最優先）
 - able_playwrightrepl_exec の出力フォーマットを疑似 XML 化
 - 成功・失敗ともにタグ構造を統一
+- Playwright のネットワーク制限を導入
+  - 許可先ホストは `127.0.0.1` / `localhost` / `::1` のみ
+  - 許可スキームは `http` / `https` のみ
+  - 上記以外のアクセスは例外を投げて失敗にする
+- REPL 実行時の Node.js ネットワーク制限を導入
+  - `globalThis.fetch` 呼び出しを制限
+  - 可能な範囲で `node:http` / `node:https` 経由の outbound を制限
+  - 非許可先へのアクセス時は例外を投げて失敗にする
 - テスト更新
   - 文字列一致ではなくタグ存在と主要値を検証
 
@@ -115,5 +124,7 @@
 ## 6. 受け入れ条件
 - 疑似 XML タグを使った結果が LLM から安定利用できる
 - 既存の安全制約（syntax guard / runtime guard）を後退させない
+- Playwright の通信は `127.0.0.1` / `localhost` / `::1` への `http/https` のみに制限される
+- REPL からの `fetch` および `node:http` / `node:https` 通信は同一制約に従い、違反時は例外で失敗する
 - API 追加後も reset と timeout 回復が維持される
 - VS Code 統合テストで主要シナリオが通る

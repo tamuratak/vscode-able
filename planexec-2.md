@@ -58,6 +58,14 @@
 - [ ] page.waitforresponse の仕様を確定
 - [ ] page.evaluate の仕様を確定
 - [ ] context.route の仕様を確定
+- [ ] Playwright ネットワーク制限仕様を確定
+  - 許可先ホスト: `127.0.0.1` / `localhost` / `::1`
+  - 許可スキーム: `http` / `https`
+  - 非許可先アクセス時は例外を投げる
+- [ ] REPL Node.js ネットワーク制限仕様を確定
+  - `globalThis.fetch` を制限
+  - 可能な範囲で `node:http` / `node:https` を制限
+  - 非許可先アクセス時は例外を投げる
 - [ ] 各 API の入力型と戻り値型を定義
 - [ ] 各 API の timeout と retry 方針を定義
 - [ ] エラー分類マッピングを API ごとに定義
@@ -65,6 +73,7 @@
   - DoS リスク
   - 情報漏えいリスク
   - プロトコル汚染リスク
+  - ネットワークエグレス制御の迂回リスク
 - [ ] Phase C 完了条件を満たしたことを記録
   - API ごとの制約が文書化されている
   - セキュリティレビュー結果がログ化されている
@@ -89,8 +98,11 @@
 - 2026-03-15: [src/playwright_repl/kernel.ts](src/playwright_repl/kernel.ts) と [src/playwright_repl/tool.ts](src/playwright_repl/tool.ts) を調査し、`value: undefined` は async IIFE の戻り値仕様由来であることを確認。
 - 2026-03-15: ユーザー確認により、value は固定サマリー運用、LLM 利用値は疑似 XML タグで返す方針を採用。
 - 2026-03-15: [plan-2.md](plan-2.md) と [planexec-2.md](planexec-2.md) を初版作成。
+- 2026-03-15: ユーザー確認により、ネットワーク制限方針を確定（許可先: `127.0.0.1` / `localhost` / `::1`、スキーム: `http/https`、非許可先は例外）。
+- 2026-03-15: ユーザー確認により、REPL 側は `globalThis.fetch` に加えて可能な範囲で `node:http` / `node:https` も制限する方針を採用。
 
 ## 4. 次アクション
 1. Phase B の「成功時タグセット」「失敗時タグセット」を先に確定する
-2. Phase C の 4 API で引数・戻り値・エラー分類を表形式で固める
-3. Phase D で既存 assertion の置換対象をファイル単位で列挙する
+2. Phase C でネットワーク制限（Playwright / REPL fetch / node:http / node:https）の仕様を先に固定する
+3. Phase C の API で引数・戻り値・エラー分類を表形式で固める
+4. Phase D で既存 assertion の置換対象をファイル単位で列挙する
