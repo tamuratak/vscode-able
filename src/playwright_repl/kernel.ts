@@ -1,5 +1,6 @@
 import * as readline from 'node:readline'
 import { inspect } from 'node:util'
+import { isPromise } from 'node:util/types'
 import * as vm from 'node:vm'
 import { PlaywrightReplExecRequest, PlaywrightReplHostCallRequest, PlaywrightReplHostCallResult, PlaywrightReplHostToKernelMessage, PlaywrightReplKernelToHostMessage, PlaywrightReplResetRequest } from './protocol.js'
 
@@ -11,6 +12,8 @@ interface PendingHostCall {
 let callCounter = 0
 const pendingHostCalls = new Map<string, PendingHostCall>()
 let sandbox = createSandbox()
+const noopScript = new vm.Script('undefined')
+const dynamicImportPattern = /\bimport\s*\(/u
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -85,14 +88,80 @@ async function runWrappedCode(wrappedCode: string, context: vm.Context, timeoutm
         return Reflect.get(module.namespace, 'default')
     }
 
+    if (containsDynamicImport(wrappedCode)) {
+        throw new Error('import is disabled in playwright repl')
+    }
+
     const script = new vm.Script(wrappedCode, {
         filename: 'playwrightreplcell.js',
         importModuleDynamically: rejectImportDynamically,
     })
 
-    return script.runInContext(context, {
+    // node:vm currently types runInContext return value as any.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const scriptResult = script.runInContext(context, {
         timeout: timeoutms,
     })
+
+    return resolveScriptResult(scriptResult, context, timeoutms)
+}
+
+function resolveScriptResult(value: unknown, context: vm.Context, timeoutms: number): unknown {
+    if (!isPromiseLike(value)) {
+        return value
+    }
+
+    return waitForContextPromise(value, context, timeoutms)
+}
+
+async function waitForContextPromise(promise: Promise<unknown>, context: vm.Context, timeoutms: number): Promise<unknown> {
+    let settled = false
+    let rejected = false
+    let settledValue: unknown = undefined
+    let settledError: unknown = undefined
+
+    promise.then((value) => {
+        settled = true
+        settledValue = value
+    }, (error) => {
+        settled = true
+        rejected = true
+        settledError = error
+    })
+
+    const deadline = Date.now() + timeoutms
+
+    while (!settled) {
+        const remaining = deadline - Date.now()
+        if (remaining <= 0) {
+            throw new Error(`Script execution timed out after ${String(timeoutms)}ms`)
+        }
+
+        noopScript.runInContext(context, {
+            timeout: remaining,
+        })
+        await waitForHostTurn()
+    }
+
+    if (rejected) {
+        throw settledError
+    }
+
+    return settledValue
+}
+
+function waitForHostTurn(): Promise<void> {
+    return new Promise<void>((resolve) => {
+        setImmediate(resolve)
+    })
+}
+
+function containsDynamicImport(source: string): boolean {
+    return dynamicImportPattern.test(source)
+}
+
+function isPromiseLike(value: unknown): value is Promise<unknown> {
+    return isPromise(value)
 }
 
 function rejectImportLinker(): never {
