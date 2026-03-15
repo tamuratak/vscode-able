@@ -1,4 +1,6 @@
 import { match, ok, strictEqual } from 'node:assert'
+import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
+import * as path from 'node:path'
 import * as vscode from 'vscode'
 import { renderToolResult } from '../../../src/utils/toolresultrendering.js'
 
@@ -32,7 +34,63 @@ async function invokeReset() {
     })
 }
 
+const testServerUrl = 'http://127.0.0.1:4173'
+let testServerProcess: ChildProcessWithoutNullStreams | undefined
+
+async function waitForServerReady(url: string, timeoutMs: number): Promise<void> {
+    const deadline = Date.now() + timeoutMs
+
+    while (Date.now() < deadline) {
+        try {
+            const response = await fetch(url)
+            if (response.ok) {
+                return
+            }
+        } catch {
+            // ignore and retry until timeout
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 100))
+    }
+
+    throw new Error(`test server was not ready within ${String(timeoutMs)}ms`)
+}
+
+async function startTestServer(): Promise<void> {
+    if (testServerProcess) {
+        return
+    }
+
+    const scriptPath = path.resolve(__dirname, '../../../../dev/playwright_repl_test/server.cjs')
+    testServerProcess = spawn(process.execPath, [scriptPath], {
+        stdio: 'pipe',
+    })
+
+    await waitForServerReady(`${testServerUrl}/health`, 7000)
+}
+
+async function stopTestServer(): Promise<void> {
+    const current = testServerProcess
+    if (!current) {
+        return
+    }
+
+    await new Promise<void>((resolve) => {
+        current.once('exit', () => resolve())
+        current.kill('SIGTERM')
+    })
+
+    testServerProcess = undefined
+}
+
 suite('Playwright Repl VS Code Integration Test', () => {
+    suiteSetup(async () => {
+        await startTestServer()
+    })
+
+    suiteTeardown(async () => {
+        await stopTestServer()
+    })
+
     setup(async () => {
         await invokeReset()
     })
@@ -79,6 +137,19 @@ suite('Playwright Repl VS Code Integration Test', () => {
         const rendered = await renderToolResult(result)
         ok(result.content.length >= 1)
         match(rendered, /screenshots: 1/)
+    })
+
+    test('can navigate to local test server page', async () => {
+        const result = await invokeExec([
+            `await pw.page.goto('${testServerUrl}/')`,
+            "const heading = await pw.page.textcontent('h1')",
+            "if (heading !== 'Playwright Test Page') {",
+            '  throw new Error(`unexpected heading: ${heading}`)',
+            '}',
+        ].join('\n'))
+
+        const rendered = await renderToolResult(result)
+        match(rendered, /ok: true/)
     })
 
     test('syntax guard rejection returns structured message', async () => {
