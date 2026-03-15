@@ -49,4 +49,10 @@ suite('playwright repl syntax guard', () => {
         assert.ok(violation)
         assert.strictEqual(violation.ruleid, 'timer.string')
     })
+
+    test('blocks string interval argument', async () => {
+        const violation = await findFirstBannedSyntax("setInterval('console.log(1)', 10)")
+        assert.ok(violation)
+        assert.strictEqual(violation.ruleid, 'timer.string')
+    })
 })

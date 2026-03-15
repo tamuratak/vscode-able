@@ -3,6 +3,7 @@ import { CancellationToken, LanguageModelTextPart, LanguageModelTool, LanguageMo
 import { findFirstBannedSyntax } from './syntaxguard.js'
 import { PlaywrightReplRuntimeConfig, PlaywrightReplSession } from './session.js'
 import { extractTimeoutOverrideMs } from './timeoutpragma.js'
+import { classifyExecutionError } from './errorclassify.js'
 
 export interface PlaywrightReplExecInput {
     code: string
@@ -52,7 +53,19 @@ export class PlaywrightReplExecTool implements LanguageModelTool<PlaywrightReplE
             return new LanguageModelToolResult([new LanguageModelTextPart(errorText)])
         }
 
-        const result = await this.session.exec(code, timeoutOverrideMs)
+        let result
+        try {
+            result = await this.session.exec(code, timeoutOverrideMs)
+        } catch (error) {
+            const message = toErrorMessage(error)
+            const classification = classifyExecutionError(message)
+            const errorText = [
+                `error_class: ${classification}`,
+                `message: ${message}`,
+            ].join('\n')
+            return new LanguageModelToolResult([new LanguageModelTextPart(errorText)])
+        }
+
         const summaryLines = [
             `ok: ${String(result.ok)}`,
             `value: ${result.value}`,
@@ -67,6 +80,13 @@ export class PlaywrightReplExecTool implements LanguageModelTool<PlaywrightReplE
 
         return new LanguageModelToolResult(parts)
     }
+}
+
+function toErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message
+    }
+    return String(error)
 }
 
 export class PlaywrightReplResetTool implements LanguageModelTool<PlaywrightReplResetInput> {

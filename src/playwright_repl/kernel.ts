@@ -52,16 +52,7 @@ async function onExec(message: PlaywrightReplExecRequest): Promise<void> {
 
     try {
         const wrapped = `(async () => {\n${message.code}\n})()`
-        const script = new vm.Script(wrapped, {
-            filename: 'playwrightreplcell.js',
-            importModuleDynamically: () => {
-                throw new Error('import is disabled in playwright repl')
-            },
-        })
-
-        const value = stringifyValue(await script.runInContext(sandbox.context, {
-            timeout: message.timeoutms,
-        }))
+        const value = stringifyValue(await runWrappedCode(wrapped, sandbox.context, message.timeoutms))
 
         writeLine({
             type: 'result',
@@ -79,6 +70,37 @@ async function onExec(message: PlaywrightReplExecRequest): Promise<void> {
             logs,
         })
     }
+}
+
+async function runWrappedCode(wrappedCode: string, context: vm.Context, timeoutms: number): Promise<unknown> {
+    if (typeof vm.SourceTextModule === 'function') {
+        const module = new vm.SourceTextModule(`export default await ${wrappedCode}`, {
+            context,
+            identifier: 'playwrightreplcell.mjs',
+            importModuleDynamically: rejectImportDynamically,
+        })
+
+        await module.link(rejectImportLinker)
+        await module.evaluate({ timeout: timeoutms })
+        return Reflect.get(module.namespace, 'default')
+    }
+
+    const script = new vm.Script(wrappedCode, {
+        filename: 'playwrightreplcell.js',
+        importModuleDynamically: rejectImportDynamically,
+    })
+
+    return script.runInContext(context, {
+        timeout: timeoutms,
+    })
+}
+
+function rejectImportLinker(): never {
+    throw new Error('import is disabled in playwright repl')
+}
+
+function rejectImportDynamically(): never {
+    throw new Error('import is disabled in playwright repl')
 }
 
 function onHostCallResult(message: PlaywrightReplHostCallResult): void {
@@ -153,10 +175,10 @@ function createSandbox(): {
     const globalObject = {
         console: consoleApi,
         pw: pwApi,
+        queueMicrotask: undefined,
         setTimeout: undefined,
         setInterval: undefined,
         setImmediate: undefined,
-        queueMicrotask: undefined,
         require: undefined,
         process: undefined,
         module: undefined,
