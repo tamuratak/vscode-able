@@ -1,5 +1,12 @@
 # Playwright REPL 実装計画（Seatbelt 非採用 / Node v22 / macOS 前提）
 
+## 0. 文書運用ルール
+- 本実装中は plan.md を静的マスターとして扱う
+- planexec.md を living doc として扱い、タスク開始/完了のたびに更新する
+- 実装コードは src/playwright_repl 以下に配置する
+- テストコードは test/unittest/playwright_repl 以下に配置する
+- able_run_in_sandbox ツールでは Playwright を実行できないため、実機確認が必要な場合は vscode_askQuestions でユーザーに実行依頼する
+
 ## 1. 目的
 - OpenAI Codex CLI の js_repl をそのまま移植せず、Playwright 専用 REPL を実装する
 - LLM がブラウザ起動 API を直接呼べない構造を維持する
