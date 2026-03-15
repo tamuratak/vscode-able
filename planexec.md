@@ -7,13 +7,14 @@
 - この文書はタスク開始/完了のたびに更新する
 - 実装コードは src/playwright_repl 以下に追加する
 - テストコードは test/unittest/playwright_repl 以下に追加する
+- VS Code 本体を使う統合テストは test/vscodeunittest/playwright_repl 以下に追加する
 - able_run_in_sandbox では Playwright を実行できないため、実機確認が必要な場合は vscode_askQuestions でユーザーに実行依頼する
 
 ## 現在ステータス
 - 全体進捗: 96%
-- 現在フェーズ: Phase 6（実機確認フェーズ）
-- 現在タスク: ユーザー実機確認結果待ち
-- ブロッカー: Playwright 実機実行はユーザー環境操作待ち
+- 現在フェーズ: Phase 6（VS Code 統合テスト追記フェーズ）
+- 現在タスク: VS Code 統合テスト実装完了、ユーザー実行結果待ち
+- ブロッカー: Playwright 実行を伴う統合テストの実行結果が未取得
 - 最終更新日: 2026-03-15
 
 ## フェーズ別チェックリスト
@@ -74,6 +75,11 @@
 - [x] セキュリティ回帰: new Function 拒否
 - [x] セキュリティ回帰: setTimeout("...")/setInterval("...") 拒否
 - [x] セキュリティ回帰: protocol 汚染入力拒否
+- [ ] VS Code 統合: able_playwrightrepl_exec の基本成功ケース
+- [ ] VS Code 統合: 複数 exec 呼び出しで page 状態が維持されること
+- [ ] VS Code 統合: able_playwrightrepl_reset 後に状態が初期化されること
+- [ ] VS Code 統合: screenshot が data part として返却されること
+- [ ] VS Code 統合: syntax guard 拒否時に構造化メッセージが返ること
 
 ## 実装ログ
 - 2026-03-15: 文書初期化。Phase 0 未着手。
@@ -99,9 +105,14 @@
 - 2026-03-15: kernel runtime に 1 セル内の複数 screenshot 呼び出し回帰テストを追加し、png/jpeg の連続呼び出しが成功することを確認。
 - 2026-03-15: `task-test-json` を実行。削除済みテストの `out` 残骸を除去後、`playwright_repl` 系を含むテスト群の実行を確認。
 - 2026-03-15: 実機回帰（page 永続化 / reset / screenshot 複数枚）はユーザー側で後実行となったため、結果受領待ちに移行。
+- 2026-03-15: ユーザー依頼により、VS Code 本体を使う Playwright REPL 統合テストの追加に着手。対象を test/vscodeunittest/playwright_repl/playwright_repl.test.ts に固定。
+- 2026-03-15: test/vscodeunittest/playwright_repl/playwright_repl.test.ts に VS Code 統合テストを実装（exec 成功 / page 状態維持 / reset 初期化 / screenshot data part / syntax guard 構造化エラー）。実行はユーザー側で実施予定。
+- 2026-03-15: VS Code 統合テストに失敗系を追加（runtime error の error_class 検証、reset ツール返却メッセージ検証）。
+- 2026-03-15: VS Code 統合テストに unsupported screenshot format の分類検証（playwright_runtime）を追加。
 
 ## 次アクション
-1. 結合: 実機での Playwright 回帰テスト実行依頼フローを運用する
+1. ユーザーに task-test-json 実行を依頼し、vscodeunittest/playwright_repl の結果を確認する
+2. 失敗時は失敗ケースを planexec.md の実装ログへ追記し、最小差分で修正する
 
 ## 実機結合テスト実行フロー（Playwright 必須）
 1. VS Code のタスク `task-test-json` を実行する
