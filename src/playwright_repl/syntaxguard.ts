@@ -1,8 +1,8 @@
 import { createRequire } from 'node:module'
 import treeSitter from '#vscode-tree-sitter-wasm'
+import { treeSitterParserInit } from '../treesitterinit.js'
 
 const nodeRequire = createRequire(__filename)
-const treeSitterWasmPath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter.wasm')
 const javascriptLanguagePath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter-javascript.wasm')
 
 let parser: treeSitter.Parser | undefined
@@ -10,10 +10,14 @@ let parser: treeSitter.Parser | undefined
 const parserInitialization = ensureParserInitialized()
 
 async function ensureParserInitialized(): Promise<void> {
-    await treeSitter.Parser.init({ locateFile: () => treeSitterWasmPath })
-    const language = await treeSitter.Language.load(javascriptLanguagePath)
-    parser = new treeSitter.Parser()
-    parser.setLanguage(language)
+    try {
+        await treeSitterParserInit.promise
+        const language = await treeSitter.Language.load(javascriptLanguagePath)
+        parser = new treeSitter.Parser()
+        parser.setLanguage(language)
+    } catch (error) {
+        console.error('Failed to initialize syntax guard:', error)
+    }
 }
 
 export interface BannedSyntaxViolation {

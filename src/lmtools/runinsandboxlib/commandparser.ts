@@ -1,9 +1,9 @@
-
 import { createRequire } from 'node:module'
 import treeSitter from '#vscode-tree-sitter-wasm'
+import { treeSitterParserInit } from '../../treesitterinit.js'
 
 const nodeRequire = createRequire(__filename)
-const treeSitterWasmPath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter.wasm')
+// const treeSitterWasmPath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter.wasm')
 const bashLanguagePath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter-bash.wasm')
 const commandQuerySource = `(command
     name: (command_name (word)) @cmd_name
@@ -20,11 +20,15 @@ let bashLanguage: treeSitter.Language | undefined
 const parserInitialization = ensureParserInitialized()
 
 async function ensureParserInitialized(): Promise<void> {
-    await treeSitter.Parser.init({ locateFile: () => treeSitterWasmPath })
-    bashLanguage = await treeSitter.Language.load(bashLanguagePath)
-    parser = new treeSitter.Parser()
-    parser.setLanguage(bashLanguage)
-    commandQuery = new treeSitter.Query(bashLanguage, commandQuerySource)
+    try {
+        await treeSitterParserInit.promise
+        bashLanguage = await treeSitter.Language.load(bashLanguagePath)
+        parser = new treeSitter.Parser()
+        parser.setLanguage(bashLanguage)
+        commandQuery = new treeSitter.Query(bashLanguage, commandQuerySource)
+    } catch (error) {
+        console.error('Failed to initialize command parser:', error)
+    }
 }
 
 export interface CommandNode {
