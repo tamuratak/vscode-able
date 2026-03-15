@@ -6,7 +6,7 @@
 - All file names should be in lowercase.
 - All file names should not include hyphens, spaces, nor underscores.
 - After editing files, you don't have to run tests. But if you want, please run the `task-test-json` task using the `run_task` tool. Don't run `npm run test` directly.
-- When calling the `get_errors` tool, specify an empty array for `filePaths` to always retrieve all errors.
+- When calling the `get_errors` tool, specify `['/Users/tamura/src/github/vscode-able']` for `filePaths` to always retrieve all errors.
 - We use Mocha's TDD interface as the test framework. `suite`, `test`, `setup`, `teardown` can be used for defining tests.
 - We use `node:assert` for assertions in tests.
 
@@ -24,3 +24,4 @@ Please refer to the following instructions only when generating the code. Ignore
 - Never use `as unknown` or assertions that assert to `unknown`
 - Never define function parameters or callbacks with type `unknown`
 - Always use explicit union types or constrained generics instead of `unknown`
+- Once implementation is complete, use the `vscode_askQuestions` tool to ask the user if they want the agent to continue implementing, and repeat this process until they say no.

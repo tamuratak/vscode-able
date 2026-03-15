@@ -27,6 +27,21 @@ interface ExecResult {
     logs: readonly string[]
 }
 
+interface PwCallRequest {
+    type: 'pwcall'
+    id: string
+    method: string
+    args: readonly string[]
+}
+
+interface PwCallResult {
+    type: 'pwresult'
+    id: string
+    ok: boolean
+    value?: string
+    error?: string
+}
+
 // eslint-disable-next-line
 suite('playwright repl kernel runtime guards', function () {
     const children: ChildProcessWithoutNullStreams[] = []
@@ -168,6 +183,45 @@ suite('playwright repl kernel runtime guards', function () {
             helpers: true,
         }))
     })
+
+    test('keeps page state across multiple exec calls', async () => {
+        const harness = createKernelHarness(children)
+
+        const first = await harness.exec("await pw.page.goto('https://example.com/first')\nreturn 'ok'", 200)
+        assert.strictEqual(first.ok, true)
+        assert.strictEqual(first.value, 'ok')
+
+        const second = await harness.exec('return await pw.page.url()', 200)
+        assert.strictEqual(second.ok, true)
+        assert.strictEqual(second.value, 'https://example.com/first')
+    })
+
+    test('keeps page handle usable after a failed cell', async () => {
+        const harness = createKernelHarness(children)
+
+        const prepare = await harness.exec("await pw.page.goto('https://example.com/stable')\nreturn 'ready'", 200)
+        assert.strictEqual(prepare.ok, true)
+
+        const failed = await harness.exec("throw new Error('intentional failure')", 200)
+        assert.strictEqual(failed.ok, false)
+
+        const after = await harness.exec('return await pw.page.url()', 200)
+        assert.strictEqual(after.ok, true)
+        assert.strictEqual(after.value, 'https://example.com/stable')
+    })
+
+    test('supports multiple screenshot calls in a single cell', async () => {
+        const harness = createKernelHarness(children)
+
+        const result = await harness.exec([
+            "const first = await pw.page.screenshot('png')",
+            "const second = await pw.page.screenshot('jpeg')",
+            'return `${first}|${second}`',
+        ].join('\n'), 200)
+
+        assert.strictEqual(result.ok, true)
+        assert.strictEqual(result.value, 'captured image/png (16 bytes)|captured image/jpeg (16 bytes)')
+    })
 })
 
 function createKernelHarness(children: ChildProcessWithoutNullStreams[]): {
@@ -190,11 +244,22 @@ function createKernelHarness(children: ChildProcessWithoutNullStreams[]): {
         input: child.stdout,
         crlfDelay: Infinity,
     })
+
+    const state = {
+        currentUrl: 'about:blank',
+    }
+
     lineReader.on('line', (line) => {
-        const parsed = parseKernelResult(line)
+        const parsed = parseKernelMessage(line)
         if (!parsed) {
             return
         }
+        if (parsed.type === 'pwcall') {
+            const response = handlePwCall(parsed, state)
+            child.stdin.write(`${JSON.stringify(response)}\n`)
+            return
+        }
+
         const waiter = pending.get(parsed.id)
         if (!waiter) {
             return
@@ -261,10 +326,28 @@ function createKernelHarness(children: ChildProcessWithoutNullStreams[]): {
     }
 }
 
-function parseKernelResult(line: string): ExecResult | undefined {
+function parseKernelMessage(line: string): ExecResult | PwCallRequest | undefined {
     try {
         const parsed = JSON.parse(line) as Record<string, unknown>
         const type = parsed['type']
+
+        if (type === 'pwcall') {
+            const id = parsed['id']
+            const method = parsed['method']
+            const args = parsed['args']
+
+            if (typeof id !== 'string' || typeof method !== 'string' || !isStringArray(args)) {
+                return undefined
+            }
+
+            return {
+                type: 'pwcall',
+                id,
+                method,
+                args,
+            }
+        }
+
         const id = parsed['id']
         const ok = parsed['ok']
         const logs = parsed['logs']
@@ -294,6 +377,46 @@ function parseKernelResult(line: string): ExecResult | undefined {
         return result
     } catch {
         return undefined
+    }
+}
+
+function handlePwCall(request: PwCallRequest, state: { currentUrl: string }): PwCallResult {
+    if (request.method === 'page.goto') {
+        const [url] = request.args
+        state.currentUrl = url
+        return {
+            type: 'pwresult',
+            id: request.id,
+            ok: true,
+            value: state.currentUrl,
+        }
+    }
+
+    if (request.method === 'page.url') {
+        return {
+            type: 'pwresult',
+            id: request.id,
+            ok: true,
+            value: state.currentUrl,
+        }
+    }
+
+    if (request.method === 'page.screenshot') {
+        const [format] = request.args
+        const mimetype = format === 'jpeg' ? 'image/jpeg' : 'image/png'
+        return {
+            type: 'pwresult',
+            id: request.id,
+            ok: true,
+            value: `captured ${mimetype} (16 bytes)`,
+        }
+    }
+
+    return {
+        type: 'pwresult',
+        id: request.id,
+        ok: false,
+        error: `unsupported method in test harness: ${request.method}`,
     }
 }
 

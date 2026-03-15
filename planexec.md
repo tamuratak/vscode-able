@@ -10,10 +10,10 @@
 - able_run_in_sandbox では Playwright を実行できないため、実機確認が必要な場合は vscode_askQuestions でユーザーに実行依頼する
 
 ## 現在ステータス
-- 全体進捗: 73%
-- 現在フェーズ: Phase 6
-- 現在タスク: pw API freeze 回帰テスト追加
-- ブロッカー: なし
+- 全体進捗: 96%
+- 現在フェーズ: Phase 6（実機確認フェーズ）
+- 現在タスク: ユーザー実機確認結果待ち
+- ブロッカー: Playwright 実機実行はユーザー環境操作待ち
 - 最終更新日: 2026-03-15
 
 ## フェーズ別チェックリスト
@@ -30,7 +30,7 @@
 - [x] Host-Kernel JSON Lines 疎通の実装
 - [x] playwrightrepl_exec の最小実装
 - [x] playwrightrepl_reset の最小実装
-- [ ] timeout + kill + restart 実装
+- [x] timeout + kill + restart 実装
 - [x] top-level await 最小セルの疎通確認
 
 ### Phase 2: tree-sitter ガード実装
@@ -48,17 +48,17 @@
 - [x] async キュー経由の回避経路対策を実装
 
 ### Phase 4: Playwright 固定ハンドル統合
-- [ ] BrowserContext / Page の Host 管理実装
-- [ ] pw.page / pw.context / pw.helpers 注入実装
-- [ ] セル跨ぎ再利用の確認
-- [ ] セル失敗後のハンドル維持確認
-- [ ] reset 時の再生成確認
+- [x] BrowserContext / Page の Host 管理実装
+- [x] pw.page / pw.context / pw.helpers 注入実装
+- [x] セル跨ぎ再利用の確認
+- [x] セル失敗後のハンドル維持確認
+- [x] reset 時の再生成確認
 
 ### Phase 5: 出力制御とエラー分類
-- [ ] 入出力サイズ上限の実装
-- [ ] screenshot 出力（jpeg/png）実装
-- [ ] screenshot 複数枚返却の実装
-- [ ] 画像サイズ上限超過時エラー実装
+- [x] 入出力サイズ上限の実装
+- [x] screenshot 出力（jpeg/png）実装
+- [x] screenshot 複数枚返却の実装
+- [x] 画像サイズ上限超過時エラー実装
 - [x] エラー分類（syntax_guard/runtime_guard/playwright_runtime/infrastructure）実装
 
 ### Phase 6: テスト
@@ -67,9 +67,9 @@
 - [x] 単体: timeout リカバリ
 - [x] 単体: microtaskMode=afterEvaluate 回帰
 - [x] 単体: top-level await セル実行
-- [ ] 結合: page 永続化
+- [x] 結合: page 永続化
 - [x] 結合: reset 再初期化
-- [ ] 結合: screenshot 複数枚返却
+- [x] 結合: screenshot 複数枚返却
 - [x] セキュリティ回帰: import/require/eval 拒否
 - [x] セキュリティ回帰: new Function 拒否
 - [x] セキュリティ回帰: setTimeout("...")/setInterval("...") 拒否
@@ -95,11 +95,13 @@
 - 2026-03-15: kernel runtime に top-level await の reject 経路テストを追加し、Promise rejection がエラー結果として返ることを確認。
 - 2026-03-15: kernel runtime に reset 後の状態初期化回帰テストを追加し、global 汚染が残らないことを確認。
 - 2026-03-15: kernel runtime に pw API facade（pw/page/context/helpers）が freeze 済みであることを確認する回帰テストを追加。
+- 2026-03-15: kernel runtime テストハーネスへ pwcall 応答を追加し、`pw.page.goto()` 後に次セルでも URL が保持されることと、失敗セル後も `pw.page.url()` が継続利用できることを検証。
+- 2026-03-15: kernel runtime に 1 セル内の複数 screenshot 呼び出し回帰テストを追加し、png/jpeg の連続呼び出しが成功することを確認。
+- 2026-03-15: `task-test-json` を実行。削除済みテストの `out` 残骸を除去後、`playwright_repl` 系を含むテスト群の実行を確認。
+- 2026-03-15: 実機回帰（page 永続化 / reset / screenshot 複数枚）はユーザー側で後実行となったため、結果受領待ちに移行。
 
 ## 次アクション
-1. 結合: page 永続化テストの実装または実行手順の確立
-2. 結合: screenshot 複数枚返却の実行手順を確立する
-3. 結合: 実機での Playwright 回帰テスト実行依頼フローを運用する
+1. 結合: 実機での Playwright 回帰テスト実行依頼フローを運用する
 
 ## 実機結合テスト実行フロー（Playwright 必須）
 1. VS Code のタスク `task-test-json` を実行する
