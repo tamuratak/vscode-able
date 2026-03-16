@@ -1,3 +1,32 @@
+# vscodeunittest Playwright REPL 統合テスト計画（2026-03-17）
+
+## 目的
+
+- [test/vscodeunittest/playwright_repl](test/vscodeunittest/playwright_repl) に Playwright REPL の統合テストを追加する
+- VS Code 統合テスト環境で `PlaywrightReplTool` を直接 `invoke` し、実ブラウザ実行を含む動作を確認する
+- 最低 10 ケースを追加し、基本動作・エラー・セッション継続・reset を検証する
+
+## 事前合意（ユーザー確認済み）
+
+- 統合テスト範囲は「ツール実行まで必須」
+- 環境依存を許容し、実ブラウザ実行の成否も検証する
+- 最低ケース数は 10
+- 実行経路は Chat 経路ではなく、統合テスト内で `PlaywrightReplTool` の直接 `invoke` でよい
+- URL は `127.0.0.1` 指定を受け、ユーザー起動サーバー `http://127.0.0.1:3000` を使用する
+
+## 実装方針
+
+1. [test/vscodeunittest/playwright_repl](test/vscodeunittest/playwright_repl) に新規テストファイルを追加する
+2. ユーザーが起動する Node HTTP サーバー（固定 URL: `http://127.0.0.1:3000`）を用意し、`pw.goto` / `pw.text` / `pw.click` / `pw.fill` / `pw.screenshot` を検証する
+3. `PlaywrightReplResetTool` を使った session reset も検証する
+4. 失敗系（空コード、network deny）も含めて 10 ケース以上を満たす
+5. 実装後に `get_errors` で全体エラーを確認して修正する
+
+## 非目標
+
+- Chat UI からの end-to-end 呼び出し
+- 外部インターネットに依存したページ検証
+
 # Playwright 専用 js_repl 実装計画（改訂）
 
 ## 0. ドキュメント運用ルール

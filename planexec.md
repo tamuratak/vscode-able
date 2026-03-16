@@ -1,3 +1,30 @@
+# Playwright REPL vscodeunittest 実装実行ログ（2026-03-17）
+
+## ステータス
+
+- 現在フェーズ: フェーズ B（統合テスト実装）実施中
+- 実装順序: plan.md / planexec.md 更新 -> テスト追加 -> エラー修正 -> ユーザー確認ループ
+
+## 実装チェックリスト
+
+- [x] 不明点を vscode_askQuestions で解消
+- [x] plan.md を今回タスク向けに更新
+- [x] planexec.md を今回タスク向けに更新
+- [x] [test/vscodeunittest/playwright_repl](test/vscodeunittest/playwright_repl) に統合テストを追加
+- [ ] テストケース 10 件以上を実装
+- [ ] get_errors で全体確認し、必要修正
+- [ ] ユーザーに不満点ヒアリングして修正ループ
+- [ ] ユーザーにテスト実行結果を確認して修正ループ
+- [ ] 実装継続可否の最終確認
+
+## 実装メモ
+
+- 対象 URL はユーザー起動サーバー `http://127.0.0.1:3000`
+- 統合テストでは `PlaywrightReplTool` を直接 `invoke` する
+- 実ブラウザ実行を含める（環境依存許容）
+- テスト内でサーバーを起動しない方針に変更
+- [test/vscodeunittest/playwright_repl/server.ts](test/vscodeunittest/playwright_repl/server.ts) を追加
+
 # Playwright REPL 実行計画（living doc）
 
 ## 1. 位置づけ
