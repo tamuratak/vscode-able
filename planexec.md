@@ -1,0 +1,92 @@
+# Playwright REPL 実行計画（living doc）
+
+## 1. 位置づけ
+
+- 本ドキュメントは実装中に更新し続ける living doc
+- 要件と設計の静的マスターは plan.md
+- 実装中の進捗、判断、逸脱、リスクは本書に記録する
+
+## 2. 固定方針（plan.md から継承）
+
+- ツール名: able_playwright_repl / able_playwright_repl_reset
+- top level await を採用する
+- screenshot は初期フェーズから実装する
+- ネットワークはデフォルト拒否
+- 主防御は別プロセス、vm2 は第二防御層
+
+## 3. 実装配置
+
+- 実装ディレクトリ: src/playwright_repl
+- テストディレクトリ: test/unittest/playwright_repl
+
+想定ファイル:
+
+- src/playwright_repl/playwrightrepltool.ts
+- src/playwright_repl/playwrightrunner.ts
+- test/unittest/playwright_repl/playwrightrepltool.test.ts
+- test/unittest/playwright_repl/playwrightrunner.test.ts
+
+## 4. フェーズ進行管理
+
+### フェーズ 1: 骨格
+
+- 状態: TODO
+- 完了条件:
+  - tool クラスと runner エントリが作成済み
+  - main.ts / package.json の登録方針が確定
+
+### フェーズ 2: 実行基盤
+
+- 状態: TODO
+- 完了条件:
+  - child_process 起動とセッション再利用
+  - NDJSON 通信
+  - timeout/cancel 時の kill
+  - reset 実装
+  - top level await 実行
+
+### フェーズ 3: Playwright ラッパー
+
+- 状態: TODO
+- 完了条件:
+  - browser/context/page ライフサイクル管理
+  - pw 最小 API 実装
+  - browserType/headless 反映
+  - network deny by default
+
+### フェーズ 4: screenshot
+
+- 状態: TODO
+- 完了条件:
+  - pw.screenshot(jpeg/png)
+  - CSS 正規化
+  - 画像 + メタ返却
+  - バイト上限/レート制限
+
+### フェーズ 5: 制約強化
+
+- 状態: TODO
+- 完了条件:
+  - tree-sitter validation
+  - 禁止 API fail-fast
+  - エラーメッセージ整形
+
+### フェーズ 6: テスト
+
+- 状態: TODO
+- 完了条件:
+  - セッション継続/reset/timeout
+  - 禁止 API/ネットワーク拒否
+  - top level await
+  - screenshot 返却と正規化
+
+## 5. 進捗ログ
+
+- 2026-03-16: plan.md を静的マスター化し、配置先を src/playwright_repl と test/unittest/playwright_repl に確定
+- 2026-03-16: planexec.md を初期化
+
+## 6. 現在の次アクション
+
+1. src/playwright_repl の骨格ファイルを作成
+2. main.ts と package.json の登録差分を実装
+3. フェーズ 1 完了後に本書の状態を TODO -> DONE に更新
