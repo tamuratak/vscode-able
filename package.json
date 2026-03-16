@@ -234,6 +234,61 @@
             "explanation"
           ]
         }
+      },
+      {
+        "name": "able_playwright_repl",
+        "toolReferenceName": "playwrightRepl",
+        "tags": [
+          "browser",
+          "playwright"
+        ],
+        "displayName": "Playwright REPL",
+        "canBeReferencedInPrompt": true,
+        "userDescription": "Execute JavaScript against a persistent Playwright browser session.",
+        "modelDescription": "Run JavaScript in a persistent Playwright session. Use top level await and the pw helper API to navigate, click, fill, read text, and capture screenshots.",
+        "icon": "$(browser)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "JavaScript code to execute in the Playwright session."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Reason for executing this code."
+            },
+            "timeoutMs": {
+              "type": "number",
+              "description": "Optional timeout override in milliseconds for this execution."
+            }
+          },
+          "required": [
+            "code"
+          ]
+        }
+      },
+      {
+        "name": "able_playwright_repl_reset",
+        "toolReferenceName": "playwrightReplReset",
+        "tags": [
+          "browser",
+          "playwright"
+        ],
+        "displayName": "Playwright REPL Reset",
+        "canBeReferencedInPrompt": true,
+        "userDescription": "Reset the persistent Playwright REPL session.",
+        "modelDescription": "Dispose and reset the Playwright REPL session state.",
+        "icon": "$(debug-restart)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "description": "Reason for resetting the session."
+            }
+          }
+        }
       }
     ],
     "commands": [
@@ -380,6 +435,70 @@
             "items": {
               "type": "string"
             },
+            "scope": "machine"
+          },
+          "able.playwrightRepl.browserType": {
+            "type": "string",
+            "description": "Browser engine for Playwright REPL.",
+            "default": "chromium",
+            "enum": [
+              "chromium",
+              "firefox",
+              "webkit"
+            ],
+            "scope": "machine"
+          },
+          "able.playwrightRepl.headless": {
+            "type": "boolean",
+            "description": "Run Playwright in headless mode.",
+            "default": true,
+            "scope": "machine"
+          },
+          "able.playwrightRepl.network.allow": {
+            "type": "boolean",
+            "description": "Allow external network access from Playwright REPL. localhost is always allowed.",
+            "default": false,
+            "scope": "machine"
+          },
+          "able.playwrightRepl.network.allowedHosts": {
+            "type": "array",
+            "description": "Allowlist of hosts used when network access is enabled.",
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "scope": "machine"
+          },
+          "able.playwrightRepl.timeoutMs": {
+            "type": "number",
+            "description": "Default timeout in milliseconds for one Playwright REPL execution.",
+            "default": 15000,
+            "minimum": 500,
+            "maximum": 120000,
+            "scope": "machine"
+          },
+          "able.playwrightRepl.maxOutputBytes": {
+            "type": "number",
+            "description": "Maximum bytes captured for stdout and stderr per execution.",
+            "default": 16384,
+            "minimum": 1024,
+            "scope": "machine"
+          },
+          "able.playwrightRepl.maxScreenshotBytes": {
+            "type": "number",
+            "description": "Maximum bytes allowed for one screenshot payload.",
+            "default": 1048576,
+            "minimum": 65536,
+            "scope": "machine"
+          },
+          "able.playwrightRepl.screenshotDefaultFormat": {
+            "type": "string",
+            "description": "Default screenshot image format for Playwright REPL.",
+            "default": "jpeg",
+            "enum": [
+              "jpeg",
+              "png"
+            ],
             "scope": "machine"
           }
         }
