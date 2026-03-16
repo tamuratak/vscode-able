@@ -1,5 +1,14 @@
 # Playwright 専用 js_repl 実装計画（改訂）
 
+## 0. ドキュメント運用ルール
+
+- plan.md は静的マスターとして扱う
+  - 要件確定事項、設計方針、非目標、セキュリティ方針を保持する
+  - 実装中の進捗で頻繁には書き換えない
+- planexec.md は living doc として扱う
+  - 実装フェーズ、現在ステータス、ブロッカー、次アクション、決定ログを継続更新する
+  - 実装中の実態は planexec.md を正とし、完了後に必要差分のみ plan.md に反映する
+
 ## 1. 目的
 
 OpenAI Codex CLI の js_repl をそのまま移植せず、以下の制約を満たす Playwright 専用 REPL ツールを実装する。
@@ -125,7 +134,7 @@ pw.screenshot(options?) の返却:
 
 ### 6.2 子プロセス（実行エンジン）
 
-src/lmtools/playwrightreplrunner.ts を Node プロセスとして起動。
+src/playwright_repl/playwrightrunner.ts を Node プロセスとして起動。
 
 責務:
 
@@ -202,8 +211,8 @@ src/lmtools/playwrightreplrunner.ts を Node プロセスとして起動。
 
 ### フェーズ 1: 骨格
 
-1. src/lmtools/playwrightrepl.ts 新規
-2. src/lmtools/playwrightreplrunner.ts 新規
+1. src/playwright_repl/playwrightrepltool.ts 新規
+2. src/playwright_repl/playwrightrunner.ts 新規
 3. src/main.ts に 2 ツール登録
 4. package.json に 2 ツール定義
 5. package.json に設定項目追加
@@ -252,11 +261,11 @@ src/lmtools/playwrightreplrunner.ts を Node プロセスとして起動。
 ## 12. 影響ファイル（予定）
 
 - src/main.ts
-- src/lmtools/playwrightrepl.ts（新規）
-- src/lmtools/playwrightreplrunner.ts（新規）
+- src/playwright_repl/playwrightrepltool.ts（新規）
+- src/playwright_repl/playwrightrunner.ts（新規）
 - package.json
 - 必要なら src/chat/prompt.tsx またはツール案内文
-- テストファイル（新規）
+- test/unittest/playwright_repl/*.ts（新規）
 
 ## 13. リスクと対策
 
