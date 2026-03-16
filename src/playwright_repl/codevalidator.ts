@@ -11,6 +11,20 @@ let errorQuery: treeSitter.Query | undefined
 
 const parserInitialization = ensureParserInitialized()
 
+const forbiddenPropertyAccesses = new Map<string, string>([
+    ['constructor', 'forbidden: constructor property access'],
+    ['__proto__', 'forbidden: __proto__ property access'],
+    ['__defineGetter__', 'forbidden: __defineGetter__ property access'],
+    ['__defineSetter__', 'forbidden: __defineSetter__ property access'],
+    ['__lookupGetter__', 'forbidden: __lookupGetter__ property access'],
+    ['__lookupSetter__', 'forbidden: __lookupSetter__ property access']
+])
+
+const forbiddenSymbolProperties = new Map<string, string>([
+    ['species', 'forbidden: Symbol.species reference'],
+    ['hasInstance', 'forbidden: Symbol.hasInstance reference']
+])
+
 async function ensureParserInitialized(): Promise<void> {
     await treeSitterParserInit.promise
     javascriptLanguage = await treeSitter.Language.load(javascriptLanguagePath)
@@ -87,6 +101,11 @@ function detectForbiddenNode(node: treeSitter.Node, source: string): string | un
         return 'forbidden: import statement'
     }
 
+    const forbiddenPropertyAccessReason = detectForbiddenPropertyAccess(node, source)
+    if (forbiddenPropertyAccessReason) {
+        return forbiddenPropertyAccessReason
+    }
+
     if (node.type === 'call_expression') {
         const functionNode = node.childForFieldName('function')
         if (!functionNode) {
@@ -102,6 +121,11 @@ function detectForbiddenNode(node: treeSitter.Node, source: string): string | un
             if (functionName === 'require') {
                 return 'forbidden: require call'
             }
+        }
+
+        const forbiddenCallReason = detectForbiddenCallExpression(node, functionNode, source)
+        if (forbiddenCallReason) {
+            return forbiddenCallReason
         }
     }
 
@@ -128,4 +152,121 @@ function detectForbiddenNode(node: treeSitter.Node, source: string): string | un
 
 function getNodeText(node: treeSitter.Node, source: string): string {
     return source.slice(node.startIndex, node.endIndex)
+}
+
+function detectForbiddenPropertyAccess(node: treeSitter.Node, source: string): string | undefined {
+    if (node.type !== 'member_expression' && node.type !== 'subscript_expression') {
+        return undefined
+    }
+
+    const objectNode = node.childForFieldName('object')
+    const propertyNode = node.childForFieldName('property') ?? node.childForFieldName('index')
+    if (!objectNode || !propertyNode) {
+        return undefined
+    }
+
+    const propertyName = getPropertyName(propertyNode, source)
+    if (!propertyName) {
+        return undefined
+    }
+
+    const forbiddenPropertyReason = forbiddenPropertyAccesses.get(propertyName)
+    if (forbiddenPropertyReason) {
+        return forbiddenPropertyReason
+    }
+
+    const objectName = getSimpleIdentifier(objectNode, source)
+    if (objectName === 'Symbol') {
+        const forbiddenSymbolReason = forbiddenSymbolProperties.get(propertyName)
+        if (forbiddenSymbolReason) {
+            return forbiddenSymbolReason
+        }
+    }
+
+    return undefined
+}
+
+function detectForbiddenCallExpression(node: treeSitter.Node, functionNode: treeSitter.Node, source: string): string | undefined {
+    if (functionNode.type !== 'member_expression' && functionNode.type !== 'subscript_expression') {
+        return undefined
+    }
+
+    const objectNode = functionNode.childForFieldName('object')
+    const propertyNode = functionNode.childForFieldName('property') ?? functionNode.childForFieldName('index')
+    if (!objectNode || !propertyNode) {
+        return undefined
+    }
+
+    const objectName = getSimpleIdentifier(objectNode, source)
+    const propertyName = getPropertyName(propertyNode, source)
+    if (!propertyName) {
+        return undefined
+    }
+
+    if ((objectName === 'Object' || objectName === 'Reflect') && propertyName === 'setPrototypeOf') {
+        return 'forbidden: setPrototypeOf call'
+    }
+
+    if ((objectName === 'Object' || objectName === 'Reflect') && propertyName === 'defineProperty') {
+        const argumentsNode = node.childForFieldName('arguments')
+        const firstArgument = argumentsNode?.namedChild(0)
+        if (firstArgument) {
+            const firstArgumentText = getNodeText(firstArgument, source).trim()
+            if (firstArgumentText === 'Object.prototype') {
+                return 'forbidden: Object.prototype defineProperty call'
+            }
+        }
+    }
+
+    return undefined
+}
+
+function getSimpleIdentifier(node: treeSitter.Node, source: string): string | undefined {
+    if (node.type === 'identifier') {
+        return getNodeText(node, source)
+    }
+    return undefined
+}
+
+function getPropertyName(node: treeSitter.Node, source: string): string | undefined {
+    if (node.type === 'property_identifier' || node.type === 'identifier') {
+        return getNodeText(node, source)
+    }
+
+    if (node.type === 'string') {
+        return getStringLiteralValue(getNodeText(node, source))
+    }
+
+    if (node.type === 'template_string') {
+        return getTemplateStringValue(getNodeText(node, source))
+    }
+
+    return undefined
+}
+
+function getStringLiteralValue(value: string): string | undefined {
+    if (value.length < 2) {
+        return undefined
+    }
+
+    const quote = value[0]
+    const isQuoted = (quote === '"' || quote === "'") && value[value.length - 1] === quote
+    if (!isQuoted) {
+        return undefined
+    }
+
+    return value.slice(1, value.length - 1)
+}
+
+function getTemplateStringValue(value: string): string | undefined {
+    if (value.length < 2 || value[0] !== '`' || value[value.length - 1] !== '`') {
+        return undefined
+    }
+
+    const body = value.slice(1, value.length - 1)
+    if (body.includes('${')) {
+        return undefined
+    }
+
+    return body
 }
