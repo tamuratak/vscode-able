@@ -1,10 +1,11 @@
-# vscodeunittest Playwright REPL 統合テスト計画（2026-03-17）
+# Playwright REPL evaluate 対応と統合テスト再計画（2026-03-17）
 
 ## 目的
 
 - [test/vscodeunittest/playwright_repl](test/vscodeunittest/playwright_repl) に Playwright REPL の統合テストを追加する
+- [src/playwright_repl/playwrightrunner.ts](src/playwright_repl/playwrightrunner.ts) に `pw.evaluate(fn, arg?)` を追加する
 - VS Code 統合テスト環境で `PlaywrightReplTool` を直接 `invoke` し、実ブラウザ実行を含む動作を確認する
-- 最低 10 ケースを追加し、基本動作・エラー・セッション継続・reset を検証する
+- 最低 3 件の evaluate 系ケースを追加し、既存ケースと合わせて基本動作・エラー・セッション継続・reset を検証する
 
 ## 事前合意（ユーザー確認済み）
 
@@ -12,14 +13,18 @@
 - 環境依存を許容し、実ブラウザ実行の成否も検証する
 - 最低ケース数は 10
 - 実行経路は Chat 経路ではなく、統合テスト内で `PlaywrightReplTool` の直接 `invoke` でよい
-- URL は `127.0.0.1` 指定を受け、ユーザー起動サーバー `http://127.0.0.1:3000` を使用する
+- evaluate は `pw.evaluate(fn, arg?)` 形式で実装する
+- `fn` は関数オブジェクトと文字列の両対応とする
+- `arg` は単一引数のみ対応し、戻り値は JSON 直列化可能値を対象とする
+- 統合テストではユーザー起動サーバー方式をやめ、テスト内でローカル HTTP サーバーを起動する（ランダムポート）
 
 ## 実装方針
 
 1. [test/vscodeunittest/playwright_repl](test/vscodeunittest/playwright_repl) に新規テストファイルを追加する
-2. ユーザーが起動する Node HTTP サーバー（固定 URL: `http://127.0.0.1:3000`）を用意し、`pw.goto` / `pw.text` / `pw.click` / `pw.fill` / `pw.screenshot` を検証する
+2. 統合テスト内で Node HTTP サーバーを起動し、`pw.goto` / `pw.text` / `pw.click` / `pw.fill` / `pw.screenshot` / `pw.evaluate` を検証する
 3. `PlaywrightReplResetTool` を使った session reset も検証する
-4. 失敗系（空コード、network deny）も含めて 10 ケース以上を満たす
+4. evaluate 系を最低 3 ケース追加する（関数オブジェクト、文字列、arg 利用）
+5. 失敗系（空コード、network deny）も継続して検証する
 5. 実装後に `get_errors` で全体エラーを確認して修正する
 
 ## 非目標
