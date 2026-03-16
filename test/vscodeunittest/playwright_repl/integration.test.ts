@@ -57,10 +57,10 @@ suite('Playwright REPL Integration Test', () => {
         await conf.update('maxScreenshotBytes', 1024 * 1024, configTarget)
         await conf.update('screenshotDefaultFormat', 'jpeg', configTarget)
 
-                server = http.createServer((request, response) => {
-                        if (!request.url || request.url === '/') {
-                                response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
-                                response.end(`<!doctype html>
+        server = http.createServer((request, response) => {
+            if (!request.url || request.url === '/') {
+                response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+                response.end(`<!doctype html>
 <html>
 <head><meta charset="utf-8"><title>playwright repl integration</title></head>
 <body>
@@ -78,26 +78,26 @@ suite('Playwright REPL Integration Test', () => {
     </script>
 </body>
 </html>`)
-                                return
-                        }
+                return
+            }
 
-                        response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
-                        response.end('not found')
-                })
+            response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
+            response.end('not found')
+        })
 
-                const address = await new Promise<AddressInfo>((resolve, rejectError) => {
-                        server.listen(0, '127.0.0.1', () => {
-                                const resolved = server.address()
-                                if (resolved && typeof resolved !== 'string') {
-                                        resolve(resolved)
-                                        return
-                                }
-                                rejectError(new Error('failed to bind test server'))
-                        })
-                        server.on('error', rejectError)
-                })
+        const address = await new Promise<AddressInfo>((resolve, rejectError) => {
+            server.listen(0, '127.0.0.1', () => {
+                const resolved = server.address()
+                if (resolved && typeof resolved !== 'string') {
+                    resolve(resolved)
+                    return
+                }
+                rejectError(new Error('failed to bind test server'))
+            })
+            server.on('error', rejectError)
+        })
 
-                baseUrl = `http://127.0.0.1:${address.port}`
+        baseUrl = `http://127.0.0.1:${address.port}`
 
         outputChannel = vscode.window.createOutputChannel('playwright repl integration', { log: true })
         tokenSource = new vscode.CancellationTokenSource()
