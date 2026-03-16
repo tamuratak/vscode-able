@@ -5,12 +5,22 @@
 
 - All file names should be in lowercase.
 - All file names should not include hyphens, spaces, nor underscores.
-- After editing files, you don't have to run tests. But if you want, please run the `task-test-json` task using the `run_task` tool. Don't run `npm run test` directly.
-- When calling the `get_errors` tool, specify an empty array for `filePaths` to always retrieve all errors.
+
+## Instructions for implementation
+
+- After editing files, you don't have to run build. You can assume that the build will be run after you finish editing files automatically.
+- After editing files, you don't have to run tests. You can assume that the tests will be run after you finish editing files automatically. 
+- After editing files, using the `get_errors` tool, check if there are any errors in the codebase. If there are errors, please fix them before finishing the implementation.
+- When calling the `get_errors` tool, specify `['/Users/tamura/src/github/vscode-able']` for `filePaths` to always retrieve all errors.
+- The user is responsible for running tests with Playwright and VS Code runtime under the `./test/vscodeunittest` directory. Do not run the tests yourself. Instead, use `vscode_askQuestions` to ask the user for the test results. If errors are reported, analyze the results, propose a fix, and then ask the user to run the tests again. Repeat this cycle of asking for results and applying corrections until no errors remain.
+- Once implementation is complete, use the `vscode_askQuestions` tool to ask the user if they want the agent to continue implementing, and repeat this process until they say no.
+
+### Instructions for testing
+
 - We use Mocha's TDD interface as the test framework. `suite`, `test`, `setup`, `teardown` can be used for defining tests.
 - We use `node:assert` for assertions in tests.
 
-### Instructions only in ACTION MODE
+### Instructions only in code generation mode
 
 Please refer to the following instructions only when generating the code. Ignore them in plan mode.
 
