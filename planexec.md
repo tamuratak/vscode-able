@@ -1,8 +1,8 @@
-# Playwright REPL vscodeunittest 実装実行ログ（2026-03-17）
+# Playwright REPL evaluate 実装実行ログ（2026-03-17）
 
 ## ステータス
 
-- 現在フェーズ: フェーズ B（統合テスト実装）実施中
+- 現在フェーズ: フェーズ C（evaluate 実装 + 統合テスト再構成）完了
 - 実装順序: plan.md / planexec.md 更新 -> テスト追加 -> エラー修正 -> ユーザー確認ループ
 
 ## 実装チェックリスト
@@ -11,19 +11,22 @@
 - [x] plan.md を今回タスク向けに更新
 - [x] planexec.md を今回タスク向けに更新
 - [x] [test/vscodeunittest/playwright_repl](test/vscodeunittest/playwright_repl) に統合テストを追加
-- [ ] テストケース 10 件以上を実装
-- [ ] get_errors で全体確認し、必要修正
+- [x] `pw.evaluate(fn, arg?)` を実装
+- [x] 統合テストを「テスト内サーバー起動（ランダムポート）」へ戻す
+- [x] evaluate 系テストを 3 件以上追加
+- [x] get_errors で全体確認し、必要修正
 - [ ] ユーザーに不満点ヒアリングして修正ループ
 - [ ] ユーザーにテスト実行結果を確認して修正ループ
 - [ ] 実装継続可否の最終確認
 
 ## 実装メモ
 
-- 対象 URL はユーザー起動サーバー `http://127.0.0.1:3000`
+- 対象 URL はテスト内サーバー `http://127.0.0.1:<random-port>`
 - 統合テストでは `PlaywrightReplTool` を直接 `invoke` する
 - 実ブラウザ実行を含める（環境依存許容）
-- テスト内でサーバーを起動しない方針に変更
-- [test/vscodeunittest/playwright_repl/server.ts](test/vscodeunittest/playwright_repl/server.ts) を追加
+- `pw.evaluate(fn, arg?)` は関数オブジェクトと文字列の両方に対応
+- `arg` は単一引数のみ
+- evaluate 系テストを [test/vscodeunittest/playwright_repl/integration.test.ts](test/vscodeunittest/playwright_repl/integration.test.ts) に追加済み
 
 # Playwright REPL 実行計画（living doc）
 

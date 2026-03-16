@@ -39,6 +39,11 @@ interface LocatorProxy {
     text(): Promise<string>
 }
 
+type EvaluatePrimitive = string | number | boolean | null
+type EvaluateArg = EvaluatePrimitive | undefined
+type EvaluateResult = EvaluatePrimitive | undefined
+type EvaluateFunction = (arg: EvaluateArg) => EvaluateResult | Promise<EvaluateResult>
+
 const defaultConfig: RunnerConfig = {
     browserType: 'chromium',
     headless: true,
@@ -227,6 +232,12 @@ class RunnerState {
             url: async () => {
                 const page = await this.ensurePage()
                 return page.url()
+            },
+            evaluate: async (fn: string | EvaluateFunction, arg?: EvaluateArg): Promise<EvaluateResult> => {
+                const page = await this.ensurePage()
+                const pageFunction = typeof fn === 'string' ? this.parseEvaluateFunction(fn) : fn
+                const result = await page.evaluate(pageFunction, arg)
+                return result
             }
         }
 
@@ -274,6 +285,21 @@ class RunnerState {
         }
 
         return this.page
+    }
+
+    private parseEvaluateFunction(source: string): EvaluateFunction {
+        const parserVm = new VM({
+            timeout: 1000,
+            allowAsync: true,
+            eval: false,
+            wasm: false,
+            sandbox: {}
+        })
+        const parsed: unknown = parserVm.run(`(${source})`)
+        if (typeof parsed !== 'function') {
+            throw new Error('pw.evaluate string must be a function expression')
+        }
+        return parsed as EvaluateFunction
     }
 }
 

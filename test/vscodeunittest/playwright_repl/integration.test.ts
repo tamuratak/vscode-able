@@ -1,9 +1,10 @@
 import { ok, strictEqual, rejects } from 'node:assert'
+import * as http from 'node:http'
+import { AddressInfo } from 'node:net'
 import * as vscode from 'vscode'
 import { PlaywrightReplResetTool, PlaywrightReplTool } from '../../../src/playwright_repl/playwrightrepltool.js'
 
 const extensionId = 'tamuratak.able'
-const baseUrl = 'http://127.0.0.1:3000'
 
 type ConfigKey =
     | 'browserType'
@@ -18,6 +19,8 @@ type ConfigKey =
 type ConfigValue = string | boolean | number | string[] | undefined
 
 suite('Playwright REPL Integration Test', () => {
+    let server: http.Server
+    let baseUrl = ''
     let outputChannel: vscode.LogOutputChannel
     let tool: PlaywrightReplTool
     let resetTool: PlaywrightReplResetTool
@@ -54,6 +57,48 @@ suite('Playwright REPL Integration Test', () => {
         await conf.update('maxScreenshotBytes', 1024 * 1024, configTarget)
         await conf.update('screenshotDefaultFormat', 'jpeg', configTarget)
 
+                server = http.createServer((request, response) => {
+                        if (!request.url || request.url === '/') {
+                                response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+                                response.end(`<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>playwright repl integration</title></head>
+<body>
+    <h1 id="title">Ready</h1>
+    <label for="name">Name</label>
+    <input id="name" />
+    <button id="apply" type="button">Apply</button>
+    <script>
+        const button = document.getElementById('apply')
+        button.addEventListener('click', () => {
+            const input = document.getElementById('name')
+            const title = document.getElementById('title')
+            title.textContent = input.value || 'Ready'
+        })
+    </script>
+</body>
+</html>`)
+                                return
+                        }
+
+                        response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
+                        response.end('not found')
+                })
+
+                const address = await new Promise<AddressInfo>((resolve, rejectError) => {
+                        server.listen(0, '127.0.0.1', () => {
+                                const resolved = server.address()
+                                if (resolved && typeof resolved !== 'string') {
+                                        resolve(resolved)
+                                        return
+                                }
+                                rejectError(new Error('failed to bind test server'))
+                        })
+                        server.on('error', rejectError)
+                })
+
+                baseUrl = `http://127.0.0.1:${address.port}`
+
         outputChannel = vscode.window.createOutputChannel('playwright repl integration', { log: true })
         tokenSource = new vscode.CancellationTokenSource()
         tool = new PlaywrightReplTool({
@@ -77,6 +122,17 @@ suite('Playwright REPL Integration Test', () => {
         }
         if (outputChannel) {
             outputChannel.dispose()
+        }
+        if (server) {
+            await new Promise<void>((resolve, rejectError) => {
+                server.close((error) => {
+                    if (error) {
+                        rejectError(error)
+                        return
+                    }
+                    resolve()
+                })
+            })
         }
 
         const conf = vscode.workspace.getConfiguration('able.playwrightRepl')
@@ -189,6 +245,32 @@ return await pw.url()
             () => invokeCode("await pw.goto('https://example.com')"),
             /validation failed|blockedbyclient|ERR|Navigation/
         )
+    })
+
+    test('evaluate supports function object', async () => {
+        const result = await invokeCode(`
+await pw.goto('${baseUrl}')
+return await pw.evaluate(() => document.title)
+`)
+        const text = extractText(result)
+        ok(text.includes('result:\nplaywright repl integration'))
+    })
+
+    test('evaluate supports function object with arg', async () => {
+        const result = await invokeCode(`
+return await pw.evaluate((arg) => arg + 1, 10)
+`)
+        const text = extractText(result)
+        ok(text.includes('result:\n11'))
+    })
+
+    test('evaluate supports string function with arg', async () => {
+        const result = await invokeCode(`
+await pw.goto('${baseUrl}')
+return await pw.evaluate('(arg) => document.title + "-" + arg', 'ok')
+`)
+        const text = extractText(result)
+        ok(text.includes('result:\nplaywright repl integration-ok'))
     })
 
     async function invokeCode(code: string): Promise<vscode.LanguageModelToolResult> {
