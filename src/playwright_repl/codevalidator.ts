@@ -19,21 +19,6 @@ async function ensureParserInitialized(): Promise<void> {
     errorQuery = new treeSitter.Query(javascriptLanguage, '(ERROR) @error')
 }
 
-const forbiddenPatterns = [
-    /\bimport\s+.+from\s+['"].+['"]/,
-    /\bimport\s*\(/,
-    /\brequire\s*\(/,
-    /\bchild_process\b/,
-    /\bworker_threads\b/,
-    /\bfs\b/,
-    /\bnet\b/,
-    /\btls\b/,
-    /\bhttp\b/,
-    /\bhttps\b/,
-    /\bprocess\s*\./,
-    /\bglobalThis\s*\.\s*process\b/
-]
-
 export interface CodeValidationResult {
     ok: boolean
     reason?: string
@@ -50,12 +35,6 @@ export async function validatePlaywrightReplCode(code: string): Promise<CodeVali
         return { ok: false, reason: 'code is empty' }
     }
 
-    for (const pattern of forbiddenPatterns) {
-        if (pattern.test(trimmed)) {
-            return { ok: false, reason: `forbidden token pattern: ${pattern.source}` }
-        }
-    }
-
     const tree = parser.parse(trimmed)
     if (!tree) {
         return { ok: false, reason: 'failed to parse code' }
@@ -66,9 +45,87 @@ export async function validatePlaywrightReplCode(code: string): Promise<CodeVali
         if (errors.length > 0) {
             return { ok: false, reason: 'syntax error detected by tree-sitter' }
         }
+
+        const forbiddenReason = findForbiddenNode(tree.rootNode, trimmed)
+        if (forbiddenReason) {
+            return { ok: false, reason: forbiddenReason }
+        }
     } finally {
         tree.delete()
     }
 
     return { ok: true }
+}
+
+function findForbiddenNode(rootNode: treeSitter.Node, source: string): string | undefined {
+    const stack: treeSitter.Node[] = [rootNode]
+
+    while (stack.length > 0) {
+        const node = stack.pop()
+        if (!node) {
+            continue
+        }
+
+        const forbiddenReason = detectForbiddenNode(node, source)
+        if (forbiddenReason) {
+            return forbiddenReason
+        }
+
+        for (let i = node.childCount - 1; i >= 0; i -= 1) {
+            const child = node.child(i)
+            if (child) {
+                stack.push(child)
+            }
+        }
+    }
+
+    return undefined
+}
+
+function detectForbiddenNode(node: treeSitter.Node, source: string): string | undefined {
+    if (node.type === 'import_statement') {
+        return 'forbidden: import statement'
+    }
+
+    if (node.type === 'call_expression') {
+        const functionNode = node.childForFieldName('function')
+        if (!functionNode) {
+            return undefined
+        }
+
+        if (functionNode.type === 'import') {
+            return 'forbidden: dynamic import call'
+        }
+
+        if (functionNode.type === 'identifier') {
+            const functionName = getNodeText(functionNode, source)
+            if (functionName === 'require') {
+                return 'forbidden: require call'
+            }
+        }
+    }
+
+    if (node.type === 'member_expression') {
+        const objectNode = node.childForFieldName('object')
+        const propertyNode = node.childForFieldName('property')
+        if (!objectNode || !propertyNode) {
+            return undefined
+        }
+
+        const objectText = getNodeText(objectNode, source)
+        const propertyText = getNodeText(propertyNode, source)
+
+        if (objectText === 'process') {
+            return 'forbidden: process reference'
+        }
+        if (objectText === 'globalThis' && propertyText === 'process') {
+            return 'forbidden: globalThis.process reference'
+        }
+    }
+
+    return undefined
+}
+
+function getNodeText(node: treeSitter.Node, source: string): string {
+    return source.slice(node.startIndex, node.endIndex)
 }

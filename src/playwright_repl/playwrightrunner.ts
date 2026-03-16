@@ -3,45 +3,9 @@ import { inspect } from 'node:util'
 import { VM } from 'vm2'
 import { chromium, firefox, webkit, Browser, BrowserContext, Page } from 'playwright'
 import { validatePlaywrightReplCode } from './codevalidator.js'
+import { ExecRequest, RequestMessage, RunnerConfig, parseRunnerMessage } from './runnermessage.js'
 
-type BrowserTypeName = 'chromium' | 'firefox' | 'webkit'
 type ImageFormat = 'jpeg' | 'png'
-
-interface RunnerConfig {
-    browserType: BrowserTypeName
-    headless: boolean
-    networkAllow: boolean
-    allowedHosts: string[]
-    timeoutMs: number
-    maxOutputBytes: number
-    maxScreenshotBytes: number
-    screenshotDefaultFormat: ImageFormat
-}
-
-interface ExecRequest {
-    id: string
-    type: 'exec'
-    code: string
-    timeoutMs?: number
-}
-
-interface ResetRequest {
-    id: string
-    type: 'reset'
-}
-
-interface DisposeRequest {
-    id: string
-    type: 'dispose'
-}
-
-interface InitRequest {
-    id: string
-    type: 'init'
-    config: RunnerConfig
-}
-
-type RequestMessage = ExecRequest | ResetRequest | DisposeRequest | InitRequest
 
 interface ImagePayload {
     mimeType: string
@@ -494,125 +458,7 @@ function writeResponse(response: RunnerResult) {
 }
 
 function parseMessage(line: string): RequestMessage | undefined {
-    try {
-        const parsed: unknown = JSON.parse(line)
-        if (!isRecord(parsed)) {
-            return undefined
-        }
-        const id = getString(parsed, 'id')
-        const type = getString(parsed, 'type')
-        if (!id || !type) {
-            return undefined
-        }
-        if (type === 'exec') {
-            const code = getString(parsed, 'code')
-            if (!code) {
-                return undefined
-            }
-            const timeoutMs = getNumber(parsed, 'timeoutMs')
-            return {
-                id,
-                type: 'exec',
-                code,
-                ...(timeoutMs !== undefined ? { timeoutMs } : {})
-            }
-        }
-        if (type === 'reset') {
-            return {
-                id,
-                type: 'reset'
-            }
-        }
-        if (type === 'dispose') {
-            return {
-                id,
-                type: 'dispose'
-            }
-        }
-        if (type === 'init') {
-            const config = parseRunnerConfig(parsed)
-            if (!config) {
-                return undefined
-            }
-            return {
-                id,
-                type: 'init',
-                config
-            }
-        }
-    } catch {
-        return undefined
-    }
-    return undefined
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null
-}
-
-function getString(value: Record<string, unknown>, key: string): string | undefined {
-    const field = value[key]
-    if (typeof field === 'string') {
-        return field
-    }
-    return undefined
-}
-
-function getBoolean(value: Record<string, unknown>, key: string): boolean | undefined {
-    const field = value[key]
-    if (typeof field === 'boolean') {
-        return field
-    }
-    return undefined
-}
-
-function getNumber(value: Record<string, unknown>, key: string): number | undefined {
-    const field = value[key]
-    if (typeof field === 'number' && Number.isFinite(field)) {
-        return field
-    }
-    return undefined
-}
-
-function getStringArray(value: Record<string, unknown>, key: string): string[] | undefined {
-    const field = value[key]
-    if (!Array.isArray(field)) {
-        return undefined
-    }
-    const values: string[] = []
-    for (const element of field) {
-        if (typeof element !== 'string') {
-            return undefined
-        }
-        values.push(element)
-    }
-    return values
-}
-
-function parseRunnerConfig(parsed: Record<string, unknown>): RunnerConfig | undefined {
-    const configValue = parsed['config']
-    if (!isRecord(configValue)) {
-        return undefined
-    }
-    const browserType = getString(configValue, 'browserType')
-    const headless = getBoolean(configValue, 'headless')
-    const networkAllow = getBoolean(configValue, 'networkAllow')
-    const allowedHosts = getStringArray(configValue, 'allowedHosts')
-    const timeoutMs = getNumber(configValue, 'timeoutMs')
-    const maxOutputBytes = getNumber(configValue, 'maxOutputBytes')
-    const maxScreenshotBytes = getNumber(configValue, 'maxScreenshotBytes')
-    const screenshotDefaultFormat = getString(configValue, 'screenshotDefaultFormat')
-
-    return {
-        browserType: (browserType === 'chromium' || browserType === 'firefox' || browserType === 'webkit') ? browserType : defaultConfig.browserType,
-        headless: headless ?? defaultConfig.headless,
-        networkAllow: networkAllow ?? defaultConfig.networkAllow,
-        allowedHosts: allowedHosts ?? defaultConfig.allowedHosts,
-        timeoutMs: timeoutMs ?? defaultConfig.timeoutMs,
-        maxOutputBytes: maxOutputBytes ?? defaultConfig.maxOutputBytes,
-        maxScreenshotBytes: maxScreenshotBytes ?? defaultConfig.maxScreenshotBytes,
-        screenshotDefaultFormat: (screenshotDefaultFormat === 'jpeg' || screenshotDefaultFormat === 'png') ? screenshotDefaultFormat : defaultConfig.screenshotDefaultFormat
-    }
+    return parseRunnerMessage(line, defaultConfig)
 }
 
 const readlineInterface = createInterface({

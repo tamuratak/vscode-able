@@ -28,6 +28,21 @@
 
 ## 4. フェーズ進行管理
 
+### フェーズ 7: validator 正規表現除去（追加）
+
+- 状態: DONE
+- 完了条件:
+  - codevalidator.ts の禁止判定が regex 非依存
+  - tree-sitter AST 判定のみで import/import()/require()/process を拒否
+  - 文字列中の語句は誤検知しない
+
+### フェーズ 8: テスト拡張（追加）
+
+- 状態: DONE
+- 完了条件:
+  - codevalidator の拒否/許可ケースを拡張
+  - playwrightrunner の URL 判定・host 正規化・message parse 周辺テストを追加
+
 ### フェーズ 1: 骨格
 
 - 状態: DONE
@@ -87,10 +102,13 @@
 - 2026-03-17: src/playwright_repl に codevalidator.ts / playwrightrunner.ts / playwrightrepltool.ts を追加
 - 2026-03-17: src/main.ts と package.json に tool 登録と able.playwrightRepl.* 設定を追加
 - 2026-03-17: test/unittest/playwright_repl に codevalidator.test.ts / playwrightrunner.test.ts を追加
+- 2026-03-17: follow-up として validator の regex 廃止とテストカバレッジ強化タスクを開始
+- 2026-03-17: codevalidator を tree-sitter AST 判定のみへ移行（regex 廃止）
+- 2026-03-17: runnermessage.ts を追加し、message parse を分離してテストを拡張
 
 ## 6. 現在の次アクション
 
 1. src/playwright_repl の骨格ファイルを作成
 2. main.ts と package.json の登録差分を実装
 3. フェーズ 1 完了後に本書の状態を TODO -> DONE に更新
-4. vscodeunittest の実行結果をユーザーから受領し、必要修正を継続
+4. vscodeunittest の実行結果をユーザーから受領し、必要なら修正
