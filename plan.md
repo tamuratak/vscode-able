@@ -1,224 +1,282 @@
-# Playwright 専用 js_repl 実装計画
+# Playwright 専用 js_repl 実装計画（改訂）
 
 ## 1. 目的
 
-OpenAI Codex CLI の `js_repl` をそのまま移植せず、以下の制約を満たす **Playwright 専用 REPL ツール**を実装する。
+OpenAI Codex CLI の js_repl をそのまま移植せず、以下の制約を満たす Playwright 専用 REPL ツールを実装する。
 
-- LLM には「ブラウザ起動 API」を公開しない
-- 子プロセス (`child_process`) で実行エンジンを起動し、子プロセス側で `vm2` によって生成コードを実行する
+- LLM にはブラウザ起動 API を公開しない
+- 子プロセス（child_process）で実行エンジンを起動し、子プロセス側で vm2 により生成コードを実行する
 - macOS 専用前提
 - Node v22 前提
-- ブラウザ起動挙動はユーザー設定 (`able.playwrightRepl.*`) で制御可能
-- 既存 `able_run_in_sandbox` と同等に、安全側のデフォルトで運用する
+- ブラウザ起動挙動はユーザー設定（able.playwrightRepl.*）で制御可能
+- 既存 able_run_in_sandbox と同等に、安全側デフォルトで運用する
 
 ## 2. 非目標
 
-- 汎用 `js_repl` ツールの実装
+- 汎用 js_repl ツールの再実装
 - LLM から任意の Playwright 起動オプションを直接受け取る API
 - Linux / Windows 対応
-- 既存 `able_fetch_webpage` の置き換え
+- 既存 able_fetch_webpage の置き換え
 
-## 3. 既存コード調査の要点
+## 3. 再調査サマリー（見落とし候補）
 
-- ツール登録は `activate` で行っている
-  - `src/main.ts`
-- 既存の安全実行基盤として `able_run_in_sandbox` があり、macOS `sandbox-exec` を利用している
-  - `src/lmtools/runinsandbox.ts`
-- Playwright 利用コードは既に存在（`chromium.launch({ headless: true })`）
-  - `src/lmtools/fetchwebpage.ts`
-- ツール定義は `package.json` の `contributes.languageModelTools` で公開している
+js_repl ドキュメント、Playwright Interactive SKILL、Node vm ドキュメントから、初版計画で不足していた観点を整理した。
 
-## 4. 仕様確定（ユーザー合意済み）
+### 3.1 js_repl ドキュメント由来の見落とし
 
-- ツール名: `able_playwright_repl`
-- リセットツール名: `able_playwright_repl_reset`
-- 実行モデル: ステートフル（セッション維持 + reset）
-- セッションスコープ: チャットセッション単位
-- 起動設定: `able.playwrightRepl.*` で管理
-- sandbox 許可ランタイム: `path`, `url`, `buffer` を追加許可する中間レベル
-- 通信方針: デフォルト拒否、設定で明示許可
-- 出力上限: `stdout/stderr` 各 16KB
-- 実行タイムアウト: 15 秒
-- ユーザー設定として公開する起動項目: `browserType`, `headless`
+- top level await を前提にした使用感
+  - Playwright 操作は await が前提であり、毎回 async IIFE を書かせる設計は運用性を大きく下げる
+- カーネル永続時の失敗セル挙動
+  - 失敗後にどの状態を維持するかを明文化しないと、再現性が下がる
+- 実行ごとのタイムアウト上書き
+  - js_repl には pragma で timeout 上書きがある。Playwright REPL でも安全な範囲で上書きを検討する余地がある
+- モジュール解決戦略
+  - どの import/require を許可するか（bare specifier、ローカルファイル）を明文化する必要がある
+- 画像の扱い
+  - js_repl 側は codex.emitImage で画像を外部に明示出力できる。Playwright REPL 側も screenshot の返却を LanguageModelDataPart 前提で設計しないと活用しづらい
 
-## 5. 全体アーキテクチャ
+### 3.2 Playwright Interactive SKILL 由来の見落とし
 
-### 5.1 親プロセス（拡張側）
+- スクリーンショットの正規化
+  - macOS Retina 環境で viewport:null のとき、scale: "css" 指定でも実ピクセルになる場合がある
+  - クリック座標に再利用する用途では CSS ピクセル正規化が重要
+- JPEG 85 をデフォルトとする運用
+  - トークン量と転送量を抑える方針を明記すべき
+- クリップ撮影時の座標補正
+  - clip 原点を戻す規約がないと、画像解析結果をそのままクリックに使えない
+- Web と Electron の差
+  - 本タスクは Web 前提だが、将来拡張を見据えて「Electron は別経路で正規化が必要」という制約をメモしておく価値がある
 
-新規ツール `PlaywrightReplTool` を追加し、子プロセス管理・I/O 中継・セッション管理を行う。
+### 3.3 Node vm ドキュメント由来の見落とし
+
+- vm はセキュリティ機構ではない
+  - 子プロセス分離を主防御とする方針は妥当。vm2 も補助層として扱うべき
+- timeout は万能ではない
+  - 無限ループや大量出力時の資源消費を OS プロセス kill で止める設計が必要
+
+## 4. top level await は必要か
+
+結論: 必須に近い。採用する。
+
+理由:
+
+- Playwright の主操作が Promise ベースであり、毎回ラップを要求すると操作の反復速度が落ちる
+- SKILL の実行例は await 前提の対話ループで構成されている
+- セッション維持ツールの価値は短い反復にあり、記法の摩擦は最小化すべき
+
+仕様:
+
+- able_playwright_repl は top level await を受け付ける
+- 実装は子プロセス側でコードを async 関数ラップして評価する
+- 既存の永続状態（pw、内部ハンドル）は exec 間で保持する
+- 失敗時は「初期化済みハンドルは保持、当該 exec の途中副作用はベストエフォートで残る」を明示する
+
+注意点:
+
+- js_repl のような失敗セルに対する厳密な hoist 回復は今回のスコープ外
+- その代わり、予測可能な最小ルールをドキュメント化する
+
+## 5. screenshot 機能の調査結果と方針
+
+### 5.1 要件結論
+
+- screenshot は初期フェーズから実装対象に含める
+- 返却はテキストだけでなく画像データを扱える形を優先する
+- 座標利用を想定し、CSS ピクセル基準のメタデータを返す
+
+### 5.2 返却インターフェース
+
+pw.screenshot(options?) の返却:
+
+- image: LanguageModelDataPart 相当（mimeType + bytes）
+- meta: JSON 文字列（width, height, cssWidth, cssHeight, deviceScaleFactor, clipped, clipRect）
+- text: 補足（撮影対象、URL、時刻）
+
+最初の段階では JPEG をデフォルト（quality 85）。
+
+- 透過が必要な場合のみ PNG を許可
+- 最大バイト数を設定で制限し、超過時はエラー
+
+### 5.3 CSS 正規化ルール
+
+- viewport 指定コンテキストでは page.screenshot({ scale: "css" }) を第一選択
+- native-window（viewport:null）で期待寸法と不一致なら、子プロセス内で画像リサイズして CSS 相当に正規化
+- clip 指定時は返却メタに clipRect を必ず含める
+
+### 5.4 安全性
+
+- screenshot は現在表示中ページのみ許可
+- 任意パス書き出しは初期実装では禁止（メモリ返却のみ）
+- 連続撮影レートを簡易制限（例: 1 exec あたり最大 3 枚）
+
+## 6. 全体アーキテクチャ
+
+### 6.1 親プロセス（拡張側）
+
+新規ツール PlaywrightReplTool を追加し、子プロセス管理・I/O 中継・セッション管理を行う。
 
 責務:
 
-1. 入力検証（コード空文字、サイズ上限など）
+1. 入力検証（空文字、サイズ上限）
 2. セッション単位で子プロセスを作成・再利用
-3. JSON-RPC ライクなプロトコルで子プロセスに実行要求
+3. NDJSON で子プロセスに実行要求
 4. タイムアウト時の強制終了
-5. ツール結果を `LanguageModelToolResult` として整形
+5. LanguageModelToolResult を text と data の混在で整形
 
-### 5.2 子プロセス（実行エンジン）
+### 6.2 子プロセス（実行エンジン）
 
-`src/lmtools/playwrightreplrunner.ts`（新規）を Node プロセスとして起動。
+src/lmtools/playwrightreplrunner.ts を Node プロセスとして起動。
 
 責務:
 
-1. `vm2` の `NodeVM` を初期化
-2. 親から受け取ったコードを `NodeVM` で実行
-3. グローバルに `playwright` API を直接渡さず、内部で管理した `browser/context/page` をヘルパーとして提供
-4. `console.*` 出力・戻り値・例外を JSON で返却
-5. reset / dispose 時に `page/context/browser` を確実に close
+1. vm2 NodeVM 初期化
+2. top level await 対応でコード評価
+3. playwright API を直接公開せず、内部保持 browser/context/page を pw ヘルパー経由で公開
+4. console 出力、戻り値、例外、画像を JSON で返却
+5. reset/dispose で page/context/browser を確実に close
 
-### 5.3 重要設計（ブラウザ起動 API 非公開）
+### 6.3 公開ヘルパー API（最小）
 
-- LLM 入力コードは `browserType.launch()` を呼ばない
-- 子プロセス側のホスト実装でのみ起動する
-- LLM へは次の限定ヘルパーのみ公開
-  - `pw.goto(url)`
-  - `pw.click(selector)`
-  - `pw.fill(selector, value)`
-  - `pw.text(selector)`
-  - `pw.locator(selector).click()`
-  - `pw.getByRole(role, options)`
-  - `pw.screenshot()`（必要なら base64 返却）
-  - `pw.eval(fnOrExpression)`（安全性を見て段階導入）
-- 起動オプションは親から子へ設定値として注入（LLM 非公開）
+- pw.goto(url)
+- pw.click(selector)
+- pw.fill(selector, value)
+- pw.text(selector)
+- pw.locator(selector).click()
+- pw.getByRole(role, options)
+- pw.screenshot(options?)
 
-### 5.4 入力コードの構文検証（tree-sitter）
+初期版では API 面積を増やしすぎない。
 
-- 実行前に tree-sitter（JavaScript grammar）で入力コードを parse し、以下を検証する
-  - 構文エラーの検出（fail-fast）
-  - 禁止構文 / 禁止 import の早期検出（`child_process`, `worker_threads` 等）
-- `vm2` 実行前段で弾くことで、説明しやすいエラーメッセージを返す
-- 検証は「実行拒否ルール」と「警告ルール」を分離して段階運用できる形にする
+## 7. セッション管理
 
-## 6. セッション管理方式
+### 7.1 基本
 
-### 6.1 基本
+- Map<sessionKey, ChildSession> を PlaywrightReplTool 内に保持
+- sessionKey は chatSessionResource / chatSessionId を優先
+- 取れない場合は default
 
-- `Map<sessionKey, ChildSession>` を `PlaywrightReplTool` 内に保持
-- `sessionKey` は `handleToolStream` で取得できる `chatSessionResource` か `chatSessionId` を優先
-- 取得できない場合は `default` キーにフォールバック（互換運用）
+### 7.2 reset
 
-### 6.2 reset
+- able_playwright_repl_reset は該当セッションの子プロセスを破棄して再生成
+- 5 分アイドルで自動破棄
 
-- `able_playwright_repl_reset` は該当セッションの子プロセスを破棄して再生成
-- 会話終了の明示イベントが取りづらい場合に備え、アイドル TTL（例: 5 分）で自動破棄
+## 8. 通信プロトコル（NDJSON）
 
-## 7. 子プロセス通信プロトコル（案）
+親 -> 子:
 
-1 行 1 JSON の newline-delimited JSON を採用。
-
-### 7.1 親 -> 子
-
-```json
 {"id":"1","type":"exec","code":"await pw.goto('https://example.com')"}
 {"id":"2","type":"reset"}
 {"id":"3","type":"dispose"}
-```
 
-### 7.2 子 -> 親
+子 -> 親:
 
-```json
-{"id":"1","ok":true,"stdout":"...","stderr":"...","result":"..."}
+{"id":"1","ok":true,"stdout":"...","stderr":"...","result":"...","images":[...]}
 {"id":"1","ok":false,"stdout":"...","stderr":"...","error":{"name":"Error","message":"...","stack":"..."}}
-```
 
-## 8. 設定設計 (`package.json` contributes.configuration)
+## 9. 設定設計（package.json contributes.configuration）
 
-追加キー案:
+- able.playwrightRepl.browserType: chromium | firefox | webkit（default: chromium）
+- able.playwrightRepl.headless: boolean（default: true）
+- able.playwrightRepl.network.allow: boolean（default: false）
+- able.playwrightRepl.network.allowedHosts: string[]（default: []）
+- able.playwrightRepl.timeoutMs: number（default: 15000）
+- able.playwrightRepl.maxOutputBytes: number（default: 16384）
+- able.playwrightRepl.maxScreenshotBytes: number（default: 1048576）
+- able.playwrightRepl.screenshotDefaultFormat: jpeg | png（default: jpeg）
 
-- `able.playwrightRepl.browserType`: `chromium | firefox | webkit`（default: `chromium`）
-- `able.playwrightRepl.headless`: boolean（default: `true`）
-- `able.playwrightRepl.network.allow`: boolean（default: `false`）
-- `able.playwrightRepl.network.allowedHosts`: string[]（default: `[]`）
-- `able.playwrightRepl.timeoutMs`: number（default: `15000`）
-- `able.playwrightRepl.maxOutputBytes`: number（default: `16384`）
+## 10. セキュリティ方針
 
-補足:
-
-- ユーザー合意済みの公開必須は `browserType`, `headless`
-- それ以外は安全運用のため追加提案
-
-## 9. セキュリティ方針
-
-1. 防御の主軸は「別プロセス化」
-2. `vm2` は第二防御層として使用（README の注意事項に従う）
-3. `NodeVM.require` は allowlist 方式
-   - builtin: `path`, `url`, `buffer`（必要最小限）
-   - external: `playwright` のみ
-4. `child_process`, `worker_threads`, `fs`, `net`, `tls`, `http/https` などは原則禁止
+1. 主防御は別プロセス化
+2. vm2 は第二防御層
+3. NodeVM.require は allowlist
+   - builtin: path, url, buffer
+   - external: playwright のみ
+4. child_process, worker_threads, fs, net, tls, http/https などは禁止
 5. ネットワークはデフォルト拒否
-   - 実装案 A: そもそも `pw.goto` が外部 URL を拒否
-   - 実装案 B: `page.route('**/*')` で allowlist 以外 abort
-6. タイムアウト時にプロセスグループ kill
-7. 出力サイズ制限（16KB）
+   - URL 検査 + page.route による allowlist 制御
+6. タイムアウト時にプロセス kill
+7. stdout/stderr 各 16KB 上限
+8. screenshot バイト上限とレート制限
 
-## 10. 実装タスク分解
+## 11. 実装タスク分解（改訂）
 
 ### フェーズ 1: 骨格
 
-1. `src/lmtools/playwrightrepl.ts` 新規
-2. `src/lmtools/playwrightreplrunner.ts` 新規
-3. `src/main.ts` に 2 ツール登録追加
-4. `package.json` に 2 ツール定義追加
-5. `package.json` に設定項目追加
+1. src/lmtools/playwrightrepl.ts 新規
+2. src/lmtools/playwrightreplrunner.ts 新規
+3. src/main.ts に 2 ツール登録
+4. package.json に 2 ツール定義
+5. package.json に設定項目追加
 
 ### フェーズ 2: 実行基盤
 
 1. 親側 child_process 起動・再利用
 2. NDJSON 通信
-3. タイムアウト・キャンセル時 kill
+3. タイムアウト・キャンセル kill
 4. reset 実装
+5. top level await 対応評価
 
 ### フェーズ 3: Playwright ラッパー
 
 1. 子側で browser/context/page ライフサイクル管理
-2. `pw.*` API の最小セット実装（`locator`, `getByRole` を含む）
-3. headless/browserType 設定反映
+2. pw 最小 API 実装
+3. headless/browserType 反映
+4. network deny by default
 
-### フェーズ 4: 制約強化
+### フェーズ 4: screenshot
 
-1. `vm2` allowlist 制御
-2. tree-sitter による実行前 validation
-3. ネットワーク拒否（default） + 明示許可
-4. 出力トリミング
+1. pw.screenshot 実装（jpeg/png）
+2. CSS 正規化
+3. LanguageModelDataPart 返却
+4. clipRect 含むメタ返却
+5. バイト上限・レート制限
 
-### フェーズ 5: テスト
+### フェーズ 5: 制約強化
 
-1. 単体テスト
-   - セッション継続
-   - reset 後の状態初期化
-   - タイムアウト
-   - 禁止 API アクセス
-   - ネットワーク拒否
-2. 統合テスト（可能範囲）
-   - 実ブラウザ起動（headless）
+1. vm2 allowlist 制御
+2. tree-sitter で実行前 validation
+3. 禁止 API の fail-fast
+4. エラー文言をユーザー理解しやすく整形
 
-## 11. 影響ファイル（予定）
+### フェーズ 6: テスト
 
-- `src/main.ts`
-- `src/lmtools/playwrightrepl.ts`（新規）
-- `src/lmtools/playwrightreplrunner.ts`（新規）
-- `package.json`
-- 必要なら `src/chat/prompt.tsx` またはツール案内文
+1. セッション継続
+2. reset 後初期化
+3. タイムアウト
+4. 禁止 API アクセス拒否
+5. ネットワーク拒否
+6. top level await 実行
+7. screenshot 返却（画像 + メタ）
+8. native-window での寸法正規化
+
+## 12. 影響ファイル（予定）
+
+- src/main.ts
+- src/lmtools/playwrightrepl.ts（新規）
+- src/lmtools/playwrightreplrunner.ts（新規）
+- package.json
+- 必要なら src/chat/prompt.tsx またはツール案内文
 - テストファイル（新規）
 
-## 12. リスクと対策
+## 13. リスクと対策
 
-- `vm2` 単体の過信
-  - 対策: 子プロセス分離 + 制限 + 定期アップデート
-- Playwright の API 面積が広い
-  - 対策: まずは `pw.*` 最小 API から段階拡張
-- チャットセッション識別子取得の不確実性
-  - 対策: `handleToolStream` 優先 + `default` フォールバック
-- macOS sandbox-exec と Playwright の相性
-  - 対策: 初期段階は `runinsandbox` とは独立運用し、必要なら後段で統合検討
+- vm2 単体の過信
+  - 対策: 子プロセス分離を主防御に固定
+- top level await 実装差異
+  - 対策: 失敗時状態ルールを明文化し、挙動テストを追加
+- screenshot サイズ増大
+  - 対策: jpeg デフォルト、品質固定、上限超過時エラー
+- macOS Retina 由来の座標ずれ
+  - 対策: CSS 正規化メタを返却し、クリック時に clip 原点補正
+- セッション識別子取得の不確実性
+  - 対策: chatSessionResource 優先 + default フォールバック
 
-## 13. 実装順序（最短）
+## 14. 実装順序（最短）
 
-1. Tool contribution + register（起動確認）
-2. child_process + echo runner（通信確認）
-3. vm2 でコード評価（純 JS）
+1. tool contribution + register
+2. child_process + echo runner
+3. vm2 で top level await 評価
 4. Playwright 管理ラッパー導入
-5. ネットワーク制限と reset
-6. テスト追加
-
+5. screenshot（画像返却 + 正規化）
+6. ネットワーク制限 + reset
+7. テスト追加
