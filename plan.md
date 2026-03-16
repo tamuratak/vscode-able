@@ -209,6 +209,17 @@ src/playwright_repl/playwrightrunner.ts を Node プロセスとして起動。
 
 ## 11. 実装タスク分解（改訂）
 
+### 追補タスク（2026-03-17 追加）: validator 改修とテスト強化
+
+1. src/playwright_repl/codevalidator.ts から正規表現ベース禁止判定を除去
+2. tree-sitter の AST ノード解析のみで禁止判定を実装
+  - import 文
+  - import() 呼び出し
+  - require() 呼び出し
+  - process / globalThis.process 参照
+3. テストを拡張し、文字列リテラル誤検知が発生しないことを確認
+4. runner のテストを URL 許可判定・host 正規化に加え message parse 周辺まで追加
+
 ### フェーズ 1: 骨格
 
 1. src/playwright_repl/playwrightrepltool.ts 新規
