@@ -334,3 +334,30 @@ src/playwright_repl/playwrightrunner.ts を Node プロセスとして起動。
 5. screenshot（画像返却 + 正規化）
 6. ネットワーク制限 + reset
 7. テスト追加
+
+## 15. 追補タスク（2026-03-17）: constructor アクセス遮断
+
+### 背景
+
+- vm2 の既知攻撃では `.constructor` 参照がエスケープ連鎖の起点になりやすい
+- 現在の validator は `import/require/process` 重点で、constructor 系を未遮断
+
+### 今回の要求
+
+1. [src/playwright_repl/codevalidator.ts](src/playwright_repl/codevalidator.ts) で `.constructor` 参照を禁止する
+2. ドット、optional chaining、ブラケット（`['constructor']`）をすべて禁止する
+3. 文字列リテラル・コメント中の語句は誤検知しない
+4. [contexttmp/vm2/docs/ATTACKS.md](contexttmp/vm2/docs/ATTACKS.md) を参照し、追加で禁止すべき高リスクパターンを調査し反映する
+
+### 追加で優先検討する遮断候補
+
+- `__proto__` 参照
+- `Object.setPrototypeOf` / `Reflect.setPrototypeOf`
+- `__defineGetter__` / `__defineSetter__` / `__lookupGetter__` / `__lookupSetter__`
+- `Symbol.species` / `Symbol.hasInstance` 参照
+
+### 受け入れ条件
+
+- constructor 参照の 3 パターンが unit test で拒否される
+- 既存の許可ケース（通常 await、文字列中語句）は維持される
+- validator は引き続き tree-sitter AST 判定のみを利用する

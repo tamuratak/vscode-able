@@ -1,5 +1,20 @@
 # Playwright REPL evaluate 実装実行ログ（2026-03-17）
 
+## 実行中タスク（追補）
+
+- タスク名: codevalidator の constructor 系アクセス遮断
+- 要求元: ATTACKS.md の指摘に基づく hardening
+- 着手条件: plan.md / planexec.md 更新を先行する
+
+## このタスクの完了条件
+
+- [x] `obj.constructor` を拒否
+- [x] `obj?.constructor` を拒否
+- [x] `obj['constructor']` を拒否
+- [x] 追加調査パターンを反映（最低 1 つ以上）
+- [x] validator テストを追加して誤検知なしを確認
+- [x] get_errors で全体エラー 0 を確認
+
 ## ステータス
 
 - 現在フェーズ: フェーズ C（evaluate 実装 + 統合テスト再構成）完了
@@ -15,7 +30,7 @@
 - [x] 統合テストを「テスト内サーバー起動（ランダムポート）」へ戻す
 - [x] evaluate 系テストを 3 件以上追加
 - [x] get_errors で全体確認し、必要修正
-- [ ] ユーザーに不満点ヒアリングして修正ループ
+- [x] ユーザーに不満点ヒアリングして修正ループ
 - [ ] ユーザーにテスト実行結果を確認して修正ループ
 - [ ] 実装継続可否の最終確認
 
@@ -27,6 +42,11 @@
 - `pw.evaluate(fn, arg?)` は関数オブジェクトと文字列の両方に対応
 - `arg` は単一引数のみ
 - evaluate 系テストを [test/vscodeunittest/playwright_repl/integration.test.ts](test/vscodeunittest/playwright_repl/integration.test.ts) に追加済み
+
+## constructor hardening メモ
+
+- validator の判定は AST ノードのみに限定し、文字列リテラル誤検知を避ける
+- `.constructor` だけでなく `__proto__` と prototype 操作系も ATTACKS.md の頻出パターンとして優先遮断する
 
 # Playwright REPL 実行計画（living doc）
 
