@@ -180,19 +180,19 @@ suite('Playwright REPL Integration Test', () => {
 
     test('navigates to local page and reads text', async () => {
         const result = await invokeCode(`
-await pw.goto('${baseUrl}')
-return await pw.text('#title')
+await pwApi.page.goto('${baseUrl}')
+return await pwApi.page.textContent('#title')
 `)
         const text = extractText(result)
         ok(text.includes('result:\nReady'))
     })
 
-    test('fills and clicks using helper api', async () => {
+    test('fills and clicks using page api', async () => {
         const result = await invokeCode(`
-await pw.goto('${baseUrl}')
-await pw.fill('#name', 'Updated by Test')
-await pw.click('#apply')
-return await pw.text('#title')
+await pwApi.page.goto('${baseUrl}')
+await pwApi.page.fill('#name', 'Updated by Test')
+await pwApi.page.click('#apply')
+return await pwApi.page.textContent('#title')
 `)
         const text = extractText(result)
         ok(text.includes('result:\nUpdated by Test'))
@@ -200,8 +200,8 @@ return await pw.text('#title')
 
     test('screenshot returns image data part', async () => {
         const result = await invokeCode(`
-await pw.goto('${baseUrl}')
-await pw.screenshot({ format: 'png' })
+await pwApi.page.goto('${baseUrl}')
+await pwApi.screenshot({ format: 'png' })
 return 'shot'
 `)
         const text = extractText(result)
@@ -220,37 +220,47 @@ return 'shot'
 
     test('keeps session state between invocations', async () => {
         await invokeCode(`
-await pw.goto('${baseUrl}')
-return await pw.url()
+await pwApi.page.goto('${baseUrl}')
+return pwApi.page.url()
 `)
-        const result = await invokeCode('return await pw.url()')
+        const result = await invokeCode('return pwApi.page.url()')
         const text = extractText(result)
         ok(text.includes(`result:\n${baseUrl}/`))
     })
 
     test('reset tool clears session state', async () => {
         await invokeCode(`
-await pw.goto('${baseUrl}')
-return await pw.url()
+await pwApi.page.goto('${baseUrl}')
+return pwApi.page.url()
 `)
         resetTool.invoke({ toolInvocationToken: undefined, input: { reason: 'state reset' } }, tokenSource.token)
 
-        const result = await invokeCode('return await pw.url()')
+        const result = await invokeCode('return pwApi.page.url()')
         const text = extractText(result)
         ok(text.includes('result:\nabout:blank'))
     })
 
     test('blocks external network by default', async () => {
         await rejects(
-            () => invokeCode("await pw.goto('https://example.com')"),
+            () => invokeCode("await pwApi.page.goto('https://example.com')"),
             /validation failed|blockedbyclient|ERR|Navigation/
+        )
+    })
+
+    test('removed helper api is not available', async () => {
+        await rejects(
+            () => invokeCode(`
+await pwApi.page.goto('${baseUrl}')
+return await pwApi.fill('#name', 'x')
+`),
+            /pwApi\.fill is not a function/
         )
     })
 
     test('evaluate supports function object', async () => {
         const result = await invokeCode(`
-await pw.goto('${baseUrl}')
-return await pw.evaluate(() => document.title)
+await pwApi.page.goto('${baseUrl}')
+return await pwApi.page.evaluate(() => document.title)
 `)
         const text = extractText(result)
         ok(text.includes('result:\nplaywright repl integration'))
@@ -258,16 +268,16 @@ return await pw.evaluate(() => document.title)
 
     test('evaluate supports function object with arg', async () => {
         const result = await invokeCode(`
-return await pw.evaluate((arg) => arg + 1, 10)
+return await pwApi.page.evaluate((arg) => arg + 1, 10)
 `)
         const text = extractText(result)
         ok(text.includes('result:\n11'))
     })
 
-    test('evaluate supports string function with arg', async () => {
+    test('evaluate with arg', async () => {
         const result = await invokeCode(`
-await pw.goto('${baseUrl}')
-return await pw.evaluate('(arg) => document.title + "-" + arg', 'ok')
+await pwApi.page.goto('${baseUrl}')
+return await pwApi.page.evaluate((arg) => document.title + '-' + arg, 'ok')
 `)
         const text = extractText(result)
         ok(text.includes('result:\nplaywright repl integration-ok'))

@@ -28,22 +28,6 @@ interface RunnerResult {
     }
 }
 
-interface RoleOptions {
-    name?: string
-    exact?: boolean
-}
-
-interface LocatorProxy {
-    click(): Promise<void>
-    fill(value: string): Promise<void>
-    text(): Promise<string>
-}
-
-type EvaluatePrimitive = string | number | boolean | null
-type EvaluateArg = EvaluatePrimitive | undefined
-type EvaluateResult = EvaluatePrimitive | undefined
-type EvaluateFunction = (arg: EvaluateArg) => EvaluateResult | Promise<EvaluateResult>
-
 const defaultConfig: RunnerConfig = {
     browserType: 'chromium',
     headless: true,
@@ -94,80 +78,22 @@ class RunnerState {
         return Math.max(500, Math.min(this.config.timeoutMs, 120000))
     }
 
-    createPwApi(stdout: string[], stderr: string[], images: ImagePayload[]): Record<string, unknown> {
+    async createPwApi(stdout: string[], stderr: string[], images: ImagePayload[]): Promise<Record<string, unknown>> {
         const screenshotCounter = {
             count: 0,
             limit: 3
         }
 
+        const page = await this.ensurePage()
+
         const pwApi = {
-            goto: async (url: string) => {
-                const page = await this.ensurePage()
-                await page.goto(url)
-                return page.url()
-            },
-            click: async (selector: string) => {
-                const page = await this.ensurePage()
-                await page.click(selector)
-            },
-            fill: async (selector: string, value: string) => {
-                const page = await this.ensurePage()
-                await page.fill(selector, value)
-            },
-            text: async (selector: string) => {
-                const page = await this.ensurePage()
-                const value = await page.textContent(selector)
-                return value ?? ''
-            },
-            locator: (selector: string): LocatorProxy => {
-                const getLocator = async () => {
-                    const page = await this.ensurePage()
-                    return page.locator(selector)
-                }
-                return {
-                    click: async () => {
-                        const locator = await getLocator()
-                        await locator.click()
-                    },
-                    fill: async (value: string) => {
-                        const locator = await getLocator()
-                        await locator.fill(value)
-                    },
-                    text: async () => {
-                        const locator = await getLocator()
-                        const value = await locator.textContent()
-                        return value ?? ''
-                    }
-                }
-            },
-            getByRole: (role: string, options?: RoleOptions): LocatorProxy => {
-                const getLocator = async () => {
-                    const page = await this.ensurePage()
-                    return page.getByRole(role as never, options)
-                }
-                return {
-                    click: async () => {
-                        const locator = await getLocator()
-                        await locator.click()
-                    },
-                    fill: async (value: string) => {
-                        const locator = await getLocator()
-                        await locator.fill(value)
-                    },
-                    text: async () => {
-                        const locator = await getLocator()
-                        const value = await locator.textContent()
-                        return value ?? ''
-                    }
-                }
-            },
+            page,
             screenshot: async (options?: { format?: ImageFormat, quality?: number, fullPage?: boolean, clip?: { x: number, y: number, width: number, height: number } }) => {
                 screenshotCounter.count += 1
                 if (screenshotCounter.count > screenshotCounter.limit) {
                     throw new Error('too many screenshots in one exec')
                 }
 
-                const page = await this.ensurePage()
                 const format = options?.format ?? this.config.screenshotDefaultFormat
                 const quality = format === 'jpeg' ? (options?.quality ?? 85) : undefined
                 const screenshotOptions: {
@@ -228,16 +154,6 @@ class RunnerState {
                     text: imagePayload.text,
                     meta
                 }
-            },
-            url: async () => {
-                const page = await this.ensurePage()
-                return page.url()
-            },
-            evaluate: async (fn: string | EvaluateFunction, arg?: EvaluateArg): Promise<EvaluateResult> => {
-                const page = await this.ensurePage()
-                const pageFunction = typeof fn === 'string' ? this.parseEvaluateFunction(fn) : fn
-                const result = await page.evaluate(pageFunction, arg)
-                return result
             }
         }
 
@@ -250,7 +166,7 @@ class RunnerState {
         }
 
         return {
-            pw: pwApi,
+            pwApi,
             console: sandboxConsole,
             setTimeout,
             clearTimeout,
@@ -287,20 +203,6 @@ class RunnerState {
         return this.page
     }
 
-    private parseEvaluateFunction(source: string): EvaluateFunction {
-        const parserVm = new VM({
-            timeout: 1000,
-            allowAsync: true,
-            eval: false,
-            wasm: false,
-            sandbox: {}
-        })
-        const parsed: unknown = parserVm.run(`(${source})`)
-        if (typeof parsed !== 'function') {
-            throw new Error('pw.evaluate string must be a function expression')
-        }
-        return parsed as EvaluateFunction
-    }
 }
 
 const state = new RunnerState()
@@ -376,7 +278,7 @@ async function handleExec(request: ExecRequest): Promise<RunnerResult> {
             throw new Error(`validation failed: ${validationResult.reason}`)
         }
 
-        const sandbox = state.createPwApi(stdout, stderr, images)
+        const sandbox = await state.createPwApi(stdout, stderr, images)
         const timeoutMs = state.getTimeoutMs(request.timeoutMs)
         const vm = new VM({
             timeout: timeoutMs,
