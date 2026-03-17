@@ -1,9 +1,30 @@
+# Playwright REPL pwApi.page 公開仕様変更計画（2026-03-18）
+
+## 目的
+
+- pwApi で Playwright の `page` そのものを公開する
+- `pwApi.screenshot` は継続して提供する
+- `pwApi.screenshot` 以外のヘルパー API（click/fill/text/locator/getByRole/url/goto/evaluate など）を削除する
+
+## 変更方針
+
+1. ランナー側の `pwApi` を最小化し、`pwApi.page` と `pwApi.screenshot` のみ公開する
+2. 既存の統合テストを `pwApi.page` ベースへ移行する
+3. 削除された API への依存をテストから除去し、必要に応じて「削除されたこと」を検証する
+4. ツール説明（modelDescription）を新仕様に合わせて更新する
+
+## 受け入れ条件
+
+- `pwApi.page.goto(...)` や `pwApi.page.locator(...)` など Page ネイティブ API が統合テストで利用できる
+- `pwApi.screenshot(...)` は既存どおり動作する
+- `pwApi.click` / `pwApi.fill` / `pwApi.text` / `pwApi.locator` / `pwApi.getByRole` / `pwApi.url` / `pwApi.goto` / `pwApi.evaluate` が削除される
+- 変更後に `get_errors` で全体エラーがない
+
 # Playwright REPL evaluate 対応と統合テスト再計画（2026-03-17）
 
 ## 目的
 
 - [test/vscodeunittest/playwright_repl](test/vscodeunittest/playwright_repl) に Playwright REPL の統合テストを追加する
-- [src/playwright_repl/playwrightrunner.ts](src/playwright_repl/playwrightrunner.ts) に `pw.evaluate(fn, arg?)` を追加する
 - VS Code 統合テスト環境で `PlaywrightReplTool` を直接 `invoke` し、実ブラウザ実行を含む動作を確認する
 - 最低 3 件の evaluate 系ケースを追加し、既存ケースと合わせて基本動作・エラー・セッション継続・reset を検証する
 
@@ -13,7 +34,7 @@
 - 環境依存を許容し、実ブラウザ実行の成否も検証する
 - 最低ケース数は 10
 - 実行経路は Chat 経路ではなく、統合テスト内で `PlaywrightReplTool` の直接 `invoke` でよい
-- evaluate は `pw.evaluate(fn, arg?)` 形式で実装する
+- evaluate は `pwApi.evaluate(fn, arg?)` 形式で実装する
 - `fn` は関数オブジェクトと文字列の両対応とする
 - `arg` は単一引数のみ対応し、戻り値は JSON 直列化可能値を対象とする
 - 統合テストではユーザー起動サーバー方式をやめ、テスト内でローカル HTTP サーバーを起動する（ランダムポート）
@@ -21,7 +42,7 @@
 ## 実装方針
 
 1. [test/vscodeunittest/playwright_repl](test/vscodeunittest/playwright_repl) に新規テストファイルを追加する
-2. 統合テスト内で Node HTTP サーバーを起動し、`pw.goto` / `pw.text` / `pw.click` / `pw.fill` / `pw.screenshot` / `pw.evaluate` を検証する
+2. 統合テスト内で Node HTTP サーバーを起動し、`pwApi.page` / `pwApi.screenshot` を検証する
 3. `PlaywrightReplResetTool` を使った session reset も検証する
 4. evaluate 系を最低 3 ケース追加する（関数オブジェクト、文字列、arg 利用）
 5. 失敗系（空コード、network deny）も継続して検証する
@@ -129,7 +150,7 @@ js_repl ドキュメント、Playwright Interactive SKILL、Node vm ドキュメ
 
 ### 5.2 返却インターフェース
 
-pw.screenshot(options?) の返却:
+pwApi.screenshot(options?) の返却:
 
 - image: LanguageModelDataPart 相当（mimeType + bytes）
 - meta: JSON 文字列（width, height, cssWidth, cssHeight, deviceScaleFactor, clipped, clipRect）
@@ -180,13 +201,8 @@ src/playwright_repl/playwrightrunner.ts を Node プロセスとして起動。
 
 ### 6.3 公開ヘルパー API（最小）
 
-- pw.goto(url)
-- pw.click(selector)
-- pw.fill(selector, value)
-- pw.text(selector)
-- pw.locator(selector).click()
-- pw.getByRole(role, options)
-- pw.screenshot(options?)
+- pwApi.page
+- pwApi.screenshot(options?)
 
 初期版では API 面積を増やしすぎない。
 
@@ -207,7 +223,7 @@ src/playwright_repl/playwrightrunner.ts を Node プロセスとして起動。
 
 親 -> 子:
 
-{"id":"1","type":"exec","code":"await pw.goto('https://example.com')"}
+{"id":"1","type":"exec","code":"await pwApi.page.goto('https://example.com')"}
 {"id":"2","type":"reset"}
 {"id":"3","type":"dispose"}
 
@@ -279,7 +295,7 @@ src/playwright_repl/playwrightrunner.ts を Node プロセスとして起動。
 
 ### フェーズ 4: screenshot
 
-1. pw.screenshot 実装（jpeg/png）
+1. pwApi.screenshot 実装（jpeg/png）
 2. CSS 正規化
 3. LanguageModelDataPart 返却
 4. clipRect 含むメタ返却

@@ -245,7 +245,7 @@
         "displayName": "Playwright REPL",
         "canBeReferencedInPrompt": true,
         "userDescription": "Execute JavaScript against a persistent Playwright browser session.",
-        "modelDescription": "Run JavaScript in a persistent Playwright session. Use top level await and the pw helper API to navigate, click, fill, read text, and capture screenshots.",
+        "modelDescription": "Run JavaScript in a persistent Playwright session. Use top level await with pwApi.page (Playwright Page) and pwApi.screenshot().",
         "icon": "$(browser)",
         "inputSchema": {
           "type": "object",

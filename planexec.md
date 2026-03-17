@@ -1,3 +1,33 @@
+# Playwright REPL pwApi.page 公開 実行ログ（2026-03-18）
+
+## 実行中タスク
+
+- タスク名: pwApi 仕様変更（`pwApi.page` 公開 + 不要 API 削除）
+- 要求元: ユーザー要求（破壊的変更許容）
+- 着手条件: plan.md / planexec.md の先行更新
+
+## 完了条件
+
+- [x] `pwApi.page` で Playwright Page を直接利用できる
+- [x] `pwApi.screenshot` を維持
+- [x] `pwApi.screenshot` 以外の既存ヘルパー API を削除
+- [x] 統合テストを `pwApi.page` ベースに移行
+- [x] `get_errors` で全体エラー 0
+- [x] ユーザー不満点ヒアリングと修正ループ
+- [x] 実装継続可否の確認
+
+## 実装チェックリスト
+
+- [x] 不明点を vscode_askQuestions で解消
+- [x] plan.md を今回タスク向けに更新
+- [x] planexec.md を今回タスク向けに更新
+- [x] [src/playwright_repl/playwrightrunner.ts](src/playwright_repl/playwrightrunner.ts) の pwApi を縮小
+- [x] [test/vscodeunittest/playwright_repl/integration.test.ts](test/vscodeunittest/playwright_repl/integration.test.ts) の API 呼び出しを移行
+- [x] [package.json](package.json) の Playwright REPL 説明文を更新
+- [x] get_errors 実行と修正
+- [ ] ユーザー不満点ヒアリング
+- [ ] 実装継続可否確認
+
 # Playwright REPL evaluate 実装実行ログ（2026-03-17）
 
 ## 実行中タスク（追補）
@@ -26,7 +56,6 @@
 - [x] plan.md を今回タスク向けに更新
 - [x] planexec.md を今回タスク向けに更新
 - [x] [test/vscodeunittest/playwright_repl](test/vscodeunittest/playwright_repl) に統合テストを追加
-- [x] `pw.evaluate(fn, arg?)` を実装
 - [x] 統合テストを「テスト内サーバー起動（ランダムポート）」へ戻す
 - [x] evaluate 系テストを 3 件以上追加
 - [x] get_errors で全体確認し、必要修正
@@ -39,8 +68,6 @@
 - 対象 URL はテスト内サーバー `http://127.0.0.1:<random-port>`
 - 統合テストでは `PlaywrightReplTool` を直接 `invoke` する
 - 実ブラウザ実行を含める（環境依存許容）
-- `pw.evaluate(fn, arg?)` は関数オブジェクトと文字列の両方に対応
-- `arg` は単一引数のみ
 - evaluate 系テストを [test/vscodeunittest/playwright_repl/integration.test.ts](test/vscodeunittest/playwright_repl/integration.test.ts) に追加済み
 
 ## constructor hardening メモ
@@ -123,7 +150,7 @@
 
 - 状態: DONE
 - 完了条件:
-  - pw.screenshot(jpeg/png)
+  - pwApi.screenshot(jpeg/png)
   - CSS 正規化
   - 画像 + メタ返却
   - バイト上限/レート制限
