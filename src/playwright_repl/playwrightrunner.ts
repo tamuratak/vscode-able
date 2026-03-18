@@ -44,8 +44,27 @@ const localHosts = new Set<string>([
     '[::1]'
 ])
 
+const allowedSchemes = new Set<string>([
+    'http:',
+    'https:'
+])
+
+const minAllowedPort = 3000
+const maxAllowedPort = 3010
+
 function isLocalHost(host: string): boolean {
     return localHosts.has(host.trim().toLowerCase())
+}
+
+function isAllowedPort(portText: string): boolean {
+    if (portText.length === 0) {
+        return false
+    }
+    const portNumber = Number(portText)
+    if (!Number.isInteger(portNumber)) {
+        return false
+    }
+    return portNumber >= minAllowedPort && portNumber <= maxAllowedPort
 }
 
 class RunnerState {
@@ -238,12 +257,16 @@ export function isAllowedUrl(url: string): boolean {
         return false
     }
 
-    if (parsed.protocol === 'about:' || parsed.protocol === 'data:') {
-        return true
+    if (!allowedSchemes.has(parsed.protocol)) {
+        return false
     }
 
     const host = parsed.hostname.toLowerCase()
-    return isLocalHost(host)
+    if (!isLocalHost(host)) {
+        return false
+    }
+
+    return isAllowedPort(parsed.port)
 }
 
 async function handleExec(request: ExecRequest): Promise<RunnerResult> {

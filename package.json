@@ -245,7 +245,7 @@
         "displayName": "Playwright REPL",
         "canBeReferencedInPrompt": true,
         "userDescription": "Execute JavaScript against a persistent Playwright browser session.",
-        "modelDescription": "Run JavaScript in a persistent Playwright session. Use top level await with pwApi.page (Playwright Page) and pwApi.screenshot().",
+        "modelDescription": "Run JavaScript in a persistent Playwright session. Use top level await with pwApi.page (Playwright Page) and pwApi.screenshot(). Navigation is restricted to local http/https loopback URLs with explicit ports 3000-3010.",
         "icon": "$(browser)",
         "inputSchema": {
           "type": "object",
@@ -474,6 +474,7 @@
     "openai": "6.2.0",
     "playwright": "1.58.2",
     "vm2": "3.10.5",
+    "vscode-uri": "3.1.0",
     "workerpool": "10.0.0"
   },
   "devDependencies": {
