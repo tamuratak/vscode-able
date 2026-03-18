@@ -97,7 +97,7 @@ class RunnerState {
                     throw new Error('too many screenshots in one exec')
                 }
 
-                const format = options?.format ?? 'png'
+                const format = options?.format ?? 'jpeg'
                 const quality = format === 'jpeg' ? (options?.quality ?? 85) : undefined
                 const screenshotOptions: {
                     type: ImageFormat

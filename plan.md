@@ -29,7 +29,7 @@
 - REPL 実行時に外部 URL（例: https://example.com）は拒否される
 - REPL 実行時にローカル URL（localhost / 127.0.0.1 / ::1）は許可される
 - タイムアウトは常に 15000ms で、ツール入力から上書きできない
-- `pwApi.screenshot()` のデフォルト format は png
+- `pwApi.screenshot()` のデフォルト format は jpeg
 - stdout/stderr の最大保持量は 16384 バイト固定
 - screenshot の最大許容量は 1048576 バイト固定
 - 変更後に `get_errors` で全体エラー 0

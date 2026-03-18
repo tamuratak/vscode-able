@@ -16,7 +16,6 @@
 - [x] `able.playwrightRepl.maxScreenshotBytes` を削除
 - [x] 通信許可先を localhost / 127.0.0.1 / ::1 のみに固定
 - [x] 実行タイムアウトを常に 15000ms 固定（入力上書きなし）
-- [x] screenshot 既定フォーマットを png 固定
 - [x] 関連テストを新仕様へ更新
 - [x] `get_errors` で全体エラー 0
 - [ ] ユーザー不満点ヒアリングと修正ループ
