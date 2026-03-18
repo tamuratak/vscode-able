@@ -1,3 +1,39 @@
+# Playwright REPL 設定削減計画（2026-03-18）
+
+## 目的
+
+- Playwright REPL の危険な可変設定を削減し、安全側固定へ移行する
+- 外部ネットワークアクセスを禁止し、ローカルアクセスのみ許可する
+- 実行タイムアウトを 15 秒固定にする
+- スクリーンショット形式を png 固定にする
+
+## 変更方針
+
+1. `able.playwrightRepl.network.allowedHosts` を削除する
+2. `able.playwrightRepl.network.allow` を削除する
+3. `able.playwrightRepl.timeoutMs` を削除し、実行タイムアウトは常に 15000ms に固定する（実行リクエスト上書きも無効化）
+4. `able.playwrightRepl.screenshotDefaultFormat` を削除し、デフォルト形式は png 固定にする
+5. `able.playwrightRepl.maxOutputBytes` を削除し、16384 バイト固定にする
+6. `able.playwrightRepl.maxScreenshotBytes` を削除し、1048576 バイト固定にする
+7. URL 許可判定は localhost / 127.0.0.1 / ::1 のみ許可する
+
+## 受け入れ条件
+
+- `package.json` の contributes.configuration から次が削除される
+  - `able.playwrightRepl.network.allowedHosts`
+  - `able.playwrightRepl.network.allow`
+  - `able.playwrightRepl.timeoutMs`
+  - `able.playwrightRepl.screenshotDefaultFormat`
+  - `able.playwrightRepl.maxOutputBytes`
+  - `able.playwrightRepl.maxScreenshotBytes`
+- REPL 実行時に外部 URL（例: https://example.com）は拒否される
+- REPL 実行時にローカル URL（localhost / 127.0.0.1 / ::1）は許可される
+- タイムアウトは常に 15000ms で、ツール入力から上書きできない
+- `pwApi.screenshot()` のデフォルト format は jpeg
+- stdout/stderr の最大保持量は 16384 バイト固定
+- screenshot の最大許容量は 1048576 バイト固定
+- 変更後に `get_errors` で全体エラー 0
+
 # Playwright REPL pwApi.page 公開仕様変更計画（2026-03-18）
 
 ## 目的

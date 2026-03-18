@@ -30,13 +30,22 @@ interface RunnerResult {
 
 const defaultConfig: RunnerConfig = {
     browserType: 'chromium',
-    headless: true,
-    networkAllow: false,
-    allowedHosts: [],
-    timeoutMs: 15000,
-    maxOutputBytes: 16384,
-    maxScreenshotBytes: 1024 * 1024,
-    screenshotDefaultFormat: 'jpeg'
+    headless: true
+}
+
+const executionTimeoutMs = 15000
+const maxOutputBytes = 16384
+const maxScreenshotBytes = 1024 * 1024
+
+const localHosts = new Set<string>([
+    'localhost',
+    '127.0.0.1',
+    '::1',
+    '[::1]'
+])
+
+function isLocalHost(host: string): boolean {
+    return localHosts.has(host.trim().toLowerCase())
 }
 
 class RunnerState {
@@ -46,10 +55,7 @@ class RunnerState {
     private config: RunnerConfig = { ...defaultConfig }
 
     setConfig(config: RunnerConfig) {
-        this.config = {
-            ...config,
-            allowedHosts: normalizeAllowedHosts(config.allowedHosts)
-        }
+        this.config = { ...config }
     }
 
     async reset() {
@@ -71,11 +77,8 @@ class RunnerState {
         }
     }
 
-    getTimeoutMs(overrideTimeoutMs: number | undefined): number {
-        if (typeof overrideTimeoutMs === 'number' && Number.isFinite(overrideTimeoutMs)) {
-            return Math.max(500, Math.min(overrideTimeoutMs, 120000))
-        }
-        return Math.max(500, Math.min(this.config.timeoutMs, 120000))
+    getTimeoutMs(): number {
+        return executionTimeoutMs
     }
 
     async createPwApi(stdout: string[], stderr: string[], images: ImagePayload[]): Promise<Record<string, unknown>> {
@@ -94,7 +97,7 @@ class RunnerState {
                     throw new Error('too many screenshots in one exec')
                 }
 
-                const format = options?.format ?? this.config.screenshotDefaultFormat
+                const format = options?.format ?? 'jpeg'
                 const quality = format === 'jpeg' ? (options?.quality ?? 85) : undefined
                 const screenshotOptions: {
                     type: ImageFormat
@@ -118,7 +121,7 @@ class RunnerState {
 
                 const screenshot = await page.screenshot(screenshotOptions)
 
-                if (screenshot.byteLength > this.config.maxScreenshotBytes) {
+                if (screenshot.byteLength > maxScreenshotBytes) {
                     throw new Error(`screenshot exceeds max bytes: ${screenshot.byteLength}`)
                 }
 
@@ -159,10 +162,10 @@ class RunnerState {
 
         const toLine = (values: unknown[]) => values.map(value => String(value)).join(' ')
         const sandboxConsole = {
-            log: (...values: unknown[]) => pushLimited(stdout, toLine(values), this.config.maxOutputBytes),
-            info: (...values: unknown[]) => pushLimited(stdout, toLine(values), this.config.maxOutputBytes),
-            warn: (...values: unknown[]) => pushLimited(stderr, toLine(values), this.config.maxOutputBytes),
-            error: (...values: unknown[]) => pushLimited(stderr, toLine(values), this.config.maxOutputBytes)
+            log: (...values: unknown[]) => pushLimited(stdout, toLine(values), maxOutputBytes),
+            info: (...values: unknown[]) => pushLimited(stdout, toLine(values), maxOutputBytes),
+            warn: (...values: unknown[]) => pushLimited(stderr, toLine(values), maxOutputBytes),
+            error: (...values: unknown[]) => pushLimited(stderr, toLine(values), maxOutputBytes)
         }
 
         return {
@@ -189,7 +192,7 @@ class RunnerState {
             this.context = await this.browser.newContext()
             await this.context.route('**/*', (route) => {
                 const requestUrl = route.request().url()
-                if (isAllowedUrl(requestUrl, this.config.networkAllow, this.config.allowedHosts)) {
+                if (isAllowedUrl(requestUrl)) {
                     return route.continue()
                 }
                 return route.abort('blockedbyclient')
@@ -227,21 +230,7 @@ function trimUtf8(value: string, maxBytes: number): string {
     return buffer.subarray(0, Math.max(0, maxBytes)).toString('utf8')
 }
 
-export function normalizeAllowedHosts(hosts: string[]): string[] {
-    const values = new Set<string>()
-    for (const host of hosts) {
-        const normalized = host.trim().toLowerCase()
-        if (normalized.length > 0) {
-            values.add(normalized)
-        }
-    }
-    values.add('localhost')
-    values.add('127.0.0.1')
-    values.add('::1')
-    return [...values]
-}
-
-export function isAllowedUrl(url: string, networkAllow: boolean, allowedHosts: string[]): boolean {
+export function isAllowedUrl(url: string): boolean {
     let parsed: URL
     try {
         parsed = new URL(url)
@@ -254,17 +243,7 @@ export function isAllowedUrl(url: string, networkAllow: boolean, allowedHosts: s
     }
 
     const host = parsed.hostname.toLowerCase()
-    const normalizedHosts = normalizeAllowedHosts(allowedHosts)
-
-    if (!networkAllow) {
-        return normalizedHosts.includes(host)
-    }
-
-    if (allowedHosts.length === 0) {
-        return true
-    }
-
-    return normalizedHosts.includes(host)
+    return isLocalHost(host)
 }
 
 async function handleExec(request: ExecRequest): Promise<RunnerResult> {
@@ -279,7 +258,7 @@ async function handleExec(request: ExecRequest): Promise<RunnerResult> {
         }
 
         const sandbox = await state.createPwApi(stdout, stderr, images)
-        const timeoutMs = state.getTimeoutMs(request.timeoutMs)
+        const timeoutMs = state.getTimeoutMs()
         const vm = new VM({
             timeout: timeoutMs,
             allowAsync: true,

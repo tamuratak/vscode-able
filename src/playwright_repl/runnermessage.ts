@@ -1,22 +1,14 @@
 type BrowserTypeName = 'chromium' | 'firefox' | 'webkit'
-type ImageFormat = 'jpeg' | 'png'
 
 export interface RunnerConfig {
     browserType: BrowserTypeName
     headless: boolean
-    networkAllow: boolean
-    allowedHosts: string[]
-    timeoutMs: number
-    maxOutputBytes: number
-    maxScreenshotBytes: number
-    screenshotDefaultFormat: ImageFormat
 }
 
 export interface ExecRequest {
     id: string
     type: 'exec'
     code: string
-    timeoutMs?: number
 }
 
 export interface ResetRequest {
@@ -60,12 +52,10 @@ export function parseRunnerMessage(line: string, defaultConfig: RunnerConfig): R
         if (!code) {
             return undefined
         }
-        const timeoutMs = getNumber(parsed, 'timeoutMs')
         return {
             id,
             type: 'exec',
-            code,
-            ...(timeoutMs !== undefined ? { timeoutMs } : {})
+            code
         }
     }
 
@@ -118,30 +108,6 @@ function getBoolean(value: Record<string, unknown>, key: string): boolean | unde
     return undefined
 }
 
-function getNumber(value: Record<string, unknown>, key: string): number | undefined {
-    const field = value[key]
-    if (typeof field === 'number' && Number.isFinite(field)) {
-        return field
-    }
-    return undefined
-}
-
-function getStringArray(value: Record<string, unknown>, key: string): string[] | undefined {
-    const field = value[key]
-    if (!Array.isArray(field)) {
-        return undefined
-    }
-
-    const result: string[] = []
-    for (const element of field) {
-        if (typeof element !== 'string') {
-            return undefined
-        }
-        result.push(element)
-    }
-    return result
-}
-
 function parseRunnerConfig(parsed: Record<string, unknown>, defaultConfig: RunnerConfig): RunnerConfig | undefined {
     const configValue = parsed['config']
     if (!isRecord(configValue)) {
@@ -150,21 +116,9 @@ function parseRunnerConfig(parsed: Record<string, unknown>, defaultConfig: Runne
 
     const browserType = getString(configValue, 'browserType')
     const headless = getBoolean(configValue, 'headless')
-    const networkAllow = getBoolean(configValue, 'networkAllow')
-    const allowedHosts = getStringArray(configValue, 'allowedHosts')
-    const timeoutMs = getNumber(configValue, 'timeoutMs')
-    const maxOutputBytes = getNumber(configValue, 'maxOutputBytes')
-    const maxScreenshotBytes = getNumber(configValue, 'maxScreenshotBytes')
-    const screenshotDefaultFormat = getString(configValue, 'screenshotDefaultFormat')
 
     return {
         browserType: (browserType === 'chromium' || browserType === 'firefox' || browserType === 'webkit') ? browserType : defaultConfig.browserType,
-        headless: headless ?? defaultConfig.headless,
-        networkAllow: networkAllow ?? defaultConfig.networkAllow,
-        allowedHosts: allowedHosts ?? defaultConfig.allowedHosts,
-        timeoutMs: timeoutMs ?? defaultConfig.timeoutMs,
-        maxOutputBytes: maxOutputBytes ?? defaultConfig.maxOutputBytes,
-        maxScreenshotBytes: maxScreenshotBytes ?? defaultConfig.maxScreenshotBytes,
-        screenshotDefaultFormat: (screenshotDefaultFormat === 'jpeg' || screenshotDefaultFormat === 'png') ? screenshotDefaultFormat : defaultConfig.screenshotDefaultFormat
+        headless: headless ?? defaultConfig.headless
     }
 }
