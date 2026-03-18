@@ -1,6 +1,5 @@
 import { ok, strictEqual, rejects } from 'node:assert'
 import * as http from 'node:http'
-import { AddressInfo } from 'node:net'
 import * as vscode from 'vscode'
 import { PlaywrightReplResetTool, PlaywrightReplTool } from '../../../src/playwright_repl/playwrightrepltool.js'
 
@@ -11,6 +10,42 @@ type ConfigKey =
     | 'headless'
 
 type ConfigValue = string | boolean | number | string[] | undefined
+
+const minAllowedPort = 3000
+const maxAllowedPort = 3010
+
+async function listenServerInAllowedRange(server: http.Server): Promise<number> {
+    for (let port = minAllowedPort; port <= maxAllowedPort; port += 1) {
+        const bound = await tryListen(server, port)
+        if (bound) {
+            return port
+        }
+    }
+
+    throw new Error('failed to bind test server in allowed port range')
+}
+
+function tryListen(server: http.Server, port: number): Promise<boolean> {
+    return new Promise<boolean>((resolve, reject) => {
+        const onListening = () => {
+            server.off('error', onError)
+            resolve(true)
+        }
+
+        const onError = (error: NodeJS.ErrnoException) => {
+            server.off('listening', onListening)
+            if (error.code === 'EADDRINUSE' || error.code === 'EACCES') {
+                resolve(false)
+                return
+            }
+            reject(error)
+        }
+
+        server.once('listening', onListening)
+        server.once('error', onError)
+        server.listen(port, '127.0.0.1')
+    })
+}
 
 suite('Playwright REPL Integration Test', () => {
     let server: http.Server
@@ -67,19 +102,8 @@ suite('Playwright REPL Integration Test', () => {
             response.end('not found')
         })
 
-        const address = await new Promise<AddressInfo>((resolve, rejectError) => {
-            server.listen(0, '127.0.0.1', () => {
-                const resolved = server.address()
-                if (resolved && typeof resolved !== 'string') {
-                    resolve(resolved)
-                    return
-                }
-                rejectError(new Error('failed to bind test server'))
-            })
-            server.on('error', rejectError)
-        })
-
-        baseUrl = `http://127.0.0.1:${address.port}`
+        const boundPort = await listenServerInAllowedRange(server)
+        baseUrl = `http://127.0.0.1:${boundPort}`
 
         outputChannel = vscode.window.createOutputChannel('playwright repl integration', { log: true })
         tokenSource = new vscode.CancellationTokenSource()
