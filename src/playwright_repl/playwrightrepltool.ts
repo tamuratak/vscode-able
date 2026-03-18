@@ -6,7 +6,6 @@ import { CancellationToken, LanguageModelDataPart, LanguageModelTextPart, Langua
 interface PlaywrightReplInput {
     code: string
     reason?: string
-    timeoutMs?: number
 }
 
 interface PlaywrightReplResetInput {
@@ -14,24 +13,16 @@ interface PlaywrightReplResetInput {
 }
 
 type BrowserTypeName = 'chromium' | 'firefox' | 'webkit'
-type ImageFormat = 'jpeg' | 'png'
 
 interface RunnerConfig {
     browserType: BrowserTypeName
     headless: boolean
-    networkAllow: boolean
-    allowedHosts: string[]
-    timeoutMs: number
-    maxOutputBytes: number
-    maxScreenshotBytes: number
-    screenshotDefaultFormat: ImageFormat
 }
 
 interface RunnerRequest {
     id: string
     type: 'init' | 'exec' | 'reset' | 'dispose'
     code?: string
-    timeoutMs?: number
     config?: RunnerConfig
 }
 
@@ -107,12 +98,10 @@ export class PlaywrightReplTool implements LanguageModelTool<PlaywrightReplInput
 
         await this.ensureSessionInitialized(session)
 
-        const timeoutMs = typeof options.input.timeoutMs === 'number' ? options.input.timeoutMs : undefined
         const response = await this.sendRequest(session, {
             id: createRequestId('exec'),
             type: 'exec',
-            code,
-            ...(timeoutMs !== undefined ? { timeoutMs } : {})
+            code
         }, token)
 
         if (!response.ok) {
@@ -213,28 +202,16 @@ export class PlaywrightReplTool implements LanguageModelTool<PlaywrightReplInput
         const conf = vscode.workspace.getConfiguration('able.playwrightRepl')
         const browserType = conf.get<BrowserTypeName>('browserType', 'chromium')
         const headless = conf.get<boolean>('headless', true)
-        const networkAllow = conf.get<boolean>('network.allow', false)
-        const allowedHosts = conf.get<string[]>('network.allowedHosts', [])
-        const timeoutMs = conf.get<number>('timeoutMs', 15000)
-        const maxOutputBytes = conf.get<number>('maxOutputBytes', 16384)
-        const maxScreenshotBytes = conf.get<number>('maxScreenshotBytes', 1024 * 1024)
-        const screenshotDefaultFormat = conf.get<ImageFormat>('screenshotDefaultFormat', 'jpeg')
 
         return {
             browserType,
-            headless,
-            networkAllow,
-            allowedHosts,
-            timeoutMs,
-            maxOutputBytes,
-            maxScreenshotBytes,
-            screenshotDefaultFormat
+            headless
         }
     }
 
     private sendRequest(session: RunnerSession, request: RunnerRequest, token: CancellationToken | undefined): Promise<RunnerResponse> {
         const timeoutMs = request.type === 'exec'
-            ? this.readConfig().timeoutMs + 1000
+            ? 16000
             : 3000
 
         return new Promise<RunnerResponse>((resolve, reject) => {

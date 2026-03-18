@@ -9,12 +9,6 @@ const extensionId = 'tamuratak.able'
 type ConfigKey =
     | 'browserType'
     | 'headless'
-    | 'network.allow'
-    | 'network.allowedHosts'
-    | 'timeoutMs'
-    | 'maxOutputBytes'
-    | 'maxScreenshotBytes'
-    | 'screenshotDefaultFormat'
 
 type ConfigValue = string | boolean | number | string[] | undefined
 
@@ -36,13 +30,7 @@ suite('Playwright REPL Integration Test', () => {
         const conf = vscode.workspace.getConfiguration('able.playwrightRepl')
         const keys: ConfigKey[] = [
             'browserType',
-            'headless',
-            'network.allow',
-            'network.allowedHosts',
-            'timeoutMs',
-            'maxOutputBytes',
-            'maxScreenshotBytes',
-            'screenshotDefaultFormat'
+            'headless'
         ]
         for (const key of keys) {
             previousConfig.set(key, conf.get<ConfigValue>(key))
@@ -50,12 +38,6 @@ suite('Playwright REPL Integration Test', () => {
 
         await conf.update('browserType', 'chromium', configTarget)
         await conf.update('headless', true, configTarget)
-        await conf.update('network.allow', false, configTarget)
-        await conf.update('network.allowedHosts', [], configTarget)
-        await conf.update('timeoutMs', 15000, configTarget)
-        await conf.update('maxOutputBytes', 16384, configTarget)
-        await conf.update('maxScreenshotBytes', 1024 * 1024, configTarget)
-        await conf.update('screenshotDefaultFormat', 'jpeg', configTarget)
 
         server = http.createServer((request, response) => {
             if (!request.url || request.url === '/') {
