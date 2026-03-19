@@ -165,7 +165,7 @@
 
 ## 2. 固定方針（plan.md から継承）
 
-- ツール名: able_playwright_repl / able_playwright_repl_reset
+- ツール名: able_playwrightRepl / able_playwrightReplReset
 - top level await を採用する
 - screenshot は初期フェーズから実装する
 - ネットワークはデフォルト拒否

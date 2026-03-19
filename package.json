@@ -207,7 +207,7 @@
         }
       },
       {
-        "name": "able_run_in_sandbox",
+        "name": "able_runInSandbox",
         "toolReferenceName": "runInSandbox",
         "tags": [
           "command"
@@ -236,7 +236,7 @@
         }
       },
       {
-        "name": "able_playwright_repl",
+        "name": "able_playwrightRepl",
         "toolReferenceName": "playwrightRepl",
         "tags": [
           "browser",
@@ -265,7 +265,7 @@
         }
       },
       {
-        "name": "able_playwright_repl_reset",
+        "name": "able_playwrightReplReset",
         "toolReferenceName": "playwrightReplReset",
         "tags": [
           "browser",

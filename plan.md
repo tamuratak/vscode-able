@@ -138,7 +138,7 @@ OpenAI Codex CLI の js_repl をそのまま移植せず、以下の制約を満
 - macOS 専用前提
 - Node v22 前提
 - ブラウザ起動挙動はユーザー設定（able.playwrightRepl.*）で制御可能
-- 既存 able_run_in_sandbox と同等に、安全側デフォルトで運用する
+- 既存 able_runInSandbox と同等に、安全側デフォルトで運用する
 
 ## 2. 非目標
 
@@ -195,7 +195,7 @@ js_repl ドキュメント、Playwright Interactive SKILL、Node vm ドキュメ
 
 仕様:
 
-- able_playwright_repl は top level await を受け付ける
+- able_playwrightRepl は top level await を受け付ける
 - 実装は子プロセス側でコードを async 関数ラップして評価する
 - 既存の永続状態（pw、内部ハンドル）は exec 間で保持する
 - 失敗時は「初期化済みハンドルは保持、当該 exec の途中副作用はベストエフォートで残る」を明示する
@@ -281,7 +281,7 @@ src/playwright_repl/playwrightrunner.ts を Node プロセスとして起動。
 
 ### 7.2 reset
 
-- able_playwright_repl_reset は該当セッションの子プロセスを破棄して再生成
+- able_playwrightReplReset は該当セッションの子プロセスを破棄して再生成
 - 5 分アイドルで自動破棄
 
 ## 8. 通信プロトコル（NDJSON）

@@ -104,9 +104,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_fetch_webpage', new FetchWebPageTool(extension)),
         vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove(extension)),
         vscode.lm.registerTool('able_web_search', new WebSearchTool(extension)),
-        vscode.lm.registerTool('able_run_in_sandbox', new RunInSandbox(extension)),
-        vscode.lm.registerTool('able_playwright_repl', extension.playwrightReplTool),
-        vscode.lm.registerTool('able_playwright_repl_reset', new PlaywrightReplResetTool(extension.playwrightReplTool)),
+        vscode.lm.registerTool('able_runInSandbox', new RunInSandbox(extension)),
+        vscode.lm.registerTool('able_playwrightRepl', extension.playwrightReplTool),
+        vscode.lm.registerTool('able_playwrightReplReset', new PlaywrightReplResetTool(extension.playwrightReplTool)),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()
     )
