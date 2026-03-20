@@ -1,5 +1,5 @@
 ---
-description: How to use able_runInSandbox
+description: How to use the able_runInSandbox tool
 ---
 
 ## Purpose

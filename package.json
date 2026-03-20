@@ -98,6 +98,9 @@
     "chatSkills": [
       {
         "path": "skills/how-to-use-run-in-sandbox/SKILL.md"
+      },
+      {
+        "path": "skills/how-to-use-playwright-repl/SKILL.md"
       }
     ],
     "languageModelChatProviders": [
