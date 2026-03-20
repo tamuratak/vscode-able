@@ -95,6 +95,11 @@
         "isSticky": true
       }
     ],
+    "chatSkills": [
+      {
+        "path": "skills/how-to-use-run-in-sandbox/SKILL.md"
+      }
+    ],
     "languageModelChatProviders": [
       {
         "vendor": "gemini_with_able",
