@@ -1,3 +1,43 @@
+# Playwright Exec 名称変更 実行ログ（2026-03-20）
+
+## 実行中タスク
+
+- タスク名: `playwrightRepl` 実行モデル再調査と `playwrightExec` への名称変更
+- 要求元: ユーザー要求
+- 着手条件: plan.md / planexec.md / SKILL.md の先行更新
+
+## 調査結果
+
+- 実行コードは呼び出しごとに `(async () => { ... })()` で評価される
+- `pwApi.page` などの Playwright セッション状態は保持される
+- `const` / `let` / `function` など、その評価スコープ内のローカル変数は次回呼び出しで参照できない
+- したがって「REPL」という名称は、変数継続を期待させる点で実態とずれる
+
+## 完了条件
+
+- [x] 不明点を vscode_askQuestions で解消
+- [x] `playwrightRepl` のローカル変数持続可否を調査
+- [x] 名称を `playwrightExec` 系へ変更する方針を確定
+- [x] plan.md を今回タスク向けに更新
+- [x] planexec.md を今回タスク向けに更新
+- [x] SKILL.md を今回タスク向けに更新
+- [x] 実装ファイルを `playwrightExec` 系名称へ変更
+- [x] テストと設定記述を `playwrightExec` 系名称へ変更
+- [x] `get_errors` で全体エラー 0
+- [x] ユーザー不満点ヒアリングと修正ループ
+- [ ] 実装継続可否確認
+
+## 決定ログ
+
+- 実装モデルは維持する
+- 変更対象にはユーザー向けツール名、設定名、コード識別子を含める
+- ローカル変数が持続しないことを文書へ明示する
+
+## ユーザー確認ログ
+
+- 不満点ヒアリング結果: なし
+- `./test/vscodeunittest` 結果: 成功
+
 # Playwright REPL ローカルポート制限 実行ログ（2026-03-19）
 
 ## 実行中タスク

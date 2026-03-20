@@ -13,7 +13,7 @@ import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwe
 import { GeminiCliChatProvider } from './chatprovider/geminiclichatprovider.js'
 import { AskChatHandleManager } from './chat/ask.js'
 import { FixMathChatHandleManager } from './chat/fixmath.js'
-import { PlaywrightReplResetTool, PlaywrightReplTool } from './playwright_repl/playwrightrepltool.js'
+import { PlaywrightExecResetTool, PlaywrightExecTool } from './playwright_exec/playwrightexectool.js'
 
 
 class Extension {
@@ -24,7 +24,7 @@ class Extension {
     readonly fixMathChatHandleManager: FixMathChatHandleManager
     readonly taskWatcher: TaskWatcher
     readonly extensionUri: vscode.Uri
-    readonly playwrightReplTool: PlaywrightReplTool
+    readonly playwrightExecTool: PlaywrightExecTool
 
     constructor(context: vscode.ExtensionContext) {
         this.chatHandleManager = new ChatHandleManager(this)
@@ -33,7 +33,7 @@ class Extension {
         this.ableTaskProvider = new MochaJsonTaskProvider(this)
         this.taskWatcher = new TaskWatcher(this)
         this.extensionUri = context.extensionUri
-        this.playwrightReplTool = new PlaywrightReplTool(this)
+        this.playwrightExecTool = new PlaywrightExecTool(this)
         setTimeout(async () => {
             const result = await vscode.lm.selectChatModels({ vendor: 'copilot' })
             this.outputChannel.info(`GitHub Copilot Chat available models: ${JSON.stringify(result, null, 2)}`)
@@ -55,7 +55,7 @@ class Extension {
     }
 
     dispose() {
-        this.playwrightReplTool.dispose()
+        this.playwrightExecTool.dispose()
         this.ableTaskProvider.dispose()
         this.outputChannel.dispose()
         this.taskWatcher.dispose()
@@ -105,8 +105,8 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove(extension)),
         vscode.lm.registerTool('able_web_search', new WebSearchTool(extension)),
         vscode.lm.registerTool('able_runInSandbox', new RunInSandbox(extension)),
-        vscode.lm.registerTool('able_playwrightRepl', extension.playwrightReplTool),
-        vscode.lm.registerTool('able_playwrightReplReset', new PlaywrightReplResetTool(extension.playwrightReplTool)),
+        vscode.lm.registerTool('able_playwrightExec', extension.playwrightExecTool),
+        vscode.lm.registerTool('able_playwrightExecReset', new PlaywrightExecResetTool(extension.playwrightExecTool)),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
         ...registerCommands()
     )

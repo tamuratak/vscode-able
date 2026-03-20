@@ -38,7 +38,7 @@ export interface CodeValidationResult {
     reason?: string
 }
 
-export async function validatePlaywrightReplCode(code: string): Promise<CodeValidationResult> {
+export async function validatePlaywrightExecCode(code: string): Promise<CodeValidationResult> {
     await parserInitialization
     if (!parser || !errorQuery) {
         return { ok: false, reason: 'failed to initialize parser' }

@@ -1,3 +1,30 @@
+# Playwright REPL 名称見直し計画（2026-03-20）
+
+## 目的
+
+- `playwrightRepl` の実行モデルを再確認し、名称が実態に合っているかを判定する
+- 実行ごとにローカル変数が持続しないなら、誤解を避けるため `playwrightExec` 系名称へ変更する
+
+## 調査結果
+
+- `playwrightRepl` は各呼び出しで `(async () => { ... })()` を新規に評価する
+- `pwApi.page` などのセッション状態は持続する
+- ただし `const value = ...` のような JavaScript のローカル変数は次回呼び出しに持続しない
+
+## 仕様決定
+
+1. ツール名と関連識別子は `playwrightExec` 系へ変更する
+2. reset ツールも `playwrightExecReset` 系へ変更する
+3. 実行モデル自体は変更しない
+4. ドキュメントには「セッション状態は持続するがローカル変数は持続しない」と明記する
+
+## 受け入れ条件
+
+- 登録ツール名が `able_playwrightExec` / `able_playwrightExecReset` になる
+- ユーザー向け説明と SKILL から `playwrightRepl` 前提の説明が除去される
+- `playwrightExec` がローカル変数持続を保証するかのような説明が残らない
+- 変更後に `get_errors` で全体エラー 0
+
 # Playwright REPL ローカルポート制限計画（2026-03-19）
 
 ## 目的

@@ -244,16 +244,16 @@
         }
       },
       {
-        "name": "able_playwrightRepl",
-        "toolReferenceName": "playwrightRepl",
+        "name": "able_playwrightExec",
+        "toolReferenceName": "playwrightExec",
         "tags": [
           "browser",
           "playwright"
         ],
-        "displayName": "Playwright REPL",
+        "displayName": "Playwright Exec",
         "canBeReferencedInPrompt": true,
         "userDescription": "Execute JavaScript against a persistent Playwright browser session.",
-        "modelDescription": "Run JavaScript in a persistent Playwright session. Use top level await with pwApi.page (Playwright Page) and pwApi.screenshot(). Navigation is restricted to local http/https loopback URLs with explicit ports 3000-3010.",
+        "modelDescription": "Execute JavaScript against a persistent Playwright session. Use top level await with pwApi.page (Playwright Page) and pwApi.screenshot(). Page and browser state persist, but local JavaScript variables do not persist across calls. Navigation is restricted to local http/https loopback URLs with explicit ports 3000-3010.",
         "icon": "$(browser)",
         "inputSchema": {
           "type": "object",
@@ -273,16 +273,16 @@
         }
       },
       {
-        "name": "able_playwrightReplReset",
-        "toolReferenceName": "playwrightReplReset",
+        "name": "able_playwrightExecReset",
+        "toolReferenceName": "playwrightExecReset",
         "tags": [
           "browser",
           "playwright"
         ],
-        "displayName": "Playwright REPL Reset",
+        "displayName": "Playwright Exec Reset",
         "canBeReferencedInPrompt": true,
-        "userDescription": "Reset the persistent Playwright REPL session.",
-        "modelDescription": "Dispose and reset the Playwright REPL session state.",
+        "userDescription": "Reset the persistent Playwright execution session.",
+        "modelDescription": "Dispose and reset the Playwright execution session state.",
         "icon": "$(debug-restart)",
         "inputSchema": {
           "type": "object",
@@ -441,9 +441,9 @@
             },
             "scope": "machine"
           },
-          "able.playwrightRepl.browserType": {
+          "able.playwrightExec.browserType": {
             "type": "string",
-            "description": "Browser engine for Playwright REPL.",
+            "description": "Browser engine for Playwright Exec.",
             "default": "chromium",
             "enum": [
               "chromium",
@@ -452,9 +452,9 @@
             ],
             "scope": "machine"
           },
-          "able.playwrightRepl.headless": {
+          "able.playwrightExec.headless": {
             "type": "boolean",
-            "description": "Run Playwright in headless mode.",
+            "description": "Run Playwright Exec in headless mode.",
             "default": true,
             "scope": "machine"
           }

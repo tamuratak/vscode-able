@@ -2,8 +2,8 @@ import { createInterface } from 'node:readline'
 import { inspect } from 'node:util'
 import { VM } from 'vm2'
 import { chromium, firefox, webkit, Browser, BrowserContext, Page } from 'playwright'
-import { validatePlaywrightReplCode } from './codevalidator.js'
-import { ExecRequest, RequestMessage, RunnerConfig, parseRunnerMessage } from './runnermessage.js'
+import { validatePlaywrightExecCode } from './codevalidator.js'
+import { ExecRequest, RequestMessage, RunnerConfig, parseRunnerMessage } from '../playwright_exec/runnermessage.js'
 
 type ImageFormat = 'jpeg' | 'png'
 
@@ -275,7 +275,7 @@ async function handleExec(request: ExecRequest): Promise<RunnerResult> {
     const images: ImagePayload[] = []
 
     try {
-        const validationResult = await validatePlaywrightReplCode(request.code)
+        const validationResult = await validatePlaywrightExecCode(request.code)
         if (!validationResult.ok) {
             throw new Error(`validation failed: ${validationResult.reason}`)
         }

@@ -3,12 +3,12 @@ import * as path from 'node:path'
 import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelDataPart, LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LogOutputChannel } from 'vscode'
 
-interface PlaywrightReplInput {
+interface PlaywrightExecInput {
     code: string
     reason?: string
 }
 
-interface PlaywrightReplResetInput {
+interface PlaywrightExecResetInput {
     reason?: string
 }
 
@@ -64,7 +64,7 @@ interface RunnerSession {
 
 const idleMs = 5 * 60 * 1000
 
-export class PlaywrightReplTool implements LanguageModelTool<PlaywrightReplInput> {
+export class PlaywrightExecTool implements LanguageModelTool<PlaywrightExecInput> {
     private readonly sessions = new Map<string, RunnerSession>()
 
     constructor(
@@ -73,23 +73,23 @@ export class PlaywrightReplTool implements LanguageModelTool<PlaywrightReplInput
             readonly extensionUri: vscode.Uri
         }
     ) {
-        this.extension.outputChannel.info('[PlaywrightReplTool]: created')
+        this.extension.outputChannel.info('[PlaywrightExecTool]: created')
     }
 
-    prepareInvocation(_options: vscode.LanguageModelToolInvocationPrepareOptions<PlaywrightReplInput>) {
+    prepareInvocation(_options: vscode.LanguageModelToolInvocationPrepareOptions<PlaywrightExecInput>) {
         return {
-            invocationMessage: 'Execute JavaScript with persistent Playwright session'
+            invocationMessage: 'Execute JavaScript against persistent Playwright session'
         }
     }
 
-    async invoke(options: LanguageModelToolInvocationOptions<PlaywrightReplInput>, token: CancellationToken) {
+    async invoke(options: LanguageModelToolInvocationOptions<PlaywrightExecInput>, token: CancellationToken) {
         if (process.platform !== 'darwin') {
-            throw new Error('[PlaywrightReplTool]: This tool requires macOS')
+            throw new Error('[PlaywrightExecTool]: This tool requires macOS')
         }
 
         const code = options.input.code.trim()
         if (code.length === 0) {
-            throw new Error('[PlaywrightReplTool]: code is empty')
+            throw new Error('[PlaywrightExecTool]: code is empty')
         }
 
         const sessionKey = 'default'
@@ -106,7 +106,7 @@ export class PlaywrightReplTool implements LanguageModelTool<PlaywrightReplInput
 
         if (!response.ok) {
             const message = response.error?.message ?? 'execution failed'
-            throw new Error(`[PlaywrightReplTool]: ${message}`)
+            throw new Error(`[PlaywrightExecTool]: ${message}`)
         }
 
         const parts: (LanguageModelTextPart | LanguageModelDataPart)[] = []
@@ -146,7 +146,7 @@ export class PlaywrightReplTool implements LanguageModelTool<PlaywrightReplInput
             return existing
         }
 
-        const runnerPath = path.join(this.extension.extensionUri.fsPath, 'out', 'src', 'playwright_repl', 'playwrightrunner.js')
+        const runnerPath = path.join(this.extension.extensionUri.fsPath, 'out', 'src', 'playwright_exec', 'playwrightrunner.js')
         const child = spawn(process.execPath, [runnerPath], {
             stdio: ['pipe', 'pipe', 'pipe']
         })
@@ -164,7 +164,7 @@ export class PlaywrightReplTool implements LanguageModelTool<PlaywrightReplInput
         child.stdout.on('data', (chunk: string) => this.handleStdout(session, chunk))
         child.stderr.setEncoding('utf8')
         child.stderr.on('data', (chunk: string) => {
-            this.extension.outputChannel.warn(`[PlaywrightReplTool:${session.key}:stderr] ${chunk}`)
+            this.extension.outputChannel.warn(`[PlaywrightExecTool:${session.key}:stderr] ${chunk}`)
         })
         child.on('exit', () => {
             for (const pending of session.pending.values()) {
@@ -199,7 +199,7 @@ export class PlaywrightReplTool implements LanguageModelTool<PlaywrightReplInput
     }
 
     private readConfig(): RunnerConfig {
-        const conf = vscode.workspace.getConfiguration('able.playwrightRepl')
+        const conf = vscode.workspace.getConfiguration('able.playwrightExec')
         const browserType = conf.get<BrowserTypeName>('browserType', 'chromium')
         const headless = conf.get<boolean>('headless', true)
 
@@ -255,7 +255,7 @@ export class PlaywrightReplTool implements LanguageModelTool<PlaywrightReplInput
         try {
             response = JSON.parse(line) as RunnerResponse
         } catch {
-            this.extension.outputChannel.error('[PlaywrightReplTool]: failed to parse runner response')
+            this.extension.outputChannel.error('[PlaywrightExecTool]: failed to parse runner response')
             return
         }
 
@@ -295,16 +295,16 @@ export class PlaywrightReplTool implements LanguageModelTool<PlaywrightReplInput
     }
 }
 
-export class PlaywrightReplResetTool implements LanguageModelTool<PlaywrightReplResetInput> {
-    constructor(private readonly tool: PlaywrightReplTool) {}
+export class PlaywrightExecResetTool implements LanguageModelTool<PlaywrightExecResetInput> {
+    constructor(private readonly tool: PlaywrightExecTool) {}
 
-    prepareInvocation(_options: vscode.LanguageModelToolInvocationPrepareOptions<PlaywrightReplResetInput>) {
+    prepareInvocation(_options: vscode.LanguageModelToolInvocationPrepareOptions<PlaywrightExecResetInput>) {
         return {
-            invocationMessage: 'Reset persistent Playwright session'
+            invocationMessage: 'Reset persistent Playwright execution session'
         }
     }
 
-    invoke(_options: LanguageModelToolInvocationOptions<PlaywrightReplResetInput>, _token: CancellationToken) {
+    invoke(_options: LanguageModelToolInvocationOptions<PlaywrightExecResetInput>, _token: CancellationToken) {
         this.tool.dispose()
         return new LanguageModelToolResult([
             new LanguageModelTextPart('reset done')

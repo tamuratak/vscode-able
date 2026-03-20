@@ -1,6 +1,6 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
-import { isAllowedUrl } from '../../../src/playwright_repl/playwrightrunner.js'
+import { isAllowedUrl } from '../../../src/playwright_exec/playwrightrunner.js'
 
 suite('playwright runner url policy', () => {
     test('allows localhost inside allowed port range', () => {

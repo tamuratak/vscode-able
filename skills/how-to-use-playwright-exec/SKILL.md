@@ -1,23 +1,24 @@
 ---
-description: How to use the able_playwrightRepl and able_playwrightReplReset tools
+description: How to use the able_playwrightExec and able_playwrightExecReset tools
 ---
 
 ## Purpose
 
-Use `able_playwrightRepl` to run JavaScript in a persistent Playwright session.
-Use `able_playwrightReplReset` to discard that session and start clean.
+Use `able_playwrightExec` to run JavaScript against a persistent Playwright session.
+Use `able_playwrightExecReset` to discard that session and start clean.
 
 ## When To Use
 
-- Use `able_playwrightRepl` for local browser inspection, DOM interaction, and screenshots
-- Use `able_playwrightRepl` again when you want to reuse the same page, cookies, and session state
-- Use `able_playwrightReplReset` when the session is contaminated, stuck, or must return to a clean state
+- Use `able_playwrightExec` for local browser inspection, DOM interaction, and screenshots
+- Use `able_playwrightExec` again when you want to reuse the same page, cookies, and session state
+- Use `able_playwrightExecReset` when the session is contaminated, stuck, or must return to a clean state
 
 ## Execution Model
 
 - JavaScript runs with top level `await`
-- Session state persists across `able_playwrightRepl` calls in the same chat session
-- After `able_playwrightReplReset`, the next run starts from a fresh session
+- Session state persists across `able_playwrightExec` calls in the same chat session
+- Local variables declared inside one execution do not persist into the next execution
+- After `able_playwrightExecReset`, the next run starts from a fresh session
 - Available globals are `pwApi`, `console`, `setTimeout`, `clearTimeout`, and `URL`
 
 ## pwApi Interface
@@ -103,7 +104,7 @@ await pwApi.screenshot({ format: 'png', fullPage: true })
 return 'captured'
 ```
 
-After `able_playwrightReplReset`, a fresh session typically starts from:
+After `able_playwrightExecReset`, a fresh session typically starts from:
 
 ```ts
 return pwApi.page.url()
@@ -116,4 +117,4 @@ Expected result: `about:blank`
 - Prefer short, deterministic snippets
 - Reuse `pwApi.page` instead of narrating browser state in text
 - Check loopback and port restrictions first when navigation fails
-- Call `able_playwrightReplReset` before retrying if state looks unreliable
+- Call `able_playwrightExecReset` before retrying if state looks unreliable
