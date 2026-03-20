@@ -1,4 +1,5 @@
 ---
+name: how-to-use-run-in-sandbox
 description: How to use the able_runInSandbox tool
 ---
 

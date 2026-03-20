@@ -1,7 +1,7 @@
 import { ok, strictEqual, rejects } from 'node:assert'
 import * as http from 'node:http'
 import * as vscode from 'vscode'
-import { PlaywrightReplResetTool, PlaywrightReplTool } from '../../../src/playwright_repl/playwrightrepltool.js'
+import { PlaywrightExecResetTool, PlaywrightExecTool } from '../../../src/playwright_exec/playwrightexectool.js'
 
 const extensionId = 'tamuratak.able'
 
@@ -47,12 +47,12 @@ function tryListen(server: http.Server, port: number): Promise<boolean> {
     })
 }
 
-suite('Playwright REPL Integration Test', () => {
+suite('Playwright Exec Integration Test', () => {
     let server: http.Server
     let baseUrl = ''
     let outputChannel: vscode.LogOutputChannel
-    let tool: PlaywrightReplTool
-    let resetTool: PlaywrightReplResetTool
+    let tool: PlaywrightExecTool
+    let resetTool: PlaywrightExecResetTool
     let tokenSource: vscode.CancellationTokenSource
     const configTarget = vscode.ConfigurationTarget.Global
     const previousConfig = new Map<ConfigKey, ConfigValue>()
@@ -62,7 +62,7 @@ suite('Playwright REPL Integration Test', () => {
         ok(extension)
         await extension.activate()
 
-        const conf = vscode.workspace.getConfiguration('able.playwrightRepl')
+        const conf = vscode.workspace.getConfiguration('able.playwrightExec')
         const keys: ConfigKey[] = [
             'browserType',
             'headless'
@@ -79,7 +79,7 @@ suite('Playwright REPL Integration Test', () => {
                 response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
                 response.end(`<!doctype html>
 <html>
-<head><meta charset="utf-8"><title>playwright repl integration</title></head>
+<head><meta charset="utf-8"><title>playwright exec integration</title></head>
 <body>
     <h1 id="title">Ready</h1>
     <label for="name">Name</label>
@@ -105,13 +105,13 @@ suite('Playwright REPL Integration Test', () => {
         const boundPort = await listenServerInAllowedRange(server)
         baseUrl = `http://127.0.0.1:${boundPort}`
 
-        outputChannel = vscode.window.createOutputChannel('playwright repl integration', { log: true })
+        outputChannel = vscode.window.createOutputChannel('playwright exec integration', { log: true })
         tokenSource = new vscode.CancellationTokenSource()
-        tool = new PlaywrightReplTool({
+        tool = new PlaywrightExecTool({
             outputChannel,
             extensionUri: extension.extensionUri
         })
-        resetTool = new PlaywrightReplResetTool(tool)
+        resetTool = new PlaywrightExecResetTool(tool)
     })
 
     setup(() => {
@@ -141,20 +141,20 @@ suite('Playwright REPL Integration Test', () => {
             })
         }
 
-        const conf = vscode.workspace.getConfiguration('able.playwrightRepl')
+        const conf = vscode.workspace.getConfiguration('able.playwrightExec')
         for (const [key, value] of previousConfig) {
             await conf.update(key, value, configTarget)
         }
     })
 
-    test('prepareInvocation returns message for repl tool', () => {
+    test('prepareInvocation returns message for exec tool', () => {
         const prepared = tool.prepareInvocation({ input: { code: '1 + 1' } })
-        strictEqual(prepared.invocationMessage, 'Execute JavaScript with persistent Playwright session')
+        strictEqual(prepared.invocationMessage, 'Execute JavaScript against persistent Playwright session')
     })
 
     test('prepareInvocation returns message for reset tool', () => {
         const prepared = resetTool.prepareInvocation({ input: { reason: 'unit' } })
-        strictEqual(prepared.invocationMessage, 'Reset persistent Playwright session')
+        strictEqual(prepared.invocationMessage, 'Reset persistent Playwright execution session')
     })
 
     test('rejects empty code', async () => {
@@ -234,6 +234,14 @@ return pwApi.page.url()
         ok(text.includes(`result:\n${baseUrl}/`))
     })
 
+    test('does not keep local variables between invocations', async () => {
+        await invokeCode('const saved = 123\nreturn saved')
+        await rejects(
+            () => invokeCode('return saved'),
+            /saved is not defined/
+        )
+    })
+
     test('reset tool clears session state', async () => {
         await invokeCode(`
 await pwApi.page.goto('${baseUrl}')
@@ -269,7 +277,7 @@ await pwApi.page.goto('${baseUrl}')
 return await pwApi.page.evaluate(() => document.title)
 `)
         const text = extractText(result)
-        ok(text.includes('result:\nplaywright repl integration'))
+        ok(text.includes('result:\nplaywright exec integration'))
     })
 
     test('evaluate supports function object with arg', async () => {
@@ -286,7 +294,7 @@ await pwApi.page.goto('${baseUrl}')
 return await pwApi.page.evaluate((arg) => document.title + '-' + arg, 'ok')
 `)
         const text = extractText(result)
-        ok(text.includes('result:\nplaywright repl integration-ok'))
+        ok(text.includes('result:\nplaywright exec integration-ok'))
     })
 
     async function invokeCode(code: string): Promise<vscode.LanguageModelToolResult> {

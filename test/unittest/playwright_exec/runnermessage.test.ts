@@ -1,6 +1,6 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
-import { parseRunnerMessage, RunnerConfig } from '../../../src/playwright_repl/runnermessage.js'
+import { parseRunnerMessage, RunnerConfig } from '../../../src/playwright_exec/runnermessage.js'
 
 const defaultConfig: RunnerConfig = {
     browserType: 'chromium',
