@@ -95,6 +95,14 @@
         "isSticky": true
       }
     ],
+    "chatSkills": [
+      {
+        "path": "skills/how-to-use-run-in-sandbox/SKILL.md"
+      },
+      {
+        "path": "skills/how-to-use-playwright-exec/SKILL.md"
+      }
+    ],
     "languageModelChatProviders": [
       {
         "vendor": "gemini_with_able",
@@ -207,7 +215,7 @@
         }
       },
       {
-        "name": "able_run_in_sandbox",
+        "name": "able_runInSandbox",
         "toolReferenceName": "runInSandbox",
         "tags": [
           "command"
@@ -233,6 +241,57 @@
             "command",
             "explanation"
           ]
+        }
+      },
+      {
+        "name": "able_playwrightExec",
+        "toolReferenceName": "playwrightExec",
+        "tags": [
+          "browser",
+          "playwright"
+        ],
+        "displayName": "Playwright Exec",
+        "canBeReferencedInPrompt": true,
+        "userDescription": "Execute JavaScript against a persistent Playwright browser session.",
+        "modelDescription": "Execute JavaScript against a persistent Playwright session. Use top level await with pwApi.page (Playwright Page) and pwApi.screenshot(). Page and browser state persist, but local JavaScript variables do not persist across calls. Navigation is restricted to local http/https loopback URLs with explicit ports 3000-3010.",
+        "icon": "$(browser)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "JavaScript code to execute in the Playwright session."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Reason for executing this code."
+            }
+          },
+          "required": [
+            "code"
+          ]
+        }
+      },
+      {
+        "name": "able_playwrightExecReset",
+        "toolReferenceName": "playwrightExecReset",
+        "tags": [
+          "browser",
+          "playwright"
+        ],
+        "displayName": "Playwright Exec Reset",
+        "canBeReferencedInPrompt": true,
+        "userDescription": "Reset the persistent Playwright execution session.",
+        "modelDescription": "Dispose and reset the Playwright execution session state.",
+        "icon": "$(debug-restart)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "description": "Reason for resetting the session."
+            }
+          }
         }
       }
     ],
@@ -381,6 +440,23 @@
               "type": "string"
             },
             "scope": "machine"
+          },
+          "able.playwrightExec.browserType": {
+            "type": "string",
+            "description": "Browser engine for Playwright Exec.",
+            "default": "chromium",
+            "enum": [
+              "chromium",
+              "firefox",
+              "webkit"
+            ],
+            "scope": "machine"
+          },
+          "able.playwrightExec.headless": {
+            "type": "boolean",
+            "description": "Run Playwright Exec in headless mode.",
+            "default": true,
+            "scope": "machine"
           }
         }
       }
@@ -404,7 +480,9 @@
     "@vscode/tree-sitter-wasm": "0.3.0",
     "ajv": "8.18.0",
     "openai": "6.2.0",
-    "playwright": "1.56.1",
+    "playwright": "1.58.2",
+    "vm2": "3.10.5",
+    "vscode-uri": "3.1.0",
     "workerpool": "10.0.0"
   },
   "devDependencies": {
