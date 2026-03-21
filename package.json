@@ -1,7 +1,7 @@
 {
   "name": "able",
   "displayName": "Able",
-  "version": "8.11.0",
+  "version": "8.11.1",
   "publisher": "tamuratak",
   "license": "MIT",
   "description": "An extension able to do things",
@@ -24,6 +24,7 @@
     "lib",
     "node_modules",
     "out",
+    "skills",
     "LICENSE"
   ],
   "capabilities": {
