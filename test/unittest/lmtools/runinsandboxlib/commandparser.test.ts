@@ -1,6 +1,7 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
-import { hasNoWriteRedirection, normalizeToken, collectCommands, findScripts } from '../../../../src/lmtools/runinsandboxlib/commandparser.js'
+import { hasNoWriteRedirection, normalizeToken, collectCommands } from '../../../../src/lmtools/runinsandboxlib/commandparser.js'
+import { findScripts } from '../../../../src/lmtools/runinsandboxlib/findscripts.js'
 
 suite('tree-sitter command parser', () => {
 	test('detects truncate redirection', async () => {

@@ -10,7 +10,7 @@ import { CommandResultPrompt } from './toolresult.js'
 import { createLanguageModelPromptTsxPart } from '../utils/prompttsxhelper.js'
 import { isAllowedCommand } from './runinsandboxlib/validator.js'
 import { wrapLongLines } from './runinsandboxlib/utils.js'
-import { findScripts } from './runinsandboxlib/commandparser.js'
+import { findScripts } from './runinsandboxlib/findscripts.js'
 
 
 export interface RunInSandboxInput {
