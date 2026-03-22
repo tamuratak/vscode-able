@@ -14,22 +14,20 @@ const commandQuerySource = `(command
 )
 `
 
-let parser: treeSitter.Parser | undefined
+export let bashParser: treeSitter.Parser | undefined
 let commandQuery: treeSitter.Query | undefined
 let bashLanguage: treeSitter.Language | undefined
-const parserInitialization = ensureParserInitialized()
-
-async function ensureParserInitialized(): Promise<void> {
+export const parserInitialization = (async () => {
     try {
         await treeSitterParserInit.promise
         bashLanguage = await treeSitter.Language.load(bashLanguagePath)
-        parser = new treeSitter.Parser()
-        parser.setLanguage(bashLanguage)
+        bashParser = new treeSitter.Parser()
+        bashParser.setLanguage(bashLanguage)
         commandQuery = new treeSitter.Query(bashLanguage, commandQuerySource)
     } catch (error) {
         console.error('Failed to initialize command parser:', error)
     }
-}
+})()
 
 export interface CommandNode {
     command: string
@@ -38,11 +36,11 @@ export interface CommandNode {
 
 export async function collectCommands(source: string): Promise<CommandNode[] | undefined> {
     await parserInitialization
-    if (!parser || !commandQuery) {
+    if (!bashParser || !commandQuery) {
         return undefined
     }
 
-    const tree = parser.parse(source)
+    const tree = bashParser.parse(source)
     if (!tree) {
         return undefined
     }
@@ -91,7 +89,7 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
     return commands
 }
 
-function getNodeText(node: treeSitter.Node, source: string): string {
+export function getNodeText(node: treeSitter.Node, source: string): string {
     return source.slice(node.startIndex, node.endIndex)
 }
 
@@ -122,14 +120,14 @@ let readirectQuery: treeSitter.Query | undefined
 
 export async function hasNoWriteRedirection(source: string): Promise<boolean> {
     await parserInitialization
-    if (!parser || !bashLanguage) {
+    if (!bashParser || !bashLanguage) {
         return false
     }
     if (!readirectQuery) {
         readirectQuery = new treeSitter.Query(bashLanguage, redirectQuerySource)
     }
 
-    const tree = parser.parse(source)
+    const tree = bashParser.parse(source)
     if (!tree) {
         return false
     }

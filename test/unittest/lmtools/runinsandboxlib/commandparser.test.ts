@@ -1,6 +1,7 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
 import { hasNoWriteRedirection, normalizeToken, collectCommands } from '../../../../src/lmtools/runinsandboxlib/commandparser.js'
+import { findScripts } from '../../../../src/lmtools/runinsandboxlib/findscripts.js'
 
 suite('tree-sitter command parser', () => {
 	test('detects truncate redirection', async () => {
@@ -97,4 +98,48 @@ suite('collectCommands', () => {
  		assert.strictEqual(cmds[1].command, 'ls')
  		assert.deepStrictEqual(cmds[1].args, ['-la'])
  	})
+})
+
+suite('findScripts', () => {
+	test('finds python inline script from -c argument', async () => {
+		const scripts = await findScripts("python -c 'print(1)'")
+		assert.deepStrictEqual(scripts, [{ code: 'print(1)', kind: 'python' }])
+	})
+
+	test('finds javascript inline script from --eval argument', async () => {
+		const scripts = await findScripts('node --eval "console.log(1)"')
+		assert.deepStrictEqual(scripts, [{ code: 'console.log(1)', kind: 'javascript' }])
+	})
+
+	test('finds bash inline script from -c argument', async () => {
+		const scripts = await findScripts("bash -c 'echo hello'")
+		assert.deepStrictEqual(scripts, [{ code: 'echo hello', kind: 'bash' }])
+	})
+
+	test('finds heredoc script body', async () => {
+		const scripts = await findScripts('python <<\'PY\'\nprint(\'x\')\nPY\n')
+		assert.deepStrictEqual(scripts, [{ code: 'print(\'x\')\n', kind: 'python' }])
+	})
+
+	test('finds multiple scripts in one source', async () => {
+		const source = [
+			'python -c \'print(1)\'',
+			'node -e "console.log(2)"',
+			'bash <<\'EOF\'',
+			'echo done',
+			'EOF'
+		].join('\n')
+
+		const scripts = await findScripts(source)
+		assert.deepStrictEqual(scripts, [
+			{ code: 'print(1)', kind: 'python' },
+			{ code: 'console.log(2)', kind: 'javascript' },
+			{ code: 'echo done\n', kind: 'bash' }
+		])
+	})
+
+	test('ignores non-script commands', async () => {
+		const scripts = await findScripts('echo hi\nls -la')
+		assert.deepStrictEqual(scripts, [])
+	})
 })
