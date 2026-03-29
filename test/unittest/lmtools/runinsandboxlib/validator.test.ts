@@ -162,4 +162,49 @@ done`
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
         assert.strictEqual(ok, false)
     })
+
+    test('allows cat append heredoc to root planexec.md after cd to workspace root', async () => {
+        const cmd = `cd /Users/tamura/src/github/lean4-examples/ex01 && cat >> planexec.md <<'EOF'
+
+- 2026-03-28: update note
+EOF`
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows cat append heredoc to root plan.md after cd to workspace root', async () => {
+        const cmd = `cd /Users/tamura/src/github/lean4-examples/ex01 && cat >> plan.md <<'EOF'
+
+- 2026-03-28: update note
+EOF`
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows cat append heredoc to root memo.md after cd to workspace root', async () => {
+        const cmd = `cd /Users/tamura/src/github/lean4-examples/ex01 && cat >> memo.md <<'EOF'
+
+- 2026-03-28: update note
+EOF`
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows cat append heredoc to non-whitelisted file', async () => {
+        const cmd = `cd /Users/tamura/src/github/lean4-examples/ex01 && cat >> notes.md <<'EOF'
+
+- 2026-03-28: update note
+EOF`
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows relative append target when not anchored by cd to workspace root', async () => {
+        const cmd = `cat >> plan.md <<'EOF'
+
+- 2026-03-28: update note
+EOF`
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
+        assert.strictEqual(ok, false)
+    })
 })
