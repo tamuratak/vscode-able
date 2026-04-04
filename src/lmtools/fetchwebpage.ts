@@ -1,8 +1,8 @@
 import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LogOutputChannel, LanguageModelToolResult2, LanguageModelTextPart } from 'vscode'
 import * as vscode from 'vscode'
-import { getFullAXTree } from './fetchwebpagelib/axtree.js'
-import { AXNode, convertAXTreeToMarkdown } from './fetchwebpagelib/cdpaccessibilitydomain.js'
-import { chromium } from 'playwright'
+import { getFullAXTree } from '../fetchwebpage/axtree.js'
+import { AXNode, convertAXTreeToMarkdown } from '../fetchwebpage/cdpaccessibilitydomain.js'
+import { browserPromise } from '../fetchwebpage/browser.js'
 
 export interface FetchWebPageInput {
     url: string
@@ -34,7 +34,6 @@ export class FetchWebPageTool implements LanguageModelTool<FetchWebPageInput> {
 }
 
 export class FetchWebPageToolAutoApprove implements LanguageModelTool<FetchWebPageInput> {
-    private readonly browserPromise = chromium.launch({ headless: true })
     constructor(
         private readonly extension: {
             readonly outputChannel: LogOutputChannel
@@ -44,7 +43,7 @@ export class FetchWebPageToolAutoApprove implements LanguageModelTool<FetchWebPa
     }
 
     async invoke(options: LanguageModelToolInvocationOptions<FetchWebPageInput>) {
-        const browser = await this.browserPromise
+        const browser = await browserPromise
         const uri = vscode.Uri.parse(options.input.url, true)
         if (uri.scheme === 'file') {
             throw new Error('file: URLs are not supported for security reasons')

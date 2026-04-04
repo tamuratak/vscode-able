@@ -26,7 +26,7 @@ const forbiddenSymbolProperties = new Map<string, string>([
 ])
 
 async function ensureParserInitialized(): Promise<void> {
-    await treeSitterParserInit.promise
+    await treeSitterParserInit
     javascriptLanguage = await treeSitter.Language.load(javascriptLanguagePath)
     parser = new treeSitter.Parser()
     parser.setLanguage(javascriptLanguage)

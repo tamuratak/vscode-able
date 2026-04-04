@@ -2,11 +2,15 @@ import * as vscode from 'vscode'
 import { FluentJaPrompt, FluentPrompt, ProperNounsPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt, ChatCommandPromptProps } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
-import { getSelected, processReferences } from './chatlib/referenceutils.js'
+import { FileReference, getSelected, processReferences } from './chatlib/referenceutils.js'
 import { debugObj } from '../utils/debug.js'
 import { convertMathEnv, removeLabel } from './chatlib/latex.js'
 import { toCunks } from './chatlib/chunk.js'
 import { countLinesContained, extractProperNouns, parseNameMap, removePluralForms, selectProperNounsInEnglish } from './chatlib/nlp.js'
+import { browserPromise } from '../fetchwebpage/browser.js'
+import { getFullAXTree } from '../fetchwebpage/axtree.js'
+import { AXNode, convertAXTreeToMarkdown } from '../fetchwebpage/cdpaccessibilitydomain.js'
+import { doFixMath } from './fixmathlib/fix.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -30,11 +34,10 @@ export class ChatHandleManager {
             token: vscode.CancellationToken
         ): Promise<vscode.ChatResult | undefined> => {
             debugObj('[Able Chat] request.references: ', request.references, this.extension.outputChannel)
+            const { files, selections, instructionsText } = await processReferences(request.references)
             if (request.command) {
-                return this.responseForCommand(token, request, stream)
+                return this.responseForCommand(request, files, stream, token)
             } else {
-                const { files, selections, instructionsText} = await processReferences(request.references)
-
                 const modeInstruction = request.modeInstructions2?.content
                 await this.copilotChatHandler.copilotChatResponse(
                     token,
@@ -49,9 +52,10 @@ export class ChatHandleManager {
     }
 
     private async responseForCommand(
-        token: vscode.CancellationToken,
         request: vscode.ChatRequest,
+        files: FileReference[],
         stream: vscode.ChatResponseStream,
+        token: vscode.CancellationToken,
     ): Promise<vscode.ChatResult | undefined> {
         const model = request.model
         const selected = await getSelected(request)
@@ -67,6 +71,12 @@ export class ChatHandleManager {
         } else if (request.command === 'to_ja') {
             properNounsTranslationMap = await this.extractTranslationMapForToJa(token, request, input)
             ctor = ToJaPrompt
+        } else if (request.command === 'fetch') {
+            await this.fetchWebPageAndOutput(request, files, stream)
+            return
+        } else if (request.command === 'fixmath') {
+            await this.fixMathFormatting(files, stream)
+            return
         } else {
             this.extension.outputChannel.error(`Unknown command: ${request.command}`)
             throw new Error(`Unknown command: ${request.command}`)
@@ -162,6 +172,60 @@ export class ChatHandleManager {
         text = convertMathEnv(text)
         text = removeLabel(text)
         return text
+    }
+
+    private async fetchWebPageAndOutput(
+        request: vscode.ChatRequest,
+        files: FileReference[],
+        stream: vscode.ChatResponseStream
+    ) {
+        stream.progress('Fetching web page...')
+        try {
+            const browser = await browserPromise
+            const targetUriString = request.prompt.trim()
+            const uri = vscode.Uri.parse(targetUriString, true)
+            if (uri.scheme === 'file') {
+                stream.markdown('file: URLs are not supported for security reasons')
+                return
+            }
+            const result = await getFullAXTree(browser, targetUriString)
+            const md = convertAXTreeToMarkdown(uri, result.nodes as unknown as AXNode[])
+            const outputFile = files.find(f => vscode.workspace.getWorkspaceFolder(f.uri))
+            if (outputFile) {
+                stream.textEdit(outputFile.uri, new vscode.TextEdit(new vscode.Range(0, 0, Number.MAX_VALUE, Number.MAX_VALUE), md))
+            } else {
+                stream.markdown(md)
+            }
+        } catch {
+            stream.markdown('Failed to fetch web page.')
+        }
+    }
+
+    private async fixMathFormatting(
+        files: FileReference[],
+        stream: vscode.ChatResponseStream,
+    ) {
+        const attachments = files.filter(ref => ref.kind === 'file')
+        const decoder = new TextDecoder()
+        for (const attachment of attachments) {
+            const uri = attachment.uri
+            try {
+                const buf = await vscode.workspace.fs.readFile(uri)
+                const content = decoder.decode(buf)
+                const fixedContent = doFixMath(content)
+                const edit = new vscode.TextEdit(
+                    new vscode.Range(
+                        new vscode.Position(0, 0),
+                        new vscode.Position(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)
+                    ),
+                    fixedContent
+                )
+                stream.textEdit(uri, edit)
+            } catch {
+                this.extension.outputChannel.error(`Failed to read or process file ${uri.toString()}`)
+            }
+        }
+        return
     }
 
 }
