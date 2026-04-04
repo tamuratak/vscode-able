@@ -84,6 +84,17 @@ export async function getFullAXTree(browser: Browser, target: string, options: G
         await page.waitForTimeout(waitForMs)
     }
 
+    await page.evaluate(() => {
+        const nodes = Array.from(document.getElementsByClassName('mwe-math-mathml-a11y'))
+        for (const el of nodes) {
+            if (el instanceof HTMLElement) {
+                if (el.style && el.style.display === 'none') {
+                    el.style.removeProperty('display')
+                }
+            }
+        }
+    });
+
     const session = await context.newCDPSession(page)
     const result = await session.send('Accessibility.getFullAXTree')
     return result
