@@ -190,7 +190,7 @@ export class ChatHandleManager {
             }
             const result = await getFullAXTree(browser, targetUriString)
             const md = convertAXTreeToMarkdown(uri, result.nodes as unknown as AXNode[])
-            const outputFile = files.find(f => vscode.workspace.getWorkspaceFolder(f.uri))
+            const outputFile = files.find(f => f.kind === 'file' && vscode.workspace.getWorkspaceFolder(f.uri))
             if (outputFile) {
                 stream.textEdit(outputFile.uri, new vscode.TextEdit(new vscode.Range(0, 0, Number.MAX_VALUE, Number.MAX_VALUE), md))
             } else {
