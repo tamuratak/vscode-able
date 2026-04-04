@@ -2,11 +2,14 @@ import * as vscode from 'vscode'
 import { FluentJaPrompt, FluentPrompt, ProperNounsPrompt, SimplePrompt, ToEnPrompt, ToJaPrompt, ChatCommandPromptProps } from './prompt.js'
 import type { PromptElementCtor } from '@vscode/prompt-tsx'
 import { CopilotChatHandler } from './chatlib/copilotchathandler.js'
-import { getSelected, processReferences } from './chatlib/referenceutils.js'
+import { FileReference, getSelected, processReferences } from './chatlib/referenceutils.js'
 import { debugObj } from '../utils/debug.js'
 import { convertMathEnv, removeLabel } from './chatlib/latex.js'
 import { toCunks } from './chatlib/chunk.js'
 import { countLinesContained, extractProperNouns, parseNameMap, removePluralForms, selectProperNounsInEnglish } from './chatlib/nlp.js'
+import { browserPromise } from '../fetchwebpage/browser.js'
+import { getFullAXTree } from '../fetchwebpage/axtree.js'
+import { AXNode, convertAXTreeToMarkdown } from '../fetchwebpage/cdpaccessibilitydomain.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -30,11 +33,10 @@ export class ChatHandleManager {
             token: vscode.CancellationToken
         ): Promise<vscode.ChatResult | undefined> => {
             debugObj('[Able Chat] request.references: ', request.references, this.extension.outputChannel)
+            const { files, selections, instructionsText } = await processReferences(request.references)
             if (request.command) {
-                return this.responseForCommand(token, request, stream)
+                return this.responseForCommand(request, files, stream, token)
             } else {
-                const { files, selections, instructionsText} = await processReferences(request.references)
-
                 const modeInstruction = request.modeInstructions2?.content
                 await this.copilotChatHandler.copilotChatResponse(
                     token,
@@ -49,9 +51,10 @@ export class ChatHandleManager {
     }
 
     private async responseForCommand(
-        token: vscode.CancellationToken,
         request: vscode.ChatRequest,
+        files: FileReference[],
         stream: vscode.ChatResponseStream,
+        token: vscode.CancellationToken,
     ): Promise<vscode.ChatResult | undefined> {
         const model = request.model
         const selected = await getSelected(request)
@@ -67,6 +70,28 @@ export class ChatHandleManager {
         } else if (request.command === 'to_ja') {
             properNounsTranslationMap = await this.extractTranslationMapForToJa(token, request, input)
             ctor = ToJaPrompt
+        } else if (request.command === 'fetch') {
+            stream.markdown('Fetching web page...')
+            try {
+                const browser = await browserPromise
+                const targetUriString = request.prompt.trim()
+                const uri = vscode.Uri.parse(targetUriString, true)
+                if (uri.scheme === 'file') {
+                    throw new Error('file: URLs are not supported for security reasons')
+                }
+                const result = await getFullAXTree(browser, targetUriString)
+                const md = convertAXTreeToMarkdown(uri, result.nodes as unknown as AXNode[])
+                if (files.length === 1 && files[0].kind === 'file') {
+                    const file = files[0]
+                    stream.textEdit(file.uri, new vscode.TextEdit(new vscode.Range(0, 0, Number.MAX_VALUE, Number.MAX_VALUE), md))
+                } else {
+                    stream.markdown(md)
+                }
+                return
+            } catch (e) {
+                stream.markdown('Failed to fetch web page.')
+                throw e
+            }
         } else {
             this.extension.outputChannel.error(`Unknown command: ${request.command}`)
             throw new Error(`Unknown command: ${request.command}`)

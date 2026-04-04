@@ -78,6 +78,10 @@
           {
             "name": "to_ja",
             "description": "Translate to Japanese"
+          },
+          {
+            "name": "fetch",
+            "description": "Fetch Web Page"
           }
         ]
       },

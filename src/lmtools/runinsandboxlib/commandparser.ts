@@ -19,7 +19,7 @@ let commandQuery: treeSitter.Query | undefined
 let bashLanguage: treeSitter.Language | undefined
 export const parserInitialization = (async () => {
     try {
-        await treeSitterParserInit.promise
+        await treeSitterParserInit
         bashLanguage = await treeSitter.Language.load(bashLanguagePath)
         bashParser = new treeSitter.Parser()
         bashParser.setLanguage(bashLanguage)
