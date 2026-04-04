@@ -37,7 +37,7 @@ export async function processReferences(references: readonly vscode.ChatPromptRe
                 const buf = await vscode.workspace.fs.readFile(uri)
                 const decoder = new TextDecoder()
                 const content = decoder.decode(buf)
-                const kind = ref.id.startsWith('vscode.prompt.instructions') ? 'instructions' : 'file'
+                const kind = ref.id.startsWith('vscode.') ? 'instructions' : 'file'
                 files.push({ uri, content, kind })
             } catch {
                 // ignore
