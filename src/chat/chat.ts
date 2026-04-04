@@ -10,6 +10,7 @@ import { countLinesContained, extractProperNouns, parseNameMap, removePluralForm
 import { browserPromise } from '../fetchwebpage/browser.js'
 import { getFullAXTree } from '../fetchwebpage/axtree.js'
 import { AXNode, convertAXTreeToMarkdown } from '../fetchwebpage/cdpaccessibilitydomain.js'
+import { doFixMath } from './fixmathlib/fix.js'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -72,6 +73,9 @@ export class ChatHandleManager {
             ctor = ToJaPrompt
         } else if (request.command === 'fetch') {
             await this.fetchWebPageAndOutput(request, files, stream)
+            return
+        } else if (request.command === 'fixmath') {
+            await this.fixMathFormatting(files, stream)
             return
         } else {
             this.extension.outputChannel.error(`Unknown command: ${request.command}`)
@@ -195,6 +199,33 @@ export class ChatHandleManager {
         } catch {
             stream.markdown('Failed to fetch web page.')
         }
+    }
+
+    private async fixMathFormatting(
+        files: FileReference[],
+        stream: vscode.ChatResponseStream,
+    ) {
+        const attachments = files.filter(ref => ref.kind === 'file')
+        const decoder = new TextDecoder()
+        for (const attachment of attachments) {
+            const uri = attachment.uri
+            try {
+                const buf = await vscode.workspace.fs.readFile(uri)
+                const content = decoder.decode(buf)
+                const fixedContent = doFixMath(content)
+                const edit = new vscode.TextEdit(
+                    new vscode.Range(
+                        new vscode.Position(0, 0),
+                        new vscode.Position(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)
+                    ),
+                    fixedContent
+                )
+                stream.textEdit(uri, edit)
+            } catch {
+                this.extension.outputChannel.error(`Failed to read or process file ${uri.toString()}`)
+            }
+        }
+        return
     }
 
 }

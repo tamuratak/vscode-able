@@ -82,6 +82,10 @@
           {
             "name": "fetch",
             "description": "Fetch Web Page"
+          },
+          {
+            "name": "fixmath",
+            "description": "Fix math formatting"
           }
         ]
       },
@@ -90,13 +94,6 @@
         "fullName": "Able Ask",
         "name": "rem",
         "description": "Remember chat histories. Tool calls are disabled in this mode.",
-        "isSticky": true
-      },
-      {
-        "id": "able.fixMathParticipant",
-        "fullName": "Able Fix Math",
-        "name": "fixmath",
-        "description": "Fix math formatting.",
         "isSticky": true
       }
     ],
