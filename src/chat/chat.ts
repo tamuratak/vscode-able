@@ -205,7 +205,7 @@ export class ChatHandleManager {
         files: FileReference[],
         stream: vscode.ChatResponseStream,
     ) {
-        const attachments = files.filter(ref => ref.kind === 'file')
+        const attachments = files.filter(ref => ref.kind === 'file' && vscode.workspace.getWorkspaceFolder(ref.uri))
         const decoder = new TextDecoder()
         for (const attachment of attachments) {
             const uri = attachment.uri
@@ -222,7 +222,7 @@ export class ChatHandleManager {
                 )
                 stream.textEdit(uri, edit)
             } catch {
-                this.extension.outputChannel.error(`Failed to read or process file ${uri.toString()}`)
+                stream.markdown(`Failed to read or process file ${uri.toString()}`)
             }
         }
         return
