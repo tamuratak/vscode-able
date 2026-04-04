@@ -71,27 +71,8 @@ export class ChatHandleManager {
             properNounsTranslationMap = await this.extractTranslationMapForToJa(token, request, input)
             ctor = ToJaPrompt
         } else if (request.command === 'fetch') {
-            stream.markdown('Fetching web page...')
-            try {
-                const browser = await browserPromise
-                const targetUriString = request.prompt.trim()
-                const uri = vscode.Uri.parse(targetUriString, true)
-                if (uri.scheme === 'file') {
-                    throw new Error('file: URLs are not supported for security reasons')
-                }
-                const result = await getFullAXTree(browser, targetUriString)
-                const md = convertAXTreeToMarkdown(uri, result.nodes as unknown as AXNode[])
-                if (files.length === 1 && files[0].kind === 'file') {
-                    const file = files[0]
-                    stream.textEdit(file.uri, new vscode.TextEdit(new vscode.Range(0, 0, Number.MAX_VALUE, Number.MAX_VALUE), md))
-                } else {
-                    stream.markdown(md)
-                }
-                return
-            } catch (e) {
-                stream.markdown('Failed to fetch web page.')
-                throw e
-            }
+            await this.fetchWebPageAndOutput(request, files, stream)
+            return
         } else {
             this.extension.outputChannel.error(`Unknown command: ${request.command}`)
             throw new Error(`Unknown command: ${request.command}`)
@@ -187,6 +168,33 @@ export class ChatHandleManager {
         text = convertMathEnv(text)
         text = removeLabel(text)
         return text
+    }
+
+    private async fetchWebPageAndOutput(
+        request: vscode.ChatRequest,
+        files: FileReference[],
+        stream: vscode.ChatResponseStream
+    ) {
+        stream.progress('Fetching web page...')
+        try {
+            const browser = await browserPromise
+            const targetUriString = request.prompt.trim()
+            const uri = vscode.Uri.parse(targetUriString, true)
+            if (uri.scheme === 'file') {
+                stream.markdown('file: URLs are not supported for security reasons')
+                return
+            }
+            const result = await getFullAXTree(browser, targetUriString)
+            const md = convertAXTreeToMarkdown(uri, result.nodes as unknown as AXNode[])
+            const outputFile = files.find(f => vscode.workspace.getWorkspaceFolder(f.uri))
+            if (outputFile) {
+                stream.textEdit(outputFile.uri, new vscode.TextEdit(new vscode.Range(0, 0, Number.MAX_VALUE, Number.MAX_VALUE), md))
+            } else {
+                stream.markdown(md)
+            }
+        } catch {
+            stream.markdown('Failed to fetch web page.')
+        }
     }
 
 }
