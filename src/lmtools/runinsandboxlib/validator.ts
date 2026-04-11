@@ -235,6 +235,7 @@ async function isAllowedSubCommand(
             }
         }
     } else if (commandStartsWith(['lake', 'env', 'lean'], command) && workspaceRootPath) {
+        // Lean 4's `lake env lean ./tmpdir/example.lean`
         if (command.args.length === 3) {
             const fileArg = command.args[2]
             const fileArgPath = path.normalize(path.join(workspaceRootPath, fileArg))
