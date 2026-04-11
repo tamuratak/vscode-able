@@ -22,3 +22,7 @@ export function deepEqual(obj1: unknown, obj2: unknown): boolean {
     }
     return true
 }
+
+export function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+}

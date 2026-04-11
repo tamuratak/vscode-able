@@ -13,7 +13,7 @@ import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwe
 import { GeminiCliChatProvider } from './chatprovider/geminiclichatprovider.js'
 import { AskChatHandleManager } from './chat/ask.js'
 import { PlaywrightExecResetTool, PlaywrightExecTool } from './playwright_exec/playwrightexectool.js'
-
+import './lean4.js'
 
 class Extension {
     readonly chatHandleManager: ChatHandleManager
