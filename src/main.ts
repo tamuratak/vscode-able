@@ -13,7 +13,8 @@ import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwe
 import { GeminiCliChatProvider } from './chatprovider/geminiclichatprovider.js'
 import { AskChatHandleManager } from './chat/ask.js'
 import { PlaywrightExecResetTool, PlaywrightExecTool } from './playwright_exec/playwrightexectool.js'
-import './lean4.js'
+import { Lean4Extension } from './lean4.js'
+
 
 class Extension {
     readonly chatHandleManager: ChatHandleManager
@@ -23,6 +24,7 @@ class Extension {
     readonly taskWatcher: TaskWatcher
     readonly extensionUri: vscode.Uri
     readonly playwrightExecTool: PlaywrightExecTool
+    readonly lean4Extension: Lean4Extension
 
     constructor(context: vscode.ExtensionContext) {
         this.chatHandleManager = new ChatHandleManager(this)
@@ -31,6 +33,7 @@ class Extension {
         this.taskWatcher = new TaskWatcher(this)
         this.extensionUri = context.extensionUri
         this.playwrightExecTool = new PlaywrightExecTool(this)
+        this.lean4Extension = new Lean4Extension(this)
         setTimeout(async () => {
             const result = await vscode.lm.selectChatModels({ vendor: 'copilot' })
             this.outputChannel.info(`GitHub Copilot Chat available models: ${JSON.stringify(result, null, 2)}`)
@@ -52,6 +55,7 @@ class Extension {
         this.ableTaskProvider.dispose()
         this.outputChannel.dispose()
         this.taskWatcher.dispose()
+        this.lean4Extension.dispose()
     }
 
 }
