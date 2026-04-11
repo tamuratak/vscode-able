@@ -1,5 +1,6 @@
 import type treeSitter from '#vscode-tree-sitter-wasm'
 import path from 'node:path'
+import fs from 'node:fs/promises'
 import { bashParser, collectCommands, CommandNode, getNodeText, hasNoWriteRedirection, normalizeToken, parserInitialization } from './commandparser.js'
 
 
@@ -9,6 +10,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
         return false
     }
 
+    // File redirection
     const allowPlanAppend = await isAllowedPlanAppendCommand(command, workspaceRootPath)
     if (!allowPlanAppend && !await hasNoWriteRedirection(command)) {
         return false
@@ -28,11 +30,13 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
             }
         }
 
+        // Unsafe commands that require confirmation
         if (isConfirmationRequired(cmd)) {
             return false
         }
 
-        if (isAllowedSubCommand(cmd, workspaceRootPath)) {
+        // Sub-commands
+        if (await isAllowedSubCommand(cmd, workspaceRootPath)) {
             continue
         }
 
@@ -213,7 +217,10 @@ function resolveAllowedPlanAppendTarget(target: string, workspaceRootPath: strin
     return normalizedTarget
 }
 
-function isAllowedSubCommand(command: CommandNode, workspaceRootPath: string | undefined): boolean {
+async function isAllowedSubCommand(
+    command: CommandNode,
+    workspaceRootPath: string | undefined
+): Promise<boolean> {
     if (command.command === 'git') {
         const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse)$/
         const gitCmd = parseGitCommand(command)
@@ -225,6 +232,20 @@ function isAllowedSubCommand(command: CommandNode, workspaceRootPath: string | u
                 }
             } else {
                 return true
+            }
+        }
+    } else if (commandStartsWith(['lake', 'env', 'lean'], command) && workspaceRootPath) {
+        if (command.args.length === 3) {
+            const fileArg = command.args[2]
+            const fileArgPath = path.normalize(path.join(workspaceRootPath, fileArg))
+            const tmpDirPath = path.normalize(path.join(workspaceRootPath, './tmpdir'))
+            if (path.dirname(fileArgPath) === tmpDirPath) {
+                const fileContent = await fs.readFile(fileArgPath, 'utf-8')
+                if (/\bIO\b/.test(fileContent) || /\bSystem\b/.test(fileContent)) {
+                    return false
+                } else {
+                    return true
+                }
             }
         }
     }
@@ -294,6 +315,16 @@ function isConfirmationRequired(command: CommandNode): boolean {
 }
 
 /**
+ * Returns true if the input command exactly matches the given pattern.
+ */
+export function exactMatchCommand(pattern: (string | RegExp)[], command: CommandNode): boolean {
+    if (pattern.length !== command.args.length + 1) {
+        return false
+    }
+    return commandStartsWith(pattern, command)
+}
+
+/**
  * Returns true if the input command starts with the given pattern.
  */
 export function commandStartsWith(pattern: (string | RegExp)[], command: CommandNode): boolean {
@@ -318,6 +349,7 @@ export function commandStartsWith(pattern: (string | RegExp)[], command: Command
 
 /**
  * Returns true if one of the arguments matches some pattern.
+ * Used to find unsafe arguments and options in the command.
  */
 function partialMatchCommand(pattern: (string | RegExp)[], command: CommandNode): boolean {
     if (pattern[0] !== command.command) {
