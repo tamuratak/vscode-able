@@ -14,6 +14,7 @@ import { GeminiCliChatProvider } from './chatprovider/geminiclichatprovider.js'
 import { AskChatHandleManager } from './chat/ask.js'
 import { PlaywrightExecResetTool, PlaywrightExecTool } from './playwright_exec/playwrightexectool.js'
 import { Lean4Extension } from './lean4.js'
+import { MathRenderer } from './mathjax/mathrenderer.js'
 
 
 class Extension {
@@ -25,6 +26,7 @@ class Extension {
     readonly extensionUri: vscode.Uri
     readonly playwrightExecTool: PlaywrightExecTool
     readonly lean4Extension: Lean4Extension
+    readonly mathRenderer: MathRenderer
 
     constructor(context: vscode.ExtensionContext) {
         this.chatHandleManager = new ChatHandleManager(this)
@@ -34,6 +36,7 @@ class Extension {
         this.extensionUri = context.extensionUri
         this.playwrightExecTool = new PlaywrightExecTool(this)
         this.lean4Extension = new Lean4Extension(this)
+        this.mathRenderer = new MathRenderer(this)
         setTimeout(async () => {
             const result = await vscode.lm.selectChatModels({ vendor: 'copilot' })
             this.outputChannel.info(`GitHub Copilot Chat available models: ${JSON.stringify(result, null, 2)}`)
@@ -56,6 +59,7 @@ class Extension {
         this.outputChannel.dispose()
         this.taskWatcher.dispose()
         this.lean4Extension.dispose()
+        void this.mathRenderer.dispose()
     }
 
 }
@@ -104,6 +108,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_playwrightExec', extension.playwrightExecTool),
         vscode.lm.registerTool('able_playwrightExecReset', new PlaywrightExecResetTool(extension.playwrightExecTool)),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
+        vscode.languages.registerHoverProvider({ scheme: 'file', language: 'lean4' }, extension.mathRenderer),
         ...registerCommands()
     )
 
