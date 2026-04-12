@@ -481,6 +481,7 @@
     "@vscode/prompt-tsx": "0.4.0-alpha.5",
     "@vscode/tree-sitter-wasm": "0.3.0",
     "ajv": "8.18.0",
+    "mathjax-full": "3.2.2",
     "openai": "6.2.0",
     "playwright": "1.58.2",
     "vm2": "3.10.5",
