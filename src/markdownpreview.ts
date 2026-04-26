@@ -196,4 +196,37 @@ export class MarkdownPreviewPanel {
         this.prevCursorPosition = cursorPos
     }
 
+    private getMarkdownRange(document: vscode.TextDocument, position: vscode.Position): vscode.Range | undefined {
+        const beginRegex = /^\s*\/--/
+        const endRegex = /-\/\s*$/
+        const maxScanLines = 100
+        let beginLine: number | undefined
+        let endLine: number | undefined
+        for (let i = 0; i < maxScanLines; i++) {
+            const lineAbove = position.line - i
+            if (lineAbove < 0) {
+                break
+            }
+            const text = document.lineAt(lineAbove).text
+            if (beginRegex.test(text)) {
+                beginLine = lineAbove
+                break
+            }
+        }
+        for (let i = 0; i < maxScanLines; i++) {
+            const lineBelow = position.line + i
+            if (lineBelow >= document.lineCount) {
+                break
+            }
+            const text = document.lineAt(lineBelow).text
+            if (endRegex.test(text)) {
+                endLine = lineBelow
+                break
+            }
+        }
+        if (beginLine !== undefined && endLine !== undefined && endLine > beginLine) {
+            return new vscode.Range(new vscode.Position(beginLine + 1, 0), new vscode.Position(endLine, 0))
+        }
+        return undefined
+    }
 }
