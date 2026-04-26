@@ -1,0 +1,188 @@
+import * as vscode from 'vscode'
+import * as path from 'node:path'
+import markdownIt from 'markdown-it'
+import markdownItKatex from '@vscode/markdown-it-katex'
+import { debugObj } from './utils/debug.js'
+
+export const markdownPreviewPanelViewType = 'able-markdownpreview'
+let restored = false
+
+interface UpdateEvent {
+    type: 'selection',
+    event: vscode.TextEditorSelectionChangeEvent
+}
+
+
+export class MarkdownPreviewPanel {
+    private panel: vscode.WebviewPanel | undefined
+    prevDocumentUri: string | undefined
+    prevCursorPosition: vscode.Position | undefined
+    private readonly mdIt = markdownIt().use(markdownItKatex)
+    constructor(readonly extension: {
+        readonly outputChannel: vscode.LogOutputChannel
+    }) { }
+
+    renderMarkdown(input: string): string {
+        try {
+            return this.mdIt.render(input)
+        } catch (err) {
+            debugObj('Error rendering markdown', err, this.extension.outputChannel)
+            throw err
+        }
+    }
+
+    private findPanelTabs() {
+        return vscode.window.tabGroups.all.flatMap(group =>
+            group.tabs.filter(tab => {
+                return tab.input instanceof vscode.TabInputWebview && tab.input.viewType.includes(markdownPreviewPanelViewType)
+            })
+        )
+    }
+
+    // When the extension host reloads due to an extension update or other reasons,
+    // the connection with the webview is lost. Therefore, we close the old panel
+    // and open a new panel.
+    async reopenPanelOnNewSession() {
+        if (restored || this.panel) {
+            return
+        }
+        const oldPanelTab = this.findPanelTabs()[0]
+        if (oldPanelTab) {
+            this.open(oldPanelTab.group.viewColumn)
+            // We need to locate the old tab again because the oldPanelTab object becomes invalid after a tab operation.
+            const theOldPanelTab = this.findPanelTabs()[0]
+            if (theOldPanelTab) {
+                await vscode.window.tabGroups.close(theOldPanelTab)
+            }
+        }
+    }
+
+    open(viewColumn?: vscode.ViewColumn) {
+        const activeDocument = vscode.window.activeTextEditor?.document
+        if (this.panel) {
+            if (!this.panel.visible) {
+                this.panel.reveal(undefined, true)
+            }
+            return
+        }
+        const panel = vscode.window.createWebviewPanel(
+            markdownPreviewPanelViewType,
+            'Markdown Comment Preview',
+            { viewColumn: viewColumn || vscode.ViewColumn.Active, preserveFocus: true },
+            {
+                enableScripts: true,
+                localResourceRoots: [resourcesFolder(this.extension.extensionRoot)],
+                retainContextWhenHidden: true
+            }
+        )
+        this.initializePanel(panel)
+        panel.webview.html = this.getHtml(panel.webview)
+        if (activeDocument && !viewColumn) {
+            panel.reveal(viewColumn, false)
+        }
+    }
+
+    initializePanel(panel: vscode.WebviewPanel) {
+        let timeout: NodeJS.Timeout | undefined
+        const disposable = vscode.Disposable.from(
+            vscode.workspace.onDidChangeTextDocument(() => {
+                if (timeout) {
+                    clearTimeout(timeout)
+                    timeout = undefined
+                }
+                timeout = setTimeout(() => {
+                    void this.update()
+                }, 200)
+
+            }),
+            vscode.window.onDidChangeTextEditorSelection((event) => {
+                if (timeout) {
+                    clearTimeout(timeout)
+                    timeout = undefined
+                }
+                void this.update({ type: 'selection', event })
+            })
+        )
+        this.panel = panel
+        panel.onDidDispose(() => {
+            disposable.dispose()
+            this.clearCache()
+            this.panel = undefined
+        })
+        panel.onDidChangeViewState((ev) => {
+            if (ev.webviewPanel.visible) {
+                void this.update()
+            }
+        })
+        panel.webview.onDidReceiveMessage(() => {
+            void this.update()
+        })
+    }
+
+    close() {
+        this.panel?.dispose()
+        this.panel = undefined
+        this.clearCache()
+    }
+
+    toggle() {
+        if (this.panel) {
+            this.close()
+        } else {
+            void this.open()
+        }
+    }
+
+    private clearCache() {
+        this.prevDocumentUri = undefined
+        this.prevCursorPosition = undefined
+    }
+
+    getHtml(webview: vscode.Webview) {
+        const jsPath = vscode.Uri.file(path.join(this.extension.extensionRoot, './resources/mathpreviewpanel/mathpreview.js'))
+        const jsPathSrc = webview.asWebviewUri(jsPath)
+        return `<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; script-src ${webview.cspSource}; img-src data:; style-src 'unsafe-inline';">
+            <meta charset="UTF-8">
+            <style>
+                body {
+                    padding: 0;
+                    margin: 0;
+                }
+                #math {
+                    padding-top: 35px;
+                    padding-left: 50px;
+                }
+            </style>
+            <script src='${jsPathSrc}' defer></script>
+        </head>
+        <body>
+            <div id="mathBlock"><img src="" id="math" /></div>
+        </body>
+        </html>`
+    }
+
+    update(ev?: UpdateEvent) {
+        if (!this.panel || !this.panel.visible) {
+            return
+        }
+        const editor = vscode.window.activeTextEditor
+        const document = editor?.document
+        if (!editor || !document?.languageId) {
+            this.clearCache()
+            return
+        }
+        const documentUri = document.uri.toString()
+        const cursorPos = ev?.event.selections[0]?.active ?? editor.selection.active
+        const texMath = this.getTexMath(document, cursorPos)
+        if (!texMath) {
+            this.clearCache()
+            return
+        }
+        this.prevDocumentUri = documentUri
+        this.prevCursorPosition = cursorPos
+    }
+
+}
