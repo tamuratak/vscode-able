@@ -1,5 +1,4 @@
 import * as vscode from 'vscode'
-import * as path from 'node:path'
 import markdownIt from 'markdown-it'
 import markdownItKatex from '@vscode/markdown-it-katex'
 import { debugObj } from './utils/debug.js'
@@ -12,6 +11,17 @@ interface UpdateEvent {
     event: vscode.TextEditorSelectionChangeEvent
 }
 
+function resourcesFolder(extensionUri: vscode.Uri) {
+    return vscode.Uri.joinPath(
+        extensionUri,
+        'node_modules',
+        '@vscode',
+        'markdown-it-katex',
+        'node_modules',
+        'katex',
+        'dist'
+    )
+}
 
 export class MarkdownPreviewPanel {
     private panel: vscode.WebviewPanel | undefined
@@ -19,6 +29,7 @@ export class MarkdownPreviewPanel {
     prevCursorPosition: vscode.Position | undefined
     private readonly mdIt = markdownIt().use(markdownItKatex)
     constructor(readonly extension: {
+        readonly extensionUri: vscode.Uri
         readonly outputChannel: vscode.LogOutputChannel
     }) { }
 
@@ -71,7 +82,7 @@ export class MarkdownPreviewPanel {
             { viewColumn: viewColumn || vscode.ViewColumn.Active, preserveFocus: true },
             {
                 enableScripts: true,
-                localResourceRoots: [resourcesFolder(this.extension.extensionRoot)],
+                localResourceRoots: [resourcesFolder(this.extension.extensionUri)],
                 retainContextWhenHidden: true
             }
         )
@@ -139,8 +150,8 @@ export class MarkdownPreviewPanel {
     }
 
     getHtml(webview: vscode.Webview) {
-        const jsPath = vscode.Uri.file(path.join(this.extension.extensionRoot, './resources/mathpreviewpanel/mathpreview.js'))
-        const jsPathSrc = webview.asWebviewUri(jsPath)
+        const cssPath = vscode.Uri.joinPath(resourcesFolder(this.extension.extensionUri), './katex.css')
+        const cssPathSrc = webview.asWebviewUri(cssPath)
         return `<!DOCTYPE html>
         <html lang="en">
         <head>
@@ -156,7 +167,7 @@ export class MarkdownPreviewPanel {
                     padding-left: 50px;
                 }
             </style>
-            <script src='${jsPathSrc}' defer></script>
+            <link rel="stylesheet" href="${cssPathSrc}" defer>
         </head>
         <body>
             <div id="mathBlock"><img src="" id="math" /></div>

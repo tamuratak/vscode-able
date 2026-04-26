@@ -18,12 +18,12 @@ import { MathRenderer } from './mathjax/mathrenderer.js'
 
 
 class Extension {
+    readonly extensionUri: vscode.Uri
     readonly chatHandleManager: ChatHandleManager
     readonly askChatHandleManager: AskChatHandleManager
     readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
     readonly ableTaskProvider: MochaJsonTaskProvider
     readonly taskWatcher: TaskWatcher
-    readonly extensionUri: vscode.Uri
     readonly playwrightExecTool: PlaywrightExecTool
     readonly lean4Extension: Lean4Extension
     readonly mathRenderer: MathRenderer
