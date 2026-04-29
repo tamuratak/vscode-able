@@ -341,6 +341,10 @@
       {
         "command": "able.terminalNew",
         "title": "Able: Create New Terminal"
+      },
+      {
+        "command": "able.toggleMarkdownPreview",
+        "title": "Able: Toggle Markdown Preview"
       }
     ],
     "keybindings": [

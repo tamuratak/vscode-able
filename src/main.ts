@@ -15,6 +15,7 @@ import { AskChatHandleManager } from './chat/ask.js'
 import { PlaywrightExecResetTool, PlaywrightExecTool } from './playwright_exec/playwrightexectool.js'
 import { Lean4Extension } from './lean4.js'
 import { MathRenderer } from './mathjax/mathrenderer.js'
+import { MarkdownPreviewPanel } from './markdownpreview.js'
 
 
 class Extension {
@@ -27,6 +28,7 @@ class Extension {
     readonly playwrightExecTool: PlaywrightExecTool
     readonly lean4Extension: Lean4Extension
     readonly mathRenderer: MathRenderer
+    readonly markdownPreviewPanel: MarkdownPreviewPanel
 
     constructor(context: vscode.ExtensionContext) {
         this.chatHandleManager = new ChatHandleManager(this)
@@ -37,6 +39,7 @@ class Extension {
         this.playwrightExecTool = new PlaywrightExecTool(this)
         this.lean4Extension = new Lean4Extension(this)
         this.mathRenderer = new MathRenderer(this)
+        this.markdownPreviewPanel = new MarkdownPreviewPanel(this)
         setTimeout(async () => {
             const result = await vscode.lm.selectChatModels({ vendor: 'copilot' })
             this.outputChannel.info(`GitHub Copilot Chat available models: ${JSON.stringify(result, null, 2)}`)
@@ -97,6 +100,9 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.commands.registerCommand('able.doSomething', () => {
             void doSomething(extension)
+        }),
+        vscode.commands.registerCommand('able.toggleMarkdownPreview', () => {
+            extension.markdownPreviewPanel.toggle()
         }),
         vscode.chat.createChatParticipant('able.chatParticipant', extension.getChatHandler()),
         vscode.chat.createChatParticipant( 'able.askParticipant', extension.getAskChatHandler()),

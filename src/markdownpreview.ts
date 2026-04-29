@@ -79,7 +79,7 @@ export class MarkdownPreviewPanel {
         const panel = vscode.window.createWebviewPanel(
             markdownPreviewPanelViewType,
             'Markdown Comment Preview',
-            { viewColumn: viewColumn || vscode.ViewColumn.Active, preserveFocus: true },
+            { viewColumn: viewColumn || vscode.ViewColumn.Beside, preserveFocus: true },
             {
                 enableScripts: true,
                 localResourceRoots: [resourcesFolder(this.extension.extensionUri)],
