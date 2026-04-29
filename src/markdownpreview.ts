@@ -27,7 +27,15 @@ export class MarkdownPreviewPanel {
     private panel: vscode.WebviewPanel | undefined
     prevDocumentUri: string | undefined
     prevCursorPosition: vscode.Position | undefined
-    private readonly mdIt = markdownIt().use(markdownItKatex)
+    private readonly mdIt = markdownIt().use(
+        markdownItKatex,
+        {
+            globalGroup: true,
+            enableBareBlocks: true,
+            enableFencedBlocks: true,
+            macros: {},
+        }
+    )
     constructor(readonly extension: {
         readonly extensionUri: vscode.Uri
         readonly outputChannel: vscode.LogOutputChannel
@@ -54,9 +62,9 @@ export class MarkdownPreviewPanel {
     // the connection with the webview is lost. Therefore, we close the old panel
     // and open a new panel.
     async reopenPanelOnNewSession() {
-//        if (restored || this.panel) {
-//            return
-//        }
+        //        if (restored || this.panel) {
+        //            return
+        //        }
         const oldPanelTab = this.findPanelTabs()[0]
         if (oldPanelTab) {
             this.open(oldPanelTab.group.viewColumn)
@@ -155,7 +163,7 @@ export class MarkdownPreviewPanel {
         return `<!DOCTYPE html>
         <html lang="en">
         <head>
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; script-src ${webview.cspSource}; img-src data:; style-src 'unsafe-inline';">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; script-src ${webview.cspSource}; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline';">
             <meta charset="UTF-8">
             <style>
                 body {
