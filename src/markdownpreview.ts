@@ -4,7 +4,7 @@ import markdownItKatex from '@vscode/markdown-it-katex'
 import { debugObj } from './utils/debug.js'
 
 export const markdownPreviewPanelViewType = 'able-markdownpreview'
-let restored = false
+// let restored = false
 
 interface UpdateEvent {
     type: 'selection',
@@ -54,9 +54,9 @@ export class MarkdownPreviewPanel {
     // the connection with the webview is lost. Therefore, we close the old panel
     // and open a new panel.
     async reopenPanelOnNewSession() {
-        if (restored || this.panel) {
-            return
-        }
+//        if (restored || this.panel) {
+//            return
+//        }
         const oldPanelTab = this.findPanelTabs()[0]
         if (oldPanelTab) {
             this.open(oldPanelTab.group.viewColumn)
