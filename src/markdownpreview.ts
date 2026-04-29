@@ -33,7 +33,7 @@ export class MarkdownPreviewPanel {
         readonly outputChannel: vscode.LogOutputChannel
     }) { }
 
-    renderMarkdown(input: string): string {
+    private renderMarkdown(input: string): string {
         try {
             return this.mdIt.render(input)
         } catch (err) {
@@ -149,7 +149,7 @@ export class MarkdownPreviewPanel {
         this.prevCursorPosition = undefined
     }
 
-    getHtml(webview: vscode.Webview) {
+    getHtml(webview: vscode.Webview, htmlString = ''): string {
         const cssPath = vscode.Uri.joinPath(resourcesFolder(this.extension.extensionUri), './katex.css')
         const cssPathSrc = webview.asWebviewUri(cssPath)
         return `<!DOCTYPE html>
@@ -170,7 +170,7 @@ export class MarkdownPreviewPanel {
             <link rel="stylesheet" href="${cssPathSrc}" defer>
         </head>
         <body>
-            <div id="mathBlock"><img src="" id="math" /></div>
+            ${htmlString}
         </body>
         </html>`
     }
@@ -187,10 +187,22 @@ export class MarkdownPreviewPanel {
         }
         const documentUri = document.uri.toString()
         const cursorPos = ev?.event.selections[0]?.active ?? editor.selection.active
-        const texMath = this.getTexMath(document, cursorPos)
-        if (!texMath) {
+        const mdRange = this.getMarkdownRange(document, cursorPos)
+        if (!mdRange) {
             this.clearCache()
             return
+        }
+        if (this.prevDocumentUri === documentUri && this.prevCursorPosition?.isEqual(cursorPos)) {
+            return
+        }
+        const mdText = document.getText(mdRange)
+        try {
+            const htmlString = this.renderMarkdown(mdText)
+            const fullHtml = this.getHtml(this.panel.webview, htmlString)
+            this.panel.webview.html = fullHtml
+        } catch (err) {
+            debugObj('Error updating markdown preview', err, this.extension.outputChannel)
+            throw err
         }
         this.prevDocumentUri = documentUri
         this.prevCursorPosition = cursorPos
