@@ -35,10 +35,16 @@
   },
   "enabledApiProposals": [
     "embeddings",
+    "chatDebug",
     "chatParticipantAdditions",
+    "chatParticipantPrivate",
     "chatProvider",
+    "chatTab",
+    "languageModelCapabilities",
     "languageModelSystem",
-    "languageModelThinkingPart"
+    "languageModelThinkingPart",
+    "languageModelToolResultAudience",
+    "languageModelToolSupportsModel"
   ],
   "contributes": {
     "authentication": [
@@ -53,6 +59,10 @@
       {
         "id": "groq_api",
         "label": "Groq (with Able)"
+      },
+      {
+        "id": "opencode_go_api",
+        "label": "OpenCode Go (with Able)"
       }
     ],
     "chatParticipants": [
@@ -121,7 +131,12 @@
       {
         "vendor": "groq_with_able",
         "displayName": "Groq with Able"
+      },
+      {
+        "vendor": "opencodego_with_able",
+        "displayName": "OpenCode Go with Able"
       }
+    
     ],
     "languageModelTools": [
       {
@@ -331,6 +346,26 @@
         "title": "Able: Login to Groq"
       },
       {
+        "command": "able.loginOpenCodeGo",
+        "title": "Able: Login to OpenCode Go"
+      },
+      {
+        "command": "able.logoutGemini",
+        "title": "Able: Logout from Gemini"
+      },
+      {
+        "command": "able.logoutOpenAI",
+        "title": "Able: Logout from OpenAI"
+      },
+      {
+        "command": "able.logoutGroq",
+        "title": "Able: Logout from Groq"
+      },
+      {
+        "command": "able.logoutOpenCodeGo",
+        "title": "Able: Logout from OpenCode Go"
+      },
+      {
         "command": "able.openTerminalAndCloseSideBar",
         "title": "Able: Open Terminal and Close Side Bar"
       },
@@ -476,10 +511,12 @@
     }
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "2.0.41",
     "@google/genai": "1.30.0",
     "@microsoft/tiktokenizer": "1.0.10",
     "@vscode/prompt-tsx": "0.4.0-alpha.5",
     "@vscode/tree-sitter-wasm": "0.3.0",
+    "ai": "6.0.168",
     "ajv": "8.18.0",
     "mathjax-full": "3.2.2",
     "openai": "6.2.0",

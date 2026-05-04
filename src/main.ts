@@ -4,7 +4,7 @@ import { registerCommands } from './commands.js'
 import { PythonTool } from './lmtools/pyodide.js'
 import { MochaJsonTaskProvider } from './task/task.js'
 import { TaskWatcher } from './task/taskwatcher.js'
-import { GeminiApiKeyAuthenticationProvider, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider } from './auth/authproviders.js'
+import { GeminiApiKeyAuthenticationProvider, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider, OpenCodeGoApiKeyAuthenticationProvider } from './auth/authproviders.js'
 import { GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chatprovider/chatprovider.js'
 import { WebSearchTool } from './lmtools/websearch.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
@@ -15,6 +15,7 @@ import { AskChatHandleManager } from './chat/ask.js'
 import { PlaywrightExecResetTool, PlaywrightExecTool } from './playwright_exec/playwrightexectool.js'
 import { Lean4Extension } from './lean4.js'
 import { MathRenderer } from './mathjax/mathrenderer.js'
+import { OpenCodeGoChatModelProvider } from './chatprovider/opencodegochatprovider2/provider.js'
 
 
 class Extension {
@@ -69,6 +70,7 @@ export function activate(context: vscode.ExtensionContext) {
     const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
     const openAiAuthProvider = new OpenAiApiAuthenticationProvider(extension, context.secrets)
     const groqAuthProvider = new GroqApiKeyAuthenticationProvider(extension, context.secrets)
+    const openCodeGoAuthProvider = new OpenCodeGoApiKeyAuthenticationProvider(extension, context.secrets)
     // non stable API used
     try {
         context.subscriptions.push(
@@ -76,6 +78,7 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.lm.registerLanguageModelChatProvider('geminicli_with_able', new GeminiCliChatProvider(extension)),
             vscode.lm.registerLanguageModelChatProvider('openai_with_able', new OpenAIChatProvider(extension)),
             vscode.lm.registerLanguageModelChatProvider('groq_with_able', new GroqChatProvider(extension)),
+            vscode.lm.registerLanguageModelChatProvider('opencodego_with_able', new OpenCodeGoChatModelProvider()),
         )
     } catch { }
     context.subscriptions.push(
@@ -86,6 +89,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.authentication.registerAuthenticationProvider(geminiAuthProvider.serviceId, geminiAuthProvider.label, geminiAuthProvider),
         vscode.authentication.registerAuthenticationProvider(openAiAuthProvider.serviceId, openAiAuthProvider.label, openAiAuthProvider),
         vscode.authentication.registerAuthenticationProvider(groqAuthProvider.serviceId, groqAuthProvider.label, groqAuthProvider),
+        vscode.authentication.registerAuthenticationProvider(openCodeGoAuthProvider.serviceId, openCodeGoAuthProvider.label, openCodeGoAuthProvider),
         vscode.commands.registerCommand('able.loginGemini', () => {
             void vscode.authentication.getSession(geminiAuthProvider.serviceId, [], { createIfNone: true })
         }),
@@ -94,6 +98,21 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.commands.registerCommand('able.loginGroq', () => {
             void vscode.authentication.getSession(groqAuthProvider.serviceId, [], { createIfNone: true })
+        }),
+        vscode.commands.registerCommand('able.loginOpenCodeGo', () => {
+            void vscode.authentication.getSession(openCodeGoAuthProvider.serviceId, [], { createIfNone: true })
+        }),
+        vscode.commands.registerCommand('able.logoutGemini', async () => {
+            await geminiAuthProvider.removeSession()
+        }),
+        vscode.commands.registerCommand('able.logoutOpenAI', async () => {
+            await openAiAuthProvider.removeSession()
+        }),
+        vscode.commands.registerCommand('able.logoutGroq', async () => {
+            await groqAuthProvider.removeSession()
+        }),
+        vscode.commands.registerCommand('able.logoutOpenCodeGo', async () => {
+            await openCodeGoAuthProvider.removeSession()
         }),
         vscode.commands.registerCommand('able.doSomething', () => {
             void doSomething(extension)

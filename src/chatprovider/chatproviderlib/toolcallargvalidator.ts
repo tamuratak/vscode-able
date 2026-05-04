@@ -1,10 +1,9 @@
 import * as vscode from 'vscode'
 import Ajv from 'ajv'
+import { ValidateFunction } from 'ajv'
 
-type Cb = (obj: unknown) => boolean
-
-const toolCallValidatorMap = new Map<string, Cb>()
-const toolCallAjv = new Ajv()
+const toolCallValidatorMap = new Map<string, ValidateFunction<unknown>>()
+const toolCallAjv = new Ajv({coerceTypes: true})
 
 export function initValidators(tools: readonly vscode.LanguageModelChatTool[] | undefined) {
     for (const tool of tools ?? []) {
@@ -14,6 +13,6 @@ export function initValidators(tools: readonly vscode.LanguageModelChatTool[] | 
     }
 }
 
-export function getValidator(name: string): Cb | undefined {
+export function getValidator(name: string): ValidateFunction<unknown> | undefined {
     return toolCallValidatorMap.get(name)
 }
