@@ -4,8 +4,8 @@ import { registerCommands } from './commands.js'
 import { PythonTool } from './lmtools/pyodide.js'
 import { MochaJsonTaskProvider } from './task/task.js'
 import { TaskWatcher } from './task/taskwatcher.js'
-import { GeminiApiKeyAuthenticationProvider, GroqApiKeyAuthenticationProvider, OpenAiApiAuthenticationProvider, OpenCodeGoApiKeyAuthenticationProvider } from './auth/authproviders.js'
-import { GeminiChatProvider, GroqChatProvider, OpenAIChatProvider } from './chatprovider/chatprovider.js'
+import { GeminiApiKeyAuthenticationProvider, OpenCodeGoApiKeyAuthenticationProvider } from './auth/authproviders.js'
+import { GeminiChatProvider } from './chatprovider/chatprovider.js'
 import { WebSearchTool } from './lmtools/websearch.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
 import { renderToolResult } from './utils/toolresultrendering.js'
@@ -68,48 +68,28 @@ class Extension {
 export function activate(context: vscode.ExtensionContext) {
     const extension = new Extension(context)
     const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
-    const openAiAuthProvider = new OpenAiApiAuthenticationProvider(extension, context.secrets)
-    const groqAuthProvider = new GroqApiKeyAuthenticationProvider(extension, context.secrets)
     const openCodeGoAuthProvider = new OpenCodeGoApiKeyAuthenticationProvider(extension, context.secrets)
     // non stable API used
     try {
         context.subscriptions.push(
             vscode.lm.registerLanguageModelChatProvider('gemini_with_able', new GeminiChatProvider(extension)),
             vscode.lm.registerLanguageModelChatProvider('geminicli_with_able', new GeminiCliChatProvider(extension)),
-            vscode.lm.registerLanguageModelChatProvider('openai_with_able', new OpenAIChatProvider(extension)),
-            vscode.lm.registerLanguageModelChatProvider('groq_with_able', new GroqChatProvider(extension)),
             vscode.lm.registerLanguageModelChatProvider('opencodego_with_able', new OpenCodeGoChatModelProvider()),
         )
     } catch { }
     context.subscriptions.push(
         extension,
         geminiAuthProvider,
-        openAiAuthProvider,
-        groqAuthProvider,
         vscode.authentication.registerAuthenticationProvider(geminiAuthProvider.serviceId, geminiAuthProvider.label, geminiAuthProvider),
-        vscode.authentication.registerAuthenticationProvider(openAiAuthProvider.serviceId, openAiAuthProvider.label, openAiAuthProvider),
-        vscode.authentication.registerAuthenticationProvider(groqAuthProvider.serviceId, groqAuthProvider.label, groqAuthProvider),
         vscode.authentication.registerAuthenticationProvider(openCodeGoAuthProvider.serviceId, openCodeGoAuthProvider.label, openCodeGoAuthProvider),
         vscode.commands.registerCommand('able.loginGemini', () => {
             void vscode.authentication.getSession(geminiAuthProvider.serviceId, [], { createIfNone: true })
-        }),
-        vscode.commands.registerCommand('able.loginOpenAI', () => {
-            void vscode.authentication.getSession(openAiAuthProvider.serviceId, [], { createIfNone: true })
-        }),
-        vscode.commands.registerCommand('able.loginGroq', () => {
-            void vscode.authentication.getSession(groqAuthProvider.serviceId, [], { createIfNone: true })
         }),
         vscode.commands.registerCommand('able.loginOpenCodeGo', () => {
             void vscode.authentication.getSession(openCodeGoAuthProvider.serviceId, [], { createIfNone: true })
         }),
         vscode.commands.registerCommand('able.logoutGemini', async () => {
             await geminiAuthProvider.removeSession()
-        }),
-        vscode.commands.registerCommand('able.logoutOpenAI', async () => {
-            await openAiAuthProvider.removeSession()
-        }),
-        vscode.commands.registerCommand('able.logoutGroq', async () => {
-            await groqAuthProvider.removeSession()
         }),
         vscode.commands.registerCommand('able.logoutOpenCodeGo', async () => {
             await openCodeGoAuthProvider.removeSession()

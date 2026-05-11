@@ -53,14 +53,6 @@
         "label": "Gemini (with Able)"
       },
       {
-        "id": "openai_api",
-        "label": "OpenAI (with Able)"
-      },
-      {
-        "id": "groq_api",
-        "label": "Groq (with Able)"
-      },
-      {
         "id": "opencode_go_api",
         "label": "OpenCode Go (with Able)"
       }
@@ -123,14 +115,6 @@
       {
         "vendor": "geminicli_with_able",
         "displayName": "Gemini CLI with Able"
-      },
-      {
-        "vendor": "openai_with_able",
-        "displayName": "OpenAI with Able"
-      },
-      {
-        "vendor": "groq_with_able",
-        "displayName": "Groq with Able"
       },
       {
         "vendor": "opencodego_with_able",
@@ -338,28 +322,12 @@
         "title": "Able: Login to Gemini"
       },
       {
-        "command": "able.loginOpenAI",
-        "title": "Able: Login to OpenAI"
-      },
-      {
-        "command": "able.loginGroq",
-        "title": "Able: Login to Groq"
-      },
-      {
         "command": "able.loginOpenCodeGo",
         "title": "Able: Login to OpenCode Go"
       },
       {
         "command": "able.logoutGemini",
         "title": "Able: Logout from Gemini"
-      },
-      {
-        "command": "able.logoutOpenAI",
-        "title": "Able: Logout from OpenAI"
-      },
-      {
-        "command": "able.logoutGroq",
-        "title": "Able: Logout from Groq"
       },
       {
         "command": "able.logoutOpenCodeGo",
