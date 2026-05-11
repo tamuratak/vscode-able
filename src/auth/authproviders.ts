@@ -180,7 +180,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 	}
 
 	// This function is called when the end user signs out of the account.
-	async removeSession(_sessionId: string): Promise<void> {
+	async removeSession(): Promise<void> {
 		const apiKey = await this.currentApiKey
 		if (!apiKey) {
 			return
@@ -272,6 +272,20 @@ export class GroqApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationPr
 		} catch {
 			return false
 		}
+	}
+
+}
+
+export const openCodeGoAuthServiceId = 'opencode_go_api'
+
+export class OpenCodeGoApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
+	readonly label = 'OpenCode Go (with Able)'
+	readonly accountLabel = 'Able'
+	readonly serviceId = openCodeGoAuthServiceId
+	protected readonly secretStoreKeyId = 'opencode_go_api.secret_store_key'
+
+	protected validateKey() {
+		return Promise.resolve(true)
 	}
 
 }

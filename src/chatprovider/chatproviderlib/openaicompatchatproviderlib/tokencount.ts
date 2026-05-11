@@ -42,8 +42,16 @@ export async function tokenLength(text: string | LanguageModelChatMessage | Lang
             numTokens += tokensPerName
             numTokens += await encodeLen(part.name)
             numTokens += await encodeLen(JSON.stringify(part.input))
+        } else if (part instanceof LanguageModelThinkingPart) {
+            if (typeof part.value === 'string') {
+                numTokens += await encodeLen(part.value)
+            } else {
+                for (const v of part.value) {
+                    numTokens += await encodeLen(v)
+                }
+            }
         } else {
-            part satisfies LanguageModelDataPart | LanguageModelThinkingPart
+            part satisfies LanguageModelDataPart
             // skip
         }
     }

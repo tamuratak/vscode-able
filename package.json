@@ -35,10 +35,16 @@
   },
   "enabledApiProposals": [
     "embeddings",
+    "chatDebug",
     "chatParticipantAdditions",
+    "chatParticipantPrivate",
     "chatProvider",
+    "chatTab",
+    "languageModelCapabilities",
     "languageModelSystem",
-    "languageModelThinkingPart"
+    "languageModelThinkingPart",
+    "languageModelToolResultAudience",
+    "languageModelToolSupportsModel"
   ],
   "contributes": {
     "authentication": [
@@ -47,12 +53,8 @@
         "label": "Gemini (with Able)"
       },
       {
-        "id": "openai_api",
-        "label": "OpenAI (with Able)"
-      },
-      {
-        "id": "groq_api",
-        "label": "Groq (with Able)"
+        "id": "opencode_go_api",
+        "label": "OpenCode Go (with Able)"
       }
     ],
     "chatParticipants": [
@@ -115,13 +117,10 @@
         "displayName": "Gemini CLI with Able"
       },
       {
-        "vendor": "openai_with_able",
-        "displayName": "OpenAI with Able"
-      },
-      {
-        "vendor": "groq_with_able",
-        "displayName": "Groq with Able"
+        "vendor": "opencodego_with_able",
+        "displayName": "OpenCode Go with Able"
       }
+    
     ],
     "languageModelTools": [
       {
@@ -323,12 +322,16 @@
         "title": "Able: Login to Gemini"
       },
       {
-        "command": "able.loginOpenAI",
-        "title": "Able: Login to OpenAI"
+        "command": "able.loginOpenCodeGo",
+        "title": "Able: Login to OpenCode Go"
       },
       {
-        "command": "able.loginGroq",
-        "title": "Able: Login to Groq"
+        "command": "able.logoutGemini",
+        "title": "Able: Logout from Gemini"
+      },
+      {
+        "command": "able.logoutOpenCodeGo",
+        "title": "Able: Logout from OpenCode Go"
       },
       {
         "command": "able.openTerminalAndCloseSideBar",
@@ -484,7 +487,7 @@
     "mathjax-full": "3.2.2",
     "openai": "6.2.0",
     "playwright": "1.58.2",
-    "vm2": "3.10.5",
+    "vm2": "3.11.3",
     "vscode-uri": "3.1.0",
     "workerpool": "10.0.0"
   },
