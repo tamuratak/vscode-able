@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention */
+
 import * as vscode from 'vscode';
 import {
     ProvideLanguageModelChatResponseOptions,
@@ -114,10 +114,10 @@ export abstract class CommonApi<TMessage, TRequestBody> {
      * @param index The tool call index from the stream.
      * @param progress Progress reporter for parts.
      */
-    protected async tryEmitBufferedToolCall(
+    protected tryEmitBufferedToolCall(
         index: number,
         progress: Progress<LanguageModelResponsePart2>
-    ): Promise<void> {
+    ) {
         const buf = this._toolCallBuffers.get(index);
         if (!buf) {
             return;
@@ -142,10 +142,10 @@ export abstract class CommonApi<TMessage, TRequestBody> {
      * @param progress Progress reporter for parts.
      * @param throwOnInvalid If true, throw when a tool call has invalid JSON args.
      */
-    protected async flushToolCallBuffers(
+    protected flushToolCallBuffers(
         progress: Progress<LanguageModelResponsePart2>,
         throwOnInvalid: boolean
-    ): Promise<void> {
+    ) {
         if (this._toolCallBuffers.size === 0) {
             return;
         }

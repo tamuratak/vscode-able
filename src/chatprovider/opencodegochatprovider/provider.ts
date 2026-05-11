@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention */
+
 import * as vscode from 'vscode';
 import {
     CancellationToken,
@@ -35,10 +35,10 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
     /**
      * Get the list of available language models contributed by this provider.
      */
-    async provideLanguageModelChatInformation(
+    provideLanguageModelChatInformation(
         options: { silent: boolean },
         _token: CancellationToken
-    ): Promise<LanguageModelChatInformation[]> {
+    ): LanguageModelChatInformation[] {
         return prepareLanguageModelChatInformation({ silent: options.silent ?? false }, _token);
     }
 
@@ -286,9 +286,11 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     reason: isForceTerminated ? 'connection_terminated' : 'timeout',
                 });
                 if (isForceTerminated) {
-                    throw new Error('The connection was closed by the server. The generation took too long. Please try again or request shorter content.');
+                    logger.error('request.terminated', { error: 'The connection was closed by the server. The generation took too long. Please try again or request shorter content.' })
+                    throw err
                 }
-                throw new Error('Request timed out. The generation took too long. You can increase the timeout in settings (opencodego.requestTimeout).');
+                logger.error('request.timeout', { error: 'Request timed out. The generation took too long. You can increase the timeout in settings (opencodego.requestTimeout).' })
+                throw err
             }
 
             console.error('[OpenCodeGo] Chat request failed', {

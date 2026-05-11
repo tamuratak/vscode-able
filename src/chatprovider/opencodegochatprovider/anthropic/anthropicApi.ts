@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import * as vscode from 'vscode';
 import {
 	CancellationToken,
@@ -268,13 +267,13 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 					const data = line.slice(5).trim();
 					logger.debug('anthropic.stream.chunk', { modelId, data });
 					if (data === '[DONE]') {
-						await this.flushToolCallBuffers(progress, false);
+						this.flushToolCallBuffers(progress, false);
 						continue;
 					}
 
 					try {
-						const chunk: AnthropicStreamChunk = JSON.parse(data);
-						await this.processAnthropicChunk(chunk, progress);
+						const chunk = JSON.parse(data) as AnthropicStreamChunk;
+						this.processAnthropicChunk(chunk, progress);
 					} catch (e) {
 						console.error('[Anthropic Provider] Failed to parse SSE chunk:', e, 'data:', data);
 						logger.error('anthropic.stream.chunk.error', {
@@ -301,10 +300,10 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 	 * @param chunk Parsed Anthropic stream chunk.
 	 * @param progress Progress reporter for parts.
 	 */
-	private async processAnthropicChunk(
+	private processAnthropicChunk(
 		chunk: AnthropicStreamChunk,
 		progress: Progress<LanguageModelResponsePart2>
-	): Promise<void> {
+	) {
 		// Handle ping events (ignore)
 		if (chunk.type === 'ping') {
 			return;
@@ -361,14 +360,14 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 				if (buf) {
 					buf.args += chunk.delta.partial_json;
 					this._toolCallBuffers.set(idx, buf);
-					await this.tryEmitBufferedToolCall(idx, progress);
+					this.tryEmitBufferedToolCall(idx, progress);
 				}
 			} else if (chunk.delta.type === 'signature_delta' && chunk.delta.signature) {
 				// Signature for thinking block - ignore for now
 			}
 		} else if (chunk.type === 'content_block_stop' || chunk.type === 'message_stop') {
 			// End of message - ensure thinking is ended and flush all tool calls
-			await this.flushToolCallBuffers(progress, false);
+			this.flushToolCallBuffers(progress, false);
 			this.reportEndThinking(progress);
 		}
 	}

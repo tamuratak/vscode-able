@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { TikTokenizer, createByModelName } from '@microsoft/tiktokenizer';
 
 const CACHE_MAX_ENTRIES = 5000;
@@ -47,7 +46,7 @@ export class TokenizerManager {
     private readonly cache = new TokenCache();
     private tokenizerReady: Promise<TikTokenizer> | null = null;
 
-    private constructor() { }
+    private constructor() { void 0 }
 
     static getInstance(): TokenizerManager {
         if (!TokenizerManager.instance) {

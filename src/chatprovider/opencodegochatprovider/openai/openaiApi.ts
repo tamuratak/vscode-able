@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention */
+
 import * as vscode from 'vscode';
 import {
     CancellationToken,
@@ -57,7 +57,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     imageParts.push(part);
                 } else if (part instanceof vscode.LanguageModelToolCallPart) {
                     const id = part.callId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-                    let args = '{}';
+                    let args: string;
                     try {
                         args = JSON.stringify(part.input ?? {});
                     } catch {
@@ -250,7 +250,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         // Immediately cancel the stream when user cancels, so reader.read() won't stay pending
         if (token.onCancellationRequested) {
             token.onCancellationRequested(() => {
-                reader.cancel().catch(() => {});
+                reader.cancel().catch(() => undefined);
             });
         }
 
@@ -276,15 +276,15 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     const data = line.slice(5).trim();
                     logger.debug('openai.stream.chunk', { modelId, data });
                     if (data === '[DONE]') {
-                        await this.flushToolCallBuffers(progress, false);
+                        this.flushToolCallBuffers(progress, false);
                         continue;
                     }
 
                     try {
-                        const parsed = JSON.parse(data);
+                        const parsed = JSON.parse(data) as Record<string, unknown>;
 
                         // Capture usage from stream_options: include_usage chunks (final chunk with no choices)
-                        const usageData = parsed.usage as Record<string, unknown> | undefined;
+                        const usageData = parsed['usage'] as Record<string, unknown> | undefined;
                         if (usageData) {
                             let cacheHitTokens: number | undefined;
                             let cacheMissTokens: number | undefined;
@@ -313,7 +313,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                             this._onUsage?.(usage);
                         }
 
-                        await this.processDelta(parsed, progress);
+                        this.processDelta(parsed, progress);
                     } catch (e) {
                         console.error('[OpenCodeGo] Failed to parse SSE chunk:', e, 'data:', data);
                         logger.error('openai.stream.chunk.error', {
@@ -338,10 +338,10 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
     /**
      * Handle a single streamed delta chunk, emitting text and tool call parts.
      */
-    private async processDelta(
+    private processDelta(
         delta: Record<string, unknown>,
         progress: Progress<LanguageModelResponsePart2>
-    ): Promise<boolean> {
+    ): boolean {
         let emitted = false;
         const choice = (delta['choices'] as Record<string, unknown>[] | undefined)?.[0];
         if (!choice) {
@@ -402,7 +402,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         }
 
         if (deltaObj?.['content']) {
-            const content = String(deltaObj['content']);
+            const content = typeof deltaObj['content'] === 'string' ? deltaObj['content'] : JSON.stringify(deltaObj['content'])
 
             const xmlRes = this.processXmlThinkBlocks(content, progress);
             if (xmlRes.emittedAny) {
@@ -445,13 +445,13 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 }
                 this._toolCallBuffers.set(idx, buf);
 
-                await this.tryEmitBufferedToolCall(idx, progress);
+                this.tryEmitBufferedToolCall(idx, progress);
             }
         }
 
         const finish = choice['finish_reason'] ?? undefined;
         if (finish === 'tool_calls' || finish === 'stop') {
-            await this.flushToolCallBuffers(progress, true);
+            this.flushToolCallBuffers(progress, true);
         }
         return emitted;
     }

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention */
+
 import * as vscode from 'vscode';
 import { LanguageModelChatRequestMessage, LanguageModelChatTool } from 'vscode';
 import { tokenizerManager } from './tokenizer/tokenizerManager.js';
@@ -48,7 +48,7 @@ export async function countMessageTokens(
 
 export async function textTokenLength(text: string): Promise<number> {
     try {
-        return tokenizerManager.countTokens(text);
+        return await tokenizerManager.countTokens(text);
     } catch {
         return 0;
     }
