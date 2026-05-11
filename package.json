@@ -511,17 +511,15 @@
     }
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "2.0.41",
     "@google/genai": "1.30.0",
     "@microsoft/tiktokenizer": "1.0.10",
     "@vscode/prompt-tsx": "0.4.0-alpha.5",
     "@vscode/tree-sitter-wasm": "0.3.0",
-    "ai": "6.0.168",
     "ajv": "8.18.0",
     "mathjax-full": "3.2.2",
     "openai": "6.2.0",
     "playwright": "1.58.2",
-    "vm2": "3.10.5",
+    "vm2": "3.11.3",
     "vscode-uri": "3.1.0",
     "workerpool": "10.0.0"
   },
