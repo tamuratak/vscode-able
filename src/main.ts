@@ -15,7 +15,7 @@ import { AskChatHandleManager } from './chat/ask.js'
 import { PlaywrightExecResetTool, PlaywrightExecTool } from './playwright_exec/playwrightexectool.js'
 import { Lean4Extension } from './lean4.js'
 import { MathRenderer } from './mathjax/mathrenderer.js'
-import { OpenCodeGoChatModelProvider } from './chatprovider/opencodegochatprovider2/provider.js'
+import { OpenCodeGoChatModelProvider } from './chatprovider/opencodegochatprovider/provider.js'
 
 
 class Extension {

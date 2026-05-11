@@ -19,7 +19,7 @@ import type {
 	AnthropicStreamChunk,
 } from './anthropicTypes.js';
 
-import { isImageMimeType, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole } from '../utils';
+import { isImageMimeType, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole } from '../utils.js';
 
 import { CommonApi } from '../commonApi.js';
 import { logger } from '../logger.js';
