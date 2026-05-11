@@ -1,10 +1,10 @@
 import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatMessage, ProvideLanguageModelChatResponseOptions, Progress, LanguageModelChatInformation, LanguageModelChatProvider } from 'vscode'
-import { debugObj } from '../utils/debug.js'
-import { renderMessageWithTag } from '../utils/renderer.js'
-import { tokenLength } from './chatproviderlib/openaicompatchatproviderlib/tokencount.js'
-import { executeGeminiCliCommand } from '../utils/geminicli.js'
-import { Attachment, replaceInstsInSystemPrompt, tweakUserPrompt } from './geminiclilib/utils.js'
+import { debugObj } from '../../utils/debug.js'
+import { renderMessageWithTag } from '../../utils/renderer.js'
+import { tokenLength } from '../chatproviderlib/openaicompatchatproviderlib/tokencount.js'
+import { executeGeminiCliCommand } from '../../utils/geminicli.js'
+import { Attachment, replaceInstsInSystemPrompt, tweakUserPrompt } from './utils.js'
 
 
 export class GeminiCliChatProvider implements LanguageModelChatProvider<LanguageModelChatInformation> {

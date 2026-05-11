@@ -1,5 +1,5 @@
 import { deepStrictEqual } from 'node:assert'
-import { extractAttachments, tweakUserPrompt } from '../../../../src/chatprovider/geminiclilib/utils'
+import { extractAttachments, tweakUserPrompt } from '../../../../src/chatprovider/geminicli/utils'
 
 suite('tweakUserPrompt', () => {
 	test('extracts each attachment and its attributes', () => {
