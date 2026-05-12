@@ -30,14 +30,12 @@ interface BuiltInModelDef {
     apiMode?: 'openai' | 'anthropic';
 }
 
-const EXTENSION_LABEL = 'OpenCodeGo';
-
 /**
  * Built-in model definitions.
  */
 const BUILT_IN_MODELS: BuiltInModelDef[] = [
-    { baseId: 'glm-5.1', displayName: 'GLM-5.1', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 131072 },
-    { baseId: 'glm-5', displayName: 'GLM-5', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 131072 },
+    { baseId: 'glm-5.1', displayName: 'GLM-5.1', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 65536 },
+    { baseId: 'glm-5', displayName: 'GLM-5', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 65536 },
 
     { baseId: 'kimi-k2.5', displayName: 'Kimi K2.5', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 16384 },
     { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 16384 },
@@ -66,7 +64,7 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
             name: def.displayName,
             detail: 'OpenCode Go',
             tooltip: 'OpenCode Go',
-            family: EXTENSION_LABEL,
+            family: def.baseId,
             version: '1.0.0',
             maxInputTokens: def.contextLength - def.maxTokens,
             maxOutputTokens: def.maxTokens,

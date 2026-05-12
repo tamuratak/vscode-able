@@ -14,7 +14,7 @@ export interface OpenCodeGoModelItem {
     vision?: boolean;
     max_tokens?: number;
     // OpenAI new standard parameter
-    max_completion_tokens?: number;
+    max_completion_tokens: number;
     reasoning_effort?: string;
     enable_thinking?: boolean;
     thinking_budget?: number;
