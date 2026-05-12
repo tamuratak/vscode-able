@@ -10,6 +10,10 @@ class Logger {
         this._outputChannel = vscode.window.createOutputChannel('OpenCodeGo', { log: true });
     }
 
+    trace(tag: string, data: Record<string, unknown>): void {
+        this._outputChannel.trace(`[${tag}]`, inspectReadable(data));
+    }
+
     debug(tag: string, data: Record<string, unknown>): void {
         this._outputChannel.debug(`[${tag}]`, inspectReadable(data));
     }

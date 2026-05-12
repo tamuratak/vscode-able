@@ -247,8 +247,8 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     if (!line.startsWith('data:')) {
                         continue;
                     }
-                    const data = line.slice(5).trim();
-                    logger.debug('openai.stream.chunk', { modelId, data });
+                    const data = line.slice(5).trim()
+                    logger.trace('openai.stream.chunk', { modelId, data })
                     if (data === '[DONE]') {
                         this.flushToolCallBuffers(progress, false);
                         continue;

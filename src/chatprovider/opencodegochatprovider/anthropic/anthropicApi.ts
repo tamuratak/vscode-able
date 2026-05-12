@@ -261,8 +261,8 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 						continue;
 					}
 
-					const data = line.slice(5).trim();
-					logger.debug('anthropic.stream.chunk', { modelId, data });
+					const data = line.slice(5).trim()
+					logger.trace('anthropic.stream.chunk', { modelId, data })
 					if (data === '[DONE]') {
 						this.flushToolCallBuffers(progress, false);
 						continue;
