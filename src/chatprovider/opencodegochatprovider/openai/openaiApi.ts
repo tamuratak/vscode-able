@@ -1,33 +1,10 @@
-
-import * as vscode from 'vscode';
-import {
-    CancellationToken,
-    LanguageModelChatRequestMessage,
-    ProvideLanguageModelChatResponseOptions,
-    LanguageModelResponsePart2,
-    Progress,
-} from 'vscode';
-
-import type { OpenCodeGoModelItem } from '../types.js';
-
-import type {
-    OpenAIChatMessage,
-    OpenAIToolCall,
-    ChatMessageContent,
-    ReasoningDetail
-} from './openaiTypes.js';
-
-import {
-    isImageMimeType,
-    createDataUrl,
-    isToolResultPart,
-    collectToolResultText,
-    convertToolsToOpenAI,
-    mapRole,
-} from '../utils.js';
-
-import { APIUsage, CommonApi, StreamUsage } from '../commonApi.js';
-import { logger } from '../logger.js';
+import * as vscode from 'vscode'
+import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress } from 'vscode'
+import type { OpenCodeGoModelItem } from '../types.js'
+import type { OpenAIChatMessage, OpenAIToolCall, ChatMessageContent, ReasoningDetail } from './openaiTypes.js'
+import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole, } from '../utils.js'
+import { APIUsage, CommonApi, StreamUsage } from '../commonApi.js'
+import { logger } from '../logger.js'
 
 export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unknown>> {
     constructor(modelId: string) {

@@ -1,5 +1,5 @@
-import * as vscode from 'vscode';
-import { inspectReadable } from '../../utils/inspect.js';
+import * as vscode from 'vscode'
+import { inspectReadable } from '../../utils/inspect.js'
 
 const SENSITIVE_HEADER_KEYS = ['Authorization', 'x-api-key', 'x-goog-api-key'];
 

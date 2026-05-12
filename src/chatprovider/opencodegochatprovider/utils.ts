@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import * as vscode from 'vscode';
-import type { OpenCodeGoModelItem, RetryConfig } from './types.js';
-import { OpenAIFunctionToolDef } from './openai/openaiTypes.js';
+import * as vscode from 'vscode'
+import type { OpenCodeGoModelItem, RetryConfig } from './types.js'
+import { OpenAIFunctionToolDef } from './openai/openaiTypes.js'
 
 const RETRY_MAX_ATTEMPTS = 3;
 const RETRY_INTERVAL_MS = 1000;

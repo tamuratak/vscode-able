@@ -1,16 +1,8 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import * as vscode from 'vscode';
-import {
-    ProvideLanguageModelChatResponseOptions,
-    LanguageModelChatRequestMessage,
-    LanguageModelToolCallPart,
-    LanguageModelResponsePart2,
-    LanguageModelThinkingPart,
-    Progress,
-    CancellationToken,
-} from 'vscode';
-import { OpenCodeGoModelItem } from './types';
-import { tryParseJSONObject } from './utils';
+import * as vscode from 'vscode'
+import { ProvideLanguageModelChatResponseOptions, LanguageModelChatRequestMessage, LanguageModelToolCallPart, LanguageModelResponsePart2, LanguageModelThinkingPart, Progress, CancellationToken, } from 'vscode'
+import { OpenCodeGoModelItem } from './types.js'
+import { tryParseJSONObject } from './utils.js'
 
 /**
  * Token usage information extracted from streaming response usage chunk.

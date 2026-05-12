@@ -1,5 +1,5 @@
-import type { LanguageModelChatInformation } from 'vscode';
-import type { OpenCodeGoModelItem } from './types.js';
+import type { LanguageModelChatInformation } from 'vscode'
+import type { OpenCodeGoModelItem } from './types.js'
 
 
 /**
