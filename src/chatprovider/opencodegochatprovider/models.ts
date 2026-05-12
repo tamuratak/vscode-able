@@ -43,16 +43,16 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'max', supportedReasoningEfforts: ['high', 'max'], contextLength: 1000000, maxTokens: 393216 },
     { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'max', supportedReasoningEfforts: ['high', 'max'], contextLength: 1000000, maxTokens: 393216 },
 
-    { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, thinkingMode: 'always', contextLength: 262144, maxTokens: 32768 },
-    { baseId: 'mimo-v2-omni', displayName: 'MiMo-V2-Omni', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 32768 },
-    { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, thinkingMode: 'always', contextLength: 262144, maxTokens: 32768 },
-    { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, thinkingMode: 'always', contextLength: 262144, maxTokens: 32768 },
+    { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 128000 },
+    { baseId: 'mimo-v2-omni', displayName: 'MiMo-V2-Omni', vision: true, thinkingMode: 'always', contextLength: 1000000, maxTokens: 128000 },
+    { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 128000 },
+    { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 128000 },
 
     { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, thinkingMode: 'always', apiMode: 'anthropic', extra: { reasoning_split: true }, contextLength: 204800, maxTokens: 32768 },
     { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, thinkingMode: 'always', contextLength: 204800, maxTokens: 32768 },
 
-    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 32768 },
-    { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 32768 },
+    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 65536 },
+    { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 65536 },
 ];
 
 export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
