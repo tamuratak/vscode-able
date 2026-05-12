@@ -141,14 +141,11 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             requestTimeoutMs = config.get<number>('opencodego.requestTimeout', 600000);
             abortController = new AbortController();
             timeoutId = setTimeout(() => abortController.abort(), requestTimeoutMs);
-            // Connect VS Code cancellation token to abort the fetch immediately when user stops
-            if (token.onCancellationRequested) {
-                token.onCancellationRequested(() => {
-                    if (!abortController.signal.aborted) {
-                        abortController.abort();
-                    }
-                });
-            }
+            token.onCancellationRequested(() => {
+                if (!abortController.signal.aborted) {
+                    abortController.abort()
+                }
+            });
             // Create undici fetch with custom bodyTimeout (extends TCP idle timeout during streaming)
             dispatchFetch = fetch
 

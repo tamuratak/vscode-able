@@ -233,13 +233,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 		const reader = responseBody.getReader();
 		const decoder = new TextDecoder();
 		let buffer = '';
-
-		// Immediately cancel the stream when user cancels, so reader.read() won't stay pending
-		if (token.onCancellationRequested) {
-			token.onCancellationRequested(() => {
-				reader.cancel().catch(() => undefined);
-			});
-		}
+		token.onCancellationRequested(() => reader.cancel().catch(() => undefined) )
 
 		try {
 			while (true) {
@@ -257,6 +251,9 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 				buffer = lines.pop() || '';
 
 				for (const line of lines) {
+					if (token.isCancellationRequested) {
+                        break
+                    }
 					if (line.trim() === '') {
 						continue;
 					}
