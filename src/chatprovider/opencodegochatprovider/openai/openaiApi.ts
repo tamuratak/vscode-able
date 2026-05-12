@@ -26,7 +26,7 @@ import {
     mapRole,
 } from '../utils.js';
 
-import { CommonApi, StreamUsage } from '../commonApi.js';
+import { APIUsage, CommonApi, StreamUsage } from '../commonApi.js';
 import { logger } from '../logger.js';
 
 export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unknown>> {
@@ -310,7 +310,13 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                                 cacheHitTokens,
                                 cacheMissTokens,
                             };
-                            this._onUsage?.(usage);
+                            const apiUsage: APIUsage = {
+                                completion_tokens: usage.completionTokens,
+                                prompt_tokens: usage.promptTokens,
+                                total_tokens: usage.promptTokens + usage.completionTokens,
+                                prompt_tokens_details: cacheHitTokens !== undefined && cacheMissTokens !== undefined ? { cached_tokens: cacheHitTokens, cache_creation_input_tokens: cacheMissTokens } : undefined
+                            }
+                            progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'));
                         }
 
                         this.processDelta(parsed, progress);

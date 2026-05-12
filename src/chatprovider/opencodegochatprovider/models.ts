@@ -70,7 +70,7 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
             maxOutputTokens: def.maxTokens,
             capabilities: {
                 toolCalling: true,
-                imageInput: def.vision,
+                imageInput: def.vision
             },
             isUserSelectable: true
         };
