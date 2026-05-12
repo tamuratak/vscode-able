@@ -21,9 +21,9 @@ interface BuiltInModelDef {
     /** Whether to include reasoning_content in assistant messages */
     includeReasoningInRequest?: boolean;
     /** Default context length */
-    contextLength?: number;
+    contextLength: number;
     /** Default max output tokens */
-    maxTokens?: number;
+    maxTokens: number;
     /** Extra body parameters to include in API requests */
     extra?: Record<string, unknown>;
     /** API mode: "openai" (default) or "anthropic" */
@@ -31,8 +31,6 @@ interface BuiltInModelDef {
 }
 
 const EXTENSION_LABEL = 'OpenCodeGo';
-const DEFAULT_CONTEXT_LENGTH = 128000;
-const DEFAULT_MAX_TOKENS = 4096;
 
 /**
  * Built-in model definitions.
@@ -59,13 +57,6 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 32768 },
 ];
 
-/**
- * Get the built-in model list as LanguageModelChatInformation[].
- * Each model registers one entry with a configurationSchema for reasoning effort selection.
- * - switchable models: include "禁用思考" option so user can turn off thinking
- * - always models: no "禁用思考" option, thinking always on
- * All labels and descriptions use l10n() for i18n.
- */
 export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
     const infos: LanguageModelChatInformation[] = [];
 
@@ -77,8 +68,8 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
             tooltip: 'OpenCode Go',
             family: EXTENSION_LABEL,
             version: '1.0.0',
-            maxInputTokens: def.contextLength ?? DEFAULT_CONTEXT_LENGTH,
-            maxOutputTokens: def.maxTokens ?? DEFAULT_MAX_TOKENS,
+            maxInputTokens: def.contextLength - def.maxTokens,
+            maxOutputTokens: def.maxTokens,
             capabilities: {
                 toolCalling: true,
                 imageInput: def.vision,
@@ -103,8 +94,6 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
             }
         }
 
-        // Map effort values to localized labels and descriptions
-        // Keys are English strings that serve as fallback for non-Chinese locales
         const getLabel = (e: string): string => {
             switch (e) {
                 case 'disabled': return 'Disabled';
@@ -158,19 +147,10 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
     return infos;
 }
 
-/**
- * Get the total count of built-in model entries (after expanding switchable models).
- */
 export function getBuiltInModelCount(): number {
     return BUILT_IN_MODELS.length;
 }
 
-/**
- * Find a built-in model definition by model ID.
- * Returns the model properties including thinking mode, API mode, and extra parameters.
- * Thinking state (enable_thinking) is initially set to true and will be adjusted
- * by provider.ts based on the user's reasoning effort selection.
- */
 export function getBuiltInModelConfig(modelId: string): OpenCodeGoModelItem | undefined {
     const def = BUILT_IN_MODELS.find((m) => m.baseId === modelId);
     if (!def) {
@@ -182,8 +162,8 @@ export function getBuiltInModelConfig(modelId: string): OpenCodeGoModelItem | un
         owned_by: 'opencode',
         displayName: def.displayName,
         vision: def.vision,
-        context_length: def.contextLength ?? DEFAULT_CONTEXT_LENGTH,
-        max_completion_tokens: def.maxTokens ?? DEFAULT_MAX_TOKENS,
+        context_length: def.contextLength,
+        max_completion_tokens: def.maxTokens,
         apiMode: def.apiMode ?? 'openai',
         enable_thinking: true,
         include_reasoning_in_request: true,
