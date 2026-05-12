@@ -21,81 +21,58 @@ interface BuiltInModelDef {
     /** Whether to include reasoning_content in assistant messages */
     includeReasoningInRequest?: boolean;
     /** Default context length */
-    contextLength?: number;
+    contextLength: number;
     /** Default max output tokens */
-    maxTokens?: number;
+    maxTokens: number;
     /** Extra body parameters to include in API requests */
     extra?: Record<string, unknown>;
     /** API mode: "openai" (default) or "anthropic" */
     apiMode?: 'openai' | 'anthropic';
 }
 
-const EXTENSION_LABEL = 'OpenCodeGo';
-const DEFAULT_CONTEXT_LENGTH = 128000;
-const DEFAULT_MAX_TOKENS = 4096;
-
 /**
  * Built-in model definitions.
  */
 const BUILT_IN_MODELS: BuiltInModelDef[] = [
-    // ── GLM series ── Zhipu GLM 官方文档: 200K context, 128K max output ──
-    // Note: GLM 系列不支持推理/思考功能，因此 thinkingMode 设为 "always" 以隐藏思考切换选项
-    { baseId: 'glm-5.1', displayName: 'GLM-5.1', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 131072 },
-    { baseId: 'glm-5', displayName: 'GLM-5', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 131072 },
+    { baseId: 'glm-5.1', displayName: 'GLM-5.1', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 65536 },
+    { baseId: 'glm-5', displayName: 'GLM-5', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 65536 },
 
-    // ── Kimi series ── Moonshot AI, 官方文档: 256K context (262144 tokens) ──
-    // { baseId: "kimi-k2.5", displayName: "Kimi K2.5", vision: true, thinkingMode: "switchable", contextLength: 262144, maxTokens: 16384 },
-    // { baseId: "kimi-k2.6", displayName: "Kimi K2.6", vision: true, thinkingMode: "switchable", contextLength: 262144, maxTokens: 16384 },
     { baseId: 'kimi-k2.5', displayName: 'Kimi K2.5', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 16384 },
     { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 16384 },
 
-    // ── DeepSeek series ── 官方文档: 1M context, 384K max output ──
     { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'max', supportedReasoningEfforts: ['high', 'max'], contextLength: 1000000, maxTokens: 393216 },
     { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'max', supportedReasoningEfforts: ['high', 'max'], contextLength: 1000000, maxTokens: 393216 },
 
-    // ── MiMo series ── 小米 MiMo 官方模型卡: 256K context (262144) ──
     { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, thinkingMode: 'always', contextLength: 262144, maxTokens: 32768 },
     { baseId: 'mimo-v2-omni', displayName: 'MiMo-V2-Omni', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 32768 },
     { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, thinkingMode: 'always', contextLength: 262144, maxTokens: 32768 },
     { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, thinkingMode: 'always', contextLength: 262144, maxTokens: 32768 },
 
-    // ── MiniMax series ── 官方文档: 204800 context (204.8K) ──
-    // Note: minimax-m2.7 uses Anthropic API format (messages endpoint)
     { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, thinkingMode: 'always', apiMode: 'anthropic', extra: { reasoning_split: true }, contextLength: 204800, maxTokens: 32768 },
     { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, thinkingMode: 'always', contextLength: 204800, maxTokens: 32768 },
 
-    // ── Qwen series ── 阿里云百炼: Qwen3.6-Plus 1M context, Qwen3.5-Plus 同代同规格 ──
     { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 32768 },
     { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 32768 },
 ];
 
-/**
- * Get the built-in model list as LanguageModelChatInformation[].
- * Each model registers one entry with a configurationSchema for reasoning effort selection.
- * - switchable models: include "禁用思考" option so user can turn off thinking
- * - always models: no "禁用思考" option, thinking always on
- * All labels and descriptions use l10n() for i18n.
- */
 export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
     const infos: LanguageModelChatInformation[] = [];
 
     for (const def of BUILT_IN_MODELS) {
-        const maxInput = def.contextLength ?? DEFAULT_CONTEXT_LENGTH;
-
         const info: LanguageModelChatInformation = {
             id: def.baseId,
             name: def.displayName,
             detail: 'OpenCode Go',
             tooltip: 'OpenCode Go',
-            family: EXTENSION_LABEL,
+            family: def.baseId,
             version: '1.0.0',
-            maxInputTokens: maxInput,
-            maxOutputTokens: 0,
+            maxInputTokens: def.contextLength - def.maxTokens,
+            maxOutputTokens: def.maxTokens,
             capabilities: {
                 toolCalling: true,
                 imageInput: def.vision,
             },
-            isUserSelectable: true,
+            isUserSelectable: true
         };
 
         // Build enum values based on thinking mode
@@ -115,8 +92,6 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
             }
         }
 
-        // Map effort values to localized labels and descriptions
-        // Keys are English strings that serve as fallback for non-Chinese locales
         const getLabel = (e: string): string => {
             switch (e) {
                 case 'disabled': return 'Disabled';
@@ -170,19 +145,10 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
     return infos;
 }
 
-/**
- * Get the total count of built-in model entries (after expanding switchable models).
- */
 export function getBuiltInModelCount(): number {
     return BUILT_IN_MODELS.length;
 }
 
-/**
- * Find a built-in model definition by model ID.
- * Returns the model properties including thinking mode, API mode, and extra parameters.
- * Thinking state (enable_thinking) is initially set to true and will be adjusted
- * by provider.ts based on the user's reasoning effort selection.
- */
 export function getBuiltInModelConfig(modelId: string): OpenCodeGoModelItem | undefined {
     const def = BUILT_IN_MODELS.find((m) => m.baseId === modelId);
     if (!def) {
@@ -194,8 +160,8 @@ export function getBuiltInModelConfig(modelId: string): OpenCodeGoModelItem | un
         owned_by: 'opencode',
         displayName: def.displayName,
         vision: def.vision,
-        context_length: def.contextLength ?? DEFAULT_CONTEXT_LENGTH,
-        max_completion_tokens: def.maxTokens ?? DEFAULT_MAX_TOKENS,
+        context_length: def.contextLength,
+        max_completion_tokens: def.maxTokens,
         apiMode: def.apiMode ?? 'openai',
         enable_thinking: true,
         include_reasoning_in_request: true,

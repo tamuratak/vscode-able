@@ -1,40 +1,22 @@
-
-import * as vscode from 'vscode';
-import {
-    CancellationToken,
-    LanguageModelChatInformation,
-    LanguageModelChatProvider,
-    LanguageModelChatRequestMessage,
-    ProvideLanguageModelChatResponseOptions,
-    LanguageModelResponsePart2,
-    Progress,
-} from 'vscode';
-
-import type { OpenCodeGoModelItem } from './types.js';
-
-import { createRetryConfig, executeWithRetry } from './utils.js';
-
-import { prepareLanguageModelChatInformation } from './provideModel.js';
-import { getBuiltInModelConfig } from './models.js';
-import { countMessageTokens } from './provideToken.js';
-import { OpenaiApi } from './openai/openaiApi.js';
-import { AnthropicApi } from './anthropic/anthropicApi.js';
-import type { AnthropicRequestBody } from './anthropic/anthropicTypes.js';
-import { CommonApi } from './commonApi.js';
-import { logger } from './logger.js';
-import { openCodeGoAuthServiceId } from '../../auth/authproviders.js';
+import * as vscode from 'vscode'
+import { CancellationToken, LanguageModelChatInformation, LanguageModelChatProvider, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, } from 'vscode'
+import type { OpenCodeGoModelItem } from './types.js'
+import { createRetryConfig, executeWithRetry } from './utils.js'
+import { prepareLanguageModelChatInformation } from './provideModel.js'
+import { getBuiltInModelConfig } from './models.js'
+import { countMessageTokens } from './provideToken.js'
+import { OpenaiApi } from './openai/openaiApi.js'
+import { AnthropicApi } from './anthropic/anthropicApi.js'
+import type { AnthropicRequestBody } from './anthropic/anthropicTypes.js'
+import { CommonApi } from './commonApi.js'
+import { logger } from './logger.js'
+import { openCodeGoAuthServiceId } from '../../auth/authproviders.js'
 
 
-/**
- * VS Code Chat provider backed by OpenCode Go API.
- */
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
     /** Track last request completion time for delay calculation. */
     private _lastRequestTime: number | null = null;
 
-    /**
-     * Get the list of available language models contributed by this provider.
-     */
     provideLanguageModelChatInformation(
         options: { silent: boolean },
         _token: CancellationToken
@@ -42,9 +24,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         return prepareLanguageModelChatInformation({ silent: options.silent ?? false }, _token);
     }
 
-    /**
-     * Returns the number of tokens for a given text using the model specific tokenizer logic.
-     */
     async provideTokenCount(
         _model: LanguageModelChatInformation,
         text: string | LanguageModelChatRequestMessage,
@@ -53,9 +32,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         return countMessageTokens(text, { includeReasoningInRequest: true });
     }
 
-    /**
-     * Returns the response for a chat request, passing the results to the progress callback.
-     */
     async provideLanguageModelChatResponse(
         model: LanguageModelChatInformation,
         messages: readonly LanguageModelChatRequestMessage[],
