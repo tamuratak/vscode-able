@@ -21,7 +21,7 @@ import type {
 import { isImageMimeType, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole } from '../utils.js';
 
 import { CommonApi } from '../commonApi.js';
-import { logger } from '../logger.js';
+import { chunkLogger, logger } from '../logger.js';
 
 export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBody> {
 	constructor(modelId: string) {
@@ -262,7 +262,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 					}
 
 					const data = line.slice(5).trim()
-					logger.trace('anthropic.stream.chunk', { modelId, data })
+					chunkLogger.trace('anthropic.stream.chunk', { modelId, data })
 					if (data === '[DONE]') {
 						this.flushToolCallBuffers(progress, false);
 						continue;
