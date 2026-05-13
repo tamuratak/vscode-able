@@ -2,8 +2,7 @@ import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatInformation, LanguageModelChatProvider, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, } from 'vscode'
 import type { OpenCodeGoModelItem } from './types.js'
 import { createRetryConfig, executeWithRetry } from './utils.js'
-import { prepareLanguageModelChatInformation } from './provideModel.js'
-import { getBuiltInModelConfig } from './models.js'
+import { getBuiltInModelConfig, getBuiltInModelInfos } from './models.js'
 import { countMessageTokens } from './provideToken.js'
 import { OpenaiApi } from './openai/openaiApi.js'
 import { AnthropicApi } from './anthropic/anthropicApi.js'
@@ -17,11 +16,8 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
     /** Track last request completion time for delay calculation. */
     private _lastRequestTime: number | null = null;
 
-    provideLanguageModelChatInformation(
-        options: { silent: boolean },
-        _token: CancellationToken
-    ): LanguageModelChatInformation[] {
-        return prepareLanguageModelChatInformation({ silent: options.silent ?? false }, _token);
+    provideLanguageModelChatInformation(): LanguageModelChatInformation[] {
+        return getBuiltInModelInfos();
     }
 
     async provideTokenCount(
