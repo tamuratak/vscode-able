@@ -1,5 +1,5 @@
-import { CancellationToken, LanguageModelChatInformation } from 'vscode';
-import { getBuiltInModelInfos } from './models.js';
+import { CancellationToken, LanguageModelChatInformation } from 'vscode'
+import { getBuiltInModelInfos } from './models.js'
 
 /**
  * Get the list of available language models contributed by this provider.

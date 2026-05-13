@@ -1,33 +1,10 @@
-
-import * as vscode from 'vscode';
-import {
-    CancellationToken,
-    LanguageModelChatRequestMessage,
-    ProvideLanguageModelChatResponseOptions,
-    LanguageModelResponsePart2,
-    Progress,
-} from 'vscode';
-
-import type { OpenCodeGoModelItem } from '../types.js';
-
-import type {
-    OpenAIChatMessage,
-    OpenAIToolCall,
-    ChatMessageContent,
-    ReasoningDetail
-} from './openaiTypes.js';
-
-import {
-    isImageMimeType,
-    createDataUrl,
-    isToolResultPart,
-    collectToolResultText,
-    convertToolsToOpenAI,
-    mapRole,
-} from '../utils.js';
-
-import { CommonApi, StreamUsage } from '../commonApi.js';
-import { logger } from '../logger.js';
+import * as vscode from 'vscode'
+import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress } from 'vscode'
+import type { OpenCodeGoModelItem } from '../types.js'
+import type { OpenAIChatMessage, OpenAIToolCall, ChatMessageContent, ReasoningDetail } from './openaiTypes.js'
+import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole, } from '../utils.js'
+import { APIUsage, CommonApi, StreamUsage } from '../commonApi.js'
+import { chunkLogger, logger } from '../logger.js'
 
 export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unknown>> {
     constructor(modelId: string) {
@@ -246,13 +223,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         const reader = responseBody.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-
-        // Immediately cancel the stream when user cancels, so reader.read() won't stay pending
-        if (token.onCancellationRequested) {
-            token.onCancellationRequested(() => {
-                reader.cancel().catch(() => undefined);
-            });
-        }
+        token.onCancellationRequested(() => reader.cancel().catch(() => undefined) )
 
         try {
             while (true) {
@@ -270,11 +241,14 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 buffer = lines.pop() || '';
 
                 for (const line of lines) {
+                    if (token.isCancellationRequested) {
+                        break
+                    }
                     if (!line.startsWith('data:')) {
                         continue;
                     }
-                    const data = line.slice(5).trim();
-                    logger.debug('openai.stream.chunk', { modelId, data });
+                    const data = line.slice(5).trim()
+                    chunkLogger.trace('openai.stream.chunk', { modelId, data })
                     if (data === '[DONE]') {
                         this.flushToolCallBuffers(progress, false);
                         continue;
@@ -310,7 +284,13 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                                 cacheHitTokens,
                                 cacheMissTokens,
                             };
-                            this._onUsage?.(usage);
+                            const apiUsage: APIUsage = {
+                                completion_tokens: usage.completionTokens,
+                                prompt_tokens: usage.promptTokens,
+                                total_tokens: usage.promptTokens + usage.completionTokens,
+                                prompt_tokens_details: cacheHitTokens !== undefined && cacheMissTokens !== undefined ? { cached_tokens: cacheHitTokens, cache_creation_input_tokens: cacheMissTokens } : undefined
+                            }
+                            progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'));
                         }
 
                         this.processDelta(parsed, progress);

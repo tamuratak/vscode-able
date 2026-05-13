@@ -1,16 +1,8 @@
-
-import * as vscode from 'vscode';
-import {
-    ProvideLanguageModelChatResponseOptions,
-    LanguageModelChatRequestMessage,
-    LanguageModelToolCallPart,
-    LanguageModelResponsePart2,
-    LanguageModelThinkingPart,
-    Progress,
-    CancellationToken,
-} from 'vscode';
-import { OpenCodeGoModelItem } from './types';
-import { tryParseJSONObject } from './utils';
+/* eslint-disable @typescript-eslint/naming-convention */
+import * as vscode from 'vscode'
+import { ProvideLanguageModelChatResponseOptions, LanguageModelChatRequestMessage, LanguageModelToolCallPart, LanguageModelResponsePart2, LanguageModelThinkingPart, Progress, CancellationToken, } from 'vscode'
+import { OpenCodeGoModelItem } from './types.js'
+import { tryParseJSONObject } from './utils.js'
 
 /**
  * Token usage information extracted from streaming response usage chunk.
@@ -20,6 +12,16 @@ export interface StreamUsage {
     completionTokens: number;
     cacheHitTokens?: number | undefined;
     cacheMissTokens?: number | undefined;
+}
+
+export interface APIUsage {
+	prompt_tokens: number;
+	completion_tokens: number;
+	total_tokens: number;
+	prompt_tokens_details?: {
+		cached_tokens: number;
+		cache_creation_input_tokens?: number;
+	} | undefined;
 }
 
 export abstract class CommonApi<TMessage, TRequestBody> {
@@ -62,13 +64,6 @@ export abstract class CommonApi<TMessage, TRequestBody> {
 
     /** Set the model ID for logging purposes. */
     protected _modelId = '';
-
-    /** Callback for streaming usage updates (prompt/completion/cache tokens). */
-    public _onUsage: ((usage: StreamUsage) => void) | undefined;
-
-    public set onUsage(callback: ((usage: StreamUsage) => void) | undefined) {
-        this._onUsage = callback;
-    }
 
     constructor(modelId: string) {
         this._modelId = modelId;

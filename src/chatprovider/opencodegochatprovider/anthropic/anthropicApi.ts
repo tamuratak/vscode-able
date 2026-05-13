@@ -21,7 +21,7 @@ import type {
 import { isImageMimeType, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole } from '../utils.js';
 
 import { CommonApi } from '../commonApi.js';
-import { logger } from '../logger.js';
+import { chunkLogger, logger } from '../logger.js';
 
 export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBody> {
 	constructor(modelId: string) {
@@ -233,13 +233,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 		const reader = responseBody.getReader();
 		const decoder = new TextDecoder();
 		let buffer = '';
-
-		// Immediately cancel the stream when user cancels, so reader.read() won't stay pending
-		if (token.onCancellationRequested) {
-			token.onCancellationRequested(() => {
-				reader.cancel().catch(() => undefined);
-			});
-		}
+		token.onCancellationRequested(() => reader.cancel().catch(() => undefined) )
 
 		try {
 			while (true) {
@@ -257,6 +251,9 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 				buffer = lines.pop() || '';
 
 				for (const line of lines) {
+					if (token.isCancellationRequested) {
+                        break
+                    }
 					if (line.trim() === '') {
 						continue;
 					}
@@ -264,8 +261,8 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 						continue;
 					}
 
-					const data = line.slice(5).trim();
-					logger.debug('anthropic.stream.chunk', { modelId, data });
+					const data = line.slice(5).trim()
+					chunkLogger.trace('anthropic.stream.chunk', { modelId, data })
 					if (data === '[DONE]') {
 						this.flushToolCallBuffers(progress, false);
 						continue;

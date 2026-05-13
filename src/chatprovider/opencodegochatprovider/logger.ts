@@ -1,13 +1,17 @@
-import * as vscode from 'vscode';
-import { inspectReadable } from '../../utils/inspect.js';
+import * as vscode from 'vscode'
+import { inspectReadable } from '../../utils/inspect.js'
 
 const SENSITIVE_HEADER_KEYS = ['Authorization', 'x-api-key', 'x-goog-api-key'];
 
 class Logger {
     private readonly _outputChannel: vscode.LogOutputChannel;
 
-    constructor() {
-        this._outputChannel = vscode.window.createOutputChannel('OpenCodeGo', { log: true });
+    constructor(label: string) {
+        this._outputChannel = vscode.window.createOutputChannel(label, { log: true });
+    }
+
+    trace(tag: string, data: Record<string, unknown>): void {
+        this._outputChannel.trace(`[${tag}]`, inspectReadable(data));
     }
 
     debug(tag: string, data: Record<string, unknown>): void {
@@ -48,4 +52,5 @@ class Logger {
     }
 }
 
-export const logger = new Logger();
+export const logger = new Logger('OpenCodeGo')
+export const chunkLogger = new Logger('OpenCodeGo - Chunk')

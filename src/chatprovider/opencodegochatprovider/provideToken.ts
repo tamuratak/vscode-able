@@ -1,9 +1,8 @@
-
-import * as vscode from 'vscode';
-import { LanguageModelChatRequestMessage, LanguageModelChatTool } from 'vscode';
-import { tokenizerManager } from './tokenizer/tokenizerManager.js';
-import { getImageDimensions } from './tokenizer/imageUtils.js';
-import { createDataUrl } from './utils.js';
+import * as vscode from 'vscode'
+import { LanguageModelChatRequestMessage, LanguageModelChatTool } from 'vscode'
+import { tokenizerManager } from './tokenizer/tokenizerManager.js'
+import { getImageDimensions } from './tokenizer/imageUtils.js'
+import { createDataUrl } from './utils.js'
 
 export const BaseTokensPerMessage = 3;
 export const BaseTokensPerName = 1;
