@@ -8,8 +8,9 @@ import { OpenaiApi } from './openai/openaiApi.js'
 import { AnthropicApi } from './anthropic/anthropicApi.js'
 import type { AnthropicRequestBody } from './anthropic/anthropicTypes.js'
 import { CommonApi } from './commonApi.js'
-import { logger } from './logger.js'
+import { logger, messageLogger } from './logger.js'
 import { openCodeGoAuthServiceId } from '../../auth/authproviders.js'
+import { renderMessages } from '../../utils/renderer.js'
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
@@ -35,6 +36,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
+        messageLogger.info('request.messages', await renderMessages(messages))
         const trackingProgress: Progress<LanguageModelResponsePart2> = {
             report: (part) => {
                 try {
