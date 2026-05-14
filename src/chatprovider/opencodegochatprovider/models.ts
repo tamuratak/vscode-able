@@ -34,22 +34,27 @@ interface BuiltInModelDef {
  * Built-in model definitions.
  */
 const BUILT_IN_MODELS: BuiltInModelDef[] = [
+    // https://docs.z.ai/api-reference/llm/chat-completion
     { baseId: 'glm-5.1', displayName: 'GLM-5.1', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 65536 },
     { baseId: 'glm-5', displayName: 'GLM-5', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 65536 },
 
+    // https://platform.kimi.ai/docs/api/chat#content-field-description
     { baseId: 'kimi-k2.5', displayName: 'Kimi K2.5', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 65536 },
     { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 65536 },
 
+    // https://api-docs.deepseek.com/api/create-chat-completion
     { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'max', supportedReasoningEfforts: ['high', 'max'], contextLength: 1000000, maxTokens: 393216 },
     { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'max', supportedReasoningEfforts: ['high', 'max'], contextLength: 1000000, maxTokens: 393216 },
 
+    // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
     { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 131072 },
     { baseId: 'mimo-v2-omni', displayName: 'MiMo-V2-Omni', vision: true, thinkingMode: 'always', contextLength: 1000000, maxTokens: 32768 },
     { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 131072 },
     { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 32768 },
 
-    { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, thinkingMode: 'always', apiMode: 'anthropic', extra: { reasoning_split: true }, contextLength: 197000, maxTokens: 65536 },
-    { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, thinkingMode: 'always', apiMode: 'anthropic', extra: { reasoning_split: true }, contextLength: 197000, maxTokens: 65536 },
+    // https://platform.minimax.io/docs/api-reference/text-anthropic-api
+    { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, thinkingMode: 'always', apiMode: 'anthropic', contextLength: 197000, maxTokens: 65536 },
+    { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, thinkingMode: 'always', apiMode: 'anthropic', contextLength: 197000, maxTokens: 65536 },
 
     { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 65536 },
     { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 65536 },
