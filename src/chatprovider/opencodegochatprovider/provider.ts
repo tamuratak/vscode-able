@@ -86,13 +86,13 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
             // Determine API mode from model config (default: openai)
             const apiMode = um?.apiMode || 'openai';
-            const baseUrl = um?.baseUrl || 'https://opencode.ai/zen/go/v1/';
+            const BASE_URL = 'https://opencode.ai/zen/go/v1'
 
             logger.info('request.start', {
                 modelId: model.id,
                 messageCount: messages.length,
                 apiMode,
-                baseUrl,
+                BASE_URL,
             });
 
             // Prepare model configuration
@@ -124,12 +124,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             if (!modelApiKey) {
                 logger.warn('apiKey.missing', {});
                 throw new Error('OpenCode Go API key not found');
-            }
-
-            // Send chat request
-            const BASE_URL = baseUrl;
-            if (!BASE_URL || !BASE_URL.startsWith('http')) {
-                throw new Error('Invalid base URL configuration.');
             }
 
             // Get retry config
@@ -167,11 +161,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 };
                 requestBody = anthropicApi.prepareRequestBody(requestBody, um, options);
 
-                // Build Anthropic messages endpoint URL
-                const normalizedBaseUrl = BASE_URL.replace(/\/+$/, '');
-                const url = normalizedBaseUrl.endsWith('/v1')
-                    ? `${normalizedBaseUrl}/messages`
-                    : `${normalizedBaseUrl}/v1/messages`;
+                const url = `${BASE_URL}/messages`
                 logger.debug('request.body', { url, requestBody });
                 const response = await executeWithRetry(async () => {
                     const res = await dispatchFetch(url, {
@@ -212,7 +202,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 requestBody = openaiApi.prepareRequestBody(requestBody, um, options);
 
                 // Send chat request with retry
-                const url = `${BASE_URL.replace(/\/+$/, '')}/chat/completions`;
+                const url = `${BASE_URL}/chat/completions`;
                 logger.debug('request.body', { url, requestBody });
                 const response = await executeWithRetry(async () => {
                     const res = await dispatchFetch(url, {

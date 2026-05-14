@@ -9,7 +9,6 @@ export interface OpenCodeGoModelItem {
     owned_by: string;
     configId?: string;
     displayName?: string;
-    baseUrl?: string;
     context_length?: number;
     vision?: boolean;
     max_tokens?: number;
