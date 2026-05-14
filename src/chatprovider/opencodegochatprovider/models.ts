@@ -27,7 +27,7 @@ interface BuiltInModelDef {
     /** Extra body parameters to include in API requests */
     extra?: Record<string, unknown>;
     /** API mode: "openai" (default) or "anthropic" */
-    apiMode?: 'openai' | 'anthropic';
+    apiMode?: 'openai' | 'anthropic' | undefined;
 }
 
 /**

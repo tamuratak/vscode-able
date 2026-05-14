@@ -139,12 +139,12 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         rb['max_completion_tokens'] = um.max_completion_tokens;
 
         // OpenAI reasoning configuration (only set when thinking is enabled)
-        if (um.enable_thinking !== false && um.reasoning_effort !== undefined) {
+        if (um.enable_thinking && um.reasoning_effort !== undefined) {
             rb['reasoning_effort'] = um.reasoning_effort;
         }
 
         // Thinking mode (OpenAI-compatible format: {"thinking": {"type": "enabled"}})
-        if (um.enable_thinking === true) {
+        if (um.enable_thinking) {
             rb['thinking'] = { type: 'enabled' };
             if (um.thinking_budget !== undefined) {
                 (rb['thinking'] as Record<string, unknown>)['budget_tokens'] = um.thinking_budget;

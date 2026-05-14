@@ -31,10 +31,6 @@ export interface OpenCodeGoModelItem {
     };
     extra?: Record<string, unknown>;
     /**
-     * Optional family specification for the model.
-     */
-    family?: string;
-    /**
      * Whether to include reasoning_content in assistant messages sent to the API.
      */
     include_reasoning_in_request?: boolean;
@@ -43,7 +39,7 @@ export interface OpenCodeGoModelItem {
      */
     delay?: number;
     /** API mode (for internal use) */
-    apiMode?: string;
+    apiMode: 'openai' | 'anthropic';
     /** Whether this model supports switching thinking on/off ("switchable") or always has it ("always") */
     thinkingMode?: 'switchable' | 'always';
     /** Custom HTTP headers */
