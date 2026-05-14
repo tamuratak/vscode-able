@@ -102,29 +102,6 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
             }
         }
 
-        const getLabel = (e: string): string => {
-            switch (e) {
-                case 'disabled': return 'Disabled';
-                case 'enabled': return 'Thinking';
-                case 'low': return 'Low';
-                case 'medium': return 'Medium';
-                case 'high': return 'High';
-                case 'max': return 'Maximum';
-                default: return e.charAt(0).toUpperCase() + e.slice(1);
-            }
-        };
-        const getDesc = (e: string): string => {
-            switch (e) {
-                case 'disabled': return 'Do not enable thinking';
-                case 'enabled': return 'Enable thinking';
-                case 'low': return 'Reduce thinking, faster response';
-                case 'medium': return 'Balance thinking and speed';
-                case 'high': return 'Deeper thinking, slower response';
-                case 'max': return 'Maximum thinking depth, slowest response';
-                default: return e;
-            }
-        };
-
         const enumItemLabels = enumValues.map(getLabel);
         const enumDescriptions = enumValues.map(getDesc);
 
@@ -153,6 +130,30 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
     }
 
     return infos;
+}
+
+function getLabel(e: string): string {
+    switch (e) {
+        case 'disabled': return 'Disabled';
+        case 'enabled': return 'Thinking';
+        case 'low': return 'Low';
+        case 'medium': return 'Medium';
+        case 'high': return 'High';
+        case 'max': return 'Maximum';
+        default: return e.charAt(0).toUpperCase() + e.slice(1);
+    }
+}
+
+function getDesc(e: string): string {
+    switch (e) {
+        case 'disabled': return 'Do not enable thinking';
+        case 'enabled': return 'Enable thinking';
+        case 'low': return 'Reduce thinking, faster response';
+        case 'medium': return 'Balance thinking and speed';
+        case 'high': return 'Deeper thinking, slower response';
+        case 'max': return 'Maximum thinking depth, slowest response';
+        default: return e;
+    }
 }
 
 export function getBuiltInModelCount(): number {
