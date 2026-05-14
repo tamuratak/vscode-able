@@ -162,7 +162,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 		}
 
 		// Add temperature
-		if (um.temperature !== undefined && um.temperature !== null) {
+		if (um.temperature !== undefined) {
 			rb.temperature = um.temperature;
 		}
 

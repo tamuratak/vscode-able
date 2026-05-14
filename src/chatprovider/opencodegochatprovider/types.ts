@@ -4,20 +4,14 @@
  */
 export interface OpenCodeGoModelItem {
     id: string;
-    object?: string;
-    created?: number;
-    owned_by: string;
-    configId?: string;
-    displayName: string;
     context_length: number;
     vision: boolean;
     max_completion_tokens: number;
     reasoning_effort: string | undefined;
     enable_thinking: boolean;
     thinking_budget?: number;
-    // Allow null so user can explicitly disable sending this parameter
-    temperature?: number | null;
-    top_p?: number | null;
+    temperature?: number;
+    top_p?: number;
     top_k?: number;
     min_p?: number;
     frequency_penalty?: number;
@@ -37,28 +31,13 @@ export interface OpenCodeGoModelItem {
     /**
      * Model-specific delay in milliseconds between consecutive requests.
      */
-    delay?: number;
+    delay: number;
     /** API mode (for internal use) */
     apiMode: 'openai' | 'anthropic';
     /** Whether this model supports switching thinking on/off ("switchable") or always has it ("always") */
-    thinkingMode?: 'switchable' | 'always';
+    thinkingMode: 'switchable' | 'always';
     /** Custom HTTP headers */
     headers?: Record<string, string>;
-}
-
-/**
- * Response from the models endpoint.
- */
-export interface ModelsResponse {
-    object: string;
-    data: ModelItem[];
-}
-
-export interface ModelItem {
-    id: string;
-    object?: string;
-    created?: number;
-    owned_by?: string;
 }
 
 /**

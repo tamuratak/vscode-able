@@ -101,7 +101,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             }
 
             // Apply delay between consecutive requests
-            const delayMs = um.delay ?? 0
+            const delayMs = um.delay
 
             if (delayMs > 0 && this._lastRequestTime !== null) {
                 const elapsed = Date.now() - this._lastRequestTime;

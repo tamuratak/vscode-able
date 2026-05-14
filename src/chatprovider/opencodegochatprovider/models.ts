@@ -27,7 +27,9 @@ interface BuiltInModelDef {
     /** Extra body parameters to include in API requests */
     extra?: Record<string, unknown>;
     /** API mode: "openai" (default) or "anthropic" */
-    apiMode?: 'openai' | 'anthropic' | undefined;
+    apiMode?: 'openai' | 'anthropic';
+    /** Model-specific delay in milliseconds between consecutive requests */
+    delay?: number;
 }
 
 /**
@@ -56,6 +58,7 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, thinkingMode: 'always', apiMode: 'anthropic', contextLength: 197000, maxTokens: 65536 },
     { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, thinkingMode: 'always', apiMode: 'anthropic', contextLength: 197000, maxTokens: 65536 },
 
+    // ? https://docs.aimlapi.com/api-references/text-models-llm/alibaba-cloud/qwen3.5-plus
     { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 65536 },
     { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 65536 },
 
@@ -164,8 +167,6 @@ export function getBuiltInModelConfig(modelId: string): OpenCodeGoModelItem | un
 
     const model: OpenCodeGoModelItem = {
         id: def.baseId,
-        owned_by: 'opencode',
-        displayName: def.displayName,
         vision: def.vision,
         context_length: def.contextLength,
         max_completion_tokens: def.maxTokens,
@@ -174,6 +175,7 @@ export function getBuiltInModelConfig(modelId: string): OpenCodeGoModelItem | un
         enable_thinking: true,
         include_reasoning_in_request: true,
         thinkingMode: def.thinkingMode,
+        delay: def.delay ?? 0
     };
 
     // Set default reasoning effort if configured
