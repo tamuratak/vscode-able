@@ -62,7 +62,8 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 65536 },
     { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 65536 },
 
-    { baseId: 'hy3-preview', displayName: 'Hy3 preview', vision: false, thinkingMode: 'always', contextLength: 262144, maxTokens: 65536 }
+    // https://huggingface.co/tencent/Hy3-preview
+    { baseId: 'hy3-preview', displayName: 'Hy3 preview', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'high', supportedReasoningEfforts: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'], contextLength: 262144, maxTokens: 65536 }
 ]
 
 export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
