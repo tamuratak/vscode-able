@@ -23,8 +23,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
     async provideTokenCount(
         _model: LanguageModelChatInformation,
-        text: string | LanguageModelChatRequestMessage,
-        _token: CancellationToken
+        text: string | LanguageModelChatRequestMessage
     ): Promise<number> {
         return countMessageTokens(text, { includeReasoningInRequest: true });
     }
@@ -53,13 +52,11 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
         // Timeout controller (declared outside try so accessible in catch/finally)
         let abortController = new AbortController();
-        let requestTimeoutMs = 600000;
+        const requestTimeoutMs = 600000
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
         let dispatchFetch: typeof fetch;
 
         try {
-            // Get built-in model config
-            const config = vscode.workspace.getConfiguration();
             const um: OpenCodeGoModelItem | undefined = getBuiltInModelConfig(model.id);
 
             // Apply reasoning effort from model configuration to determine thinking mode
@@ -85,7 +82,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             }
 
             // Determine API mode from model config (default: openai)
-            const apiMode = um?.apiMode || 'openai';
+            const apiMode = um?.apiMode || 'openai'
             const BASE_URL = 'https://opencode.ai/zen/go/v1'
 
             logger.info('request.start', {
@@ -93,17 +90,15 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 messageCount: messages.length,
                 apiMode,
                 BASE_URL,
-            });
+            })
 
             // Prepare model configuration
             const modelConfig = {
                 includeReasoningInRequest: um?.include_reasoning_in_request ?? true,
-            };
+            }
 
             // Apply delay between consecutive requests
-            const modelDelay = um?.delay;
-            const globalDelay = config.get<number>('opencodego.delay', 0);
-            const delayMs = modelDelay !== undefined ? modelDelay : globalDelay;
+            const delayMs = um?.delay ?? 0
 
             if (delayMs > 0 && this._lastRequestTime !== null) {
                 const elapsed = Date.now() - this._lastRequestTime;
@@ -130,7 +125,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             const retryConfig = createRetryConfig();
 
             // Create request timeout abort controller (default: 10 minutes)
-            requestTimeoutMs = config.get<number>('opencodego.requestTimeout', 600000);
             abortController = new AbortController();
             timeoutId = setTimeout(() => abortController.abort(), requestTimeoutMs);
             token.onCancellationRequested(() => {
