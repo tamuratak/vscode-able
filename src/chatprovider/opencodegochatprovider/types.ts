@@ -8,10 +8,9 @@ export interface OpenCodeGoModelItem {
     created?: number;
     owned_by: string;
     configId?: string;
-    displayName?: string;
-    context_length?: number;
-    vision?: boolean;
-    // OpenAI new standard parameter
+    displayName: string;
+    context_length: number;
+    vision: boolean;
     max_completion_tokens: number;
     reasoning_effort: string | undefined;
     enable_thinking: boolean;
@@ -40,10 +39,6 @@ export interface OpenCodeGoModelItem {
      */
     include_reasoning_in_request?: boolean;
     /**
-     * Whether this model can be used for Git commit message generation.
-     */
-    useForCommitGeneration?: boolean;
-    /**
      * Model-specific delay in milliseconds between consecutive requests.
      */
     delay?: number;
@@ -53,7 +48,6 @@ export interface OpenCodeGoModelItem {
     thinkingMode?: 'switchable' | 'always';
     /** Custom HTTP headers */
     headers?: Record<string, string>;
-
 }
 
 /**
