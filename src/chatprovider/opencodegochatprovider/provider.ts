@@ -54,7 +54,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         let abortController = new AbortController();
         const requestTimeoutMs = 600000
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
-        let dispatchFetch: typeof fetch;
 
         try {
             const um: OpenCodeGoModelItem | undefined = getBuiltInModelConfig(model.id);
@@ -62,18 +61,12 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 throw new Error(`Model configuration not found for model ID: ${model.id}`)
             }
 
-            // Apply reasoning effort from model configuration to determine thinking mode
-            // - "disabled" → turn off thinking (unless model has thinkingMode="always")
-            // - "enabled" → turn on thinking with default effort
-            // - "high"/"max" → turn on thinking with specified effort
             if (options.modelConfiguration?.['reasoningEffort']) {
-                const effort = options.modelConfiguration['reasoningEffort'] as string;
+                const effort = options.modelConfiguration['reasoningEffort'] as unknown
                 if (typeof effort === 'string') {
-                    if (effort === 'disabled') {
-                        if (um.thinkingMode !== 'always') {
-                            um.enable_thinking = false;
-                            um.include_reasoning_in_request = false;
-                        }
+                    if (effort === 'disabled' && um.thinkingMode !== 'always') {
+                        um.enable_thinking = false;
+                        um.include_reasoning_in_request = false;
                     } else {
                         um.enable_thinking = true;
                         um.include_reasoning_in_request = true;
@@ -135,8 +128,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     abortController.abort()
                 }
             });
-            // Create undici fetch with custom bodyTimeout (extends TCP idle timeout during streaming)
-            dispatchFetch = fetch
 
             // Prepare headers with custom headers if specified
             const requestHeaders = CommonApi.prepareHeaders(modelApiKey, apiMode, um.headers);
@@ -161,7 +152,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 const url = `${BASE_URL}/messages`
                 logger.debug('request.body', { url, requestBody });
                 const response = await executeWithRetry(async () => {
-                    const res = await dispatchFetch(url, {
+                    const res = await fetch(url, {
                         method: 'POST',
                         headers: requestHeaders,
                         body: JSON.stringify(requestBody),
@@ -202,7 +193,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 const url = `${BASE_URL}/chat/completions`;
                 logger.debug('request.body', { url, requestBody });
                 const response = await executeWithRetry(async () => {
-                    const res = await dispatchFetch(url, {
+                    const res = await fetch(url, {
                         method: 'POST',
                         headers: requestHeaders,
                         body: JSON.stringify(requestBody),
