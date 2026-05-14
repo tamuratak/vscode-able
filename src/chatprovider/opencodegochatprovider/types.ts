@@ -11,11 +11,10 @@ export interface OpenCodeGoModelItem {
     displayName?: string;
     context_length?: number;
     vision?: boolean;
-    max_tokens?: number;
     // OpenAI new standard parameter
     max_completion_tokens: number;
-    reasoning_effort?: string;
-    enable_thinking?: boolean;
+    reasoning_effort: string | undefined;
+    enable_thinking: boolean;
     thinking_budget?: number;
     // Allow null so user can explicitly disable sending this parameter
     temperature?: number | null;

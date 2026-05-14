@@ -58,12 +58,15 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
         try {
             const um: OpenCodeGoModelItem | undefined = getBuiltInModelConfig(model.id);
+            if (!um) {
+                throw new Error(`Model configuration not found for model ID: ${model.id}`)
+            }
 
             // Apply reasoning effort from model configuration to determine thinking mode
             // - "disabled" → turn off thinking (unless model has thinkingMode="always")
             // - "enabled" → turn on thinking with default effort
             // - "high"/"max" → turn on thinking with specified effort
-            if (um && options.modelConfiguration?.['reasoningEffort']) {
+            if (options.modelConfiguration?.['reasoningEffort']) {
                 const effort = options.modelConfiguration['reasoningEffort'] as string;
                 if (typeof effort === 'string') {
                     if (effort === 'disabled') {
@@ -82,7 +85,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             }
 
             // Determine API mode from model config (default: openai)
-            const apiMode = um?.apiMode || 'openai'
+            const apiMode = um.apiMode || 'openai'
             const BASE_URL = 'https://opencode.ai/zen/go/v1'
 
             logger.info('request.start', {
@@ -94,11 +97,11 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
             // Prepare model configuration
             const modelConfig = {
-                includeReasoningInRequest: um?.include_reasoning_in_request ?? true,
+                includeReasoningInRequest: um.include_reasoning_in_request ?? true,
             }
 
             // Apply delay between consecutive requests
-            const delayMs = um?.delay ?? 0
+            const delayMs = um.delay ?? 0
 
             if (delayMs > 0 && this._lastRequestTime !== null) {
                 const elapsed = Date.now() - this._lastRequestTime;
@@ -136,7 +139,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             dispatchFetch = fetch
 
             // Prepare headers with custom headers if specified
-            const requestHeaders = CommonApi.prepareHeaders(modelApiKey, apiMode, um?.headers);
+            const requestHeaders = CommonApi.prepareHeaders(modelApiKey, apiMode, um.headers);
             logger.debug('request.headers', {
                 headers: logger.sanitizeHeaders(requestHeaders),
             });
@@ -149,7 +152,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
                 // requestBody
                 let requestBody: AnthropicRequestBody = {
-                    model: um?.id ?? model.id,
+                    model: um.id ?? model.id,
                     messages: anthropicMessages,
                     stream: true,
                 };
@@ -187,7 +190,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
                 // requestBody
                 let requestBody: Record<string, unknown> = {
-                    model: um?.id ?? model.id,
+                    model: um.id ?? model.id,
                     messages: openaiMessages,
                     stream: true,
                     stream_options: { include_usage: true },

@@ -165,6 +165,7 @@ export function getBuiltInModelConfig(modelId: string): OpenCodeGoModelItem | un
         context_length: def.contextLength,
         max_completion_tokens: def.maxTokens,
         apiMode: def.apiMode ?? 'openai',
+        reasoning_effort: undefined,
         enable_thinking: true,
         include_reasoning_in_request: true,
         thinkingMode: def.thinkingMode,
