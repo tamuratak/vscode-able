@@ -36,7 +36,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
-        messageLogger.info('request.messages', await renderMessages(messages))
+        messageLogger.append(await renderMessages(messages))
         const trackingProgress: Progress<LanguageModelResponsePart2> = {
             report: (part) => {
                 try {
@@ -241,13 +241,13 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             }
         } catch (err) {
             // Determine if the request was aborted/terminated (friendly message instead of raw error)
-            const errMessage = err instanceof Error ? err.message : String(err);
-            const isTimeout = abortController.signal.aborted;
-            const isForceTerminated =
-                !isTimeout &&
-                (errMessage.includes('terminated') ||
-                 errMessage.includes('aborted') ||
-                 (err instanceof Error && err.name === 'AbortError'));
+            const errMessage = err instanceof Error ? err.message : String(err)
+            const isTimeout = abortController.signal.aborted
+            const isForceTerminated = !isTimeout && ( errMessage.includes('terminated') || errMessage.includes('aborted') || (err instanceof Error && err.name === 'AbortError') )
+
+            if (!isTimeout) {
+                abortController.abort()
+            }
 
             if (isTimeout || isForceTerminated) {
                 logger.error('request.timeout', {
@@ -255,12 +255,12 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     timeoutMs: requestTimeoutMs,
                     durationMs: Date.now() - requestStartTime,
                     reason: isForceTerminated ? 'connection_terminated' : 'timeout',
-                });
+                })
                 if (isForceTerminated) {
                     logger.error('request.terminated', { error: 'The connection was closed by the server. The generation took too long. Please try again or request shorter content.' })
-                    throw err
+                } else {
+                    logger.error('request.timeout', { error: 'Request timed out. The generation took too long. You can increase the timeout in settings (opencodego.requestTimeout).' })
                 }
-                logger.error('request.timeout', { error: 'Request timed out. The generation took too long. You can increase the timeout in settings (opencodego.requestTimeout).' })
                 throw err
             }
 

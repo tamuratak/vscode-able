@@ -54,4 +54,4 @@ class Logger {
 
 export const logger = new Logger('OpenCodeGo')
 export const chunkLogger = new Logger('OpenCodeGo - Chunk')
-export const messageLogger = vscode.window.createOutputChannel('OpenCodeGo - Message', { log: true });
+export const messageLogger = vscode.window.createOutputChannel('OpenCodeGo - Message')
