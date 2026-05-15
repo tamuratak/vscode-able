@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import * as vscode from 'vscode'
-import type { OpenCodeGoModelItem, RetryConfig } from './types.js'
+import type { RetryConfig } from './types.js'
 import { OpenAIFunctionToolDef } from './openai/openaiTypes.js'
 
 const RETRY_MAX_ATTEMPTS = 3;
@@ -23,57 +23,6 @@ const networkErrorPatterns = [
     'network error',
     'NetworkError',
 ];
-
-// Model ID parsing helper
-export interface ParsedModelId {
-    baseId: string;
-    configId?: string;
-}
-
-export function getModelProviderId(model: unknown): string {
-    if (!model || typeof model !== 'object') {
-        return '';
-    }
-    const obj = model as Record<string, unknown>;
-    const pick = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
-    return (
-        pick(obj['owned_by']) ||
-        pick(obj['provider']) ||
-        pick(obj['ownedBy']) ||
-        pick(obj['owner']) ||
-        pick(obj['vendor'])
-    );
-}
-
-export function normalizeUserModels(models: unknown): OpenCodeGoModelItem[] {
-    const list = Array.isArray(models) ? models : [];
-    const out: OpenCodeGoModelItem[] = [];
-    for (const item of list) {
-        if (!item || typeof item !== 'object') {
-            continue;
-        }
-        const provider = getModelProviderId(item);
-        out.push({ ...(item as OpenCodeGoModelItem), owned_by: provider });
-    }
-    return out;
-}
-
-/**
- * Parse a model ID that may contain a configuration ID separator.
- * Format: "baseId::configId" or just "baseId"
- */
-export function parseModelId(modelId: string): ParsedModelId {
-    const parts = modelId.split('::');
-    if (parts.length >= 2) {
-        return {
-            baseId: parts[0],
-            configId: parts.slice(1).join('::'),
-        };
-    }
-    return {
-        baseId: modelId,
-    };
-}
 
 /**
  * Map VS Code message role to OpenAI message role string.

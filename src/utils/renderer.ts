@@ -1,10 +1,14 @@
 import * as vscode from 'vscode'
-import { LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelTextPart, LanguageModelToolCallPart } from 'vscode'
+import { LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelTextPart, LanguageModelToolCallPart, LanguageModelToolResultPart, LanguageModelToolResultPart2 } from 'vscode'
 import { renderToolResultPart } from './toolresultrendering.js'
 
+interface ChatMessage {
+    readonly role: LanguageModelChatMessageRole
+    readonly content: readonly unknown[]
+}
 
 export async function renderMessages(
-    messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[]
+    messages: readonly ChatMessage[]
 ): Promise<string> {
     const result: string[] = []
 
@@ -20,7 +24,7 @@ export async function renderMessages(
 }
 
 export async function renderMessageContent(
-    message: LanguageModelChatMessage | vscode.LanguageModelChatMessage2
+    message: ChatMessage
 ) {
     const result: string[] = []
 
@@ -32,7 +36,7 @@ export async function renderMessageContent(
             result.push('```json')
             result.push(JSON.stringify(part.input, null, 2))
             result.push('```')
-        } else if ((part instanceof vscode.LanguageModelToolResultPart2) || (part instanceof vscode.LanguageModelToolResultPart)) {
+        } else if ((part instanceof LanguageModelToolResultPart2) || (part instanceof LanguageModelToolResultPart)) {
             result.push(`**Tool Result (${part.callId}):**`)
             result.push('```')
             result.push(await renderToolResultPart(part))

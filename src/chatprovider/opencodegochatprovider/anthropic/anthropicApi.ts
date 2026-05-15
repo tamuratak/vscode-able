@@ -151,15 +151,10 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 
 	prepareRequestBody(
 		rb: AnthropicRequestBody,
-		um: OpenCodeGoModelItem | undefined,
+		um: OpenCodeGoModelItem,
 		options?: ProvideLanguageModelChatResponseOptions
 	): AnthropicRequestBody {
-		// Set max_tokens (required for Anthropic)
-		if (um?.max_completion_tokens !== undefined) {
-			rb.max_tokens = um.max_completion_tokens;
-		} else if (um?.max_tokens !== undefined) {
-			rb.max_tokens = um.max_tokens;
-		}
+		rb.max_tokens = um.max_completion_tokens
 
 		// Add system content if we extracted it
 		if (this._systemContent) {
@@ -167,17 +162,17 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 		}
 
 		// Add temperature
-		if (um?.temperature !== undefined && um.temperature !== null) {
+		if (um.temperature !== undefined) {
 			rb.temperature = um.temperature;
 		}
 
 		// Add top_p if configured
-		if (um?.top_p !== undefined && um.top_p !== null) {
+		if (um.top_p !== undefined && um.top_p !== null) {
 			rb.top_p = um.top_p;
 		}
 
 		// Add top_k if configured
-		if (um?.top_k !== undefined) {
+		if (um.top_k !== undefined) {
 			rb.top_k = um.top_k;
 		}
 
@@ -204,7 +199,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 		}
 
 		// Process extra configuration parameters
-		if (um?.extra && typeof um.extra === 'object') {
+		if (um.extra && typeof um.extra === 'object') {
 			// Add all extra parameters directly to the request body
 			for (const [key, value] of Object.entries(um.extra)) {
 				if (value !== undefined) {

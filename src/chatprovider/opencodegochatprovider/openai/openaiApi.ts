@@ -123,35 +123,30 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
     prepareRequestBody(
         rb: Record<string, unknown>,
-        um: OpenCodeGoModelItem | undefined,
+        um: OpenCodeGoModelItem,
         options?: ProvideLanguageModelChatResponseOptions
     ): Record<string, unknown> {
         // temperature
-        if (um?.temperature !== undefined && um.temperature !== null) {
+        if (um.temperature !== undefined) {
             rb['temperature'] = um.temperature;
         }
 
         // top_p
-        if (um?.top_p !== undefined && um.top_p !== null) {
+        if (um.top_p !== undefined && um.top_p !== null) {
             rb['top_p'] = um.top_p;
         }
 
-        // max_tokens / max_completion_tokens (mutually exclusive)
-        if (um?.max_completion_tokens !== undefined) {
-            rb['max_completion_tokens'] = um.max_completion_tokens;
-        } else if (um?.max_tokens !== undefined) {
-            rb['max_tokens'] = um.max_tokens;
-        }
+        rb['max_completion_tokens'] = um.max_completion_tokens;
 
         // OpenAI reasoning configuration (only set when thinking is enabled)
-        if (um?.enable_thinking !== false && um?.reasoning_effort !== undefined) {
+        if (um.enable_thinking && um.reasoning_effort !== undefined) {
             rb['reasoning_effort'] = um.reasoning_effort;
         }
 
         // Thinking mode (OpenAI-compatible format: {"thinking": {"type": "enabled"}})
-        if (um?.enable_thinking === true) {
+        if (um.enable_thinking) {
             rb['thinking'] = { type: 'enabled' };
-            if (um?.thinking_budget !== undefined) {
+            if (um.thinking_budget !== undefined) {
                 (rb['thinking'] as Record<string, unknown>)['budget_tokens'] = um.thinking_budget;
             }
         } else {
@@ -159,7 +154,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         }
 
         // OpenRouter/OpenCode Go reasoning configuration
-        if (um?.reasoning !== undefined && um.reasoning.enabled !== false) {
+        if (um.reasoning !== undefined && um.reasoning.enabled !== false) {
             const reasoningObj: Record<string, unknown> = {};
             const effort = um.reasoning.effort;
             if (effort && effort !== 'auto') {
@@ -191,14 +186,14 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         }
 
         // Extra model parameters
-        if (um?.top_k !== undefined) { rb['top_k'] = um.top_k; }
-        if (um?.min_p !== undefined) { rb['min_p'] = um.min_p; }
-        if (um?.frequency_penalty !== undefined) { rb['frequency_penalty'] = um.frequency_penalty; }
-        if (um?.presence_penalty !== undefined) { rb['presence_penalty'] = um.presence_penalty; }
-        if (um?.repetition_penalty !== undefined) { rb['repetition_penalty'] = um.repetition_penalty; }
+        if (um.top_k !== undefined) { rb['top_k'] = um.top_k; }
+        if (um.min_p !== undefined) { rb['min_p'] = um.min_p; }
+        if (um.frequency_penalty !== undefined) { rb['frequency_penalty'] = um.frequency_penalty; }
+        if (um.presence_penalty !== undefined) { rb['presence_penalty'] = um.presence_penalty; }
+        if (um.repetition_penalty !== undefined) { rb['repetition_penalty'] = um.repetition_penalty; }
 
         // Extra body parameters
-        if (um?.extra && typeof um.extra === 'object') {
+        if (um.extra && typeof um.extra === 'object') {
             for (const [key, value] of Object.entries(um.extra)) {
                 if (value !== undefined) {
                     rb[key] = value;
@@ -333,13 +328,13 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         // Process thinking content first (before regular text content)
         try {
             let maybeThinking =
-                choice?.['thinking'] ??
+                choice['thinking'] ??
                 deltaObj?.['thinking'] ??
                 deltaObj?.['reasoning'] ??
                 deltaObj?.['reasoning_content'];
 
             // OpenRouter reasoning_details array handling
-            const maybeReasoningDetails = deltaObj?.['reasoning_details'] ?? choice?.['reasoning_details'];
+            const maybeReasoningDetails = deltaObj?.['reasoning_details'] ?? choice['reasoning_details']
             if (maybeReasoningDetails && Array.isArray(maybeReasoningDetails) && maybeReasoningDetails.length > 0) {
                 const details: ReasoningDetail[] = maybeReasoningDetails as ReasoningDetail[];
                 const sortedDetails = details.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
@@ -364,17 +359,17 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 maybeThinking = null;
             }
 
-            if (maybeThinking !== undefined && maybeThinking !== null) {
-                let text = '';
-                if (maybeThinking && typeof maybeThinking === 'object') {
-                    const mt = maybeThinking as Record<string, unknown>;
-                    text = typeof mt['text'] === 'string' ? (mt['text']) : JSON.stringify(mt);
+            if (maybeThinking) {
+                let text = ''
+                if (typeof maybeThinking === 'object') {
+                    const mt = maybeThinking as Record<string, unknown>
+                    text = typeof mt['text'] === 'string' ? (mt['text']) : JSON.stringify(mt)
                 } else if (typeof maybeThinking === 'string') {
-                    text = maybeThinking;
+                    text = maybeThinking
                 }
                 if (text) {
-                    this.bufferThinkingContent(text, progress);
-                    emitted = true;
+                    this.bufferThinkingContent(text, progress)
+                    emitted = true
                 }
             }
         } catch (e) {

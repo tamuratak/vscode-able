@@ -28,32 +28,43 @@ interface BuiltInModelDef {
     extra?: Record<string, unknown>;
     /** API mode: "openai" (default) or "anthropic" */
     apiMode?: 'openai' | 'anthropic';
+    /** Model-specific delay in milliseconds between consecutive requests */
+    delay?: number;
 }
 
 /**
  * Built-in model definitions.
  */
 const BUILT_IN_MODELS: BuiltInModelDef[] = [
+    // https://docs.z.ai/api-reference/llm/chat-completion
     { baseId: 'glm-5.1', displayName: 'GLM-5.1', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 65536 },
     { baseId: 'glm-5', displayName: 'GLM-5', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 65536 },
 
-    { baseId: 'kimi-k2.5', displayName: 'Kimi K2.5', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 16384 },
-    { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 16384 },
+    // https://platform.kimi.ai/docs/api/chat#content-field-description
+    { baseId: 'kimi-k2.5', displayName: 'Kimi K2.5', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 65536 },
+    { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 65536 },
 
+    // https://api-docs.deepseek.com/api/create-chat-completion
     { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'max', supportedReasoningEfforts: ['high', 'max'], contextLength: 1000000, maxTokens: 393216 },
     { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'max', supportedReasoningEfforts: ['high', 'max'], contextLength: 1000000, maxTokens: 393216 },
 
-    { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 128000 },
-    { baseId: 'mimo-v2-omni', displayName: 'MiMo-V2-Omni', vision: true, thinkingMode: 'always', contextLength: 1000000, maxTokens: 128000 },
-    { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 128000 },
-    { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 128000 },
+    // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
+    { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 131072 },
+    { baseId: 'mimo-v2-omni', displayName: 'MiMo-V2-Omni', vision: true, thinkingMode: 'always', contextLength: 1000000, maxTokens: 32768 },
+    { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 131072 },
+    { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 32768 },
 
-    { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, thinkingMode: 'always', apiMode: 'anthropic', extra: { reasoning_split: true }, contextLength: 204800, maxTokens: 32768 },
-    { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, thinkingMode: 'always', contextLength: 204800, maxTokens: 32768 },
+    // https://platform.minimax.io/docs/api-reference/text-anthropic-api
+    { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, thinkingMode: 'always', apiMode: 'anthropic', contextLength: 197000, maxTokens: 65536 },
+    { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, thinkingMode: 'always', apiMode: 'anthropic', contextLength: 197000, maxTokens: 65536 },
 
+    // ? https://docs.aimlapi.com/api-references/text-models-llm/alibaba-cloud/qwen3.5-plus
     { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 65536 },
     { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 65536 },
-];
+
+    // https://huggingface.co/tencent/Hy3-preview
+    { baseId: 'hy3-preview', displayName: 'Hy3 preview', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'high', supportedReasoningEfforts: ['low', 'high'], contextLength: 262144, maxTokens: 65536 }
+]
 
 export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
     const infos: LanguageModelChatInformation[] = [];
@@ -92,29 +103,6 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
             }
         }
 
-        const getLabel = (e: string): string => {
-            switch (e) {
-                case 'disabled': return 'Disabled';
-                case 'enabled': return 'Thinking';
-                case 'low': return 'Low';
-                case 'medium': return 'Medium';
-                case 'high': return 'High';
-                case 'max': return 'Maximum';
-                default: return e.charAt(0).toUpperCase() + e.slice(1);
-            }
-        };
-        const getDesc = (e: string): string => {
-            switch (e) {
-                case 'disabled': return 'Do not enable thinking';
-                case 'enabled': return 'Enable thinking';
-                case 'low': return 'Reduce thinking, faster response';
-                case 'medium': return 'Balance thinking and speed';
-                case 'high': return 'Deeper thinking, slower response';
-                case 'max': return 'Maximum thinking depth, slowest response';
-                default: return e;
-            }
-        };
-
         const enumItemLabels = enumValues.map(getLabel);
         const enumDescriptions = enumValues.map(getDesc);
 
@@ -145,6 +133,30 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
     return infos;
 }
 
+function getLabel(e: string): string {
+    switch (e) {
+        case 'disabled': return 'Disabled';
+        case 'enabled': return 'Thinking';
+        case 'low': return 'Low';
+        case 'medium': return 'Medium';
+        case 'high': return 'High';
+        case 'max': return 'Maximum';
+        default: return e.charAt(0).toUpperCase() + e.slice(1);
+    }
+}
+
+function getDesc(e: string): string {
+    switch (e) {
+        case 'disabled': return 'Do not enable thinking';
+        case 'enabled': return 'Enable thinking';
+        case 'low': return 'Reduce thinking, faster response';
+        case 'medium': return 'Balance thinking and speed';
+        case 'high': return 'Deeper thinking, slower response';
+        case 'max': return 'Maximum thinking depth, slowest response';
+        default: return e;
+    }
+}
+
 export function getBuiltInModelCount(): number {
     return BUILT_IN_MODELS.length;
 }
@@ -157,15 +169,15 @@ export function getBuiltInModelConfig(modelId: string): OpenCodeGoModelItem | un
 
     const model: OpenCodeGoModelItem = {
         id: def.baseId,
-        owned_by: 'opencode',
-        displayName: def.displayName,
         vision: def.vision,
         context_length: def.contextLength,
         max_completion_tokens: def.maxTokens,
         apiMode: def.apiMode ?? 'openai',
+        reasoning_effort: undefined,
         enable_thinking: true,
         include_reasoning_in_request: true,
         thinkingMode: def.thinkingMode,
+        delay: def.delay ?? 0
     };
 
     // Set default reasoning effort if configured
