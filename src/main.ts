@@ -1,7 +1,6 @@
 import * as vscode from 'vscode'
 import { ChatHandleManager } from './chat/chat.js'
 import { registerCommands } from './commands.js'
-import { PythonTool } from './lmtools/pyodide.js'
 import { MochaJsonTaskProvider } from './task/task.js'
 import { TaskWatcher } from './task/taskwatcher.js'
 import { GeminiApiKeyAuthenticationProvider, OpenCodeGoApiKeyAuthenticationProvider } from './auth/authproviders.js'
@@ -98,7 +97,6 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.chat.createChatParticipant('able.chatParticipant', extension.getChatHandler()),
         vscode.chat.createChatParticipant( 'able.askParticipant', extension.getAskChatHandler()),
-        vscode.lm.registerTool('able_python', new PythonTool()),
         vscode.lm.registerTool('able_fetch_webpage', new FetchWebPageTool(extension)),
         vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove(extension)),
         vscode.lm.registerTool('able_web_search', new WebSearchTool(extension)),
