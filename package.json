@@ -1,7 +1,7 @@
 {
   "name": "able",
   "displayName": "Able",
-  "version": "9.2.1",
+  "version": "9.2.2",
   "publisher": "tamuratak",
   "license": "MIT",
   "description": "An extension able to do things",
@@ -14,19 +14,6 @@
   "engines": {
     "vscode": "^1.108.0"
   },
-  "files": [
-    "pyodide/pyodide/*.json",
-    "pyodide/pyodide/*.ts",
-    "pyodide/pyodide/*.js",
-    "pyodide/pyodide/*.mjs",
-    "pyodide/pyodide/*.wasm",
-    "pyodide/pyodide/micropip*",
-    "lib",
-    "node_modules",
-    "out",
-    "skills",
-    "LICENSE"
-  ],
   "capabilities": {
     "virtualWorkspaces": true,
     "untrustedWorkspaces": {
@@ -121,30 +108,6 @@
     
     ],
     "languageModelTools": [
-      {
-        "name": "able_python",
-        "tags": [
-          "Python Execution"
-        ],
-        "displayName": "Run Python",
-        "modelDescription": "This tool runs Python code using Pyodide, a WebAssembly-based runtime, and returns the result of the final evaluated expression. It allows an LLM to dynamically evaluate code for debugging, testing, or real-time data processing in a safe, sandboxed environment. This is useful for validating code behavior or computing results during decision-making.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "code": {
-              "type": "string",
-              "description": "The Python code to run"
-            },
-            "reason": {
-              "type": "string",
-              "description": "The reason for running the code"
-            }
-          },
-          "required": [
-            "code"
-          ]
-        }
-      },
       {
         "name": "able_fetch_webpage",
         "toolReferenceName": "fetchwebpage",
@@ -469,9 +432,6 @@
     "onFileSystem:file"
   ],
   "imports": {
-    "#pyodide": {
-      "default": "./pyodide/pyodide/pyodide.js"
-    },
     "#vscode-tree-sitter-wasm": {
       "default": "./lib/vscode-tree-sitter-wasm/tree-sitter.js"
     }
@@ -507,7 +467,6 @@
   "scripts": {
     "build": "tsc -p ./",
     "clean": "sandbox-exec.js -c -- rm -rf out/ .eslintcache",
-    "download_pyodide": "node ./dev/download_pyodide.mjs",
     "lint": "sandbox-exec.js -c -- eslint --cache .",
     "lint:fix": "sandbox-exec.js -c -- eslint --fix --cache .",
     "release": "npm run clean && npm run lint && npm run build && vsce package",
