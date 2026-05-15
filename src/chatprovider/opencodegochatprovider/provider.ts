@@ -33,11 +33,12 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         model: LanguageModelChatInformation,
         messages: readonly LanguageModelChatRequestMessage[],
         options: ProvideLanguageModelChatResponseOptions,
-        progress: Progress<LanguageModelResponsePart2>,
+        progressOrigin: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
-        messageLogger.append('\n\n\n\n\n\n=== New Request ===\n\n\n\n\n');
-        messageLogger.append(await renderMessages(messages))
+        const progress = messageLogger.wrapProgress(progressOrigin)
+        messageLogger.info('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n');
+        messageLogger.info(await renderMessages(messages));
         const trackingProgress: Progress<LanguageModelResponsePart2> = {
             report: (part) => {
                 try {
@@ -203,6 +204,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     throw new Error('No response body from API');
                 }
 
+                messageLogger.info('\n## Progress Assistant Part\n')
                 await openaiApi.processStreamingResponse(response.body, trackingProgress, token);
             }
         } catch (err) {

@@ -286,6 +286,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                                 prompt_tokens_details: cacheHitTokens !== undefined && cacheMissTokens !== undefined ? { cached_tokens: cacheHitTokens, cache_creation_input_tokens: cacheMissTokens } : undefined
                             }
                             progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'));
+                            logger.debug('openai.stream.usage', { modelId, usage })
                         }
 
                         this.processDelta(parsed, progress);

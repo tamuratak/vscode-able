@@ -1,5 +1,7 @@
 import * as vscode from 'vscode'
 import { inspectReadable } from '../../utils/inspect.js'
+import { LanguageModelResponsePart2, Progress } from 'vscode';
+import { renderMessageContent } from '../../utils/renderer.js';
 
 const SENSITIVE_HEADER_KEYS = ['Authorization', 'x-api-key', 'x-goog-api-key'];
 
@@ -52,6 +54,32 @@ class Logger {
     }
 }
 
+class MessageLogger {
+    private readonly _outputChannel: vscode.OutputChannel;
+
+    constructor(label: string) {
+        this._outputChannel = vscode.window.createOutputChannel(label);
+    }
+
+    info(message: string): void {
+        this._outputChannel.append(message)
+    }
+
+    wrapProgress(progress: Progress<LanguageModelResponsePart2>): Progress<LanguageModelResponsePart2> {
+        return {
+            report: (value: LanguageModelResponsePart2) => {
+                progress.report(value)
+                renderMessageContent({ content: [value] }).then(contents => {
+                    const rendered = contents.join('')
+                    this._outputChannel.append(rendered)
+                }).catch(err => {
+                    logger.error('logger.message', { error: err })
+                })
+            }
+        }
+    }
+}
+
 export const logger = new Logger('OpenCodeGo')
 export const chunkLogger = new Logger('OpenCodeGo - Chunk')
-export const messageLogger = vscode.window.createOutputChannel('OpenCodeGo - Message')
+export const messageLogger = new MessageLogger('OpenCodeGo - Message')

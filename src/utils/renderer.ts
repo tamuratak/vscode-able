@@ -24,7 +24,7 @@ export async function renderMessages(
 }
 
 export async function renderMessageContent(
-    message: ChatMessage
+    message: Pick<ChatMessage, 'content'>
 ) {
     const result: string[] = []
 
@@ -32,7 +32,7 @@ export async function renderMessageContent(
         if (part instanceof LanguageModelTextPart) {
             result.push(part.value)
         } else if (part instanceof LanguageModelToolCallPart) {
-            result.push(`**Tool Call: ${part.name}**`)
+            result.push(`**Tool Call: ${part.name} (${part.callId})**`)
             result.push('```json')
             result.push(JSON.stringify(part.input, null, 2))
             result.push('```')
@@ -43,7 +43,7 @@ export async function renderMessageContent(
             result.push('```')
         } else {
             // Skip LanguageModelDataPart or LanguageModelThinkingPart
-            result.push('*[Data or Thinking part - not rendered]*')
+            // result.push('*[Data or Thinking part - not rendered]*')
         }
     }
 
