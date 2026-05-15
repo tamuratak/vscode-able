@@ -328,13 +328,13 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         // Process thinking content first (before regular text content)
         try {
             let maybeThinking =
-                choice?.['thinking'] ??
+                choice['thinking'] ??
                 deltaObj?.['thinking'] ??
                 deltaObj?.['reasoning'] ??
                 deltaObj?.['reasoning_content'];
 
             // OpenRouter reasoning_details array handling
-            const maybeReasoningDetails = deltaObj?.['reasoning_details'] ?? choice?.['reasoning_details'];
+            const maybeReasoningDetails = deltaObj?.['reasoning_details'] ?? choice['reasoning_details']
             if (maybeReasoningDetails && Array.isArray(maybeReasoningDetails) && maybeReasoningDetails.length > 0) {
                 const details: ReasoningDetail[] = maybeReasoningDetails as ReasoningDetail[];
                 const sortedDetails = details.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
@@ -359,17 +359,17 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 maybeThinking = null;
             }
 
-            if (maybeThinking !== undefined && maybeThinking !== null) {
-                let text = '';
-                if (maybeThinking && typeof maybeThinking === 'object') {
-                    const mt = maybeThinking as Record<string, unknown>;
-                    text = typeof mt['text'] === 'string' ? (mt['text']) : JSON.stringify(mt);
+            if (maybeThinking) {
+                let text = ''
+                if (typeof maybeThinking === 'object') {
+                    const mt = maybeThinking as Record<string, unknown>
+                    text = typeof mt['text'] === 'string' ? (mt['text']) : JSON.stringify(mt)
                 } else if (typeof maybeThinking === 'string') {
-                    text = maybeThinking;
+                    text = maybeThinking
                 }
                 if (text) {
-                    this.bufferThinkingContent(text, progress);
-                    emitted = true;
+                    this.bufferThinkingContent(text, progress)
+                    emitted = true
                 }
             }
         } catch (e) {

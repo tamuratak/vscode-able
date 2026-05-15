@@ -11,6 +11,7 @@ import { CommonApi } from './commonApi.js'
 import { logger, messageLogger } from './logger.js'
 import { openCodeGoAuthServiceId } from '../../auth/authproviders.js'
 import { renderMessages } from '../../utils/renderer.js'
+import { sleep } from '../../utils/utils.js'
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
@@ -41,7 +42,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 try {
                     progress.report(part);
                 } catch (e) {
-                    console.error('[OpenCodeGo] Progress.report failed', {
+                    logger.error('[OpenCodeGo] Progress.report failed', {
                         modelId: model.id,
                         error: e instanceof Error ? { name: e.name, message: e.message } : String(e),
                     });
@@ -56,10 +57,11 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
         try {
-            const um: OpenCodeGoModelItem | undefined = getBuiltInModelConfig(model.id);
-            if (!um) {
+            const umOrig: OpenCodeGoModelItem | undefined = getBuiltInModelConfig(model.id);
+            if (!umOrig) {
                 throw new Error(`Model configuration not found for model ID: ${model.id}`)
             }
+            const um: OpenCodeGoModelItem = { ...umOrig }
 
             if (options.modelConfiguration?.['reasoningEffort']) {
                 const effort = options.modelConfiguration['reasoningEffort'] as unknown
@@ -101,26 +103,13 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 if (elapsed < delayMs) {
                     const remainingDelay = delayMs - elapsed;
                     logger.debug('request.delay', { delayMs, elapsed, remainingDelay });
-                    await new Promise<void>((resolve) => {
-                        const timeout = setTimeout(() => {
-                            clearTimeout(timeout);
-                            resolve();
-                        }, remainingDelay);
-                    });
+                    await sleep(remainingDelay)
                 }
             }
 
-            // Get API key
             const modelApiKey = await this.ensureApiKey();
-            if (!modelApiKey) {
-                logger.warn('apiKey.missing', {});
-                throw new Error('OpenCode Go API key not found');
-            }
 
-            // Get retry config
             const retryConfig = createRetryConfig();
-
-            // Create request timeout abort controller (default: 10 minutes)
             abortController = new AbortController();
             timeoutId = setTimeout(() => abortController.abort(), requestTimeoutMs);
             token.onCancellationRequested(() => {
@@ -129,7 +118,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 }
             });
 
-            // Prepare headers with custom headers if specified
             const requestHeaders = CommonApi.prepareHeaders(modelApiKey, apiMode, um.headers);
             logger.debug('request.headers', {
                 headers: logger.sanitizeHeaders(requestHeaders),
@@ -141,7 +129,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 const anthropicApi = new AnthropicApi(model.id);
                 const anthropicMessages = anthropicApi.convertMessages(messages, modelConfig);
 
-                // requestBody
                 let requestBody: AnthropicRequestBody = {
                     model: um.id ?? model.id,
                     messages: anthropicMessages,
@@ -161,7 +148,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
                     if (!res.ok) {
                         const errorText = await res.text();
-                        console.error('[Anthropic Provider] Anthropic API error response', errorText);
+                        logger.error('[Anthropic Provider] Anthropic API error response', { errorText });
                         throw new Error(
                             `Anthropic API error: [${res.status}] ${res.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`
                         );
@@ -202,7 +189,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
                     if (!res.ok) {
                         const errorText = await res.text();
-                        console.error('[OpenCodeGo] API error response', errorText);
+                        logger.error('[OpenCodeGo] API error response', { errorText });
                         throw new Error(
                             `API error: [${res.status}] ${res.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`
                         );
@@ -242,7 +229,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 throw err
             }
 
-            console.error('[OpenCodeGo] Chat request failed', {
+            logger.error('[OpenCodeGo] Chat request failed', {
                 modelId: model.id,
                 messageCount: messages.length,
                 error: err instanceof Error ? { name: err.name, message: err.message } : String(err),
@@ -262,7 +249,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         }
     }
 
-    private async ensureApiKey(): Promise<string | undefined> {
+    private async ensureApiKey(): Promise<string> {
         const session = await vscode.authentication.getSession(openCodeGoAuthServiceId, [], { silent: true })
         if (!session) {
             throw new Error('No authentication session found for ' + openCodeGoAuthServiceId)
