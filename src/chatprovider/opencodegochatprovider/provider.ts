@@ -36,6 +36,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
+        messageLogger.append('\n\n\n\n\n\n=== New Request ===\n\n\n\n\n');
         messageLogger.append(await renderMessages(messages))
         const trackingProgress: Progress<LanguageModelResponsePart2> = {
             report: (part) => {
