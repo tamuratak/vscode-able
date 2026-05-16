@@ -1,7 +1,6 @@
 import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatInformation, LanguageModelChatProvider, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress } from 'vscode'
 import type { OpenCodeGoModelItem } from './types.js'
-import { createRetryConfig, executeWithRetry } from './utils.js'
 import { getBuiltInModelConfig, getBuiltInModelInfos } from './models.js'
 import { countMessageTokens } from './provideToken.js'
 import { OpenaiApi } from './openai/openaiApi.js'
@@ -42,11 +41,8 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         messageLogger.info('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
         messageLogger.info(await renderMessages(messages))
         const requestStartTime = Date.now();
-
-        // Timeout controller (declared outside try so accessible in catch/finally)
-        let abortController = new AbortController();
+        const abortController = new AbortController();
         const requestTimeoutMs = 600000
-        let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
         try {
             const umOrig: OpenCodeGoModelItem | undefined = getBuiltInModelConfig(model.id);
@@ -101,15 +97,8 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             }
 
             const modelApiKey = await this.ensureApiKey();
-
-            const retryConfig = createRetryConfig();
-            abortController = new AbortController();
-            timeoutId = setTimeout(() => abortController.abort(), requestTimeoutMs);
-            token.onCancellationRequested(() => {
-                if (!abortController.signal.aborted) {
-                    abortController.abort()
-                }
-            });
+            setTimeout(() => abortController.abort(), requestTimeoutMs);
+            token.onCancellationRequested(() => abortController.abort() )
 
             const requestHeaders = CommonApi.prepareHeaders(modelApiKey, apiMode, um.headers);
             logger.debug('request.headers', {
@@ -131,22 +120,18 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
                 const url = `${BASE_URL}/messages`
                 logger.trace('request.body', { url, requestBody })
-                const response = await executeWithRetry(async () => {
-                    const res = await fetch(url, {
-                        method: 'POST',
-                        headers: requestHeaders,
-                        body: JSON.stringify(requestBody),
-                        signal: abortController.signal,
-                    });
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: requestHeaders,
+                    body: JSON.stringify(requestBody),
+                    signal: abortController.signal,
+                });
 
-                    if (!res.ok) {
-                        const errorText = await res.text();
-                        logger.error('[Anthropic Provider] Anthropic API error response', { errorText });
-                        throw new Error(`Anthropic API error: [${res.status}] ${res.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`)
-                    }
-
-                    return res;
-                }, retryConfig);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    logger.error('[Anthropic Provider] Anthropic API error response', { errorText });
+                    throw new Error(`Anthropic API error: [${response.status}] ${response.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`)
+                }
 
                 if (!response.body) {
                     logger.error('response.error', { modelId: model.id, error: 'No response body from Anthropic API' })
@@ -167,25 +152,21 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 }
                 requestBody = openaiApi.prepareRequestBody(requestBody, um, options);
 
-                // Send chat request with retry
+                // Send chat request
                 const url = `${BASE_URL}/chat/completions`;
                 logger.trace('request.body', { url, requestBody });
-                const response = await executeWithRetry(async () => {
-                    const res = await fetch(url, {
-                        method: 'POST',
-                        headers: requestHeaders,
-                        body: JSON.stringify(requestBody),
-                        signal: abortController.signal,
-                    });
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: requestHeaders,
+                    body: JSON.stringify(requestBody),
+                    signal: abortController.signal,
+                });
 
-                    if (!res.ok) {
-                        const errorText = await res.text();
-                        logger.error('[OpenCodeGo] API error response', { errorText });
-                        throw new Error(`API error: [${res.status}] ${res.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`)
-                    }
-
-                    return res;
-                }, retryConfig);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    logger.error('[OpenCodeGo] API error response', { errorText });
+                    throw new Error(`API error: [${response.status}] ${response.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`)
+                }
 
                 if (!response.body) {
                     logger.error('response.error', { modelId: model.id, error: 'No response body from API' })
@@ -196,35 +177,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 await openaiApi.processStreamingResponse(response.body, trackingProgress, token);
             }
         } catch (err) {
-            // Determine if the request was aborted/terminated (friendly message instead of raw error)
-            const errMessage = err instanceof Error ? err.message : String(err)
-            const isTimeout = abortController.signal.aborted
-            const isForceTerminated = !isTimeout && ( errMessage.includes('terminated') || errMessage.includes('aborted') || (err instanceof Error && err.name === 'AbortError') )
-
-            if (!isTimeout) {
-                abortController.abort()
-            }
-
-            if (isTimeout || isForceTerminated) {
-                logger.error('request.timeout', {
-                    modelId: model.id,
-                    timeoutMs: requestTimeoutMs,
-                    durationMs: Date.now() - requestStartTime,
-                    reason: isForceTerminated ? 'connection_terminated' : 'timeout',
-                })
-                if (isForceTerminated) {
-                    logger.error('request.terminated', { error: 'The connection was closed by the server. The generation took too long. Please try again or request shorter content.' })
-                } else {
-                    logger.error('request.timeout', { error: 'Request timed out. The generation took too long. You can increase the timeout in settings (opencodego.requestTimeout).' })
-                }
-                throw err
-            }
-
-            logger.error('[OpenCodeGo] Chat request failed', {
-                modelId: model.id,
-                messageCount: messages.length,
-                error: err instanceof Error ? { name: err.name, message: err.message } : String(err),
-            });
             logger.error('request.error', {
                 modelId: model.id,
                 messageCount: messages.length,
@@ -233,7 +185,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             });
             throw err;
         } finally {
-            clearTimeout(timeoutId);
             const durationMs = Date.now() - requestStartTime;
             logger.info('request.end', { modelId: model.id, durationMs });
             this._lastRequestTime = Date.now();
