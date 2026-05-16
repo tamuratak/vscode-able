@@ -30,20 +30,26 @@ export async function renderMessageContent(
 
     for (const part of message.content) {
         if (part instanceof LanguageModelTextPart) {
+            result.push('\n')
             result.push(part.value)
         } else if (part instanceof LanguageModelToolCallPart) {
+            result.push('\n')
             result.push(`**Tool Call: ${part.name} (${part.callId})**`)
             result.push('```json')
             result.push(JSON.stringify(part.input, null, 2))
             result.push('```')
         } else if ((part instanceof LanguageModelToolResultPart2) || (part instanceof LanguageModelToolResultPart)) {
+            result.push('\n')
             result.push(`**Tool Result (${part.callId}):**`)
             result.push('```')
             result.push(await renderToolResultPart(part))
             result.push('```')
-        } else {
-            // Skip LanguageModelDataPart or LanguageModelThinkingPart
-            // result.push('*[Data or Thinking part - not rendered]*')
+        } else if (part instanceof vscode.LanguageModelThinkingPart) {
+            if (typeof part.value === 'string') {
+                result.push(part.value)
+            } else if (Array.isArray(part.value)) {
+                result.push(part.value.join('\n'))
+            }
         }
     }
 
