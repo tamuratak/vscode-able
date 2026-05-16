@@ -39,7 +39,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     protected _hasEmittedAssistantText = false;
 
     /** Track if we emitted any text. */
-    protected _emittedText = '';
+    protected _unifiedText = '';
 
     /** Track if we emitted any thinking text. */
     protected _hasEmittedThinking = false;
@@ -49,9 +49,6 @@ export abstract class CommonApi<TMessage, TRequestBody> {
 
     // Thinking content state management
     protected _currentThinkingId: string | null = null;
-
-    /** Buffer for accumulating thinking content before emitting. */
-    protected _thinkingBuffer = '';
 
     /** System prompts to include in requests. */
     protected _systemContent: string | undefined;
@@ -187,7 +184,6 @@ export abstract class CommonApi<TMessage, TRequestBody> {
 
     protected endThinking() {
         this._currentThinkingId = null
-        this._thinkingBuffer = ''
     }
 
     /**
@@ -202,7 +198,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         if (!this._currentThinkingId) {
             this._currentThinkingId = this.generateThinkingId();
         }
-        this._thinkingBuffer += text;
+        this._unifiedText += text;
         progress.report(new LanguageModelThinkingPart(text, this._currentThinkingId))
     }
 
@@ -220,7 +216,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
             return { emittedAny: false };
         }
         progress.report(new vscode.LanguageModelTextPart(content));
-        this._emittedText += content;
+        this._unifiedText += content;
         return { emittedAny: true };
     }
 

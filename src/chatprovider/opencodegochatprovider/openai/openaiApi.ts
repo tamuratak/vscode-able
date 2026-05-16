@@ -294,7 +294,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                                 prompt_tokens_details: cacheHitTokens !== undefined && cacheMissTokens !== undefined ? { cached_tokens: cacheHitTokens, cache_creation_input_tokens: cacheMissTokens } : undefined
                             }
                             progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'));
-                            logger.debug('openai.stream.usage', { modelId, usage })
+                            logger.info('openai.stream.usage', { modelId, usage })
                         }
 
                         const result = this.processDelta(parsed, progress)
@@ -310,17 +310,11 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     }
                 }
             }
-            logger.debug('openai.stream.done', { modelId });
+            logger.info('openai.stream.done', { modelId, responseResult });
         } catch (e) {
             logger.error('openai.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
             throw e;
         } finally {
-            if (responseResult && responseResult?.finishReason === 'stop') {
-                if (modelId.startsWith('mimo') && this._thinkingBuffer !== '' && this._emittedText.length < this._thinkingBuffer.length) {
-                    logger.warn('openai.stream.tweak', { modelId, warn: 'Render thinking part as final response.' })
-                    progress.report(new vscode.LanguageModelTextPart(this._thinkingBuffer))
-                }
-            }
             this.endThinking()
             reader.releaseLock()
         }
