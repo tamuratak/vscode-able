@@ -3,7 +3,7 @@ import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageMode
 import type { OpenCodeGoModelItem } from '../types.js'
 import type { OpenAIChatMessage, OpenAIToolCall, ChatMessageContent, ReasoningDetail } from './openaiTypes.js'
 import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole, } from '../utils.js'
-import { APIUsage, CommonApi, StreamUsage } from '../commonApi.js'
+import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, logger } from '../logger.js'
 
 
@@ -282,6 +282,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         }
     }
 
+
     private processUsage(
         parsed: Record<string, unknown>,
         modelId: string,
@@ -292,14 +293,17 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         if (!usageData) {
             return
         }
-        let cacheHitTokens: number | undefined;
-        let cacheMissTokens: number | undefined;
+        const promptTokens = (usageData['prompt_tokens'] as number) ?? 0
+        const completionTokens = (usageData['completion_tokens'] as number) ?? 0
+        const totalTokens = (usageData['total_tokens'] as number) ?? promptTokens + completionTokens
+        let cacheHitTokens = 0
+        let cacheMissTokens = 0
 
         // OpenAI format: prompt_tokens_details.cached_tokens
         const details = usageData['prompt_tokens_details'] as Record<string, unknown> | undefined;
         if (details && typeof details['cached_tokens'] === 'number') {
             cacheHitTokens = details['cached_tokens'];
-            cacheMissTokens = ((usageData['prompt_tokens'] as number) ?? 0) - cacheHitTokens;
+            cacheMissTokens = Math.max(0, promptTokens - cacheHitTokens)
         }
 
         // DeepSeek format: prompt_cache_hit_tokens / prompt_cache_miss_tokens (overrides OpenAI)
@@ -310,20 +314,17 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             cacheMissTokens = usageData['prompt_cache_miss_tokens'];
         }
 
-        const usage: StreamUsage = {
-            promptTokens: (usageData['prompt_tokens'] as number) ?? 0,
-            completionTokens: (usageData['completion_tokens'] as number) ?? 0,
-            cacheHitTokens,
-            cacheMissTokens,
-        };
         const apiUsage: APIUsage = {
-            completion_tokens: usage.completionTokens,
-            prompt_tokens: usage.promptTokens,
-            total_tokens: usage.promptTokens + usage.completionTokens,
-            prompt_tokens_details: cacheHitTokens !== undefined && cacheMissTokens !== undefined ? { cached_tokens: cacheHitTokens, cache_creation_input_tokens: cacheMissTokens } : undefined
+            completion_tokens: completionTokens,
+            prompt_tokens: promptTokens,
+            total_tokens: totalTokens,
+            prompt_tokens_details: {
+                cached_tokens: cacheHitTokens,
+                cache_creation_input_tokens: cacheMissTokens
+            }
         }
-        progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'));
-        logger.info('openai.stream.usage', { modelId, usage })
+        progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'))
+        logger.debug('openai.stream.usage', { modelId, usage: usageData })
     }
 
     /**

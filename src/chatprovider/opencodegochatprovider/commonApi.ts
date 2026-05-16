@@ -5,16 +5,6 @@ import { OpenCodeGoModelItem } from './types.js'
 import { tryParseJSONObject } from './utils.js'
 import { logger } from './logger.js';
 
-/**
- * Token usage information extracted from streaming response usage chunk.
- */
-export interface StreamUsage {
-    promptTokens: number;
-    completionTokens: number;
-    cacheHitTokens?: number | undefined;
-    cacheMissTokens?: number | undefined;
-}
-
 export interface APIUsage {
 	prompt_tokens: number;
 	completion_tokens: number;
