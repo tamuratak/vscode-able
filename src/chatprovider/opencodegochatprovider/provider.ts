@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { CancellationToken, LanguageModelChatInformation, LanguageModelChatProvider, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, } from 'vscode'
+import { CancellationToken, LanguageModelChatInformation, LanguageModelChatProvider, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress } from 'vscode'
 import type { OpenCodeGoModelItem } from './types.js'
 import { createRetryConfig, executeWithRetry } from './utils.js'
 import { getBuiltInModelConfig, getBuiltInModelInfos } from './models.js'
@@ -12,6 +12,7 @@ import { logger, messageLogger } from './logger.js'
 import { openCodeGoAuthServiceId } from '../../auth/authproviders.js'
 import { renderMessages } from '../../utils/renderer.js'
 import { sleep } from '../../utils/utils.js'
+import { tweakSystemPrompt } from './systemprompt.js'
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
@@ -31,12 +32,13 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
     async provideLanguageModelChatResponse(
         model: LanguageModelChatInformation,
-        messages: readonly LanguageModelChatRequestMessage[],
+        messagesOrigin: readonly LanguageModelChatRequestMessage[],
         options: ProvideLanguageModelChatResponseOptions,
         progressOrigin: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
         const progress = messageLogger.wrapProgress(progressOrigin)
+        const messages = tweakSystemPrompt(model, messagesOrigin)
         messageLogger.info('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n');
         messageLogger.info(await renderMessages(messages));
         const trackingProgress: Progress<LanguageModelResponsePart2> = {
