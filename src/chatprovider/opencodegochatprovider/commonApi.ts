@@ -46,10 +46,6 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     /** Track if we emitted the begin-tool-calls whitespace flush. */
     protected _emittedBeginToolCallsHint = false;
 
-    // XML think block parsing state
-    protected _xmlThinkActive = false;
-    protected _xmlThinkDetectionAttempted = false;
-
     // Thinking content state management
     protected _currentThinkingId: string | null = null;
 
@@ -255,69 +251,6 @@ export abstract class CommonApi<TMessage, TRequestBody> {
             this._thinkingBuffer = '';
             progress.report(new LanguageModelThinkingPart(text, this._currentThinkingId));
         }
-    }
-
-    /**
-     * Process XML think blocks in text content.
-     * @param content The text content to process.
-     * @param progress Progress reporter for parts.
-     * @returns Object indicating whether any think blocks were emitted.
-     */
-    protected processXmlThinkBlocks(
-        content: string,
-        progress: Progress<LanguageModelResponsePart2>
-    ): { emittedAny: boolean } {
-        if (!content.includes('꽁') && !content.includes('ground') && !this._xmlThinkActive) {
-            return { emittedAny: false };
-        }
-
-        this._xmlThinkDetectionAttempted = true;
-        let remaining = content;
-        let emittedAny = false;
-
-        while (remaining.length > 0) {
-            if (this._xmlThinkActive) {
-                const endIdx = remaining.indexOf('꽁');
-                if (endIdx === -1) {
-                    this.bufferThinkingContent(remaining, progress);
-                    emittedAny = true;
-                    break;
-                } else {
-                    const thinkText = remaining.slice(0, endIdx);
-                    if (thinkText) {
-                        this.bufferThinkingContent(thinkText, progress);
-                        emittedAny = true;
-                    }
-                    this.reportEndThinking(progress);
-                    this._xmlThinkActive = false;
-                    remaining = remaining.slice(endIdx + 8);
-                }
-            } else {
-                const startIdx = remaining.indexOf('꽁');
-                if (startIdx === -1) {
-                    if (!emittedAny) {
-                        return { emittedAny: false };
-                    }
-                    // Emit remaining text after think block
-                    this.reportEndThinking(progress);
-                    if (remaining.trim()) {
-                        progress.report(new vscode.LanguageModelTextPart(remaining));
-                    }
-                    break;
-                } else {
-                    // Emit text before 꽁 tag
-                    const beforeThink = remaining.slice(0, startIdx);
-                    if (beforeThink.trim()) {
-                        this.reportEndThinking(progress);
-                        progress.report(new vscode.LanguageModelTextPart(beforeThink));
-                    }
-                    this._xmlThinkActive = true;
-                    remaining = remaining.slice(startIdx + 7);
-                }
-            }
-        }
-
-        return { emittedAny };
     }
 
     /**
