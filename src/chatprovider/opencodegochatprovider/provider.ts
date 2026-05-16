@@ -126,7 +126,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             logger.debug('request.headers', {
                 headers: logger.sanitizeHeaders(requestHeaders),
             });
-            logger.debug('request.messages.origin', { messages });
+            logger.trace('request.messages.origin', { messages });
 
             if (apiMode === 'anthropic') {
                 // Anthropic API mode
@@ -182,7 +182,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
                 // Send chat request with retry
                 const url = `${BASE_URL}/chat/completions`;
-                logger.debug('request.body', { url, requestBody });
+                logger.trace('request.body', { url, requestBody });
                 const response = await executeWithRetry(async () => {
                     const res = await fetch(url, {
                         method: 'POST',

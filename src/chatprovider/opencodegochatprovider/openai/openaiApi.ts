@@ -6,6 +6,13 @@ import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText
 import { APIUsage, CommonApi, StreamUsage } from '../commonApi.js'
 import { chunkLogger, logger } from '../logger.js'
 
+
+export interface ResponseResult {
+    emitted: boolean;
+    finishReason: string | undefined;
+    nativeFinishReason: string | undefined;
+}
+
 export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unknown>> {
     constructor(modelId: string) {
         super(modelId);
@@ -219,6 +226,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         const decoder = new TextDecoder();
         let buffer = '';
         token.onCancellationRequested(() => reader.cancel().catch(() => undefined) )
+        let responseRsult: ResponseResult | undefined
 
         try {
             while (true) {
@@ -289,7 +297,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                             logger.debug('openai.stream.usage', { modelId, usage })
                         }
 
-                        this.processDelta(parsed, progress);
+                        responseRsult = this.processDelta(parsed, progress);
                     } catch (e) {
                         logger.error('openai.stream.chunk.error', {
                             modelId,
@@ -304,8 +312,18 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             logger.error('openai.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
             throw e;
         } finally {
-            reader.releaseLock();
-            this.reportEndThinking(progress);
+            if (responseRsult && responseRsult?.finishReason === 'stop') {
+                if (this._thinkingBuffer !== '') {
+                    logger.warn('openai.stream.stop_with_thinking', { modelId, warn: 'Render thinking part.' })
+                    progress.report(new vscode.LanguageModelTextPart(this._thinkingBuffer))
+                } else {
+                    logger.warn('openai.stream.stop_without_thinking', { modelId, warn: 'No thinking part to render.' })
+                }
+            } else {
+                logger.warn('openai.stream.stop_without_finish_reason', { modelId, responseRsult, thinkLength: this._thinkingBuffer.length })
+            }
+            this.endThinking()
+            reader.releaseLock()
         }
     }
 
@@ -315,11 +333,11 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
     private processDelta(
         delta: Record<string, unknown>,
         progress: Progress<LanguageModelResponsePart2>
-    ): boolean {
+    ): ResponseResult {
         let emitted = false;
         const choice = (delta['choices'] as Record<string, unknown>[] | undefined)?.[0];
         if (!choice) {
-            return false;
+            return { emitted: false, finishReason: undefined, nativeFinishReason: undefined }
         }
 
         const deltaObj = choice['delta'] as Record<string, unknown> | undefined;
@@ -378,7 +396,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         if (deltaObj?.['content']) {
             const content = typeof deltaObj['content'] === 'string' ? deltaObj['content'] : JSON.stringify(deltaObj['content'])
 
-            this.reportEndThinking(progress);
+            this.endThinking()
             const res = this.processTextContent(content, progress);
             if (res.emittedAny) {
                 this._hasEmittedAssistantText = true;
@@ -387,7 +405,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         }
 
         if (deltaObj?.['tool_calls']) {
-            this.reportEndThinking(progress);
+            this.endThinking()
 
             const toolCalls = deltaObj['tool_calls'] as Record<string, unknown>[];
 
@@ -418,11 +436,12 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             }
         }
 
-        const finish = choice['finish_reason'] ?? undefined;
-        if (finish === 'tool_calls' || finish === 'stop') {
+        const finishReason = choice['finish_reason'] as string | undefined
+        if (finishReason === 'tool_calls' || finishReason === 'stop') {
             this.flushToolCallBuffers(progress, true);
         }
-        return emitted;
+        const nativeFinishReason = choice['native_finish_reason'] as string | undefined
+        return { emitted, finishReason, nativeFinishReason }
     }
 
 }

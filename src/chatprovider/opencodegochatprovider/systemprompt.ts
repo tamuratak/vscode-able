@@ -129,6 +129,4 @@ Rules:
 Examples:
 Correct: [src/config.ts](src/config.ts)
 Correct: [initialization logic](src/init.ts#L25-L30)
-
-FORBIDDEN: inline code for file names (\`file.t\`), plain text file names without links, line citations without links ("Line 86"), combining multiple line references in one link.
 </file_linkification>`
