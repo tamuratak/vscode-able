@@ -226,7 +226,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         const decoder = new TextDecoder();
         let buffer = '';
         token.onCancellationRequested(() => reader.cancel().catch(() => undefined) )
-        let responseRsult: ResponseResult | undefined
+        let responseResult: ResponseResult | undefined
 
         try {
             while (true) {
@@ -297,7 +297,10 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                             logger.debug('openai.stream.usage', { modelId, usage })
                         }
 
-                        responseRsult = this.processDelta(parsed, progress);
+                        const result = this.processDelta(parsed, progress)
+                        if (result.finishReason) {
+                            responseResult = result
+                        }
                     } catch (e) {
                         logger.error('openai.stream.chunk.error', {
                             modelId,
@@ -312,15 +315,11 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             logger.error('openai.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
             throw e;
         } finally {
-            if (responseRsult && responseRsult?.finishReason === 'stop') {
-                if (this._thinkingBuffer !== '') {
-                    logger.warn('openai.stream.stop_with_thinking', { modelId, warn: 'Render thinking part.' })
+            if (responseResult && responseResult?.finishReason === 'stop') {
+                if (modelId.startsWith('mimo') && this._thinkingBuffer !== '') {
+                    logger.warn('openai.stream.tweak', { modelId, warn: 'Render thinking part as final response.' })
                     progress.report(new vscode.LanguageModelTextPart(this._thinkingBuffer))
-                } else {
-                    logger.warn('openai.stream.stop_without_thinking', { modelId, warn: 'No thinking part to render.' })
                 }
-            } else {
-                logger.warn('openai.stream.stop_without_finish_reason', { modelId, responseRsult, thinkLength: this._thinkingBuffer.length })
             }
             this.endThinking()
             reader.releaseLock()
