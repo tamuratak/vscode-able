@@ -267,7 +267,6 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 						const chunk = JSON.parse(data) as AnthropicStreamChunk;
 						this.processAnthropicChunk(chunk, progress);
 					} catch (e) {
-						console.error('[Anthropic Provider] Failed to parse SSE chunk:', e, 'data:', data);
 						logger.error('anthropic.stream.chunk.error', {
 							modelId,
 							error: e instanceof Error ? e.message : String(e),
@@ -278,7 +277,6 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 			}
 			logger.debug('anthropic.stream.done', { modelId });
 		} catch (e) {
-			console.error('[Anthropic Provider] Streaming response error:', e);
 			logger.error('anthropic.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
 			throw e;
 		} finally {
@@ -305,7 +303,11 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 		if (chunk.type === 'error') {
 			const errorType = chunk.error?.type || 'unknown_error';
 			const errorMessage = chunk.error?.message || 'Anthropic API streaming error';
-			console.error(`[Anthropic Provider] Streaming error: ${errorType} - ${errorMessage}`);
+			logger.error('anthropic.stream.error.chunk', {
+				modelId: this._modelId,
+				errorType,
+				errorMessage,
+			});
 			return;
 		}
 

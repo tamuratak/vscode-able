@@ -3,6 +3,7 @@ import * as vscode from 'vscode'
 import { ProvideLanguageModelChatResponseOptions, LanguageModelChatRequestMessage, LanguageModelToolCallPart, LanguageModelResponsePart2, LanguageModelThinkingPart, Progress, CancellationToken, } from 'vscode'
 import { OpenCodeGoModelItem } from './types.js'
 import { tryParseJSONObject } from './utils.js'
+import { logger } from './logger.js';
 
 /**
  * Token usage information extracted from streaming response usage chunk.
@@ -145,7 +146,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
             const parsed = tryParseJSONObject(argsText);
             if (!parsed.ok) {
                 if (throwOnInvalid) {
-                    console.error('[OpenCodeGo] Invalid JSON for tool call', {
+                    logger.error('[OpenCodeGo] Invalid JSON for tool call', {
                         idx,
                         snippet: (buf.args || '').slice(0, 200),
                     });
@@ -199,7 +200,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
             this.flushThinkingBuffer(progress);
             progress.report(new LanguageModelThinkingPart('', this._currentThinkingId));
         } catch (e) {
-            console.error('[OpenCodeGo] Failed to end thinking sequence:', e);
+            logger.error('[OpenCodeGo] Failed to end thinking sequence:', {error: e});
         }
         this._currentThinkingId = null;
         this._thinkingBuffer = '';
