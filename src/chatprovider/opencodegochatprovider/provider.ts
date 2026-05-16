@@ -37,22 +37,10 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         progressOrigin: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
-        const progress = messageLogger.wrapProgress(progressOrigin)
+        const trackingProgress = messageLogger.wrapProgress(progressOrigin)
         const messages = tweakSystemPrompt(model, messagesOrigin)
-        messageLogger.info('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n');
-        messageLogger.info(await renderMessages(messages));
-        const trackingProgress: Progress<LanguageModelResponsePart2> = {
-            report: (part) => {
-                try {
-                    progress.report(part);
-                } catch (e) {
-                    logger.error('[OpenCodeGo] Progress.report failed', {
-                        modelId: model.id,
-                        error: e instanceof Error ? { name: e.name, message: e.message } : String(e),
-                    });
-                }
-            },
-        };
+        messageLogger.info('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
+        messageLogger.info(await renderMessages(messages))
         const requestStartTime = Date.now();
 
         // Timeout controller (declared outside try so accessible in catch/finally)
@@ -63,6 +51,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         try {
             const umOrig: OpenCodeGoModelItem | undefined = getBuiltInModelConfig(model.id);
             if (!umOrig) {
+                logger.error('config.error', { modelId: model.id, error: 'Model configuration not found' });
                 throw new Error(`Model configuration not found for model ID: ${model.id}`)
             }
             const um: OpenCodeGoModelItem = { ...umOrig }
@@ -153,16 +142,15 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     if (!res.ok) {
                         const errorText = await res.text();
                         logger.error('[Anthropic Provider] Anthropic API error response', { errorText });
-                        throw new Error(
-                            `Anthropic API error: [${res.status}] ${res.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`
-                        );
+                        throw new Error(`Anthropic API error: [${res.status}] ${res.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`)
                     }
 
                     return res;
                 }, retryConfig);
 
                 if (!response.body) {
-                    throw new Error('No response body from Anthropic API');
+                    logger.error('response.error', { modelId: model.id, error: 'No response body from Anthropic API' })
+                    throw new Error('No response body from Anthropic API')
                 }
                 await anthropicApi.processStreamingResponse(response.body, trackingProgress, token);
             } else {
@@ -176,8 +164,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     messages: openaiMessages,
                     stream: true,
                     stream_options: { include_usage: true },
-                };
-
+                }
                 requestBody = openaiApi.prepareRequestBody(requestBody, um, options);
 
                 // Send chat request with retry
@@ -194,15 +181,14 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     if (!res.ok) {
                         const errorText = await res.text();
                         logger.error('[OpenCodeGo] API error response', { errorText });
-                        throw new Error(
-                            `API error: [${res.status}] ${res.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`
-                        );
+                        throw new Error(`API error: [${res.status}] ${res.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`)
                     }
 
                     return res;
                 }, retryConfig);
 
                 if (!response.body) {
+                    logger.error('response.error', { modelId: model.id, error: 'No response body from API' })
                     throw new Error('No response body from API');
                 }
 
@@ -257,6 +243,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
     private async ensureApiKey(): Promise<string> {
         const session = await vscode.authentication.getSession(openCodeGoAuthServiceId, [], { silent: true })
         if (!session) {
+            logger.error('config.error', { error: 'No authentication session found for ' + openCodeGoAuthServiceId });
             throw new Error('No authentication session found for ' + openCodeGoAuthServiceId)
         }
         return session.accessToken

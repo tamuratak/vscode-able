@@ -68,7 +68,13 @@ class MessageLogger {
     wrapProgress(progress: Progress<LanguageModelResponsePart2>): Progress<LanguageModelResponsePart2> {
         return {
             report: (value: LanguageModelResponsePart2) => {
-                progress.report(value)
+                try {
+                    progress.report(value)
+                } catch (e) {
+                    logger.error('[OpenCodeGo] Progress.report failed', {
+                        error: e instanceof Error ? { name: e.name, message: e.message } : String(e),
+                    });
+                }
                 renderMessageContent({ content: [value] }).then(contents => {
                     const rendered = contents.join('')
                     this._outputChannel.append(rendered)
