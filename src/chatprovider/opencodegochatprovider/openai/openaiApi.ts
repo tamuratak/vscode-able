@@ -291,7 +291,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
                         this.processDelta(parsed, progress);
                     } catch (e) {
-                        console.error('[OpenCodeGo] Failed to parse SSE chunk:', e, 'data:', data);
                         logger.error('openai.stream.chunk.error', {
                             modelId,
                             error: e instanceof Error ? e.message : String(e),
@@ -302,7 +301,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             }
             logger.debug('openai.stream.done', { modelId });
         } catch (e) {
-            console.error('[OpenCodeGo] Streaming response error:', e);
             logger.error('openai.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
             throw e;
         } finally {
@@ -374,10 +372,10 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 }
             }
         } catch (e) {
-            console.error('[OpenCodeGo] Failed to process thinking/reasoning_details:', e);
+            logger.error('[OpenCodeGo] Failed to process thinking/reasoning_details:', { error: e instanceof Error ? e.message : String(e) })
         }
 
-        if (deltaObj?.['content'] !== undefined) {
+        if (deltaObj?.['content']) {
             const content = typeof deltaObj['content'] === 'string' ? deltaObj['content'] : JSON.stringify(deltaObj['content'])
 
             this.reportEndThinking(progress);
