@@ -377,7 +377,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             console.error('[OpenCodeGo] Failed to process thinking/reasoning_details:', e);
         }
 
-        if (deltaObj?.['content']) {
+        if (deltaObj?.['content'] !== undefined) {
             const content = typeof deltaObj['content'] === 'string' ? deltaObj['content'] : JSON.stringify(deltaObj['content'])
 
             this.reportEndThinking(progress);
