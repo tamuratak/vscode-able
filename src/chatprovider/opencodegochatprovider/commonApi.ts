@@ -39,7 +39,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     protected _hasEmittedAssistantText = false;
 
     /** Track if we emitted any text. */
-    protected _hasEmittedText = false;
+    protected _emittedText = '';
 
     /** Track if we emitted any thinking text. */
     protected _hasEmittedThinking = false;
@@ -220,7 +220,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
             return { emittedAny: false };
         }
         progress.report(new vscode.LanguageModelTextPart(content));
-        this._hasEmittedText = true
+        this._emittedText += content;
         return { emittedAny: true };
     }
 

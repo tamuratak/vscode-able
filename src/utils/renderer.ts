@@ -48,7 +48,7 @@ export async function renderMessageContent(
             if (typeof part.value === 'string') {
                 result.push(part.value)
             } else if (Array.isArray(part.value)) {
-                result.push(part.value.join('\n'))
+                result.push(part.value.join(''))
             }
         }
     }

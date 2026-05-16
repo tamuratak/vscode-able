@@ -316,7 +316,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             throw e;
         } finally {
             if (responseResult && responseResult?.finishReason === 'stop') {
-                if (modelId.startsWith('mimo') && this._thinkingBuffer !== '') {
+                if (modelId.startsWith('mimo') && this._thinkingBuffer !== '' && this._emittedText.length < this._thinkingBuffer.length) {
                     logger.warn('openai.stream.tweak', { modelId, warn: 'Render thinking part as final response.' })
                     progress.report(new vscode.LanguageModelTextPart(this._thinkingBuffer))
                 }
