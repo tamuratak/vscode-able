@@ -3,12 +3,11 @@ import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageMode
 import type { OpenCodeGoModelItem } from '../types.js'
 import type { OpenAIChatMessage, OpenAIToolCall, ChatMessageContent, ReasoningDetail } from './openaiTypes.js'
 import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole, } from '../utils.js'
-import { APIUsage, CommonApi, StreamUsage } from '../commonApi.js'
+import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, logger } from '../logger.js'
 
 
 export interface ResponseResult {
-    emitted: boolean;
     finishReason: string | undefined;
     nativeFinishReason: string | undefined;
 }
@@ -225,7 +224,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         const reader = responseBody.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        token.onCancellationRequested(() => reader.cancel().catch(() => undefined) )
+        token.onCancellationRequested(() => reader.cancel().catch(() => undefined))
         let responseResult: ResponseResult | undefined
 
         try {
@@ -259,48 +258,11 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
                     try {
                         const parsed = JSON.parse(data) as Record<string, unknown>;
-
-                        // Capture usage from stream_options: include_usage chunks (final chunk with no choices)
-                        const usageData = parsed['usage'] as Record<string, unknown> | undefined;
-                        if (usageData) {
-                            let cacheHitTokens: number | undefined;
-                            let cacheMissTokens: number | undefined;
-
-                            // OpenAI format: prompt_tokens_details.cached_tokens
-                            const details = usageData['prompt_tokens_details'] as Record<string, unknown> | undefined;
-                            if (details && typeof details['cached_tokens'] === 'number') {
-                                cacheHitTokens = details['cached_tokens'];
-                                cacheMissTokens = ((usageData['prompt_tokens'] as number) ?? 0) - cacheHitTokens;
-                            }
-
-                            // DeepSeek format: prompt_cache_hit_tokens / prompt_cache_miss_tokens (overrides OpenAI)
-                            if (typeof usageData['prompt_cache_hit_tokens'] === 'number') {
-                                cacheHitTokens = usageData['prompt_cache_hit_tokens'];
-                            }
-                            if (typeof usageData['prompt_cache_miss_tokens'] === 'number') {
-                                cacheMissTokens = usageData['prompt_cache_miss_tokens'];
-                            }
-
-                            const usage: StreamUsage = {
-                                promptTokens: (usageData['prompt_tokens'] as number) ?? 0,
-                                completionTokens: (usageData['completion_tokens'] as number) ?? 0,
-                                cacheHitTokens,
-                                cacheMissTokens,
-                            };
-                            const apiUsage: APIUsage = {
-                                completion_tokens: usage.completionTokens,
-                                prompt_tokens: usage.promptTokens,
-                                total_tokens: usage.promptTokens + usage.completionTokens,
-                                prompt_tokens_details: cacheHitTokens !== undefined && cacheMissTokens !== undefined ? { cached_tokens: cacheHitTokens, cache_creation_input_tokens: cacheMissTokens } : undefined
-                            }
-                            progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'));
-                            logger.info('openai.stream.usage', { modelId, usage })
-                        }
-
                         const result = this.processDelta(parsed, progress)
                         if (result.finishReason) {
                             responseResult = result
                         }
+                        this.processUsage(parsed, modelId, progress)
                     } catch (e) {
                         logger.error('openai.stream.chunk.error', {
                             modelId,
@@ -320,6 +282,51 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         }
     }
 
+
+    private processUsage(
+        parsed: Record<string, unknown>,
+        modelId: string,
+        progress: Progress<LanguageModelResponsePart2>
+    ) {
+        // Capture usage from stream_options: include_usage chunks (final chunk with no choices)
+        const usageData = parsed['usage'] as Record<string, unknown> | undefined;
+        if (!usageData) {
+            return
+        }
+        const promptTokens = (usageData['prompt_tokens'] as number) ?? 0
+        const completionTokens = (usageData['completion_tokens'] as number) ?? 0
+        const totalTokens = (usageData['total_tokens'] as number) ?? promptTokens + completionTokens
+        let cacheHitTokens = 0
+        let cacheMissTokens = 0
+
+        // OpenAI format: prompt_tokens_details.cached_tokens
+        const details = usageData['prompt_tokens_details'] as Record<string, unknown> | undefined;
+        if (details && typeof details['cached_tokens'] === 'number') {
+            cacheHitTokens = details['cached_tokens'];
+            cacheMissTokens = Math.max(0, promptTokens - cacheHitTokens)
+        }
+
+        // DeepSeek format: prompt_cache_hit_tokens / prompt_cache_miss_tokens (overrides OpenAI)
+        if (typeof usageData['prompt_cache_hit_tokens'] === 'number') {
+            cacheHitTokens = usageData['prompt_cache_hit_tokens'];
+        }
+        if (typeof usageData['prompt_cache_miss_tokens'] === 'number') {
+            cacheMissTokens = usageData['prompt_cache_miss_tokens'];
+        }
+
+        const apiUsage: APIUsage = {
+            completion_tokens: completionTokens,
+            prompt_tokens: promptTokens,
+            total_tokens: totalTokens,
+            prompt_tokens_details: {
+                cached_tokens: cacheHitTokens,
+                cache_creation_input_tokens: cacheMissTokens
+            }
+        }
+        progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'))
+        logger.debug('openai.stream.usage', { modelId, usage: usageData })
+    }
+
     /**
      * Handle a single streamed delta chunk, emitting text and tool call parts.
      */
@@ -327,10 +334,9 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         delta: Record<string, unknown>,
         progress: Progress<LanguageModelResponsePart2>
     ): ResponseResult {
-        let emitted = false;
         const choice = (delta['choices'] as Record<string, unknown>[] | undefined)?.[0];
         if (!choice) {
-            return { emitted: false, finishReason: undefined, nativeFinishReason: undefined }
+            return { finishReason: undefined, nativeFinishReason: undefined }
         }
 
         const deltaObj = choice['delta'] as Record<string, unknown> | undefined;
@@ -363,7 +369,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
                     if (extractedText) {
                         this.bufferThinkingContent(extractedText, progress);
-                        emitted = true;
                     }
                 }
                 maybeThinking = null;
@@ -379,7 +384,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 }
                 if (text) {
                     this.bufferThinkingContent(text, progress)
-                    emitted = true
                 }
             }
         } catch (e) {
@@ -393,7 +397,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             const res = this.processTextContent(content, progress);
             if (res.emittedAny) {
                 this._hasEmittedAssistantText = true;
-                emitted = true;
             }
         }
 
@@ -434,7 +437,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             this.flushToolCallBuffers(progress, true);
         }
         const nativeFinishReason = choice['native_finish_reason'] as string | undefined
-        return { emitted, finishReason, nativeFinishReason }
+        return { finishReason, nativeFinishReason }
     }
 
 }

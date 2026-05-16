@@ -5,16 +5,6 @@ import { OpenCodeGoModelItem } from './types.js'
 import { tryParseJSONObject } from './utils.js'
 import { logger } from './logger.js';
 
-/**
- * Token usage information extracted from streaming response usage chunk.
- */
-export interface StreamUsage {
-    promptTokens: number;
-    completionTokens: number;
-    cacheHitTokens?: number | undefined;
-    cacheMissTokens?: number | undefined;
-}
-
 export interface APIUsage {
 	prompt_tokens: number;
 	completion_tokens: number;
@@ -40,9 +30,6 @@ export abstract class CommonApi<TMessage, TRequestBody> {
 
     /** Track if we emitted any text. */
     protected _unifiedText = '';
-
-    /** Track if we emitted any thinking text. */
-    protected _hasEmittedThinking = false;
 
     /** Track if we emitted the begin-tool-calls whitespace flush. */
     protected _emittedBeginToolCallsHint = false;
@@ -194,7 +181,6 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     }
 
     protected bufferThinkingContent(text: string, progress: Progress<LanguageModelResponsePart2>): void {
-        this._hasEmittedThinking = true;
         if (!this._currentThinkingId) {
             this._currentThinkingId = this.generateThinkingId();
         }

@@ -141,7 +141,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 requestBody = anthropicApi.prepareRequestBody(requestBody, um, options);
 
                 const url = `${BASE_URL}/messages`
-                logger.debug('request.body', { url, requestBody });
+                logger.trace('request.body', { url, requestBody })
                 const response = await executeWithRetry(async () => {
                     const res = await fetch(url, {
                         method: 'POST',
