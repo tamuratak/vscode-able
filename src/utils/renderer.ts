@@ -14,13 +14,13 @@ export async function renderMessages(
 
     for (const message of messages) {
         const roleHeader = getRoleHeader(message.role)
+        result.push('\n')
         result.push(roleHeader)
+        result.push('\n')
         const content = await renderMessageContent(message)
         result.push(...content)
-        result.push('') // Add empty line between messages
     }
-
-    return result.join('\n')
+    return result.join('')
 }
 
 export async function renderMessageContent(
@@ -32,18 +32,31 @@ export async function renderMessageContent(
         if (part instanceof LanguageModelTextPart) {
             result.push(part.value)
         } else if (part instanceof LanguageModelToolCallPart) {
+            result.push('\n')
             result.push(`**Tool Call: ${part.name} (${part.callId})**`)
+            result.push('\n')
             result.push('```json')
+            result.push('\n')
             result.push(JSON.stringify(part.input, null, 2))
+            result.push('\n')
             result.push('```')
+            result.push('\n')
         } else if ((part instanceof LanguageModelToolResultPart2) || (part instanceof LanguageModelToolResultPart)) {
+            result.push('\n')
             result.push(`**Tool Result (${part.callId}):**`)
+            result.push('\n')
             result.push('```')
+            result.push('\n')
             result.push(await renderToolResultPart(part))
+            result.push('\n')
             result.push('```')
-        } else {
-            // Skip LanguageModelDataPart or LanguageModelThinkingPart
-            // result.push('*[Data or Thinking part - not rendered]*')
+            result.push('\n')
+        } else if (part instanceof vscode.LanguageModelThinkingPart) {
+            if (typeof part.value === 'string') {
+                result.push(part.value)
+            } else if (Array.isArray(part.value)) {
+                result.push(part.value.join(''))
+            }
         }
     }
 

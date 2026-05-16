@@ -39,7 +39,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     protected _hasEmittedAssistantText = false;
 
     /** Track if we emitted any text. */
-    protected _hasEmittedText = false;
+    protected _unifiedText = '';
 
     /** Track if we emitted any thinking text. */
     protected _hasEmittedThinking = false;
@@ -49,12 +49,6 @@ export abstract class CommonApi<TMessage, TRequestBody> {
 
     // Thinking content state management
     protected _currentThinkingId: string | null = null;
-
-    /** Buffer for accumulating thinking content before emitting. */
-    protected _thinkingBuffer = '';
-
-    /** Timer for delayed flushing of thinking buffer. */
-    protected _thinkingFlushTimer: NodeJS.Timeout | null = null;
 
     /** System prompts to include in requests. */
     protected _systemContent: string | undefined;
@@ -188,26 +182,8 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         return parameters;
     }
 
-    /**
-     * Report to VS Code for ending thinking
-     * @param progress Progress reporter for parts
-     */
-    protected reportEndThinking(progress: Progress<LanguageModelResponsePart2>) {
-        if (!this._currentThinkingId) {
-            return;
-        }
-        try {
-            this.flushThinkingBuffer(progress);
-            progress.report(new LanguageModelThinkingPart('', this._currentThinkingId));
-        } catch (e) {
-            logger.error('[OpenCodeGo] Failed to end thinking sequence:', {error: e});
-        }
-        this._currentThinkingId = null;
-        this._thinkingBuffer = '';
-        if (this._thinkingFlushTimer) {
-            clearTimeout(this._thinkingFlushTimer);
-            this._thinkingFlushTimer = null;
-        }
+    protected endThinking() {
+        this._currentThinkingId = null
     }
 
     /**
@@ -217,41 +193,13 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         return `thinking_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     }
 
-    /**
-     * Buffer and schedule a flush for thinking content.
-     * @param text The thinking text to buffer
-     * @param progress Progress reporter for parts
-     */
     protected bufferThinkingContent(text: string, progress: Progress<LanguageModelResponsePart2>): void {
         this._hasEmittedThinking = true;
         if (!this._currentThinkingId) {
             this._currentThinkingId = this.generateThinkingId();
         }
-
-        this._thinkingBuffer += text;
-
-        if (!this._thinkingFlushTimer) {
-            this._thinkingFlushTimer = setTimeout(() => {
-                this.flushThinkingBuffer(progress);
-            }, 100);
-        }
-    }
-
-    /**
-     * Flush the thinking buffer to the progress reporter.
-     * @param progress Progress reporter for parts.
-     */
-    protected flushThinkingBuffer(progress: Progress<LanguageModelResponsePart2>): void {
-        if (this._thinkingFlushTimer) {
-            clearTimeout(this._thinkingFlushTimer);
-            this._thinkingFlushTimer = null;
-        }
-
-        if (this._thinkingBuffer && this._currentThinkingId) {
-            const text = this._thinkingBuffer;
-            this._thinkingBuffer = '';
-            progress.report(new LanguageModelThinkingPart(text, this._currentThinkingId));
-        }
+        this._unifiedText += text;
+        progress.report(new LanguageModelThinkingPart(text, this._currentThinkingId))
     }
 
     /**
@@ -268,6 +216,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
             return { emittedAny: false };
         }
         progress.report(new vscode.LanguageModelTextPart(content));
+        this._unifiedText += content;
         return { emittedAny: true };
     }
 

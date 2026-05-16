@@ -281,7 +281,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 			throw e;
 		} finally {
 			reader.releaseLock();
-			this.reportEndThinking(progress);
+			this.endThinking()
 		}
 	}
 
@@ -362,7 +362,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 		} else if (chunk.type === 'content_block_stop' || chunk.type === 'message_stop') {
 			// End of message - ensure thinking is ended and flush all tool calls
 			this.flushToolCallBuffers(progress, false);
-			this.reportEndThinking(progress);
+			this.endThinking()
 		}
 	}
 

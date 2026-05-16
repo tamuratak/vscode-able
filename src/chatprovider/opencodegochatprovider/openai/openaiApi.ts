@@ -6,6 +6,13 @@ import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText
 import { APIUsage, CommonApi, StreamUsage } from '../commonApi.js'
 import { chunkLogger, logger } from '../logger.js'
 
+
+export interface ResponseResult {
+    emitted: boolean;
+    finishReason: string | undefined;
+    nativeFinishReason: string | undefined;
+}
+
 export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unknown>> {
     constructor(modelId: string) {
         super(modelId);
@@ -219,6 +226,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         const decoder = new TextDecoder();
         let buffer = '';
         token.onCancellationRequested(() => reader.cancel().catch(() => undefined) )
+        let responseResult: ResponseResult | undefined
 
         try {
             while (true) {
@@ -286,10 +294,13 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                                 prompt_tokens_details: cacheHitTokens !== undefined && cacheMissTokens !== undefined ? { cached_tokens: cacheHitTokens, cache_creation_input_tokens: cacheMissTokens } : undefined
                             }
                             progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'));
-                            logger.debug('openai.stream.usage', { modelId, usage })
+                            logger.info('openai.stream.usage', { modelId, usage })
                         }
 
-                        this.processDelta(parsed, progress);
+                        const result = this.processDelta(parsed, progress)
+                        if (result.finishReason) {
+                            responseResult = result
+                        }
                     } catch (e) {
                         logger.error('openai.stream.chunk.error', {
                             modelId,
@@ -299,13 +310,13 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     }
                 }
             }
-            logger.debug('openai.stream.done', { modelId });
+            logger.info('openai.stream.done', { modelId, responseResult });
         } catch (e) {
             logger.error('openai.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
             throw e;
         } finally {
-            reader.releaseLock();
-            this.reportEndThinking(progress);
+            this.endThinking()
+            reader.releaseLock()
         }
     }
 
@@ -315,11 +326,11 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
     private processDelta(
         delta: Record<string, unknown>,
         progress: Progress<LanguageModelResponsePart2>
-    ): boolean {
+    ): ResponseResult {
         let emitted = false;
         const choice = (delta['choices'] as Record<string, unknown>[] | undefined)?.[0];
         if (!choice) {
-            return false;
+            return { emitted: false, finishReason: undefined, nativeFinishReason: undefined }
         }
 
         const deltaObj = choice['delta'] as Record<string, unknown> | undefined;
@@ -378,7 +389,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         if (deltaObj?.['content']) {
             const content = typeof deltaObj['content'] === 'string' ? deltaObj['content'] : JSON.stringify(deltaObj['content'])
 
-            this.reportEndThinking(progress);
+            this.endThinking()
             const res = this.processTextContent(content, progress);
             if (res.emittedAny) {
                 this._hasEmittedAssistantText = true;
@@ -387,7 +398,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         }
 
         if (deltaObj?.['tool_calls']) {
-            this.reportEndThinking(progress);
+            this.endThinking()
 
             const toolCalls = deltaObj['tool_calls'] as Record<string, unknown>[];
 
@@ -418,11 +429,12 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             }
         }
 
-        const finish = choice['finish_reason'] ?? undefined;
-        if (finish === 'tool_calls' || finish === 'stop') {
+        const finishReason = choice['finish_reason'] as string | undefined
+        if (finishReason === 'tool_calls' || finishReason === 'stop') {
             this.flushToolCallBuffers(progress, true);
         }
-        return emitted;
+        const nativeFinishReason = choice['native_finish_reason'] as string | undefined
+        return { emitted, finishReason, nativeFinishReason }
     }
 
 }

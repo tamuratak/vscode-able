@@ -34,6 +34,7 @@ interface BuiltInModelDef {
 
 /**
  * Built-in model definitions.
+ * ? https://models.dev/api.json
  */
 const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://docs.z.ai/api-reference/llm/chat-completion
