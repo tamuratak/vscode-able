@@ -204,7 +204,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     throw new Error('No response body from API');
                 }
 
-                messageLogger.info('\n## Progress Assistant Part\n')
+                messageLogger.info('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
                 await openaiApi.processStreamingResponse(response.body, trackingProgress, token);
             }
         } catch (err) {
