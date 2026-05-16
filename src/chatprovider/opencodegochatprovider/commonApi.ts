@@ -31,9 +31,6 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     /** Track if we emitted any text. */
     protected _unifiedText = '';
 
-    /** Track if we emitted any thinking text. */
-    protected _hasEmittedThinking = false;
-
     /** Track if we emitted the begin-tool-calls whitespace flush. */
     protected _emittedBeginToolCallsHint = false;
 
@@ -184,7 +181,6 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     }
 
     protected bufferThinkingContent(text: string, progress: Progress<LanguageModelResponsePart2>): void {
-        this._hasEmittedThinking = true;
         if (!this._currentThinkingId) {
             this._currentThinkingId = this.generateThinkingId();
         }
