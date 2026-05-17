@@ -43,6 +43,8 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         const requestStartTime = Date.now();
         const abortController = new AbortController();
         const requestTimeoutMs = 600000
+        const timeoutId = setTimeout(() => abortController.abort(), requestTimeoutMs);
+        token.onCancellationRequested(() => abortController.abort() )
 
         try {
             const umOrig: OpenCodeGoModelItem | undefined = getBuiltInModelConfig(model.id);
@@ -97,9 +99,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             }
 
             const modelApiKey = await this.ensureApiKey();
-            setTimeout(() => abortController.abort(), requestTimeoutMs);
-            token.onCancellationRequested(() => abortController.abort() )
-
             const requestHeaders = CommonApi.prepareHeaders(modelApiKey, apiMode, um.headers);
             logger.debug('request.headers', {
                 headers: logger.sanitizeHeaders(requestHeaders),
@@ -185,6 +184,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             });
             throw err;
         } finally {
+            clearTimeout(timeoutId)
             const durationMs = Date.now() - requestStartTime;
             logger.info('request.end', { modelId: model.id, durationMs });
             this._lastRequestTime = Date.now();
