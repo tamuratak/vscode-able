@@ -1,28 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import * as vscode from 'vscode'
-import type { RetryConfig } from './types.js'
 import { OpenAIFunctionToolDef } from './openai/openaiTypes.js'
-
-const RETRY_MAX_ATTEMPTS = 3;
-const RETRY_INTERVAL_MS = 1000;
-const RETRY_BACKOFF_FACTOR = 2;
-const RETRY_MAX_INTERVAL_MS = 60000;
-
-// HTTP status codes that should trigger a retry
-const RETRYABLE_STATUS_CODES = [429, 500, 502, 503, 504];
-
-// Network error patterns to retry
-const networkErrorPatterns = [
-    'fetch failed',
-    'ECONNRESET',
-    'ETIMEDOUT',
-    'ENOTFOUND',
-    'ECONNREFUSED',
-    'timeout',
-    'TIMEOUT',
-    'network error',
-    'NetworkError',
-];
 
 /**
  * Map VS Code message role to OpenAI message role string.
@@ -80,87 +58,6 @@ export function convertToolsToOpenAI(
     }
 
     return { tools, tool_choice: toolChoice };
-}
-
-/**
- * Create retry configuration from VS Code settings.
- */
-export function createRetryConfig(): RetryConfig {
-    const config = vscode.workspace.getConfiguration('opencodego.retry');
-    const enabled = config.get<boolean>('enabled', true);
-    const maxAttempts = config.get<number>('max_attempts', RETRY_MAX_ATTEMPTS);
-    const intervalMs = config.get<number>('interval_ms', RETRY_INTERVAL_MS);
-    const additionalStatusCodes = config.get<number[]>('status_codes', []);
-
-    return {
-        enabled,
-        maxAttempts,
-        intervalMs,
-        backoffFactor: RETRY_BACKOFF_FACTOR,
-        maxIntervalMs: RETRY_MAX_INTERVAL_MS,
-        statusCodes: [...RETRYABLE_STATUS_CODES, ...additionalStatusCodes],
-    };
-}
-
-/**
- * Execute an async function with retry logic.
- */
-export async function executeWithRetry<T>(
-    fn: () => Promise<T>,
-    retryConfig: RetryConfig
-): Promise<T> {
-    if (!retryConfig.enabled) {
-        return fn();
-    }
-
-    let lastError: Error | undefined;
-    let delay = retryConfig.intervalMs;
-
-    for (let attempt = 1; attempt <= retryConfig.maxAttempts; attempt++) {
-        try {
-            return await fn();
-        } catch (err) {
-            lastError = err instanceof Error ? err : new Error(String(err));
-
-            if (attempt === retryConfig.maxAttempts) {
-                break;
-            }
-
-            // Check if error is retryable
-            const isRetryable = isRetryableError(lastError, retryConfig.statusCodes);
-            if (!isRetryable) {
-                break;
-            }
-
-            // Wait before retrying
-            await new Promise<void>((resolve) => setTimeout(resolve, delay));
-
-            // Exponential backoff
-            delay = Math.min(delay * retryConfig.backoffFactor, retryConfig.maxIntervalMs);
-        }
-    }
-
-    throw lastError ?? new Error('Operation failed after maximum retry attempts');
-}
-
-function isRetryableError(error: Error, retryableStatusCodes: number[]): boolean {
-    const message = error.message.toLowerCase();
-
-    // Check network error patterns
-    for (const pattern of networkErrorPatterns) {
-        if (message.includes(pattern.toLowerCase())) {
-            return true;
-        }
-    }
-
-    // Check HTTP status codes in error message
-    for (const code of retryableStatusCodes) {
-        if (message.includes(`[${code}]`) || message.includes(`status ${code}`)) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 /**
