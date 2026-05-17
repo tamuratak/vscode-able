@@ -39,15 +39,3 @@ export interface OpenCodeGoModelItem {
     /** Custom HTTP headers */
     headers?: Record<string, string>;
 }
-
-/**
- * Retry configuration.
- */
-export interface RetryConfig {
-    enabled: boolean;
-    maxAttempts: number;
-    intervalMs: number;
-    backoffFactor: number;
-    maxIntervalMs: number;
-    statusCodes: number[];
-}
