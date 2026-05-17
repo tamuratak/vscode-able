@@ -155,18 +155,15 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         if (toolName !== 'read_file') {
             return parameters;
         }
-        const config = vscode.workspace.getConfiguration();
-        const defaultLines = config.get<number>('opencodego.readFileLines', 0);
-        if (defaultLines <= 0) {
-            return parameters;
-        }
+        const defaultLines = 500
 
         const startLine = typeof parameters['startLine'] === 'number' ? parameters['startLine'] : 1;
         const endLine = typeof parameters['endLine'] === 'number' ? parameters['endLine'] : startLine;
-        if (endLine < startLine + defaultLines) {
+        if (startLine === 1 && endLine < startLine + defaultLines) {
             return { ...parameters, endLine: startLine + defaultLines };
+        } else {
+            return parameters
         }
-        return parameters;
     }
 
     protected endThinking() {
