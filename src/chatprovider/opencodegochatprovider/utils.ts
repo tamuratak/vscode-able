@@ -46,7 +46,7 @@ export function convertToolsToOpenAI(
     // Determine tool_choice mode
     const toolMode = (options?.modelOptions as Record<string, unknown> | undefined)?.['toolMode'] as string | undefined;
 
-    let toolChoice: string | undefined;
+    let toolChoice: 'required' | 'none' | 'auto' = 'auto'
     if (toolMode === 'required') {
         toolChoice = 'required';
     } else if (toolMode === 'none') {
