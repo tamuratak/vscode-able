@@ -6,16 +6,14 @@ import { OpenAIFunctionToolDef } from './openai/openaiTypes.js'
  * Map VS Code message role to OpenAI message role string.
  */
 export function mapRole(message: vscode.LanguageModelChatRequestMessage): 'user' | 'assistant' | 'system' {
-    const USER = vscode.LanguageModelChatMessageRole.User as unknown as number;
-    const ASSISTANT = vscode.LanguageModelChatMessageRole.Assistant as unknown as number;
-    const r = message.role as unknown as number;
-    if (r === USER) {
+    const role = message.role
+    if (role === vscode.LanguageModelChatMessageRole.User) {
         return 'user';
-    }
-    if (r === ASSISTANT) {
+    } else if (role === vscode.LanguageModelChatMessageRole.Assistant) {
         return 'assistant';
+    } else {
+        return 'system';
     }
-    return 'system';
 }
 
 /**
