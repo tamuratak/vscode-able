@@ -1,2 +1,2 @@
-export { GeminiChatProvider } from './chatproviderlib/geminichatprovider.js'
+export { GeminiChatProvider } from './geminichatprovider/geminichatprovider.js'
 export { OpenCodeGoChatModelProvider } from './opencodegochatprovider/provider.js'
