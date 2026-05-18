@@ -2,9 +2,9 @@ import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatMessage, ProvideLanguageModelChatResponseOptions, Progress, LanguageModelChatInformation, LanguageModelChatProvider } from 'vscode'
 import { debugObj } from '../../utils/debug.js'
 import { renderMessageWithTag } from '../../utils/renderer.js'
-import { tokenLength } from '../chatproviderlib/openaicompatchatproviderlib/tokencount.js'
 import { executeGeminiCliCommand } from '../../utils/geminicli.js'
 import { Attachment, replaceInstsInSystemPrompt, tweakUserPrompt } from './utils.js'
+import { countMessageTokens } from '../opencodegochatprovider/provideToken.js'
 
 
 export class GeminiCliChatProvider implements LanguageModelChatProvider<LanguageModelChatInformation> {
@@ -84,7 +84,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
     }
 
     async provideTokenCount(_model: LanguageModelChatInformation, text: string | LanguageModelChatMessage | vscode.LanguageModelChatMessage2): Promise<number> {
-        return tokenLength(text)
+        return countMessageTokens(text, { includeReasoningInRequest: true })
     }
 
     private async generateContext(messages: (LanguageModelChatMessage | vscode.LanguageModelChatMessage2)[]) {

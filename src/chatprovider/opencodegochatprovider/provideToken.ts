@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { LanguageModelChatRequestMessage, LanguageModelChatTool } from 'vscode'
+import { LanguageModelChatTool } from 'vscode'
 import { tokenizerManager } from './tokenizer/tokenizerManager.js'
 import { getImageDimensions } from './tokenizer/imageUtils.js'
 import { createDataUrl } from './utils.js'
@@ -8,8 +8,8 @@ export const BaseTokensPerMessage = 3;
 export const BaseTokensPerName = 1;
 
 export async function countMessageTokens(
-    text: string | LanguageModelChatRequestMessage,
-    modelConfig: { includeReasoningInRequest: boolean }
+    text: string | { content: readonly unknown[] },
+    modelConfig: { includeReasoningInRequest: boolean } = { includeReasoningInRequest: true }
 ): Promise<number> {
     if (typeof text === 'string') {
         return textTokenLength(text);
