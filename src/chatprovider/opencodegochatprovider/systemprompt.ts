@@ -16,7 +16,8 @@ export function tweakSystemPrompt(
 
             newContent = newContent.replace(/<instructions>\nYou are a highly sophisticated.*?<\/instructions>/s, codingAgentInstructionsPart)
             newContent = newContent.replace(/<toolUseInstructions>.*?<\/toolUseInstructions>/s, toolUseInstructionsPart)
-            newContent = newContent.replace(/<outputFormatting>.*?<\/memoryInstructions>/s, newAdditionalPromptPart)
+            newContent = newContent.replace(/<outputFormatting>.*?<\/outputFormatting>/s, newAdditionalPromptPart)
+            newContent = newContent.replace(/<memoryInstructions>.*?<\/memoryInstructions>/s, '')
 
             newMessages.push({ ...msg, content: [new LanguageModelTextPart(newContent)] })
         } else {
@@ -27,7 +28,7 @@ export function tweakSystemPrompt(
 }
 
 const codingAgentInstructionsPart =
-`<coding_agent_instructions>
+`<instructions>
 You are a highly sophisticated automated coding agent with expert-level knowledge across many different programming languages and frameworks.
 The user will ask a question, or ask you to perform a task, and it may require lots of research to answer correctly. There is a selection of tools that let you perform actions or retrieve helpful context to answer the user's question.
 You will be given some context and attachments along with the user prompt. You can use them if they are relevant to the task, and ignore them if not. You can use the read_file tool to read more context if needed.
@@ -39,7 +40,7 @@ Think creatively and explore the workspace in order to make a complete fix.
 Don't repeat yourself after a tool call, pick up where you left off.
 NEVER print out a codeblock with file changes unless the user asked for it. Use the appropriate edit tool instead.
 You don't need to read a file if it's already provided in context.
-</coding_agent_instructions>`
+</instructions>`
 
 const toolUseInstructionsPart =
 `<tool_use_instructions>
@@ -111,13 +112,13 @@ Never fabricate exact figures, line numbers, or external references when you are
 When unsure, prefer language like "Based on the provided context…" instead of absolute claims.
 When external facts may have changed recently and no tools are available, answer in general terms and state that details may have changed.
 </uncertainty_and_ambiguity>
-<highRisk_self_check>
+<high_risk_self_check>
 Before finalizing an answer in legal, financial, compliance, or safety-sensitive contexts, briefly re-scan your own answer for:
 - Unstated assumptions
 - Specific numbers or claims not grounded in context
 - Overly strong language ("always", "guaranteed", etc.)
 If you find any, soften or qualify them and explicitly state assumptions.
-</highRisk_self_check>
+</high_risk_self_check>
 <formatting_rules>
 You may format with GitHub-flavored Markdown.
 - Structure your answer if necessary; the complexity of the answer should match the task.
