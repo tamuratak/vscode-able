@@ -66,16 +66,19 @@ export function activate(context: vscode.ExtensionContext) {
     const extension = new Extension(context)
     const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
     const openCodeGoAuthProvider = new OpenCodeGoApiKeyAuthenticationProvider(extension, context.secrets)
-    // non stable API used
+    const geminiCliChatProvider = new GeminiCliChatProvider(extension)
+    const runInSandbox = new RunInSandbox()
     try {
         context.subscriptions.push(
+            geminiCliChatProvider,
             vscode.lm.registerLanguageModelChatProvider('gemini_with_able', new GeminiChatProvider(extension)),
-            vscode.lm.registerLanguageModelChatProvider('geminicli_with_able', new GeminiCliChatProvider(extension)),
+            vscode.lm.registerLanguageModelChatProvider('geminicli_with_able', geminiCliChatProvider),
             vscode.lm.registerLanguageModelChatProvider('opencodego_with_able', new OpenCodeGoChatModelProvider()),
         )
     } catch { }
     context.subscriptions.push(
         extension,
+        runInSandbox,
         geminiAuthProvider,
         vscode.authentication.registerAuthenticationProvider(geminiAuthProvider.serviceId, geminiAuthProvider.label, geminiAuthProvider),
         vscode.authentication.registerAuthenticationProvider(openCodeGoAuthProvider.serviceId, openCodeGoAuthProvider.label, openCodeGoAuthProvider),
@@ -99,7 +102,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_fetch_webpage', new FetchWebPageTool(extension)),
         vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove(extension)),
         vscode.lm.registerTool('able_web_search', new WebSearchTool(extension)),
-        vscode.lm.registerTool('able_runInSandbox', new RunInSandbox(extension)),
+        vscode.lm.registerTool('able_runInSandbox', runInSandbox),
         vscode.lm.registerTool('able_playwrightExec', extension.playwrightExecTool),
         vscode.lm.registerTool('able_playwrightExecReset', new PlaywrightExecResetTool(extension.playwrightExecTool)),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
