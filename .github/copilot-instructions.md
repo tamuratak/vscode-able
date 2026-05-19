@@ -43,3 +43,7 @@ Please refer to the following instructions only when generating the code. Ignore
 
 - When using the `apply_patch` tool, please note that `Delete File` is not supported.
 - When replacing the whole content of a file, don't use the `apply_patch` tool. Use the `cat` command directly instead of the `apply_patch` tool.
+
+## tree-sitter
+
+To verify the operation of tree-sitter, edit and run dev/debugtreesitter.mjs.
