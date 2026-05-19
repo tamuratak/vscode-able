@@ -207,4 +207,28 @@ EOF`
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
         assert.strictEqual(ok, false)
     })
+
+    test('allows > redirection to /dev/null', async () => {
+        const cmd = 'echo hello > /dev/null'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows rg with > /dev/null redirection', async () => {
+        const cmd = 'rg pattern file.txt > /dev/null'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows 2>&1 with > /dev/null redirection', async () => {
+        const cmd = 'rg pattern file.txt > /dev/null 2>&1'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows > redirection to regular file even with /dev/null', async () => {
+        const cmd = 'echo hello > output.txt > /dev/null'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
 })

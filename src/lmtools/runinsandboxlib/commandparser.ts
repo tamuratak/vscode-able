@@ -115,8 +115,23 @@ function unescapeQuotes(value: string): string {
 }
 
 
-const redirectQuerySource = '(file_redirect ">") (file_redirect ">>")'
+const redirectQuerySource = '(file_redirect) @redirect'
 let readirectQuery: treeSitter.Query | undefined
+
+function isWriteRedirect(node: treeSitter.Node, source: string): boolean {
+    const text = getNodeText(node, source)
+    // Match > or >> optionally preceded by a file descriptor (e.g. 2>)
+    // but not >& which is a file descriptor duplication (e.g. 2>&1)
+    return /\d?>>(?!\s*&)|\d?>(?!\s*[>&])/.test(text)
+}
+
+function isRedirectToDevNull(node: treeSitter.Node, source: string): boolean {
+    const targetNode = node.namedChild(0)
+    if (!targetNode) {
+        return false
+    }
+    return normalizeToken(getNodeText(targetNode, source)) === '/dev/null'
+}
 
 export async function hasNoWriteRedirection(source: string): Promise<boolean> {
     await parserInitialization
@@ -134,10 +149,16 @@ export async function hasNoWriteRedirection(source: string): Promise<boolean> {
 
     try {
         const matches = readirectQuery.matches(tree.rootNode)
-        if (matches.length === 0) {
-            return true
+        for (const match of matches) {
+            for (const capture of match.captures) {
+                if (capture.name === 'redirect' && isWriteRedirect(capture.node, source)) {
+                    if (!isRedirectToDevNull(capture.node, source)) {
+                        return false
+                    }
+                }
+            }
         }
-        return false
+        return true
     } finally {
         tree.delete()
     }
