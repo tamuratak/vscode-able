@@ -7,7 +7,7 @@ import { Attachment, replaceInstsInSystemPrompt, tweakUserPrompt } from './utils
 import { countMessageTokens } from '../opencodegochatprovider/provideToken.js'
 
 
-export class GeminiCliChatProvider implements LanguageModelChatProvider<LanguageModelChatInformation> {
+export class GeminiCliChatProvider implements LanguageModelChatProvider<LanguageModelChatInformation>, vscode.Disposable {
     private readonly aiModelIds = [
         ['gemini-3-pro-preview', 'Gemini 3 Pro'],
         ['gemini-3-flash-preview', 'Gemini 3 Flash'],
@@ -15,14 +15,16 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         ['gemini-2.5-flash', 'Gemini 2.5 Flash'],
         ['gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite']
     ] as const
+    private readonly outputChannel = vscode.window.createOutputChannel('vscode-able: Gemini Cli', { log: true })
 
     constructor(
         private readonly extension: {
-            readonly outputChannel: vscode.LogOutputChannel,
             readonly extensionUri: vscode.Uri
         }
-    ) {
-        this.extension.outputChannel.info('Gemini CLI chat provider initialized')
+    ) { }
+
+    dispose() {
+        this.outputChannel.dispose()
     }
 
     provideLanguageModelChatInformation(): LanguageModelChatInformation[] {
@@ -58,27 +60,27 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
         progress: Progress<vscode.LanguageModelResponsePart2>,
         token: CancellationToken
     ) {
-        debugObj('Gemini CLI Chat model: ', model, this.extension.outputChannel)
-        debugObj('Gemini CLI Chat user prompt: ', messages[messages.length - 1], this.extension.outputChannel)
+        debugObj('Gemini CLI Chat model: ', model, this.outputChannel)
+        debugObj('Gemini CLI Chat user prompt: ', messages[messages.length - 1], this.outputChannel)
         const newPrompt = await this.generateContext(messages)
-        debugObj('Gemini CLI Chat full prompt:\n', newPrompt, this.extension.outputChannel)
+        debugObj('Gemini CLI Chat full prompt:\n', newPrompt, this.outputChannel)
         const systemPromptPath = vscode.Uri.joinPath(this.extension.extensionUri, './lib/geminicli/system.md').fsPath
-        debugObj('Gemini CLI Chat system prompt path: ', systemPromptPath, this.extension.outputChannel)
+        debugObj('Gemini CLI Chat system prompt path: ', systemPromptPath, this.outputChannel)
         let ret = ''
         const lineProgress = (line: string) => {
             progress.report(new vscode.LanguageModelTextPart(line))
             ret += line
         }
         const errorProgress = (line: string) => {
-            debugObj('Gemini CLI Chat error line: ', line, this.extension.outputChannel)
+            debugObj('Gemini CLI Chat error line: ', line, this.outputChannel)
         }
         const { error, usage } = await executeGeminiCliCommand(newPrompt, model.id, systemPromptPath, token, lineProgress, errorProgress)
-        debugObj('Gemini CLI Chat reply:\n', ret, this.extension.outputChannel)
+        debugObj('Gemini CLI Chat reply:\n', ret, this.outputChannel)
         if (error) {
-            debugObj('Gemini CLI Chat error: ', error, this.extension.outputChannel)
+            debugObj('Gemini CLI Chat error: ', error, this.outputChannel)
         }
         if (usage) {
-            debugObj('Gemini CLI Chat usage: ', usage, this.extension.outputChannel)
+            debugObj('Gemini CLI Chat usage: ', usage, this.outputChannel)
         }
         return Promise.resolve()
     }
@@ -139,7 +141,7 @@ export class GeminiCliChatProvider implements LanguageModelChatProvider<Language
                 result.push(newContentStr)
                 result.push('</attachment>')
             } catch (err) {
-                this.extension.outputChannel.error(`Failed to read attachment file: ${attachment.filePath}`, err as Error)
+                this.outputChannel.error(`Failed to read attachment file: ${attachment.filePath}`, err as Error)
             }
         }
         result.push('</attachments>')

@@ -81,7 +81,7 @@ class MessageLogger {
                 renderMessageContent({ content: [value] }).then(contents => {
                     const rendered = contents.join('')
                     if ((value instanceof vscode.LanguageModelTextPart && capturedPrev instanceof vscode.LanguageModelThinkingPart) || (value instanceof vscode.LanguageModelThinkingPart && capturedPrev instanceof vscode.LanguageModelTextPart)) {
-                        this._outputChannel.append('\n')
+                        this._outputChannel.append('\n\n')
                     }
                     this._outputChannel.append(rendered)
                 }).catch(err => {

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult, LogOutputChannel } from 'vscode'
+import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult } from 'vscode'
 import { spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
@@ -18,16 +18,16 @@ export interface RunInSandboxInput {
     explanation: string
 }
 
-export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
+export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscode.Disposable {
     readonly tmpDir = this.setupTmpDir()
+    private readonly outputChannel = vscode.window.createOutputChannel('vscode-able: RunInSandbox', { log: true })
 
-    constructor(
-        private readonly extension: {
-            readonly outputChannel: LogOutputChannel
-        }
-    ) {
-        this.extension.outputChannel.info('[RunInSandbox]: RunInSandbox created')
+    constructor() {
         this.setupTmpDir()
+    }
+
+    dispose() {
+        this.outputChannel.dispose()
     }
 
     private setupTmpDir(): string {
@@ -47,7 +47,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
                 invocationMessage: 'Run command by using sandbox-exec'
             }
         }
-        debugObj('RunInSandbox prepareInvocation args: ', options.input, this.extension.outputChannel)
+        debugObj('RunInSandbox prepareInvocation args: ', options.input, this.outputChannel)
         const foundCodes = await findScripts(options.input.command)
         let codesInMessage = ''
         if (foundCodes.length > 0) {
@@ -67,25 +67,25 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
     async invoke(options: LanguageModelToolInvocationOptions<RunInSandboxInput>, token: CancellationToken) {
         // Validate environment
         if (process.platform !== 'darwin') {
-            this.extension.outputChannel.error('[RunInSandbox]: macOS only. sandbox-exec is unavailable on this platform')
+            this.outputChannel.error('[RunInSandbox]: macOS only. sandbox-exec is unavailable on this platform')
             throw new Error('[RunInSandbox]: This tool requires macOS (sandbox-exec)')
         }
 
         const seatbeltPath = '/usr/bin/sandbox-exec'
         if (!fs.existsSync(seatbeltPath)) {
-            this.extension.outputChannel.error('[RunInSandbox]: /usr/bin/sandbox-exec not found')
+            this.outputChannel.error('[RunInSandbox]: /usr/bin/sandbox-exec not found')
             throw new Error('[RunInSandbox]: sandbox-exec not found')
         }
 
         const command = options.input.command.trim()
         if (!command) {
-            this.extension.outputChannel.error('[RunInSandbox]: command is empty')
+            this.outputChannel.error('[RunInSandbox]: command is empty')
             throw new Error('[RunInSandbox]: command is empty')
         }
 
         const workspaceDirs = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? undefined
         if (!workspaceDirs || workspaceDirs.length === 0) {
-            this.extension.outputChannel.error('[RunInSandbox]: no workspace folders')
+            this.outputChannel.error('[RunInSandbox]: no workspace folders')
             throw new Error('[RunInSandbox]: no workspace folders')
         }
         const workspaceDirsWorkTrees = workspaceDirs.map(dir => `${dir}.worktrees`)
@@ -129,7 +129,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
     ) {
         const args = ['-p', policy, ...params, '--', '/bin/bash', '-c', command]
 
-        this.extension.outputChannel.info(`[RunInSandbox]: invoking in sandbox: ${command}`)
+        this.outputChannel.info(`[RunInSandbox]: invoking in sandbox: ${command}`)
 
         const stdoutChunks: string[] = []
         const stderrChunks: string[] = []
@@ -142,7 +142,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             TMPDIR: this.tmpDir,
             GIT_PAGER: 'cat' // Disable git pager to avoid hanging
         }
-        debugObj('RunInSandbox args: ', { args, cwd: workspaceDirs[0], env: minimalEnv }, this.extension.outputChannel)
+        debugObj('RunInSandbox args: ', { args, cwd: workspaceDirs[0], env: minimalEnv }, this.outputChannel)
         const child = spawn(seatbeltPath, args, {
             stdio: ['ignore', 'pipe', 'pipe'],
             shell: false,
@@ -162,7 +162,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             }
         }
         const subscription = token.onCancellationRequested(() => {
-            this.extension.outputChannel.warn('[RunInSandbox]: cancellation requested, killing sandboxed process group')
+            this.outputChannel.warn('[RunInSandbox]: cancellation requested, killing sandboxed process group')
             killGroup()
         })
 
@@ -185,9 +185,9 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
         const stdout = stdoutChunks.join('')
         const stderr = stderrChunks.join('') ?? commandError?.message
 
-        debugObj('RunInSandbox stdout: ', stdout, this.extension.outputChannel)
-        debugObj('RunInSandbox stderr: ', stderr, this.extension.outputChannel)
-        debugObj('RunInSandbox exit code: ', { code: exitCode, signal, commandError }, this.extension.outputChannel)
+        debugObj('RunInSandbox stdout: ', stdout, this.outputChannel)
+        debugObj('RunInSandbox stderr: ', stderr, this.outputChannel)
+        debugObj('RunInSandbox exit code: ', { code: exitCode, signal, commandError }, this.outputChannel)
 
         return { stdout, stderr, exitCode, signal }
     }
@@ -344,22 +344,22 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             const valid: string[] = []
             for (const entry of raw) {
                 if (typeof entry !== 'string') {
-                    this.extension.outputChannel.warn('[RunInSandbox]: ignoring non-string entry in allowedFileReadDirectories')
+                    this.outputChannel.warn('[RunInSandbox]: ignoring non-string entry in allowedFileReadDirectories')
                     continue
                 }
                 if (entry === '') {
-                    this.extension.outputChannel.warn('[RunInSandbox]: ignoring empty string in allowedFileReadDirectories')
+                    this.outputChannel.warn('[RunInSandbox]: ignoring empty string in allowedFileReadDirectories')
                     continue
                 }
                 if (!path.isAbsolute(entry)) {
-                    this.extension.outputChannel.warn(`[RunInSandbox]: ignoring non-absolute path in allowedFileReadDirectories: ${entry}`)
+                    this.outputChannel.warn(`[RunInSandbox]: ignoring non-absolute path in allowedFileReadDirectories: ${entry}`)
                     continue
                 }
                 valid.push(entry)
             }
             return valid
         } catch {
-            this.extension.outputChannel.warn('[RunInSandbox]: failed to read configured allowedFileReadDirectories')
+            this.outputChannel.warn('[RunInSandbox]: failed to read configured allowedFileReadDirectories')
             return undefined
         }
     }
@@ -374,22 +374,22 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput> {
             const valid: string[] = []
             for (const entry of raw) {
                 if (typeof entry !== 'string') {
-                    this.extension.outputChannel.warn('[RunInSandbox]: ignoring non-string entry in allowedReadWriteDirectories')
+                    this.outputChannel.warn('[RunInSandbox]: ignoring non-string entry in allowedReadWriteDirectories')
                     continue
                 }
                 if (entry === '') {
-                    this.extension.outputChannel.warn('[RunInSandbox]: ignoring empty string in allowedReadWriteDirectories')
+                    this.outputChannel.warn('[RunInSandbox]: ignoring empty string in allowedReadWriteDirectories')
                     continue
                 }
                 if (!path.isAbsolute(entry)) {
-                    this.extension.outputChannel.warn(`[RunInSandbox]: ignoring non-absolute path in allowedReadWriteDirectories: ${entry}`)
+                    this.outputChannel.warn(`[RunInSandbox]: ignoring non-absolute path in allowedReadWriteDirectories: ${entry}`)
                     continue
                 }
                 valid.push(entry)
             }
             return valid
         } catch {
-            this.extension.outputChannel.warn('[RunInSandbox]: failed to read configured allowedReadWriteDirectories')
+            this.outputChannel.warn('[RunInSandbox]: failed to read configured allowedReadWriteDirectories')
             return undefined
         }
     }
