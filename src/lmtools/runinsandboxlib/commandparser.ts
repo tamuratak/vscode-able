@@ -118,11 +118,23 @@ function unescapeQuotes(value: string): string {
 const redirectQuerySource = '(file_redirect) @redirect'
 let readirectQuery: treeSitter.Query | undefined
 
-function isWriteRedirect(node: treeSitter.Node, source: string): boolean {
-    const text = getNodeText(node, source)
-    // Match > or >> optionally preceded by a file descriptor (e.g. 2>)
-    // but not >& which is a file descriptor duplication (e.g. 2>&1)
-    return /\d?>>(?!\s*&)|\d?>(?!\s*[>&])/.test(text)
+function isWriteRedirect(node: treeSitter.Node): boolean {
+    for (let i = 0; i < node.childCount; i += 1) {
+        const child = node.child(i)
+        if (!child || child.isNamed) {
+            continue
+        }
+        if (child.type === '>' || child.type === '>>') {
+            return true
+        }
+        // >& writes to a file when the target is a word, not a number (FD duplication like 2>&1)
+        if (child.type === '>&') {
+            if (node.children.find(ch => ch?.type === 'word')) {
+                return true
+            }
+        }
+    }
+    return false
 }
 
 function isRedirectToDevNull(node: treeSitter.Node, source: string): boolean {
@@ -151,7 +163,7 @@ export async function hasNoWriteRedirection(source: string): Promise<boolean> {
         const matches = readirectQuery.matches(tree.rootNode)
         for (const match of matches) {
             for (const capture of match.captures) {
-                if (capture.name === 'redirect' && isWriteRedirect(capture.node, source)) {
+                if (capture.name === 'redirect' && isWriteRedirect(capture.node)) {
                     if (!isRedirectToDevNull(capture.node, source)) {
                         return false
                     }

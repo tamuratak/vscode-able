@@ -231,4 +231,16 @@ EOF`
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
         assert.strictEqual(ok, false)
     })
+
+    test('disallows >& redirection to regular file even with /dev/null', async () => {
+        const cmd = 'echo hello >& output.txt > /dev/null'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows >& redirection to regular file even with /dev/null', async () => {
+        const cmd = 'echo hello >& output.txt 2 > /dev/null'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
 })
