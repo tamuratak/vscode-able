@@ -71,7 +71,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 }
 
                 if (modelConfig.includeReasoningInRequest) {
-                    assistantMessage.reasoning_content = joinedThinking || 'Next step.';
+                    assistantMessage.reasoning_content = joinedThinking
                 }
 
                 if (toolCalls.length > 0) {
@@ -278,10 +278,21 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             throw e;
         } finally {
             this.endThinking()
+            this.emitFallbackResponseIfNeeded(responseResult, progress)
             reader.releaseLock()
         }
     }
 
+    private emitFallbackResponseIfNeeded(responseResult: ResponseResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
+        if (responseResult?.finishReason === 'stop' && !this._hasEmittedAssistantText) {
+            progress.report(
+                new vscode.LanguageModelTextPart2(
+                    this._unifiedText,
+                    [vscode.LanguageModelPartAudience.User]
+                )
+            )
+        }
+    }
 
     private processUsage(
         parsed: Record<string, unknown>,
