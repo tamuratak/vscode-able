@@ -98,10 +98,6 @@
         "displayName": "Gemini with Able"
       },
       {
-        "vendor": "geminicli_with_able",
-        "displayName": "Gemini CLI with Able"
-      },
-      {
         "vendor": "opencodego_with_able",
         "displayName": "OpenCode Go with Able"
       }

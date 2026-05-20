@@ -4,7 +4,7 @@ import { registerCommands } from './commands.js'
 import { MochaJsonTaskProvider } from './task/task.js'
 import { TaskWatcher } from './task/taskwatcher.js'
 import { GeminiApiKeyAuthenticationProvider, OpenCodeGoApiKeyAuthenticationProvider } from './auth/authproviders.js'
-import { GeminiChatProvider, GeminiCliChatProvider, OpenCodeGoChatModelProvider } from './chatprovider/chatprovider.js'
+import { GeminiChatProvider, OpenCodeGoChatModelProvider } from './chatprovider/chatprovider.js'
 import { WebSearchTool } from './lmtools/websearch.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
 import { renderToolResult } from './utils/toolresultrendering.js'
@@ -66,13 +66,10 @@ export function activate(context: vscode.ExtensionContext) {
     const extension = new Extension(context)
     const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
     const openCodeGoAuthProvider = new OpenCodeGoApiKeyAuthenticationProvider(extension, context.secrets)
-    const geminiCliChatProvider = new GeminiCliChatProvider(extension)
     const runInSandbox = new RunInSandbox()
     try {
         context.subscriptions.push(
-            geminiCliChatProvider,
             vscode.lm.registerLanguageModelChatProvider('gemini_with_able', new GeminiChatProvider(extension)),
-            vscode.lm.registerLanguageModelChatProvider('geminicli_with_able', geminiCliChatProvider),
             vscode.lm.registerLanguageModelChatProvider('opencodego_with_able', new OpenCodeGoChatModelProvider()),
         )
     } catch { }
