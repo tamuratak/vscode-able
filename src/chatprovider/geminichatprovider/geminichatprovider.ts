@@ -58,10 +58,6 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                 }
                 result.push({
                     id,
-                    category: {
-                        label: 'Gemini (with Able)',
-                        order: 1000
-                    },
                     detail: 'Able',
                     name: model.displayName ?? id,
                     family: id,
@@ -74,7 +70,8 @@ export class GeminiChatProvider implements LanguageModelChatProvider<GeminiChatI
                         toolCalling: id.startsWith('gemini'),
                         imageInput: true
                     },
-                    model
+                    model,
+                    isUserSelectable: true
                 })
             }
             debugObj('Gemini (with Able) available models: ', modelList, this.extension.outputChannel)
