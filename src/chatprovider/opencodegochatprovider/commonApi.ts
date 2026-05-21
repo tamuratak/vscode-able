@@ -110,6 +110,18 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         }
     }
 
+    protected warnIfToolCallBuffersNotEmpty(state: string) {
+        if (this._toolCallBuffers.size > 0) {
+            logger.warn(
+                `[OpenCodeGo] Tool call buffers are not empty when ${state}`,
+                {
+                    bufferedIndices: Array.from(this._toolCallBuffers.keys()),
+                    count: this._toolCallBuffers.size,
+                }
+            )
+        }
+    }
+
     /**
      * Adjust read_file tool parameters to default to reading configurable number of lines.
      * @param toolName The name of the tool being called.

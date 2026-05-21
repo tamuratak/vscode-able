@@ -252,8 +252,8 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     const data = line.slice(5).trim()
                     chunkLogger.trace('openai.stream.chunk', { modelId, data })
                     if (data === '[DONE]') {
-                        this.flushToolCallBuffers(progress);
-                        continue;
+                        this.warnIfToolCallBuffersNotEmpty('[DONE] received')
+                        break
                     }
 
                     try {
