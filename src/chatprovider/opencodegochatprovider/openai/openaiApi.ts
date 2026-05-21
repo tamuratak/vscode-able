@@ -252,8 +252,8 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     const data = line.slice(5).trim()
                     chunkLogger.trace('openai.stream.chunk', { modelId, data })
                     if (data === '[DONE]') {
-                        this.flushToolCallBuffers(progress, false);
-                        continue;
+                        this.warnIfToolCallBuffersNotEmpty('[DONE] received')
+                        break
                     }
 
                     try {
@@ -445,14 +445,15 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     buf.args += func['arguments'];
                 }
                 this._toolCallBuffers.set(idx, buf);
-
-                this.tryEmitBufferedToolCall(idx, progress);
             }
         }
 
         const finishReason = choice['finish_reason'] as string | undefined
         if (finishReason === 'tool_calls' || finishReason === 'stop') {
-            this.flushToolCallBuffers(progress, true);
+            if (finishReason === 'stop') {
+                this.warnIfToolCallBuffersNotEmpty('finish_reason: stop received')
+            }
+            this.flushToolCallBuffers(progress)
         }
         const nativeFinishReason = choice['native_finish_reason'] as string | undefined
         return { finishReason, nativeFinishReason }

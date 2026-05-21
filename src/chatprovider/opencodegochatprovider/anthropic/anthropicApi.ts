@@ -259,8 +259,8 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 					const data = line.slice(5).trim()
 					chunkLogger.trace('anthropic.stream.chunk', { modelId, data })
 					if (data === '[DONE]') {
-						this.flushToolCallBuffers(progress, false);
-						continue;
+						this.warnIfToolCallBuffersNotEmpty('[DONE] received')
+						break
 					}
 
 					try {
@@ -354,14 +354,13 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 				if (buf) {
 					buf.args += chunk.delta.partial_json;
 					this._toolCallBuffers.set(idx, buf);
-					this.tryEmitBufferedToolCall(idx, progress);
 				}
 			} else if (chunk.delta.type === 'signature_delta' && chunk.delta.signature) {
 				// Signature for thinking block - ignore for now
 			}
 		} else if (chunk.type === 'content_block_stop' || chunk.type === 'message_stop') {
 			// End of message - ensure thinking is ended and flush all tool calls
-			this.flushToolCallBuffers(progress, false);
+			this.flushToolCallBuffers(progress)
 			this.endThinking()
 		}
 	}
