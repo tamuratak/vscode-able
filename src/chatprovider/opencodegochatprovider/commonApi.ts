@@ -113,12 +113,8 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     /**
      * Flush all buffered tool calls, optionally throwing if arguments are not valid JSON.
      * @param progress Progress reporter for parts.
-     * @param throwOnInvalid If true, throw when a tool call has invalid JSON args.
      */
-    protected flushToolCallBuffers(
-        progress: Progress<LanguageModelResponsePart2>,
-        throwOnInvalid: boolean
-    ) {
+    protected flushToolCallBuffers(progress: Progress<LanguageModelResponsePart2>) {
         if (this._toolCallBuffers.size === 0) {
             return;
         }
@@ -126,14 +122,11 @@ export abstract class CommonApi<TMessage, TRequestBody> {
             const argsText = buf.args.trim() || '{}';
             const parsed = tryParseJSONObject(argsText);
             if (!parsed.ok) {
-                if (throwOnInvalid) {
-                    logger.error('[OpenCodeGo] Invalid JSON for tool call', {
-                        idx,
-                        snippet: (buf.args || '').slice(0, 200),
-                    });
-                    throw new Error('Invalid JSON for tool call');
-                }
-                continue;
+                logger.error('[OpenCodeGo] Invalid JSON for tool call', {
+                    idx,
+                    snippet: (buf.args || '').slice(0, 200),
+                });
+                throw new Error('Invalid JSON for tool call');
             }
             const id = buf.id ?? `call_${Math.random().toString(36).slice(2, 10)}`;
             const name = buf.name ?? 'unknown_tool';

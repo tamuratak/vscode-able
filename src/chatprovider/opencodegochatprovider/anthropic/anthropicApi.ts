@@ -259,7 +259,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 					const data = line.slice(5).trim()
 					chunkLogger.trace('anthropic.stream.chunk', { modelId, data })
 					if (data === '[DONE]') {
-						this.flushToolCallBuffers(progress, false);
+						this.flushToolCallBuffers(progress)
 						continue;
 					}
 
@@ -361,7 +361,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 			}
 		} else if (chunk.type === 'content_block_stop' || chunk.type === 'message_stop') {
 			// End of message - ensure thinking is ended and flush all tool calls
-			this.flushToolCallBuffers(progress, false);
+			this.flushToolCallBuffers(progress);
 			this.endThinking()
 		}
 	}

@@ -252,7 +252,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     const data = line.slice(5).trim()
                     chunkLogger.trace('openai.stream.chunk', { modelId, data })
                     if (data === '[DONE]') {
-                        this.flushToolCallBuffers(progress, false);
+                        this.flushToolCallBuffers(progress);
                         continue;
                     }
 
@@ -452,7 +452,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
         const finishReason = choice['finish_reason'] as string | undefined
         if (finishReason === 'tool_calls' || finishReason === 'stop') {
-            this.flushToolCallBuffers(progress, true);
+            this.flushToolCallBuffers(progress)
         }
         const nativeFinishReason = choice['native_finish_reason'] as string | undefined
         return { finishReason, nativeFinishReason }
