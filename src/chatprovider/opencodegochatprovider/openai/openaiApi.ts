@@ -450,6 +450,9 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
         const finishReason = choice['finish_reason'] as string | undefined
         if (finishReason === 'tool_calls' || finishReason === 'stop') {
+            if (finishReason === 'stop') {
+                this.warnIfToolCallBuffersNotEmpty('finish_reason: stop received')
+            }
             this.flushToolCallBuffers(progress)
         }
         const nativeFinishReason = choice['native_finish_reason'] as string | undefined
