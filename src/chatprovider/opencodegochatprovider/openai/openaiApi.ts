@@ -445,8 +445,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     buf.args += func['arguments'];
                 }
                 this._toolCallBuffers.set(idx, buf);
-
-                this.tryEmitBufferedToolCall(idx, progress);
             }
         }
 

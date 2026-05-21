@@ -83,34 +83,6 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     ): Promise<void>;
 
     /**
-     * Try to emit a buffered tool call when a valid name and JSON arguments are available.
-     * @param index The tool call index from the stream.
-     * @param progress Progress reporter for parts.
-     */
-    protected tryEmitBufferedToolCall(
-        index: number,
-        progress: Progress<LanguageModelResponsePart2>
-    ) {
-        const buf = this._toolCallBuffers.get(index);
-        if (!buf) {
-            return;
-        }
-        if (!buf.name) {
-            return;
-        }
-        const canParse = tryParseJSONObject(buf.args);
-        if (!canParse.ok) {
-            return;
-        }
-        const id = buf.id ?? `call_${Math.random().toString(36).slice(2, 10)}`;
-        let parameters = canParse.value;
-        parameters = this.adjustReadFileParameters(buf.name, parameters);
-        progress.report(new LanguageModelToolCallPart(id, buf.name, parameters));
-        this._toolCallBuffers.delete(index);
-        this._completedToolCallIndices.add(index);
-    }
-
-    /**
      * Flush all buffered tool calls, optionally throwing if arguments are not valid JSON.
      * @param progress Progress reporter for parts.
      */

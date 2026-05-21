@@ -354,7 +354,6 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 				if (buf) {
 					buf.args += chunk.delta.partial_json;
 					this._toolCallBuffers.set(idx, buf);
-					this.tryEmitBufferedToolCall(idx, progress);
 				}
 			} else if (chunk.delta.type === 'signature_delta' && chunk.delta.signature) {
 				// Signature for thinking block - ignore for now
