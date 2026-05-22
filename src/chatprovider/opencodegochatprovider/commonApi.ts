@@ -4,6 +4,7 @@ import { ProvideLanguageModelChatResponseOptions, LanguageModelChatRequestMessag
 import { OpenCodeGoModelItem } from './types.js'
 import { tryParseJSONObject } from './utils.js'
 import { logger } from './logger.js';
+import { EndpointApiType } from './models.js';
 
 export interface APIUsage {
 	prompt_tokens: number;
@@ -189,7 +190,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
      */
     public static prepareHeaders(
         apiKey: string,
-        apiMode: string,
+        apiMode: EndpointApiType,
         customHeaders?: Record<string, string>
     ): Record<string, string> {
         const headers: Record<string, string> = {
@@ -200,12 +201,14 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         };
 
         // Provider-specific header formats
-        if (apiMode === 'anthropic') {
+        if (apiMode === 'messages') {
             headers['x-api-key'] = apiKey;
             headers['anthropic-version'] = '2023-06-01';
-        } else {
+        } else if (apiMode === 'chat-completions') {
             // OpenAI-compatible API uses Bearer auth
             headers['Authorization'] = `Bearer ${apiKey}`;
+        } else {
+            throw new Error(`Unsupported API mode: ${apiMode}`)
         }
 
         // Merge custom headers if provided

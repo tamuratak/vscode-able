@@ -57,7 +57,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             if (options.modelConfiguration?.['reasoningEffort']) {
                 const effort = options.modelConfiguration['reasoningEffort'] as unknown
                 if (typeof effort === 'string') {
-                    if (effort === 'disabled' && um.thinkingMode !== 'always') {
+                    if (effort === 'disabled') {
                         um.enable_thinking = false;
                         um.include_reasoning_in_request = false;
                     } else {
@@ -71,7 +71,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             }
 
             // Determine API mode from model config (default: openai)
-            const apiMode = um.apiMode
+            const apiMode = um.apiType
             const BASE_URL = 'https://opencode.ai/zen/go/v1'
 
             logger.info('request.start', {
@@ -105,7 +105,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             });
             logger.trace('request.messages.origin', { messages });
 
-            if (apiMode === 'anthropic') {
+            if (apiMode === 'messages') {
                 // Anthropic API mode
                 const anthropicApi = new AnthropicApi(model.id);
                 const anthropicMessages = anthropicApi.convertMessages(messages, modelConfig);
@@ -137,7 +137,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     throw new Error('No response body from Anthropic API')
                 }
                 await anthropicApi.processStreamingResponse(response.body, trackingProgress, token);
-            } else {
+            } else if (apiMode === 'chat-completions') {
                 // OpenAI Chat Completions API mode
                 const openaiApi = new OpenaiApi(model.id);
                 const openaiMessages = openaiApi.convertMessages(messages, modelConfig);
@@ -174,6 +174,8 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
                 messageLogger.info('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
                 await openaiApi.processStreamingResponse(response.body, trackingProgress, token);
+            } else {
+                apiMode satisfies 'responses'
             }
         } catch (err) {
             logger.error('request.error', {
