@@ -6,31 +6,19 @@ import type { OpenCodeGoModelItem } from './types.js'
  * Built-in model definition for OpenCode Go.
  */
 interface BuiltInModelDef {
-    /** Base model ID sent to the API (e.g., "glm-5.1") */
     baseId: string;
-    /** User-friendly display name (e.g., "GLM-5.1") */
     displayName: string;
-    /** Whether the model supports image input */
     vision: boolean;
-    /** Thinking mode: "switchable" = two variants registered, "always" = thinking forced on */
-    thinkingMode: 'switchable' | 'always';
-    /** Default reasoning effort when thinking is enabled */
     defaultReasoningEffort?: string;
-    /** Supported reasoning effort levels for the model picker UI */
-    supportedReasoningEfforts?: string[];
-    /** Whether to include reasoning_content in assistant messages */
-    includeReasoningInRequest?: boolean;
-    /** Default context length */
-    contextLength: number;
-    /** Default max output tokens */
-    maxTokens: number;
-    /** Extra body parameters to include in API requests */
+    supportsReasoningEffort?: string[];
+    maxInputTokens: number;
+    maxOutputTokens: number;
     extra?: Record<string, unknown>;
-    /** API mode: "openai" (default) or "anthropic" */
-    apiMode?: 'openai' | 'anthropic';
-    /** Model-specific delay in milliseconds between consecutive requests */
+    apiType?: EndpointApiType;
     delay?: number;
 }
+
+export type EndpointApiType = 'chat-completions' | 'responses' | 'messages';
 
 /**
  * Built-in model definitions.
@@ -38,33 +26,33 @@ interface BuiltInModelDef {
  */
 const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://docs.z.ai/api-reference/llm/chat-completion
-    { baseId: 'glm-5.1', displayName: 'GLM-5.1', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 65536 },
-    { baseId: 'glm-5', displayName: 'GLM-5', vision: false, thinkingMode: 'always', contextLength: 200000, maxTokens: 65536 },
+    { baseId: 'glm-5.1', displayName: 'GLM-5.1', vision: false, maxInputTokens: 200000, maxOutputTokens: 65536 },
+    { baseId: 'glm-5', displayName: 'GLM-5', vision: false, maxInputTokens: 200000, maxOutputTokens: 65536 },
 
     // https://platform.kimi.ai/docs/api/chat#content-field-description
-    { baseId: 'kimi-k2.5', displayName: 'Kimi K2.5', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 65536 },
-    { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', vision: true, thinkingMode: 'always', contextLength: 262144, maxTokens: 65536 },
+    { baseId: 'kimi-k2.5', displayName: 'Kimi K2.5', vision: true, maxInputTokens: 262144, maxOutputTokens: 65536 },
+    { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', vision: true, maxInputTokens: 262144, maxOutputTokens: 65536 },
 
     // https://api-docs.deepseek.com/api/create-chat-completion
-    { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'max', supportedReasoningEfforts: ['high', 'max'], contextLength: 1000000, maxTokens: 393216 },
-    { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'max', supportedReasoningEfforts: ['high', 'max'], contextLength: 1000000, maxTokens: 393216 },
+    { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', vision: false, defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 393216 },
+    { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', vision: false, defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 393216 },
 
     // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
-    { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 131072 },
-    { baseId: 'mimo-v2-omni', displayName: 'MiMo-V2-Omni', vision: true, thinkingMode: 'always', contextLength: 1000000, maxTokens: 32768 },
-    { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 131072 },
-    { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, thinkingMode: 'always', contextLength: 1000000, maxTokens: 32768 },
+    { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, maxInputTokens: 1000000, maxOutputTokens: 131072 },
+    { baseId: 'mimo-v2-omni', displayName: 'MiMo-V2-Omni', vision: true, maxInputTokens: 1000000, maxOutputTokens: 32768 },
+    { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, maxInputTokens: 1000000, maxOutputTokens: 131072 },
+    { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768 },
 
     // https://platform.minimax.io/docs/api-reference/text-anthropic-api
-    { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, thinkingMode: 'always', apiMode: 'anthropic', contextLength: 197000, maxTokens: 65536 },
-    { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, thinkingMode: 'always', apiMode: 'anthropic', contextLength: 197000, maxTokens: 65536 },
+    { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 65536 },
+    { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 65536 },
 
     // ? https://docs.aimlapi.com/api-references/text-models-llm/alibaba-cloud/qwen3.5-plus
-    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 65536 },
-    { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, thinkingMode: 'switchable', contextLength: 1000000, maxTokens: 65536 },
+    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, maxInputTokens: 1000000, maxOutputTokens: 65536 },
+    { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, maxInputTokens: 1000000, maxOutputTokens: 65536 },
 
     // https://huggingface.co/tencent/Hy3-preview
-    { baseId: 'hy3-preview', displayName: 'Hy3 preview', vision: false, thinkingMode: 'switchable', defaultReasoningEffort: 'high', supportedReasoningEfforts: ['low', 'high'], contextLength: 262144, maxTokens: 65536 }
+    { baseId: 'hy3-preview', displayName: 'Hy3 preview', vision: false, defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'high'], maxInputTokens: 262144, maxOutputTokens: 65536 }
 ]
 
 export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
@@ -78,8 +66,8 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
             tooltip: 'OpenCode Go',
             family: def.baseId,
             version: '1.0.0',
-            maxInputTokens: def.contextLength - def.maxTokens,
-            maxOutputTokens: def.maxTokens,
+            maxInputTokens: def.maxInputTokens - def.maxOutputTokens,
+            maxOutputTokens: def.maxOutputTokens,
             capabilities: {
                 toolCalling: true,
                 imageInput: def.vision
@@ -88,20 +76,12 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
         };
 
         // Build enum values based on thinking mode
-        const hasEfforts = def.supportedReasoningEfforts && def.supportedReasoningEfforts.length > 0;
+        const hasEfforts = def.supportsReasoningEffort && def.supportsReasoningEffort.length > 0;
         let enumValues: string[];
         if (hasEfforts) {
-            if (def.thinkingMode === 'switchable') {
-                enumValues = ['disabled', ...def.supportedReasoningEfforts!];
-            } else {
-                enumValues = [...def.supportedReasoningEfforts!];
-            }
+            enumValues = ['disabled', ...def.supportsReasoningEffort!];
         } else {
-            if (def.thinkingMode === 'switchable') {
-                enumValues = ['disabled', 'enabled'];
-            } else {
-                enumValues = ['enabled'];
-            }
+            enumValues = ['disabled', 'enabled'];
         }
 
         const enumItemLabels = enumValues.map(getLabel);
@@ -171,13 +151,12 @@ export function getBuiltInModelConfig(modelId: string): OpenCodeGoModelItem | un
     const model: OpenCodeGoModelItem = {
         id: def.baseId,
         vision: def.vision,
-        context_length: def.contextLength,
-        max_completion_tokens: def.maxTokens,
-        apiMode: def.apiMode ?? 'openai',
+        context_length: def.maxInputTokens,
+        max_completion_tokens: def.maxOutputTokens,
+        apiType: def.apiType ?? 'chat-completions',
         reasoning_effort: undefined,
         enable_thinking: true,
         include_reasoning_in_request: true,
-        thinkingMode: def.thinkingMode,
         delay: def.delay ?? 0
     };
 

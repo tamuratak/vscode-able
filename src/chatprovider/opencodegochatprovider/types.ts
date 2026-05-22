@@ -1,4 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+
+import { EndpointApiType } from './models.js';
+
 /**
  * A single model entry for OpenCode Go.
  */
@@ -32,10 +35,8 @@ export interface OpenCodeGoModelItem {
      * Model-specific delay in milliseconds between consecutive requests.
      */
     delay: number;
-    /** API mode (for internal use) */
-    apiMode: 'openai' | 'anthropic';
-    /** Whether this model supports switching thinking on/off ("switchable") or always has it ("always") */
-    thinkingMode: 'switchable' | 'always';
+    /** API type (for internal use) */
+    apiType: EndpointApiType;
     /** Custom HTTP headers */
     headers?: Record<string, string>;
 }
