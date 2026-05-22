@@ -95,6 +95,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
             const argsText = buf.args.trim() || '{}';
             const parsed = tryParseJSONObject(argsText);
             if (!parsed.ok) {
+                // Throw error if tool call arguments are not valid JSON. Do not try to recover. LLM is too broken at this point.
                 logger.error('[OpenCodeGo] Invalid JSON for tool call', {
                     idx,
                     snippet: (buf.args || '').slice(0, 200),

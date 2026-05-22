@@ -458,6 +458,8 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             if (finishReason === 'stop') {
                 this.warnIfToolCallBuffersNotEmpty('finish_reason: stop received')
             }
+            // We flush tool call buffers even on 'stop' anyway.
+            // Having tool calls is more important signal rather than the finish reason.
             this.flushToolCallBuffers(progress)
         }
         const nativeFinishReason = choice['native_finish_reason'] as string | undefined
