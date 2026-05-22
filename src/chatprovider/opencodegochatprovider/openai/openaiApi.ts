@@ -253,6 +253,11 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     chunkLogger.trace('openai.stream.chunk', { modelId, data })
                     if (data === '[DONE]') {
                         this.warnIfToolCallBuffersNotEmpty('[DONE] received')
+                        // To prevent infinite loop of agents, throw error.
+                        if (this._completedToolCallIndices.size === 0 && this._toolCallBuffers.size > 0) {
+                            logger.error('openai.stream.tool_calls_incomplete', { modelId, bufferedIndices: Array.from(this._toolCallBuffers.keys()) })
+                            throw new Error('Stream ended with incomplete tool calls')
+                        }
                         break
                     }
 
