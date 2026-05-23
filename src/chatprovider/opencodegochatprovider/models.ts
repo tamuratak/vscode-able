@@ -26,16 +26,16 @@ export type EndpointApiType = 'chat-completions' | 'responses' | 'messages';
  */
 const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://docs.z.ai/api-reference/llm/chat-completion
-    { baseId: 'glm-5.1', displayName: 'GLM-5.1', vision: false, maxInputTokens: 200000, maxOutputTokens: 65536 },
-    { baseId: 'glm-5', displayName: 'GLM-5', vision: false, maxInputTokens: 200000, maxOutputTokens: 65536 },
+    { baseId: 'glm-5.1', displayName: 'GLM-5.1', vision: false, maxInputTokens: 200000, maxOutputTokens: 32768 },
+    { baseId: 'glm-5', displayName: 'GLM-5', vision: false, maxInputTokens: 200000, maxOutputTokens: 32768 },
 
     // https://platform.kimi.ai/docs/api/chat#content-field-description
     { baseId: 'kimi-k2.5', displayName: 'Kimi K2.5', vision: true, maxInputTokens: 262144, maxOutputTokens: 32768 },
     { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', vision: true, maxInputTokens: 262144, maxOutputTokens: 32768 },
 
     // https://api-docs.deepseek.com/api/create-chat-completion
-    { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', vision: false, defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 393216 },
-    { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', vision: false, defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 393216 },
+    { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', vision: false, defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768 },
+    { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', vision: false, defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768 },
 
     // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
     { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, maxInputTokens: 1000000, maxOutputTokens: 131072 },
@@ -44,17 +44,17 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768 },
 
     // https://platform.minimax.io/docs/api-reference/text-anthropic-api
-    { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 65536 },
-    { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 65536 },
+    { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768 },
+    { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768 },
 
     // https://docs.qwencloud.com/api-reference/chat/openai-chat
     // https://www.qwencloud.com/models/qwen3.6-plus
     // https://www.qwencloud.com/models/qwen3.5-plus
-    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, maxInputTokens: 1000000, maxOutputTokens: 65536 },
-    { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, maxInputTokens: 1000000, maxOutputTokens: 65536 },
+    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, maxInputTokens: 1000000, maxOutputTokens: 32768 },
+    { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, maxInputTokens: 1000000, maxOutputTokens: 32768 },
 
     // https://huggingface.co/tencent/Hy3-preview
-    { baseId: 'hy3-preview', displayName: 'Hy3 preview', vision: false, defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'high'], maxInputTokens: 262144, maxOutputTokens: 65536 }
+    { baseId: 'hy3-preview', displayName: 'Hy3 preview', vision: false, defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'high'], maxInputTokens: 262144, maxOutputTokens: 32768 }
 ]
 
 export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
