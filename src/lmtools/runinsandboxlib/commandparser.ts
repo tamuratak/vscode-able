@@ -116,15 +116,15 @@ function unescapeQuotes(value: string): string {
 
 
 const redirectQuerySource = '(file_redirect ">") (file_redirect ">>")'
-let readirectQuery: treeSitter.Query | undefined
+let redirectQuery: treeSitter.Query | undefined
 
 export async function hasNoWriteRedirection(source: string): Promise<boolean> {
     await parserInitialization
     if (!bashParser || !bashLanguage) {
         return false
     }
-    if (!readirectQuery) {
-        readirectQuery = new treeSitter.Query(bashLanguage, redirectQuerySource)
+    if (!redirectQuery) {
+        redirectQuery = new treeSitter.Query(bashLanguage, redirectQuerySource)
     }
 
     const tree = bashParser.parse(source)
@@ -133,7 +133,7 @@ export async function hasNoWriteRedirection(source: string): Promise<boolean> {
     }
 
     try {
-        const matches = readirectQuery.matches(tree.rootNode)
+        const matches = redirectQuery.matches(tree.rootNode)
         if (matches.length === 0) {
             return true
         }
