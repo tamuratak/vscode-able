@@ -45,48 +45,50 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
         return undefined
     }
 
-    const matches = commandQuery.matches(tree.rootNode)
-    const commands: CommandNode[] = []
-    const commandMap = new Map<number, CommandNode>()
+    try {
+        const matches = commandQuery.matches(tree.rootNode)
+        const commands: CommandNode[] = []
+        const commandMap = new Map<number, CommandNode>()
 
-    for (const match of matches) {
-        let commandName: string | undefined
-        let commandStartIndex: number | undefined
-        const args: string[] = []
+        for (const match of matches) {
+            let commandName: string | undefined
+            let commandStartIndex: number | undefined
+            const args: string[] = []
 
-        for (const capture of match.captures) {
-            const text = normalizeToken(getNodeText(capture.node, source))
-            if (capture.name === 'cmd_name') {
-                commandName = text
-                // identify the command node by walking to its ancestor 'command' node
-                let node: treeSitter.Node | null | undefined = capture.node
-                while (node && node.type !== 'command') {
-                    node = node.parent
+            for (const capture of match.captures) {
+                const text = normalizeToken(getNodeText(capture.node, source))
+                if (capture.name === 'cmd_name') {
+                    commandName = text
+                    // identify the command node by walking to its ancestor 'command' node
+                    let node: treeSitter.Node | null | undefined = capture.node
+                    while (node && node.type !== 'command') {
+                        node = node.parent
+                    }
+                    if (node) {
+                        commandStartIndex = node.startIndex
+                    }
+                } else if (capture.name === 'arg' && text.length > 0) {
+                    args.push(text)
                 }
-                if (node) {
-                    commandStartIndex = node.startIndex
+            }
+
+            if (commandName && typeof commandStartIndex === 'number') {
+                const existing = commandMap.get(commandStartIndex)
+                if (existing) {
+                    for (const a of args) {
+                        existing.args.push(a)
+                    }
+                } else {
+                    const entry: CommandNode = { command: commandName, args }
+                    commandMap.set(commandStartIndex, entry)
+                    commands.push(entry)
                 }
-            } else if (capture.name === 'arg' && text.length > 0) {
-                args.push(text)
             }
         }
-
-        if (commandName && typeof commandStartIndex === 'number') {
-            const existing = commandMap.get(commandStartIndex)
-            if (existing) {
-                for (const a of args) {
-                    existing.args.push(a)
-                }
-            } else {
-                const entry: CommandNode = { command: commandName, args }
-                commandMap.set(commandStartIndex, entry)
-                commands.push(entry)
-            }
-        }
+        return commands
+    } finally {
+        tree.delete()
     }
-
-    tree.delete()
-    return commands
 }
 
 export function getNodeText(node: treeSitter.Node, source: string): string {

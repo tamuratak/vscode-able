@@ -161,7 +161,7 @@ function getPlanAppendTarget(node: treeSitter.Node, source: string): string | un
         }
 
         if (child.type === 'file_redirect') {
-            if (!getNodeText(child, source).trimStart().startsWith('>> ')) {
+            if (!getNodeText(child, source).trimStart().startsWith('>>')) {
                 return undefined
             }
             const targetNode = child.namedChild(0)
