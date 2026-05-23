@@ -28,7 +28,7 @@ https://github.com/microsoft/vscode/tree/main/extensions/copilot/src/extension/p
 import { LanguageModelChatInformation, LanguageModelChatRequestMessage, LanguageModelChatMessageRole, LanguageModelTextPart } from 'vscode'
 
 export function tweakSystemPrompt(
-    _model: LanguageModelChatInformation,
+    model: LanguageModelChatInformation,
     messages: readonly LanguageModelChatRequestMessage[]
 ): readonly LanguageModelChatRequestMessage[] {
     const newMessages = []
@@ -41,9 +41,14 @@ export function tweakSystemPrompt(
                 }
             }
 
+            let additionalPromptPart = baseAdditionalPromptPart
+            if (model.id.startsWith('kimi')) {
+                additionalPromptPart += '\n' + reduceThinkingPromptPart
+            }
+
             newContent = newContent.replace(/<instructions>\nYou are a highly sophisticated.*?<\/instructions>/s, codingAgentInstructionsPart)
             newContent = newContent.replace(/<toolUseInstructions>.*?<\/toolUseInstructions>/s, toolUseInstructionsPart)
-            newContent = newContent.replace(/<outputFormatting>.*?<\/outputFormatting>/s, newAdditionalPromptPart)
+            newContent = newContent.replace(/<outputFormatting>.*?<\/outputFormatting>/s, additionalPromptPart)
             newContent = newContent.replace(/<memoryInstructions>.*?<\/memoryInstructions>/s, '')
 
             newMessages.push({ ...msg, content: [new LanguageModelTextPart(newContent)] })
@@ -82,7 +87,7 @@ When invoking a tool that takes a file path, always use the absolute file path. 
 Tools can be disabled by the user. You may see tools used previously in the conversation that are not currently available. Be careful to only use the tools that are currently available to you.
 </tool_use_instructions>`
 
-const newAdditionalPromptPart =
+const baseAdditionalPromptPart =
 `<editing_constraints>
 When editing or creating files, default to ASCII. Only introduce non-ASCII or Unicode characters when there is a clear justification and the file already uses them.
 Add succinct code comments only where code is not self-explanatory — do not add comments like "Assigns the value to the variable". Comments ahead of complex blocks are acceptable but should be rare.
@@ -105,7 +110,6 @@ When writing or modifying code:
 - Do not attempt to fix unrelated bugs or broken tests. You may mention them to the user.
 - Keep changes consistent with the style of the existing codebase. Changes should be minimal and focused.
 - Use \`git log\` and \`git blame\` to search history when additional context is required.
-- NEVER add copyright or license headers unless specifically requested.
 - Do not add inline comments within code unless explicitly requested.
 - Do not use one-letter variable names unless explicitly requested.
 - Do not waste tokens by re-reading files after editing them — trust that the edit succeeded or failed as reported by the tool.
@@ -157,7 +161,7 @@ Use KaTeX for math equations in your answers.
 - Wrap inline math equations in $.
 - Wrap more complex blocks of math equations in $$.
 
-For workspace file names and paths, ALWAYS use markdown links. NEVER output them as inline code or as plain text.
+For workspace file names and paths, ALWAYS use markdown links.
 Format: [relative/path/file.ts](relative/path/file.ts) or [relative/path/file.ts](relative/path/file.ts#L1) or [relative/path/file.ts](relative/path/file.ts#L1-L5)
 Rules:
 - Use workspace relative paths with '/' separators
@@ -189,3 +193,9 @@ For inputs longer than ~10k tokens (multi-chapter docs, long threads, multiple f
 - Anchor claims to specific sections rather than speaking generically.
 - If the answer depends on fine details, quote or paraphrase them.
 </long_context_handling>`
+
+const reduceThinkingPromptPart =
+`<reasoning_instructions>
+Don't think too much. Beleive in yourself and just go for it.
+No full drafting during reasoning. Don't draft, don't revise, don't check: believe in yourself and FULL SEND.
+</reasoning_instructions>`

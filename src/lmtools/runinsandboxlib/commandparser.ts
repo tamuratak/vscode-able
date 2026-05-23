@@ -115,8 +115,35 @@ function unescapeQuotes(value: string): string {
 }
 
 
-const redirectQuerySource = '(file_redirect ">") (file_redirect ">>")'
+const redirectQuerySource = '(file_redirect) @redirect'
 let redirectQuery: treeSitter.Query | undefined
+
+function isWriteRedirect(node: treeSitter.Node): boolean {
+    for (let i = 0; i < node.childCount; i += 1) {
+        const child = node.child(i)
+        if (!child || child.isNamed) {
+            continue
+        }
+        if (child.type === '>' || child.type === '>>' || child.type === '&>' || child.type === '&>>' || child.type === '>|') {
+            return true
+        }
+        // >& writes to a file when the target is a word, not a number (FD duplication like 2>&1)
+        if (child.type === '>&') {
+            if (node.children.find(ch => ch?.type === 'word')) {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+function isRedirectToDevNull(node: treeSitter.Node, source: string): boolean {
+    const targetNode = node.namedChild(0)
+    if (!targetNode) {
+        return false
+    }
+    return normalizeToken(getNodeText(targetNode, source)) === '/dev/null'
+}
 
 export async function hasNoWriteRedirection(source: string): Promise<boolean> {
     await parserInitialization
@@ -134,10 +161,16 @@ export async function hasNoWriteRedirection(source: string): Promise<boolean> {
 
     try {
         const matches = redirectQuery.matches(tree.rootNode)
-        if (matches.length === 0) {
-            return true
+        for (const match of matches) {
+            for (const capture of match.captures) {
+                if (capture.name === 'redirect' && isWriteRedirect(capture.node)) {
+                    if (!isRedirectToDevNull(capture.node, source)) {
+                        return false
+                    }
+                }
+            }
         }
-        return false
+        return true
     } finally {
         tree.delete()
     }

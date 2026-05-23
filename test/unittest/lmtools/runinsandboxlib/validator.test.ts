@@ -1,6 +1,7 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
-import { isAllowedCommand } from '../../../../src/lmtools/runinsandboxlib/validator.js'
+import { commandStartsWith, exactMatchCommand, isAllowedCommand, isInside, parseGitCommand } from '../../../../src/lmtools/runinsandboxlib/validator.js'
+import type { CommandNode } from '../../../../src/lmtools/runinsandboxlib/commandparser.js'
 
 suite('validator', () => {
     test('allows cd + nl + sed pipeline without file argument', async () => {
@@ -206,5 +207,257 @@ EOF`
 EOF`
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
         assert.strictEqual(ok, false)
+    })
+
+    test('allows > redirection to /dev/null', async () => {
+        const cmd = 'echo hello > /dev/null'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows rg with > /dev/null redirection', async () => {
+        const cmd = 'rg pattern file.txt > /dev/null'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows 2>&1 with > /dev/null redirection', async () => {
+        const cmd = 'rg pattern file.txt > /dev/null 2>&1'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows > redirection to regular file even with /dev/null', async () => {
+        const cmd = 'echo hello > output.txt > /dev/null'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows >> redirection to regular file even with /dev/null', async () => {
+        const cmd = 'echo hello >> output.txt > /dev/null'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows >& redirection to regular file even with /dev/null', async () => {
+        const cmd = 'echo hello >& output.txt > /dev/null'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows >& redirection to regular file even with /dev/null', async () => {
+        const cmd = 'echo hello >& output.txt 2 > /dev/null'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows 2> redirection to file', async () => {
+        const cmd = 'rg pattern file.txt 2> error.log'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+
+    test('disallows &> redirection to file', async () => {
+        const cmd = 'rg pattern file.txt &> output.txt'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+
+    test('disallows >| redirection to file', async () => {
+        const cmd = 'echo hello >| output.txt'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+})
+
+suite('exactMatchCommand', () => {
+    test('returns true when pattern matches command exactly', () => {
+        const cmd: CommandNode = { command: 'rg', args: ['-n', 'pattern', 'file.txt'] }
+        assert.strictEqual(exactMatchCommand(['rg', '-n', 'pattern', 'file.txt'], cmd), true)
+    })
+
+    test('returns false when pattern has fewer elements than command', () => {
+        const cmd: CommandNode = { command: 'rg', args: ['-n', 'pattern', 'file.txt'] }
+        assert.strictEqual(exactMatchCommand(['rg', '-n'], cmd), false)
+    })
+
+    test('returns false when pattern has more elements than command', () => {
+        const cmd: CommandNode = { command: 'rg', args: ['-n'] }
+        assert.strictEqual(exactMatchCommand(['rg', '-n', 'pattern'], cmd), false)
+    })
+
+    test('returns false when command name does not match', () => {
+        const cmd: CommandNode = { command: 'grep', args: ['-n'] }
+        assert.strictEqual(exactMatchCommand(['rg', '-n'], cmd), false)
+    })
+
+    test('matches with RegExp pattern', () => {
+        const cmd: CommandNode = { command: 'sed', args: ['-n', '1,10p'] }
+        assert.strictEqual(exactMatchCommand(['sed', '-n', /^\d+,\d+p$/], cmd), true)
+    })
+
+    test('returns false when RegExp pattern does not match', () => {
+        const cmd: CommandNode = { command: 'sed', args: ['-n', 'abc'] }
+        assert.strictEqual(exactMatchCommand(['sed', '-n', /^\d+,\d+p$/], cmd), false)
+    })
+
+    test('matches command with no args', () => {
+        const cmd: CommandNode = { command: 'ls', args: [] }
+        assert.strictEqual(exactMatchCommand(['ls'], cmd), true)
+    })
+
+    test('returns false for empty pattern vs command with no args', () => {
+        const cmd: CommandNode = { command: 'ls', args: [] }
+        assert.strictEqual(exactMatchCommand([], cmd), false)
+    })
+})
+
+suite('commandStartsWith', () => {
+    test('returns true when command name matches', () => {
+        const cmd: CommandNode = { command: 'git', args: ['status', '-sb'] }
+        assert.strictEqual(commandStartsWith(['git', 'status'], cmd), true)
+    })
+
+    test('returns true when full pattern matches', () => {
+        const cmd: CommandNode = { command: 'git', args: ['status', '-sb'] }
+        assert.strictEqual(commandStartsWith(['git', 'status', '-sb'], cmd), true)
+    })
+
+    test('returns true when pattern is shorter than command', () => {
+        const cmd: CommandNode = { command: 'git', args: ['status', '-sb'] }
+        assert.strictEqual(commandStartsWith(['git'], cmd), true)
+    })
+
+    test('returns false when command name does not match', () => {
+        const cmd: CommandNode = { command: 'rg', args: ['pattern'] }
+        assert.strictEqual(commandStartsWith(['git', 'status'], cmd), false)
+    })
+
+    test('returns false when arg does not match', () => {
+        const cmd: CommandNode = { command: 'git', args: ['push'] }
+        assert.strictEqual(commandStartsWith(['git', 'status'], cmd), false)
+    })
+
+    test('matches with RegExp pattern', () => {
+        const cmd: CommandNode = { command: 'find', args: ['-delete', '-name', '*.txt'] }
+        assert.strictEqual(commandStartsWith(['find', /^-delete$/], cmd), true)
+    })
+
+    test('returns false when RegExp pattern does not match', () => {
+        const cmd: CommandNode = { command: 'find', args: ['-name', '*.txt'] }
+        assert.strictEqual(commandStartsWith(['find', /^-delete$/], cmd), false)
+    })
+
+    test('empty pattern matches any command', () => {
+        const cmd: CommandNode = { command: 'anything', args: ['arg1'] }
+        assert.strictEqual(commandStartsWith([], cmd), false)
+    })
+})
+
+suite('parseGitCommand', () => {
+    test('returns undefined for non-git command', () => {
+        const cmd: CommandNode = { command: 'rg', args: ['pattern'] }
+        assert.strictEqual(parseGitCommand(cmd), undefined)
+    })
+
+    test('parses git status', () => {
+        const cmd: CommandNode = { command: 'git', args: ['status'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'status', subCommandArgs: [], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git log with args', () => {
+        const cmd: CommandNode = { command: 'git', args: ['log', '--oneline'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'log', subCommandArgs: ['--oneline'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git with -C option', () => {
+        const cmd: CommandNode = { command: 'git', args: ['-C', '/some/path', 'status'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'status', subCommandArgs: [], mainArgs: [], cPath: '/some/path' })
+    })
+
+    test('parses git with --no-pager option', () => {
+        const cmd: CommandNode = { command: 'git', args: ['--no-pager', 'diff'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'diff', subCommandArgs: [], mainArgs: ['--no-pager'], cPath: undefined })
+    })
+
+    test('parses git with -C and --no-pager', () => {
+        const cmd: CommandNode = { command: 'git', args: ['-C', '/some/path', '--no-pager', 'status', '-sb'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'status', subCommandArgs: ['-sb'], mainArgs: ['--no-pager'], cPath: '/some/path' })
+    })
+
+    test('returns undefined for unsupported sub-command', () => {
+        const cmd: CommandNode = { command: 'git', args: ['push'] }
+        assert.strictEqual(parseGitCommand(cmd), undefined)
+    })
+
+    test('returns undefined for unrecognized flag', () => {
+        const cmd: CommandNode = { command: 'git', args: ['--verbose', 'status'] }
+        assert.strictEqual(parseGitCommand(cmd), undefined)
+    })
+
+    test('parses git show', () => {
+        const cmd: CommandNode = { command: 'git', args: ['show', 'HEAD'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'show', subCommandArgs: ['HEAD'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git blame', () => {
+        const cmd: CommandNode = { command: 'git', args: ['blame', 'file.ts'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'blame', subCommandArgs: ['file.ts'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git rev-parse', () => {
+        const cmd: CommandNode = { command: 'git', args: ['rev-parse', 'HEAD'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'rev-parse', subCommandArgs: ['HEAD'], mainArgs: [], cPath: undefined })
+    })
+
+    test('returns undefined when -C has no following arg', () => {
+        const cmd: CommandNode = { command: 'git', args: ['-C'] }
+        const result = parseGitCommand(cmd)
+        // No sub-command found after -C, so returns undefined
+        assert.strictEqual(result, undefined)
+    })
+})
+
+suite('isInside', () => {
+    test('returns true when child is inside parent', () => {
+        assert.strictEqual(isInside('/Users/tamura/src/github/vscode-able/src', '/Users/tamura/src/github/vscode-able'), true)
+    })
+
+    test('returns true when paths are equal', () => {
+        assert.strictEqual(isInside('/Users/tamura/src/github/vscode-able', '/Users/tamura/src/github/vscode-able'), true)
+    })
+
+    test('returns false when child is outside parent', () => {
+        assert.strictEqual(isInside('/Users/tamura/src/github/other', '/Users/tamura/src/github/vscode-able'), false)
+    })
+
+    test('returns false when paths are siblings', () => {
+        assert.strictEqual(isInside('/Users/tamura/src/github/vscode-able-a', '/Users/tamura/src/github/vscode-able'), false)
+    })
+
+    test('returns false for relative child path', () => {
+        assert.strictEqual(isInside('relative/path', '/Users/tamura/src/github/vscode-able'), false)
+    })
+
+    test('returns false for relative parent path', () => {
+        assert.strictEqual(isInside('/Users/tamura/src/github/vscode-able/src', 'relative/path'), false)
+    })
+
+    test('returns true for deeply nested child', () => {
+        assert.strictEqual(isInside('/a/b/c/d/e', '/a/b'), true)
+    })
+
+    test('returns false when parent is inside child', () => {
+        assert.strictEqual(isInside('/a/b', '/a/b/c/d/e'), false)
     })
 })

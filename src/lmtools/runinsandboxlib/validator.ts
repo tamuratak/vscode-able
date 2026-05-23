@@ -65,7 +65,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
                 return false
             }
             const target = path.normalize(cmd.args[0])
-            if (!normalizedWorkspaceRoot || !target.startsWith(normalizedWorkspaceRoot)) {
+            if (!normalizedWorkspaceRoot || !isInside(target, normalizedWorkspaceRoot)) {
                 return false
             }
         }
@@ -241,11 +241,15 @@ async function isAllowedSubCommand(
             const fileArgPath = path.normalize(path.join(workspaceRootPath, fileArg))
             const tmpDirPath = path.normalize(path.join(workspaceRootPath, './tmpdir'))
             if (path.dirname(fileArgPath) === tmpDirPath) {
-                const fileContent = await fs.readFile(fileArgPath, 'utf-8')
-                if (/\bIO\b/.test(fileContent) || /\bSystem\b/.test(fileContent)) {
+                try {
+                    const fileContent = await fs.readFile(fileArgPath, 'utf-8')
+                    if (/\bIO\b/.test(fileContent) || /\bSystem\b/.test(fileContent)) {
+                        return false
+                    } else {
+                        return true
+                    }
+                } catch {
                     return false
-                } else {
-                    return true
                 }
             }
         }
@@ -259,7 +263,7 @@ export function parseGitCommand(command: CommandNode) {
     }
     const mainArgs: string[] = []
     let cPath: string | undefined = undefined
-    for(let i = 0; i < command.args.length; i++) {
+    for (let i = 0; i < command.args.length; i++) {
         if (/^(status|log|diff|show|blame|rev-parse)$/.exec(command.args[i])) {
             return { subCommand: command.args[i], subCommandArgs: command.args.slice(i + 1), mainArgs, cPath }
         } else if (command.args[i] === '-C') {
@@ -373,7 +377,7 @@ function partialMatchCommand(pattern: (string | RegExp)[], command: CommandNode)
     })
 }
 
-function isInside(childPath: string, parentPath: string): boolean {
+export function isInside(childPath: string, parentPath: string): boolean {
     if (!path.isAbsolute(childPath) || !path.isAbsolute(parentPath)) {
         return false
     }
