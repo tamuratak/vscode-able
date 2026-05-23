@@ -47,7 +47,9 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 65536 },
     { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 65536 },
 
-    // ? https://docs.aimlapi.com/api-references/text-models-llm/alibaba-cloud/qwen3.5-plus
+    // https://docs.qwencloud.com/api-reference/chat/openai-chat
+    // https://www.qwencloud.com/models/qwen3.6-plus
+    // https://www.qwencloud.com/models/qwen3.5-plus
     { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, maxInputTokens: 1000000, maxOutputTokens: 65536 },
     { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, maxInputTokens: 1000000, maxOutputTokens: 65536 },
 
