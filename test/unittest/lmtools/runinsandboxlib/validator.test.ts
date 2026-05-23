@@ -52,6 +52,36 @@ suite('validator', () => {
         assert.strictEqual(ok, true)
     })
 
+    test("allow sed -n '/class LanguageModelDataPart {/,/^[[:space:]]*}/p' /path/to/file.d.ts", async () => {
+        const cmd = "sed -n '/class LanguageModelDataPart {/,/^[[:space:]]*}/p' /Users/tamura/src/github/vscode-copilot-chat/node_modules/@types/vscode/index.d.ts"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test("allow sed -n '/pattern1/,/pattern2/p' /path/to/file", async () => {
+        const cmd = "sed -n '/^import/,/^}/p' /Users/tamura/src/github/vscode-copilot-chat/src/main.ts"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test("allow sed -n '5,/pattern/p' (mixed numeric and regex address)", async () => {
+        const cmd = "sed -n '5,/^}/p' /Users/tamura/src/github/vscode-copilot-chat/src/main.ts"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test("allow sed -n '/pattern/p' (single regex address)", async () => {
+        const cmd = "sed -n '/^class/p' /Users/tamura/src/github/vscode-copilot-chat/src/main.ts"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test("allow sed -n '/pattern1/,/pattern2/p; 10,20p' (mixed regex and numeric ranges)", async () => {
+        const cmd = "sed -n '/^class/,/^}/p; 10,20p' /Users/tamura/src/github/vscode-copilot-chat/src/main.ts"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
     test('disallows sed \'/version/ W warn.log\' package.json', async () => {
         const cmd = "sed '/version/ W warn.log' package.json"
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
@@ -72,6 +102,24 @@ suite('validator', () => {
 
     test('sed -I is disallowed', async () => {
         const cmd = "sed -E -Ibak -e 's/old/new/g' -e '/^#/d' file"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('sed w command writes to file and is disallowed', async () => {
+        const cmd = "sed -n '/pattern/w outfile' infile"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('sed w command with numeric range is disallowed', async () => {
+        const cmd = "sed -n '1,10w outfile' infile"
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('sed w command without -n is disallowed', async () => {
+        const cmd = "sed '/pattern/w outfile' infile"
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
         assert.strictEqual(ok, false)
     })
