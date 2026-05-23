@@ -257,7 +257,7 @@ async function isAllowedSubCommand(
     return false
 }
 
-function parseGitCommand(command: CommandNode) {
+export function parseGitCommand(command: CommandNode) {
     if (command.command !== 'git') {
         return
     }
@@ -377,7 +377,7 @@ function partialMatchCommand(pattern: (string | RegExp)[], command: CommandNode)
     })
 }
 
-function isInside(childPath: string, parentPath: string): boolean {
+export function isInside(childPath: string, parentPath: string): boolean {
     if (!path.isAbsolute(childPath) || !path.isAbsolute(parentPath)) {
         return false
     }
