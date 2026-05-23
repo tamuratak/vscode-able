@@ -9,6 +9,7 @@ import type { EndpointApiType } from './models.js';
 import type { AnthropicTextBlock } from './anthropic/anthropicTypes.js';
 import type { MessagesResult } from './anthropic/anthropicApi.js';
 import type { ChatCompletionsResult } from './openai/openaiApi.js';
+import type { ResponsesResult } from './openai/openaiResponsesApi.js';
 
 export interface APIUsage {
 	prompt_tokens: number;
@@ -99,7 +100,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         responseBody: ReadableStream<Uint8Array>,
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
-    ): Promise<ChatCompletionsResult | MessagesResult | undefined>;
+    ): Promise<ChatCompletionsResult | MessagesResult | ResponsesResult | undefined>;
 
     /**
      * Flush all buffered tool calls, optionally throwing if arguments are not valid JSON.
@@ -248,11 +249,9 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         if (apiMode === 'messages') {
             headers['x-api-key'] = apiKey;
             headers['anthropic-version'] = '2023-06-01';
-        } else if (apiMode === 'chat-completions') {
+        } else if (apiMode === 'chat-completions' || apiMode === 'responses') {
             // OpenAI-compatible API uses Bearer auth
             headers['Authorization'] = `Bearer ${apiKey}`;
-        } else {
-            throw new Error(`Unsupported API mode: ${apiMode}`)
         }
 
         // Merge custom headers if provided

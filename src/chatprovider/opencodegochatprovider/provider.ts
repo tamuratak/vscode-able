@@ -4,6 +4,7 @@ import type { OpenCodeGoModelItem } from './types.js'
 import { getBuiltInModelConfig, getBuiltInModelInfos } from './models.js'
 import { countMessageTokens } from './provideToken.js'
 import { ChatCompletionsResult, OpenaiApi } from './openai/openaiApi.js'
+import { OpenaiResponsesApi, ResponsesResult } from './openai/openaiResponsesApi.js'
 import { AnthropicApi, MessagesResult } from './anthropic/anthropicApi.js'
 import type { AnthropicRequestBody } from './anthropic/anthropicTypes.js'
 import { CommonApi } from './commonApi.js'
@@ -124,7 +125,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             });
             logger.trace('request.messages.origin', { messages });
 
-            let responseResult: ChatCompletionsResult | MessagesResult | undefined
+            let responseResult: ChatCompletionsResult | MessagesResult | ResponsesResult | undefined
             if (apiMode === 'messages') {
                 // Anthropic API mode
                 const anthropicApi = new AnthropicApi(model);
@@ -197,8 +198,42 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
                 responseResult = await openaiApi.processStreamingResponse(response.body, dedupProgress, token);
             } else {
+                // OpenAI Responses API mode
                 apiMode satisfies 'responses'
-                throw new Error(`Unsupported API mode: ${apiMode}`)
+                const openaiResponsesApi = new OpenaiResponsesApi(model);
+                const responsesMessages = openaiResponsesApi.convertMessages(messages, modelConfig);
+
+                // requestBody
+                let requestBody: Record<string, unknown> = {
+                    model: um.id ?? model.id,
+                    input: responsesMessages,
+                    stream: true,
+                }
+                requestBody = openaiResponsesApi.prepareRequestBody(requestBody, um, options);
+
+                // Send responses request
+                const url = `${BASE_URL}/responses`;
+                logger.trace('request.body', { url, requestBody });
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: requestHeaders,
+                    body: JSON.stringify(requestBody),
+                    signal: abortController.signal,
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    logger.error('[OpenCodeGo] Responses API error response', { errorText });
+                    throw new Error(`Responses API error: [${response.status}] ${response.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`)
+                }
+
+                if (!response.body) {
+                    logger.error('response.error', { modelId: model.id, error: 'No response body from Responses API' })
+                    throw new Error('No response body from Responses API');
+                }
+
+                channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
+                responseResult = await openaiResponsesApi.processStreamingResponse(response.body, dedupProgress, token);
             }
             pushToolCall(model, messages, options, dedupProgress, token, responseResult)
         } catch (err) {
