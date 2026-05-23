@@ -44,7 +44,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         const abortController = new AbortController();
         const requestTimeoutMs = 600000
         const timeoutId = setTimeout(() => abortController.abort(), requestTimeoutMs);
-        token.onCancellationRequested(() => abortController.abort() )
+        const cancelToken = token.onCancellationRequested(() => abortController.abort() )
 
         try {
             const umOrig: OpenCodeGoModelItem | undefined = getBuiltInModelConfig(model.id);
@@ -176,6 +176,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 await openaiApi.processStreamingResponse(response.body, trackingProgress, token);
             } else {
                 apiMode satisfies 'responses'
+                throw new Error(`Unsupported API mode: ${apiMode}`)
             }
         } catch (err) {
             logger.error('request.error', {
@@ -186,6 +187,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             });
             throw err;
         } finally {
+            cancelToken.dispose()
             clearTimeout(timeoutId)
             const durationMs = Date.now() - requestStartTime;
             logger.info('request.end', { modelId: model.id, durationMs });
