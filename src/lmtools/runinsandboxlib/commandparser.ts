@@ -138,11 +138,14 @@ function isWriteRedirect(node: treeSitter.Node): boolean {
 }
 
 function isRedirectToDevNull(node: treeSitter.Node, source: string): boolean {
-    const targetNode = node.namedChild(0)
-    if (!targetNode) {
-        return false
+    for (let i = 0; i < node.namedChildCount; i += 1) {
+        const child = node.namedChild(i)
+        if (!child || child.type === 'file_descriptor') {
+            continue
+        }
+        return normalizeToken(getNodeText(child, source)) === '/dev/null'
     }
-    return normalizeToken(getNodeText(targetNode, source)) === '/dev/null'
+    return false
 }
 
 export async function hasNoWriteRedirection(source: string): Promise<boolean> {
