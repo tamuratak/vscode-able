@@ -47,7 +47,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
 
         if (cmd.command === 'sed') {
             const args = cmd.args
-            const rangeRegex = /^\d+,\d+.(;\s*\d+,\d+.)*$|^\d+p$/
+            const rangeRegex = /^\d+,\d+p(;\s*\d+,\d+p)*$|^\d+p$/
             if (args.length === 2) {
                 const [first, second] = args
                 if (first === '-n' && rangeRegex.test(second)) {
