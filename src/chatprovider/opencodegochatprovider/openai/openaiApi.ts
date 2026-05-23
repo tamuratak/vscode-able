@@ -206,9 +206,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 }
             }
         }
-        if (um.extra && typeof um.extra === 'object') {
-            Object.assign(rb, um.extra);
-        }
 
         return rb;
     }
