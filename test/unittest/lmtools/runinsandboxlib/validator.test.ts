@@ -243,4 +243,24 @@ EOF`
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
         assert.strictEqual(ok, false)
     })
+
+    test('disallows 2> redirection to file', async () => {
+        const cmd = 'rg pattern file.txt 2> error.log'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+
+    test('disallows &> redirection to file', async () => {
+        const cmd = 'rg pattern file.txt &> output.txt'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+
+    test('disallows >| redirection to file', async () => {
+        const cmd = 'echo hello >| output.txt'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
 })

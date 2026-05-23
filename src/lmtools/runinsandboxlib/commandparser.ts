@@ -124,7 +124,7 @@ function isWriteRedirect(node: treeSitter.Node): boolean {
         if (!child || child.isNamed) {
             continue
         }
-        if (child.type === '>' || child.type === '>>') {
+        if (child.type === '>' || child.type === '>>' || child.type === '&>' || child.type === '&>>' || child.type === '>|') {
             return true
         }
         // >& writes to a file when the target is a word, not a number (FD duplication like 2>&1)
