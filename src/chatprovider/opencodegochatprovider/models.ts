@@ -30,8 +30,8 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'glm-5', displayName: 'GLM-5', vision: false, maxInputTokens: 200000, maxOutputTokens: 65536 },
 
     // https://platform.kimi.ai/docs/api/chat#content-field-description
-    { baseId: 'kimi-k2.5', displayName: 'Kimi K2.5', vision: true, maxInputTokens: 262144, maxOutputTokens: 65536 },
-    { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', vision: true, maxInputTokens: 262144, maxOutputTokens: 65536 },
+    { baseId: 'kimi-k2.5', displayName: 'Kimi K2.5', vision: true, maxInputTokens: 262144, maxOutputTokens: 32768 },
+    { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', vision: true, maxInputTokens: 262144, maxOutputTokens: 32768 },
 
     // https://api-docs.deepseek.com/api/create-chat-completion
     { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', vision: false, defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 393216 },
