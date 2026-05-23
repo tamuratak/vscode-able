@@ -62,11 +62,10 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 						input: (part.input as Record<string, unknown>) ?? {},
 					});
 				} else if (isToolResultPart(part)) {
-					const callId = (part as { callId?: string }).callId ?? '';
-					const content = collectToolResultText(part as { content?: readonly unknown[] });
+					const content = collectToolResultText(part)
 					toolResults.push({
 						type: 'tool_result',
-						tool_use_id: callId,
+						tool_use_id: part.callId,
 						content,
 					});
 				} else if (part instanceof vscode.LanguageModelThinkingPart) {
@@ -198,15 +197,9 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 			}
 		}
 
-		// Process extra configuration parameters
-		if (um.extra && typeof um.extra === 'object') {
-			// Add all extra parameters directly to the request body
-			for (const [key, value] of Object.entries(um.extra)) {
-				if (value !== undefined) {
-					(rb as unknown as Record<string, unknown>)[key] = value;
-				}
-			}
-		}
+        if (um.extra && typeof um.extra === 'object') {
+            Object.assign(rb, um.extra);
+        }
 
 		return rb;
 	}
@@ -228,7 +221,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 		const reader = responseBody.getReader();
 		const decoder = new TextDecoder();
 		let buffer = '';
-		token.onCancellationRequested(() => reader.cancel().catch(() => undefined) )
+		const cancelToken = token.onCancellationRequested(() => reader.cancel().catch(() => undefined) )
 
 		try {
 			while (true) {
@@ -280,6 +273,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 			logger.error('anthropic.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
 			throw e;
 		} finally {
+			cancelToken.dispose()
 			reader.releaseLock();
 			this.endThinking()
 		}

@@ -206,6 +206,9 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 }
             }
         }
+        if (um.extra && typeof um.extra === 'object') {
+            Object.assign(rb, um.extra);
+        }
 
         return rb;
     }
@@ -224,7 +227,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         const reader = responseBody.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        token.onCancellationRequested(() => reader.cancel().catch(() => undefined))
+        const cancelToken = token.onCancellationRequested(() => reader.cancel().catch(() => undefined))
         let responseResult: ResponseResult | undefined
 
         try {
@@ -282,6 +285,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             logger.error('openai.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
             throw e;
         } finally {
+            cancelToken.dispose()
             this.endThinking()
             this.emitFallbackResponseIfNeeded(responseResult, progress)
             reader.releaseLock()
