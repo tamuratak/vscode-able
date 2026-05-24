@@ -327,10 +327,10 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
             // Extract stop_reason and usage information
             const stopReason = chunk.delta.stop_reason;
             if (stopReason) {
-                if (stopReason === 'end_turn') {
+                if (stopReason === 'end_turn' || stopReason === 'tool_use') {
                     this.warnIfToolCallBuffersNotEmpty('stop_reason: ' + stopReason)
+                    this.flushToolCallBuffers(progress)
                 }
-                this.flushToolCallBuffers(progress)
                 return { finishReason: stopReason }
             }
             return undefined;
