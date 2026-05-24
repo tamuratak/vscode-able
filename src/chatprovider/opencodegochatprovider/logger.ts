@@ -95,3 +95,4 @@ class MessageLogger {
 export const logger = new Logger('OpenCodeGo')
 export const chunkLogger = new Logger('OpenCodeGo - Chunk')
 export const messageLogger = new MessageLogger('OpenCodeGo - Message')
+export const finalResponseLogger = vscode.window.createOutputChannel('OpenCodeGo - Final Response', { log: true })
