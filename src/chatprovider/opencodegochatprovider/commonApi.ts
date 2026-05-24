@@ -29,8 +29,8 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     /** Track if we emitted any assistant text before seeing tool calls (SSE-like begin-tool-calls hint). */
     protected _hasEmittedAssistantText = false;
 
-    /** Track if we emitted any text. */
-    protected _unifiedText = '';
+    protected _unifiedText = ''
+    private prevContentType: 'text' | 'thinking' | undefined
 
     /** Track if we emitted the begin-tool-calls whitespace flush. */
     protected _emittedBeginToolCallsHint = false;
@@ -160,7 +160,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         if (!this._currentThinkingId) {
             this._currentThinkingId = this.generateThinkingId();
         }
-        this._unifiedText += text;
+        this.processUnifiedText(text, 'thinking')
         progress.report(new LanguageModelThinkingPart(text, this._currentThinkingId))
     }
 
@@ -178,8 +178,17 @@ export abstract class CommonApi<TMessage, TRequestBody> {
             return { emittedAny: false };
         }
         progress.report(new vscode.LanguageModelTextPart(content));
-        this._unifiedText += content;
+        this.processUnifiedText(content, 'text')
         return { emittedAny: true };
+    }
+
+    private processUnifiedText(content: string, contentType: 'text' | 'thinking'): void {
+        if (this.prevContentType !== contentType && this._unifiedText) {
+            // Insert separator between thinking and text content in the unified log
+            this._unifiedText += '\n\n';
+        }
+        this._unifiedText += content
+        this.prevContentType = contentType
     }
 
     /**
