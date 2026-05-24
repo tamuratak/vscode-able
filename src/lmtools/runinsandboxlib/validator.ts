@@ -253,7 +253,14 @@ async function isAllowedSubCommand(
     return false
 }
 
-export function parseGitCommand(command: CommandNode) {
+interface GitCommandInfo {
+    subCommand: string
+    subCommandArgs: string[]
+    mainArgs: string[]
+    cPath: string | undefined
+}
+
+export function parseGitCommand(command: CommandNode): GitCommandInfo | undefined {
     if (command.command !== 'git') {
         return
     }
