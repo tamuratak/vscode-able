@@ -196,6 +196,6 @@ For inputs longer than ~10k tokens (multi-chapter docs, long threads, multiple f
 
 const reduceThinkingPromptPart =
 `<reasoning_instructions>
-Don't think too much. Beleive in yourself and just go for it.
+Don't think too much. Believe in yourself and just go for it.
 No full drafting during reasoning. Don't draft, don't revise, don't check: believe in yourself and FULL SEND.
 </reasoning_instructions>`
