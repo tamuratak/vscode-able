@@ -134,7 +134,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         if (toolName !== 'read_file') {
             return parameters;
         }
-        const defaultLines = 500
+        const defaultLines = 1500
 
         const startLine = typeof parameters['startLine'] === 'number' ? parameters['startLine'] : 1;
         const endLine = typeof parameters['endLine'] === 'number' ? parameters['endLine'] : startLine;
