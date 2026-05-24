@@ -50,8 +50,8 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://docs.qwencloud.com/api-reference/chat/openai-chat
     // https://www.qwencloud.com/models/qwen3.6-plus
     // https://www.qwencloud.com/models/qwen3.5-plus
-    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, maxInputTokens: 1000000, maxOutputTokens: 32768 },
-    { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, maxInputTokens: 1000000, maxOutputTokens: 32768 },
+    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
+    { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
 
     // https://huggingface.co/tencent/Hy3-preview
     { baseId: 'hy3-preview', displayName: 'Hy3 preview', vision: false, defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'high'], maxInputTokens: 262144, maxOutputTokens: 32768 }

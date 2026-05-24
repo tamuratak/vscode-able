@@ -21,7 +21,21 @@ import type {
 import { isImageMimeType, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole } from '../utils.js';
 
 import { CommonApi } from '../commonApi.js';
-import { chunkLogger, logger } from '../logger.js';
+import { chunkLogger, finalResponseLogger, logger } from '../logger.js';
+
+const anthropicToOpenaiFinishReason: Record<string, string> = {
+	end_turn: 'stop',
+	max_tokens: 'length',
+	stop_sequence: 'stop',
+	tool_use: 'tool_calls',
+	pause_turn: 'stop',
+	refusal: 'stop',
+};
+
+export interface ResponseResult {
+	finishReason: string | undefined;
+	nativeFinishReason: string | undefined;
+}
 
 export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBody> {
 	constructor(modelId: string) {
@@ -222,6 +236,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 		const decoder = new TextDecoder();
 		let buffer = '';
 		const cancelToken = token.onCancellationRequested(() => reader.cancel().catch(() => undefined) )
+		let responseResult: ResponseResult | undefined
 
 		try {
 			while (true) {
@@ -258,7 +273,10 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 
 					try {
 						const chunk = JSON.parse(data) as AnthropicStreamChunk;
-						this.processAnthropicChunk(chunk, progress);
+						const result = this.processAnthropicChunk(chunk, progress);
+						if (result?.finishReason) {
+							responseResult = result
+						}
 					} catch (e) {
 						logger.error('anthropic.stream.chunk.error', {
 							modelId,
@@ -268,14 +286,18 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 					}
 				}
 			}
-			logger.debug('anthropic.stream.done', { modelId });
+			logger.info('anthropic.stream.done', { modelId, responseResult });
 		} catch (e) {
 			logger.error('anthropic.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
 			throw e;
 		} finally {
 			cancelToken.dispose()
-			reader.releaseLock();
 			this.endThinking()
+			if (responseResult?.finishReason === 'stop') {
+				finalResponseLogger.info('\n' + this._unifiedText)
+			}
+			this.emitFallbackResponseIfNeeded(responseResult, progress)
+			reader.releaseLock()
 		}
 	}
 
@@ -283,14 +305,15 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 	 * Process a single Anthropic streaming chunk.
 	 * @param chunk Parsed Anthropic stream chunk.
 	 * @param progress Progress reporter for parts.
+	 * @returns Response result with finish reason information.
 	 */
 	private processAnthropicChunk(
 		chunk: AnthropicStreamChunk,
 		progress: Progress<LanguageModelResponsePart2>
-	) {
+	): ResponseResult | undefined {
 		// Handle ping events (ignore)
 		if (chunk.type === 'ping') {
-			return;
+			return undefined;
 		}
 
 		// Handle error events
@@ -302,17 +325,26 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 				errorType,
 				errorMessage,
 			});
-			return;
+			return undefined;
 		}
 
 		if (chunk.type === 'message_start' && chunk.message) {
 			// Extract message metadata (id, model, etc.)
-			return;
+			return undefined;
 		}
 
 		if (chunk.type === 'message_delta' && chunk.delta) {
 			// Extract stop_reason and usage information
-			return;
+			const nativeStopReason = chunk.delta.stop_reason as string | undefined;
+			if (nativeStopReason) {
+				const mappedFinishReason = anthropicToOpenaiFinishReason[nativeStopReason] ?? nativeStopReason;
+				if (mappedFinishReason === 'stop') {
+					this.warnIfToolCallBuffersNotEmpty('stop_reason: ' + nativeStopReason)
+				}
+				this.flushToolCallBuffers(progress)
+				return { finishReason: mappedFinishReason, nativeFinishReason: nativeStopReason }
+			}
+			return undefined;
 		}
 
 		if (chunk.type === 'content_block_start' && chunk.content_block) {
@@ -338,8 +370,11 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 			}
 		} else if (chunk.type === 'content_block_delta' && chunk.delta) {
 			if (chunk.delta.type === 'text_delta' && chunk.delta.text) {
-				progress.report(new vscode.LanguageModelTextPart(chunk.delta.text));
-				this._hasEmittedAssistantText = true;
+				this.endThinking()
+				const res = this.processTextContent(chunk.delta.text, progress);
+				if (res.emittedAny) {
+					this._hasEmittedAssistantText = true;
+				}
 			} else if (chunk.delta.type === 'thinking_delta' && chunk.delta.thinking) {
 				this.bufferThinkingContent(chunk.delta.thinking, progress);
 			} else if (chunk.delta.type === 'input_json_delta' && chunk.delta.partial_json) {
@@ -356,6 +391,25 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 			// End of message - ensure thinking is ended and flush all tool calls
 			this.flushToolCallBuffers(progress)
 			this.endThinking()
+		}
+		return undefined;
+	}
+
+	private emitFallbackResponseIfNeeded(responseResult: ResponseResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
+		if (responseResult?.finishReason === 'stop') {
+			const needFallback = !this._hasEmittedAssistantText
+			if (needFallback) {
+				progress.report(new vscode.LanguageModelTextPart2(
+					'\n[OpenCode Go] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
+					[vscode.LanguageModelPartAudience.User]
+				))
+				progress.report(
+					new vscode.LanguageModelTextPart2(
+						this._unifiedText,
+						[vscode.LanguageModelPartAudience.User]
+					)
+				)
+			}
 		}
 	}
 

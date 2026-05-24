@@ -120,6 +120,8 @@ export interface AnthropicStreamChunk {
 		thinking?: string | undefined;
 		partial_json?: string | undefined;
 		signature?: string | undefined;
+		stop_reason?: string | undefined;
+		stop_sequence?: string | undefined;
 	} | undefined;
 	usage?: {
 		input_tokens: number;
