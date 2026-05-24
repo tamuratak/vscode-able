@@ -242,6 +242,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 const lines = buffer.split('\n');
                 buffer = lines.pop() || '';
 
+                let doneFlag = false
                 for (const line of lines) {
                     if (token.isCancellationRequested) {
                         break
@@ -258,6 +259,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                             logger.error('openai.stream.tool_calls_incomplete', { modelId, bufferedIndices: Array.from(this._toolCallBuffers.keys()) })
                             throw new Error('Stream ended with incomplete tool calls')
                         }
+                        doneFlag = true
                         break
                     }
 
@@ -275,6 +277,9 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                             data,
                         });
                     }
+                }
+                if (doneFlag) {
+                    break
                 }
             }
             logger.info('openai.stream.done', { modelId, responseResult });
