@@ -28,6 +28,16 @@ suite('tree-sitter command parser', () => {
 		const result = await hasNoWriteRedirection('echo hello world')
 		assert.strictEqual(result, true)
 	})
+
+	test('detects >& redirection to regular file', async () => {
+		const result = await hasNoWriteRedirection('echo hello >& output.txt')
+		assert.strictEqual(result, false)
+	})
+
+	test('allows >& redirection to /dev/null', async () => {
+		const result = await hasNoWriteRedirection('echo hello >& /dev/null')
+		assert.strictEqual(result, true)
+	})
 })
 
 suite('normalizeToken', () => {

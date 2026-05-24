@@ -445,6 +445,12 @@ suite('parseGitCommand', () => {
         assert.deepStrictEqual(result, { subCommand: 'status', subCommandArgs: ['-sb'], mainArgs: ['--no-pager'], cPath: '/some/path' })
     })
 
+    test('parses git with --no-pager before -C', () => {
+        const cmd: CommandNode = { command: 'git', args: ['--no-pager', '-C', '/some/path', 'status'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'status', subCommandArgs: [], mainArgs: ['--no-pager'], cPath: '/some/path' })
+    })
+
     test('returns undefined for unsupported sub-command', () => {
         const cmd: CommandNode = { command: 'git', args: ['push'] }
         assert.strictEqual(parseGitCommand(cmd), undefined)
