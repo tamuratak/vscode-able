@@ -23,18 +23,8 @@ import { isImageMimeType, isToolResultPart, collectToolResultText, convertToolsT
 import { CommonApi } from '../commonApi.js';
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js';
 
-const anthropicToOpenaiFinishReason: Record<string, string> = {
-	end_turn: 'stop',
-	max_tokens: 'length',
-	stop_sequence: 'stop',
-	tool_use: 'tool_calls',
-	pause_turn: 'stop',
-	refusal: 'stop',
-};
-
 export interface ResponseResult {
 	finishReason: string | undefined;
-	nativeFinishReason: string | undefined;
 }
 
 export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBody> {
@@ -293,7 +283,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 		} finally {
 			cancelToken.dispose()
 			this.endThinking()
-			if (responseResult?.finishReason === 'stop') {
+			if (responseResult?.finishReason === 'end_turn') {
 				finalResponseLogger.info('\n' + this._unifiedText)
 			}
 			this.emitFallbackResponseIfNeeded(responseResult, progress)
@@ -335,14 +325,13 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 
 		if (chunk.type === 'message_delta' && chunk.delta) {
 			// Extract stop_reason and usage information
-			const nativeStopReason = chunk.delta.stop_reason as string | undefined;
-			if (nativeStopReason) {
-				const mappedFinishReason = anthropicToOpenaiFinishReason[nativeStopReason] ?? nativeStopReason;
-				if (mappedFinishReason === 'stop') {
-					this.warnIfToolCallBuffersNotEmpty('stop_reason: ' + nativeStopReason)
+			const stopReason = chunk.delta.stop_reason;
+			if (stopReason) {
+				if (stopReason === 'end_turn') {
+					this.warnIfToolCallBuffersNotEmpty('stop_reason: ' + stopReason)
 				}
 				this.flushToolCallBuffers(progress)
-				return { finishReason: mappedFinishReason, nativeFinishReason: nativeStopReason }
+				return { finishReason: stopReason }
 			}
 			return undefined;
 		}
@@ -396,7 +385,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 	}
 
 	private emitFallbackResponseIfNeeded(responseResult: ResponseResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
-		if (responseResult?.finishReason === 'stop') {
+		if (responseResult?.finishReason === 'end_turn') {
 			const needFallback = !this._hasEmittedAssistantText
 			if (needFallback) {
 				progress.report(new vscode.LanguageModelTextPart2(
