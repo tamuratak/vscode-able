@@ -20,7 +20,7 @@ import type {
 
 import { isImageMimeType, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole } from '../utils.js';
 
-import { CommonApi } from '../commonApi.js';
+import { APIUsage, CommonApi } from '../commonApi.js';
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js';
 
 export interface ResponseResult {
@@ -324,7 +324,24 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         }
 
         if (chunk.type === 'message_delta' && chunk.delta) {
-            // Extract stop_reason and usage information
+            // Process usage information from message_delta
+            if (chunk.usage) {
+                const inputTokens = chunk.usage.input_tokens ?? 0;
+                const outputTokens = chunk.usage.output_tokens ?? 0;
+                const apiUsage: APIUsage = {
+                    completion_tokens: outputTokens,
+                    prompt_tokens: inputTokens,
+                    total_tokens: inputTokens + outputTokens,
+                    prompt_tokens_details: {
+                        cached_tokens: chunk.usage.cache_read_input_tokens ?? 0,
+                        cache_creation_input_tokens: chunk.usage.cache_creation_input_tokens ?? 0,
+                    }
+                };
+                progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'));
+                logger.debug('anthropic.stream.usage', { modelId: this._modelId, usage: chunk.usage });
+            }
+
+            // Extract stop_reason
             const stopReason = chunk.delta.stop_reason;
             if (stopReason) {
                 if (stopReason === 'end_turn' || stopReason === 'tool_use') {
