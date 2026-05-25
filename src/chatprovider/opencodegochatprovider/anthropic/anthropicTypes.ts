@@ -9,6 +9,7 @@ export type AnthropicRole = 'user' | 'assistant';
 export interface AnthropicTextBlock {
     type: 'text';
     text: string;
+    cache_control?: { type: 'ephemeral' };
 }
 
 export interface AnthropicImageBlock {
@@ -18,6 +19,7 @@ export interface AnthropicImageBlock {
         media_type: string;
         data: string;
     };
+    cache_control?: { type: 'ephemeral' };
 }
 
 export interface AnthropicThinkingBlock {
@@ -30,13 +32,15 @@ export interface AnthropicToolUseBlock {
     type: 'tool_use';
     id: string;
     name: string;
+    cache_control?: { type: 'ephemeral' };
     input: Record<string, unknown>;
 }
 
 export interface AnthropicToolResultBlock {
     type: 'tool_result';
     tool_use_id: string;
-    content: string | AnthropicTextBlock[];
+    content: AnthropicTextBlock[];
+    cache_control?: { type: 'ephemeral' };
     is_error?: boolean;
 }
 

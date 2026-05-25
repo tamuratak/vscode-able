@@ -13,12 +13,11 @@ import type {
     AnthropicMessage,
     AnthropicRequestBody,
     AnthropicContentBlock,
-    AnthropicToolUseBlock,
-    AnthropicToolResultBlock,
+    AnthropicTextBlock,
     AnthropicStreamChunk,
 } from './anthropicTypes.js';
 
-import { isImageMimeType, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole } from '../utils.js';
+import { isImageMimeType, isToolResultPart, convertToolsToOpenAI, mapRole } from '../utils.js';
 
 import { APIUsage, CommonApi } from '../commonApi.js';
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js';
@@ -46,110 +45,132 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 
         for (const m of messages) {
             const role = mapRole(m);
-            const textParts: string[] = [];
-            const imageParts: vscode.LanguageModelDataPart[] = [];
-            const toolCalls: AnthropicToolUseBlock[] = [];
-            const toolResults: AnthropicToolResultBlock[] = [];
-            const thinkingParts: string[] = [];
+
+            if (role === 'system') {
+                this.convertSystemMessage(m);
+                continue;
+            }
+
+            const contentBlocks: AnthropicContentBlock[] = [];
+            let textBuffer = '';
+
+            const flushTextBuffer = () => {
+                const trimmed = textBuffer.trim();
+                if (trimmed) {
+                    contentBlocks.push({ type: 'text', text: trimmed });
+                }
+                textBuffer = '';
+            };
 
             for (const part of m.content ?? []) {
                 if (part instanceof vscode.LanguageModelTextPart) {
-                    textParts.push(part.value);
+                    textBuffer += part.value;
+                } else if (part instanceof vscode.LanguageModelDataPart && part.mimeType === 'cache_control' && new TextDecoder().decode(part.data) === 'ephemeral') {
+                    flushTextBuffer();
+                    this.applyEphemeralToLastBlock(contentBlocks);
                 } else if (part instanceof vscode.LanguageModelDataPart && isImageMimeType(part.mimeType)) {
-                    imageParts.push(part);
+                    flushTextBuffer();
+                    contentBlocks.push({
+                        type: 'image',
+                        source: {
+                            type: 'base64',
+                            media_type: part.mimeType,
+                            data: Buffer.from(part.data).toString('base64'),
+                        },
+                    });
                 } else if (part instanceof vscode.LanguageModelToolCallPart) {
+                    flushTextBuffer();
                     const id = part.callId || `toolu_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-                    toolCalls.push({
+                    contentBlocks.push({
                         type: 'tool_use',
                         id,
                         name: part.name,
                         input: (part.input as Record<string, unknown>) ?? {},
                     });
                 } else if (isToolResultPart(part)) {
-                    const content = collectToolResultText(part)
-                    toolResults.push({
+                    flushTextBuffer();
+                    const resultContent: AnthropicTextBlock[] = [];
+                    for (const p of part.content ?? []) {
+                        if (p instanceof vscode.LanguageModelTextPart) {
+                            resultContent.push({ type: 'text', text: p.value });
+                        } else if (p instanceof vscode.LanguageModelDataPart && p.mimeType === 'cache_control' && new TextDecoder().decode(p.data) === 'ephemeral') {
+                            resultContent.push({ type: 'text', text: ' ', cache_control: { type: 'ephemeral' } });
+                        }
+                    }
+                    contentBlocks.push({
                         type: 'tool_result',
                         tool_use_id: part.callId,
-                        content,
+                        content: resultContent,
                     });
                 } else if (part instanceof vscode.LanguageModelThinkingPart) {
-                    const content = Array.isArray(part.value) ? part.value.join('') : part.value;
-                    thinkingParts.push(content);
+                    flushTextBuffer();
+                    if (modelConfig.includeReasoningInRequest) {
+                        const thinkingText = Array.isArray(part.value) ? part.value.join('') : part.value;
+                        contentBlocks.push({ type: 'thinking', thinking: thinkingText });
+                    }
                 }
             }
+            flushTextBuffer();
 
-            const joinedText = textParts.join('').trim();
-            const joinedThinking = thinkingParts.join('').trim();
-
-            // Handle system messages separately (Anthropic uses top-level system field)
-            if (role === 'system') {
-                if (joinedText) {
-                    this._systemContent = joinedText;
-                }
-                continue;
+            if (role === 'user' && contentBlocks.some(b => b.type === 'tool_result')) {
+                // Tool results in user messages are fine
+            } else if (contentBlocks.some(b => b.type === 'tool_result') && role !== 'user') {
+                logger.warn('anthropic.tool-results.non-user', { messageRole: role });
             }
 
-            // Build content blocks for user/assistant messages
-            const contentBlocks: AnthropicContentBlock[] = [];
-
-            // Add text content
-            if (joinedText) {
-                contentBlocks.push({
-                    type: 'text',
-                    text: joinedText,
-                });
-            }
-
-            // Add image content
-            for (const imagePart of imageParts) {
-                const base64Data = Buffer.from(imagePart.data).toString('base64');
-                contentBlocks.push({
-                    type: 'image',
-                    source: {
-                        type: 'base64',
-                        media_type: imagePart.mimeType,
-                        data: base64Data,
-                    },
-                });
-            }
-
-            // Add thinking content for assistant messages
-            if (role === 'assistant' && modelConfig.includeReasoningInRequest) {
-                contentBlocks.push({
-                    type: 'thinking',
-                    thinking: joinedThinking,
-                });
-            }
-
-            // Add tool calls for assistant messages
-            for (const toolCall of toolCalls) {
-                contentBlocks.push(toolCall);
-            }
-
-            // For tool results, they should be added to user messages
-            if (role === 'user' && toolResults.length > 0) {
-                for (const toolResult of toolResults) {
-                    contentBlocks.push(toolResult);
-                }
-            } else if (toolResults.length > 0) {
-                // If tool results appear in non-user messages, log warning
-                console.warn('[Anthropic Provider] Tool results found in non-user message, ignoring');
-                logger.warn('anthropic.tool-results.non-user', {
-                    messageRole: role,
-                    toolResultCount: toolResults.length,
-                });
-            }
-
-            // Only add message if we have content blocks
             if (contentBlocks.length > 0) {
-                out.push({
-                    role,
-                    content: contentBlocks,
-                });
+                out.push({ role, content: contentBlocks });
             }
         }
 
         return out;
+    }
+
+    private convertSystemMessage(m: LanguageModelChatRequestMessage): void {
+        const textParts: string[] = [];
+        let hasEphemeral = false;
+
+        for (const part of m.content ?? []) {
+            if (part instanceof vscode.LanguageModelTextPart) {
+                textParts.push(part.value);
+            } else if (part instanceof vscode.LanguageModelDataPart && part.mimeType === 'cache_control' && new TextDecoder().decode(part.data) === 'ephemeral') {
+                hasEphemeral = true;
+            }
+        }
+
+        const joinedText = textParts.join('').trim();
+        if (!joinedText) {
+            return;
+        }
+
+        const systemBlock: AnthropicTextBlock = { type: 'text', text: joinedText };
+        if (hasEphemeral) {
+            systemBlock.cache_control = { type: 'ephemeral' };
+        }
+
+        if (this._systemContent && Array.isArray(this._systemContent)) {
+            this._systemContent.push(systemBlock);
+        } else if (typeof this._systemContent === 'string') {
+            this._systemContent = [
+                { type: 'text', text: this._systemContent },
+                systemBlock,
+            ];
+        } else {
+            this._systemContent = systemBlock.cache_control ? [systemBlock] : joinedText;
+        }
+    }
+
+    private applyEphemeralToLastBlock(contentBlocks: AnthropicContentBlock[]): void {
+        const lastBlock = contentBlocks.at(-1);
+        if (lastBlock && lastBlock.type !== 'thinking') {
+            lastBlock.cache_control = { type: 'ephemeral' };
+        } else {
+            contentBlocks.push({
+                type: 'text',
+                text: ' ',
+                cache_control: { type: 'ephemeral' },
+            });
+        }
     }
 
     prepareRequestBody(

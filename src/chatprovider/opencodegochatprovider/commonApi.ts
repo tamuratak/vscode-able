@@ -5,6 +5,7 @@ import { OpenCodeGoModelItem } from './types.js'
 import { tryParseJSONObject } from './utils.js'
 import { logger } from './logger.js';
 import { EndpointApiType } from './models.js';
+import type { AnthropicTextBlock } from './anthropic/anthropicTypes.js';
 
 export interface APIUsage {
 	prompt_tokens: number;
@@ -39,7 +40,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     protected _currentThinkingId: string | null = null;
 
     /** System prompts to include in requests. */
-    protected _systemContent: string | undefined;
+    protected _systemContent: string | AnthropicTextBlock[] | undefined;
 
     /** Set the model ID for logging purposes. */
     protected _modelId = '';
