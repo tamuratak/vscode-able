@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import type { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, } from 'vscode'
 import type { OpenCodeGoModelItem } from '../types.js'
-import type { AnthropicMessage, AnthropicRequestBody, AnthropicContentBlock, AnthropicTextBlock, AnthropicRedactedThinkingBlock, AnthropicStreamChunk, } from './anthropicTypes.js'
+import type { AnthropicMessage, AnthropicRequestBody, AnthropicContentBlock, AnthropicTextBlock, AnthropicRedactedThinkingBlock, AnthropicToolResultBlock, AnthropicStreamChunk, } from './anthropicTypes.js'
 import { isImageMimeType, isToolResultPart, convertToolsToOpenAI, mapRole } from '../utils.js'
 import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
@@ -75,18 +75,23 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 } else if (isToolResultPart(part)) {
                     flushTextBuffer();
                     const resultContent: AnthropicTextBlock[] = [];
+                    let hasEphemeral = false
                     for (const p of part.content ?? []) {
                         if (p instanceof vscode.LanguageModelTextPart) {
                             resultContent.push({ type: 'text', text: p.value });
                         } else if (p instanceof vscode.LanguageModelDataPart && p.mimeType === 'cache_control' && new TextDecoder().decode(p.data) === 'ephemeral') {
-                            resultContent.push({ type: 'text', text: ' ', cache_control: { type: 'ephemeral' } });
+                            hasEphemeral = true;
                         }
                     }
-                    contentBlocks.push({
+                    const toolResultBlock: AnthropicToolResultBlock = {
                         type: 'tool_result',
                         tool_use_id: part.callId,
                         content: resultContent,
-                    });
+                    };
+                    if (hasEphemeral) {
+                        toolResultBlock.cache_control = { type: 'ephemeral' }
+                    }
+                    contentBlocks.push(toolResultBlock);
                 } else if (part instanceof vscode.LanguageModelThinkingPart) {
                     flushTextBuffer();
                     if (modelConfig.includeReasoningInRequest) {
@@ -342,13 +347,17 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
             if (chunk.usage) {
                 const inputTokens = chunk.usage.input_tokens ?? 0;
                 const outputTokens = chunk.usage.output_tokens ?? 0;
+                const cacheCreationTokens = chunk.usage.cache_creation_input_tokens ?? 0
+                const cacheReadTokens = chunk.usage.cache_read_input_tokens ?? 0
+                // prompt_tokens includes cache tokens to reflect the total input consumed
+                const promptTokens = inputTokens + cacheCreationTokens + cacheReadTokens;
                 const apiUsage: APIUsage = {
                     completion_tokens: outputTokens,
-                    prompt_tokens: inputTokens,
-                    total_tokens: inputTokens + outputTokens,
+                    prompt_tokens: promptTokens,
+                    total_tokens: promptTokens + outputTokens,
                     prompt_tokens_details: {
-                        cached_tokens: chunk.usage.cache_read_input_tokens ?? 0,
-                        cache_creation_input_tokens: chunk.usage.cache_creation_input_tokens ?? 0,
+                        cached_tokens: cacheReadTokens,
+                        cache_creation_input_tokens: cacheCreationTokens,
                     }
                 };
                 progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'));
