@@ -47,11 +47,11 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768 },
     { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768 },
 
-    // https://docs.qwencloud.com/api-reference/chat/openai-chat
+    // https://docs.qwencloud.com/api-reference/chat/anthropic
     // https://www.qwencloud.com/models/qwen3.6-plus
     // https://www.qwencloud.com/models/qwen3.5-plus
-    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, maxInputTokens: 1000000, maxOutputTokens: 32768 },
-    { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, maxInputTokens: 1000000, maxOutputTokens: 32768 },
+    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
+    { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
 
     // https://huggingface.co/tencent/Hy3-preview
     { baseId: 'hy3-preview', displayName: 'Hy3 preview', vision: false, defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'high'], maxInputTokens: 262144, maxOutputTokens: 32768 }
