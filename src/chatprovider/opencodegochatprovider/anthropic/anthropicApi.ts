@@ -14,6 +14,7 @@ import type {
     AnthropicRequestBody,
     AnthropicContentBlock,
     AnthropicTextBlock,
+    AnthropicRedactedThinkingBlock,
     AnthropicStreamChunk,
 } from './anthropicTypes.js';
 
@@ -105,8 +106,16 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 } else if (part instanceof vscode.LanguageModelThinkingPart) {
                     flushTextBuffer();
                     if (modelConfig.includeReasoningInRequest) {
-                        const thinkingText = Array.isArray(part.value) ? part.value.join('') : part.value;
-                        contentBlocks.push({ type: 'thinking', thinking: thinkingText });
+                        if (part.metadata?.['redactedData']) {
+                            const redactedBlock: AnthropicRedactedThinkingBlock = {
+                                type: 'redacted_thinking',
+                                data: part.metadata['redactedData'] as string,
+                            };
+                            contentBlocks.push(redactedBlock);
+                        } else {
+                            const thinkingText = Array.isArray(part.value) ? part.value.join('') : part.value;
+                            contentBlocks.push({ type: 'thinking', thinking: thinkingText });
+                        }
                     }
                 }
             }
@@ -162,7 +171,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 
     private applyEphemeralToLastBlock(contentBlocks: AnthropicContentBlock[]): void {
         const lastBlock = contentBlocks.at(-1);
-        if (lastBlock && lastBlock.type !== 'thinking') {
+        if (lastBlock && lastBlock.type !== 'thinking' && lastBlock.type !== 'redacted_thinking') {
             lastBlock.cache_control = { type: 'ephemeral' };
         } else {
             contentBlocks.push({
@@ -380,6 +389,19 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 if (chunk.content_block.thinking) {
                     this.bufferThinkingContent(chunk.content_block.thinking, progress);
                 }
+            } else if (chunk.content_block.type === 'redacted_thinking') {
+                // Redacted thinking block - emit as a thinking part with encrypted data in metadata
+                if (chunk.content_block.data) {
+                    if (!this._currentThinkingId) {
+                        this._currentThinkingId = this.generateThinkingId();
+                    }
+                    progress.report(new vscode.LanguageModelThinkingPart(
+                        chunk.content_block.data,
+                        this._currentThinkingId,
+                        { redactedData: chunk.content_block.data }
+                    ));
+                    this.endThinking();
+                }
             } else if (chunk.content_block.type === 'tool_use') {
                 // Start tool call block
                 if (!this._emittedBeginToolCallsHint && this._hasEmittedAssistantText) {
@@ -413,6 +435,16 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 }
             } else if (chunk.delta.type === 'signature_delta' && chunk.delta.signature) {
                 // Signature for thinking block - ignore for now
+            } else if (chunk.delta.type === 'redacted_delta' && chunk.delta.data) {
+                // Redacted thinking delta - store as encrypted data
+                if (!this._currentThinkingId) {
+                    this._currentThinkingId = this.generateThinkingId();
+                }
+                progress.report(new vscode.LanguageModelThinkingPart(
+                    chunk.delta.data,
+                    this._currentThinkingId,
+                    { redactedData: chunk.delta.data }
+                ));
             }
         } else if (chunk.type === 'content_block_stop' || chunk.type === 'message_stop') {
             // End of message - ensure thinking is ended and flush all tool calls

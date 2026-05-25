@@ -28,6 +28,11 @@ export interface AnthropicThinkingBlock {
     signature?: string;
 }
 
+export interface AnthropicRedactedThinkingBlock {
+    type: 'redacted_thinking';
+    data: string;
+}
+
 export interface AnthropicToolUseBlock {
     type: 'tool_use';
     id: string;
@@ -48,6 +53,7 @@ export type AnthropicContentBlock =
     AnthropicTextBlock
     | AnthropicImageBlock
     | AnthropicThinkingBlock
+    | AnthropicRedactedThinkingBlock
     | AnthropicToolUseBlock
     | AnthropicToolResultBlock;
 
@@ -111,19 +117,21 @@ export interface AnthropicStreamChunk {
         stop_sequence?: string;
     } | undefined;
     content_block?: {
-        type: 'text' | 'thinking' | 'tool_use';
+        type: 'text' | 'thinking' | 'redacted_thinking' | 'tool_use';
         text?: string | undefined;
         thinking?: string | undefined;
+        data?: string | undefined;
         id?: string | undefined;
         name?: string | undefined;
         input?: Record<string, unknown>;
     } | undefined;
     delta?: {
-        type: 'text_delta' | 'thinking_delta' | 'input_json_delta' | 'signature_delta';
+        type: 'text_delta' | 'thinking_delta' | 'input_json_delta' | 'signature_delta' | 'redacted_delta';
         text?: string | undefined;
         thinking?: string | undefined;
         partial_json?: string | undefined;
         signature?: string | undefined;
+        data?: string | undefined;
         stop_reason?: string | undefined;
         stop_sequence?: string | undefined;
     } | undefined;
