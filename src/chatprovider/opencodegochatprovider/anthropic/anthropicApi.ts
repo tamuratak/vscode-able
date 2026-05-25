@@ -1,27 +1,11 @@
-import * as vscode from 'vscode';
-import {
-    CancellationToken,
-    LanguageModelChatRequestMessage,
-    ProvideLanguageModelChatResponseOptions,
-    LanguageModelResponsePart2,
-    Progress,
-} from 'vscode';
+import * as vscode from 'vscode'
+import type { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, } from 'vscode'
+import type { OpenCodeGoModelItem } from '../types.js'
+import type { AnthropicMessage, AnthropicRequestBody, AnthropicContentBlock, AnthropicTextBlock, AnthropicRedactedThinkingBlock, AnthropicStreamChunk, } from './anthropicTypes.js'
+import { isImageMimeType, isToolResultPart, convertToolsToOpenAI, mapRole } from '../utils.js'
+import { APIUsage, CommonApi } from '../commonApi.js'
+import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
-import type { OpenCodeGoModelItem } from '../types.js';
-
-import type {
-    AnthropicMessage,
-    AnthropicRequestBody,
-    AnthropicContentBlock,
-    AnthropicTextBlock,
-    AnthropicRedactedThinkingBlock,
-    AnthropicStreamChunk,
-} from './anthropicTypes.js';
-
-import { isImageMimeType, isToolResultPart, convertToolsToOpenAI, mapRole } from '../utils.js';
-
-import { APIUsage, CommonApi } from '../commonApi.js';
-import { chunkLogger, finalResponseLogger, logger } from '../logger.js';
 
 export interface ResponseResult {
     finishReason: string | undefined;
@@ -106,10 +90,10 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 } else if (part instanceof vscode.LanguageModelThinkingPart) {
                     flushTextBuffer();
                     if (modelConfig.includeReasoningInRequest) {
-                        if (part.metadata?.['redactedData']) {
+                        if (typeof part.metadata?.['redactedData'] === 'string') {
                             const redactedBlock: AnthropicRedactedThinkingBlock = {
                                 type: 'redacted_thinking',
-                                data: part.metadata['redactedData'] as string,
+                                data: part.metadata['redactedData']
                             };
                             contentBlocks.push(redactedBlock);
                         } else {
@@ -408,7 +392,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                     progress.report(new vscode.LanguageModelTextPart(' '));
                     this._emittedBeginToolCallsHint = true;
                 }
-                const idx = (chunk.index as number) ?? 0;
+                const idx = chunk.index ?? 0
                 this._toolCallBuffers.set(idx, {
                     id: chunk.content_block.id,
                     name: chunk.content_block.name,
@@ -427,7 +411,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
             } else if (chunk.delta.type === 'thinking_delta' && chunk.delta.thinking) {
                 this.bufferThinkingContent(chunk.delta.thinking, progress);
             } else if (chunk.delta.type === 'input_json_delta' && chunk.delta.partial_json) {
-                const idx = (chunk.index as number) ?? 0;
+                const idx = chunk.index ?? 0
                 const buf = this._toolCallBuffers.get(idx);
                 if (buf) {
                     buf.args += chunk.delta.partial_json;
