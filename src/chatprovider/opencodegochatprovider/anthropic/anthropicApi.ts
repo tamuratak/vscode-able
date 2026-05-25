@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import type { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, } from 'vscode'
+import type { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, LanguageModelChatInformation, } from 'vscode'
 import type { OpenCodeGoModelItem } from '../types.js'
 import type { AnthropicMessage, AnthropicRequestBody, AnthropicContentBlock, AnthropicTextBlock, AnthropicRedactedThinkingBlock, AnthropicToolResultBlock, AnthropicStreamChunk, } from './anthropicTypes.js'
 import { isImageMimeType, isToolResultPart, convertToolsToOpenAI, mapRole } from '../utils.js'
@@ -12,8 +12,8 @@ export interface ResponseResult {
 }
 
 export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBody> {
-    constructor(modelId: string) {
-        super(modelId);
+    constructor(modelInfo: LanguageModelChatInformation) {
+        super(modelInfo)
     }
 
     /**
@@ -53,7 +53,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 } else if (part instanceof vscode.LanguageModelDataPart && part.mimeType === 'cache_control' && new TextDecoder().decode(part.data) === 'ephemeral') {
                     flushTextBuffer();
                     this.applyEphemeralToLastBlock(contentBlocks);
-                } else if (part instanceof vscode.LanguageModelDataPart && isImageMimeType(part.mimeType)) {
+                } else if (part instanceof vscode.LanguageModelDataPart && isImageMimeType(part.mimeType) && this.modelCapabilities.imageInput) {
                     flushTextBuffer();
                     contentBlocks.push({
                         type: 'image',
@@ -238,7 +238,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
-        const modelId = this._modelId;
+        const modelId = this.modelId
         logger.debug('anthropic.stream.start', { modelId });
 
         const reader = responseBody.getReader();
@@ -330,7 +330,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
             const errorType = chunk.error?.type || 'unknown_error';
             const errorMessage = chunk.error?.message || 'Anthropic API streaming error';
             logger.error('anthropic.stream.error.chunk', {
-                modelId: this._modelId,
+                modelId: this.modelId,
                 errorType,
                 errorMessage,
             });
@@ -361,7 +361,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                     }
                 };
                 progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'));
-                logger.debug('anthropic.stream.usage', { modelId: this._modelId, usage: chunk.usage });
+                logger.debug('anthropic.stream.usage', { modelId: this.modelId, usage: chunk.usage });
             }
 
             // Extract stop_reason

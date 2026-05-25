@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress } from 'vscode'
+import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, LanguageModelChatInformation } from 'vscode'
 import type { OpenCodeGoModelItem } from '../types.js'
 import type { OpenAIChatMessage, OpenAIToolCall, ChatMessageContent, ReasoningDetail } from './openaiTypes.js'
 import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole, } from '../utils.js'
@@ -13,8 +13,8 @@ export interface ResponseResult {
 }
 
 export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unknown>> {
-    constructor(modelId: string) {
-        super(modelId);
+    constructor(modelInfo: LanguageModelChatInformation) {
+        super(modelInfo)
     }
 
     /**
@@ -36,7 +36,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             for (const part of m.content ?? []) {
                 if (part instanceof vscode.LanguageModelTextPart) {
                     textParts.push(part.value);
-                } else if (part instanceof vscode.LanguageModelDataPart && isImageMimeType(part.mimeType)) {
+                } else if (part instanceof vscode.LanguageModelDataPart && isImageMimeType(part.mimeType) && this.modelCapabilities.imageInput) {
                     imageParts.push(part);
                 } else if (part instanceof vscode.LanguageModelToolCallPart) {
                     const id = part.callId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -218,7 +218,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
-        const modelId = this._modelId;
+        const modelId = this.modelId
         logger.debug('openai.stream.start', { modelId });
 
         const reader = responseBody.getReader();
@@ -269,7 +269,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                         if (result.finishReason) {
                             responseResult = result
                         }
-                        this.processUsage(parsed, modelId, progress)
+                        this.processUsage(parsed, progress)
                     } catch (e) {
                         logger.error('openai.stream.chunk.error', {
                             modelId,
@@ -299,7 +299,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
     private emitFallbackResponseIfNeeded(responseResult: ResponseResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
         if (responseResult?.finishReason === 'stop') {
-            const needFallback = !this._hasEmittedAssistantText || (this._modelId.startsWith('mimo') && /<\/?think(ing)?>/.test(this._unifiedText))
+            const needFallback = !this._hasEmittedAssistantText || (this.modelId.startsWith('mimo') && /<\/?think(ing)?>/.test(this._unifiedText))
             if (needFallback) {
                 progress.report(new vscode.LanguageModelTextPart2(
                     '\n[OpenCode Go] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
@@ -317,7 +317,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
     private processUsage(
         parsed: Record<string, unknown>,
-        modelId: string,
         progress: Progress<LanguageModelResponsePart2>
     ) {
         // Capture usage from stream_options: include_usage chunks (final chunk with no choices)
@@ -356,7 +355,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             }
         }
         progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'))
-        logger.debug('openai.stream.usage', { modelId, usage: usageData })
+        logger.debug('openai.stream.usage', { modelId: this.modelId, usage: usageData })
     }
 
     /**
