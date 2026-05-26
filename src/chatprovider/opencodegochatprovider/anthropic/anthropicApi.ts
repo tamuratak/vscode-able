@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import type { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, LanguageModelChatInformation, } from 'vscode'
 import type { OpenCodeGoModelItem } from '../types.js'
-import type { AnthropicMessage, AnthropicRequestBody, AnthropicContentBlock, AnthropicTextBlock, AnthropicRedactedThinkingBlock, AnthropicToolResultBlock, AnthropicStreamChunk, } from './anthropicTypes.js'
+import type { AnthropicMessage, AnthropicRequestBody, AnthropicContentBlock, AnthropicTextBlock, AnthropicImageBlock, AnthropicRedactedThinkingBlock, AnthropicToolResultBlock, AnthropicStreamChunk, } from './anthropicTypes.js'
 import { isImageMimeType, isToolResultPart, convertToolsToOpenAI, mapRole } from '../utils.js'
 import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
@@ -76,13 +76,22 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                     });
                 } else if (isToolResultPart(part)) {
                     flushTextBuffer();
-                    const resultContent: AnthropicTextBlock[] = [];
+                    const resultContent: (AnthropicTextBlock | AnthropicImageBlock)[] = [];
                     let hasEphemeral = false
                     for (const p of part.content ?? []) {
                         if (p instanceof vscode.LanguageModelTextPart) {
                             resultContent.push({ type: 'text', text: p.value });
                         } else if (p instanceof vscode.LanguageModelDataPart && p.mimeType === 'cache_control' && new TextDecoder().decode(p.data) === 'ephemeral') {
                             hasEphemeral = true;
+                        } else if (p instanceof vscode.LanguageModelDataPart && isImageMimeType(p.mimeType) && this.modelCapabilities.imageInput) {
+                            resultContent.push({
+                                type: 'image',
+                                source: {
+                                    type: 'base64',
+                                    media_type: p.mimeType,
+                                    data: Buffer.from(p.data).toString('base64'),
+                                },
+                            });
                         }
                     }
                     const toolResultBlock: AnthropicToolResultBlock = {

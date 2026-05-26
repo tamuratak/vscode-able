@@ -44,7 +44,7 @@ export interface AnthropicToolUseBlock {
 export interface AnthropicToolResultBlock {
     type: 'tool_result';
     tool_use_id: string;
-    content: AnthropicTextBlock[];
+    content: (AnthropicTextBlock | AnthropicImageBlock)[];
     cache_control?: { type: 'ephemeral' };
     is_error?: boolean;
 }

@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, LanguageModelChatInformation } from 'vscode'
 import type { OpenCodeGoModelItem } from '../types.js'
 import type { OpenAIChatMessage, OpenAIToolCall, ChatMessageContent, ReasoningDetail } from './openaiTypes.js'
-import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole, } from '../utils.js'
+import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, collectToolResultImages, convertToolsToOpenAI, mapRole, } from '../utils.js'
 import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
@@ -30,7 +30,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             const textParts: string[] = [];
             const imageParts: vscode.LanguageModelDataPart[] = [];
             const toolCalls: OpenAIToolCall[] = [];
-            const toolResults: { callId: string; content: string }[] = [];
+            const toolResults: { callId: string; content: string; images: vscode.LanguageModelDataPart[] }[] = [];
             const reasoningParts: string[] = [];
 
             for (const part of m.content ?? []) {
@@ -50,7 +50,8 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 } else if (isToolResultPart(part)) {
                     const callId = (part as { callId?: string }).callId ?? '';
                     const content = collectToolResultText(part as { content?: readonly unknown[] });
-                    toolResults.push({ callId, content });
+                    const images = collectToolResultImages(part as { content?: readonly unknown[] });
+                    toolResults.push({ callId, content, images });
                 } else if (part instanceof vscode.LanguageModelThinkingPart) {
                     const content = Array.isArray(part.value) ? part.value.join('') : part.value;
                     reasoningParts.push(content);
@@ -85,7 +86,19 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
             // process tool result messages
             for (const tr of toolResults) {
-                out.push({ role: 'tool', tool_call_id: tr.callId, content: tr.content || '' });
+                if (tr.images.length > 0 && this.modelCapabilities.imageInput) {
+                    const contentArray: ChatMessageContent[] = [];
+                    if (tr.content) {
+                        contentArray.push({ type: 'text', text: tr.content });
+                    }
+                    for (const img of tr.images) {
+                        const dataUrl = createDataUrl(img);
+                        contentArray.push({ type: 'image_url', image_url: { url: dataUrl } });
+                    }
+                    out.push({ role: 'tool', tool_call_id: tr.callId, content: contentArray });
+                } else {
+                    out.push({ role: 'tool', tool_call_id: tr.callId, content: tr.content || '' });
+                }
             }
 
             // process user messages
