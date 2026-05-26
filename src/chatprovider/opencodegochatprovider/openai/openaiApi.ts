@@ -61,7 +61,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             const joinedText = textParts.join('').trim();
             const joinedThinking = reasoningParts.join('').trim();
 
-            // process assistant message
             if (role === 'assistant') {
                 const assistantMessage: OpenAIChatMessage = {
                     role: 'assistant',
