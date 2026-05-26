@@ -130,19 +130,16 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         um: OpenCodeGoModelItem,
         options?: ProvideLanguageModelChatResponseOptions
     ): Record<string, unknown> {
-        // temperature
         if (um.temperature !== undefined) {
             rb['temperature'] = um.temperature;
         }
 
-        // top_p
         if (um.top_p !== undefined && um.top_p !== null) {
             rb['top_p'] = um.top_p;
         }
 
         rb['max_completion_tokens'] = um.max_completion_tokens;
 
-        // OpenAI reasoning configuration (only set when thinking is enabled)
         if (um.enable_thinking && um.reasoning_effort !== undefined) {
             rb['reasoning_effort'] = um.reasoning_effort;
         }
@@ -172,7 +169,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             rb['reasoning'] = reasoningObj;
         }
 
-        // stop
         if (options?.modelOptions) {
             const mo = options.modelOptions as Record<string, unknown>;
             if (typeof mo['stop'] === 'string' || Array.isArray(mo['stop'])) {
@@ -180,7 +176,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             }
         }
 
-        // tools
         const toolConfig = convertToolsToOpenAI(options);
         if (toolConfig.tools) {
             rb['tools'] = toolConfig.tools;
@@ -189,7 +184,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             rb['tool_choice'] = toolConfig.tool_choice;
         }
 
-        // Extra model parameters
         if (um.top_k !== undefined) { rb['top_k'] = um.top_k; }
         if (um.min_p !== undefined) { rb['min_p'] = um.min_p; }
         if (um.frequency_penalty !== undefined) { rb['frequency_penalty'] = um.frequency_penalty; }
