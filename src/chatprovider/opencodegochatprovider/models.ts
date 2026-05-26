@@ -75,7 +75,8 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
             capabilities: {
                 toolCalling: true,
                 imageInput: def.vision,
-                // Use replace_string_in_file tool.
+                // Use replace_string_in_file tool only.
+                // https://github.com/microsoft/vscode/blob/4b04bed81a929b4603b508ce4a21993ae5fee2af/extensions/copilot/package.json#L770
                 editTools: ['find-replace']
             },
             isUserSelectable: true
