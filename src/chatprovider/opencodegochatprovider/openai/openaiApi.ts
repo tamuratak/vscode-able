@@ -84,7 +84,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 }
             }
 
-            // process tool result messages
             for (const tr of toolResults) {
                 if (tr.images.length > 0 && this.modelCapabilities.imageInput) {
                     const contentArray: ChatMessageContent[] = [];
@@ -101,38 +100,24 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 }
             }
 
-            // process user messages
             if (role === 'user') {
                 if (imageParts.length > 0) {
-                    // multi-modal message
                     const contentArray: ChatMessageContent[] = [];
-
                     if (joinedText) {
-                        contentArray.push({
-                            type: 'text',
-                            text: joinedText,
-                        });
+                        contentArray.push({ type: 'text', text: joinedText })
                     }
-
                     for (const imagePart of imageParts) {
                         const dataUrl = createDataUrl(imagePart);
-                        contentArray.push({
-                            type: 'image_url',
-                            image_url: {
-                                url: dataUrl,
-                            },
-                        });
+                        contentArray.push({ type: 'image_url', image_url: { url: dataUrl, } })
                     }
                     out.push({ role, content: contentArray });
                 } else {
-                    // text-only message
                     if (joinedText) {
                         out.push({ role, content: joinedText });
                     }
                 }
             }
 
-            // process system messages
             if (role === 'system' && joinedText) {
                 out.push({ role, content: joinedText });
             }
