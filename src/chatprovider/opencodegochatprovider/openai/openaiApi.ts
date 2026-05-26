@@ -49,8 +49,8 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     toolCalls.push({ id, type: 'function', function: { name: part.name, arguments: args } });
                 } else if (isToolResultPart(part)) {
                     const callId = (part as { callId?: string }).callId ?? '';
-                    const content = collectToolResultText(part as { content?: readonly unknown[] });
-                    const images = collectToolResultImages(part as { content?: readonly unknown[] });
+                    const content = collectToolResultText(part)
+                    const images = collectToolResultImages(part)
                     toolResults.push({ callId, content, images });
                 } else if (part instanceof vscode.LanguageModelThinkingPart) {
                     const content = Array.isArray(part.value) ? part.value.join('') : part.value;
