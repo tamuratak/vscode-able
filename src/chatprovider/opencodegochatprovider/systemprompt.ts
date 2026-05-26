@@ -32,6 +32,9 @@ export async function tweakSystemPrompt(
     model: LanguageModelChatInformation,
     messages: readonly LanguageModelChatRequestMessage[]
 ): Promise<readonly LanguageModelChatRequestMessage[]> {
+    if (messages.length < 2) {
+        return messages
+    }
     const [systemMessage, userContextMessage, ...restMessages] = messages
     const newMessages = []
     if (systemMessage.role === LanguageModelChatMessageRole.System) {
