@@ -37,7 +37,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         token: CancellationToken
     ): Promise<void> {
         const trackingProgress = messageLogger.wrapProgress(progressOrigin)
-        const messages = tweakSystemPrompt(model, messagesOrigin)
+        const messages = await tweakSystemPrompt(model, messagesOrigin)
         messageLogger.info('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
         messageLogger.info(await renderMessages(messages))
         const requestStartTime = Date.now();

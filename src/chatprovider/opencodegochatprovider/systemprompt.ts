@@ -25,12 +25,13 @@ SOFTWARE.
 https://github.com/microsoft/vscode/tree/main/extensions/copilot/src/extension/prompts/node/agent
 
 */
+import * as vscode from 'vscode'
 import { LanguageModelChatInformation, LanguageModelChatRequestMessage, LanguageModelChatMessageRole, LanguageModelTextPart } from 'vscode'
 
-export function tweakSystemPrompt(
+export async function tweakSystemPrompt(
     model: LanguageModelChatInformation,
     messages: readonly LanguageModelChatRequestMessage[]
-): readonly LanguageModelChatRequestMessage[] {
+): Promise<readonly LanguageModelChatRequestMessage[]> {
     const [systemMessage, userContextMessage, ...restMessages] = messages
     const newMessages = []
     if (systemMessage.role === LanguageModelChatMessageRole.System) {
@@ -56,7 +57,47 @@ export function tweakSystemPrompt(
         newMessages.push(systemMessage)
     }
     newMessages.push(userContextMessage)
-    newMessages.push(...restMessages)
+    for (const message of restMessages) {
+        if (message.role === LanguageModelChatMessageRole.User) {
+            const newContent: unknown[] = []
+            for (const part of message.content) {
+                if (part instanceof LanguageModelTextPart) {
+                    const content = part.value
+                    const editorContextRegex = /<editorContext>\nThe user's current file is (.*?). The current selection is from line (\d+) to line (\d+).\n<\/editorContext>/
+                    const match = editorContextRegex.exec(content)
+                    if (match) {
+                        const filePath = match[1]
+                        const startLine = parseInt(match[2], 10)
+                        const endLine = parseInt(match[3], 10)
+                        try {
+                            const fileContent = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath))
+                            const fileContentStr = new TextDecoder().decode(fileContent)
+                            const fileLines = fileContentStr.split('\n')
+                            const selectedLines = fileLines.slice(startLine - 1, endLine).join('\n')
+                            const newMsg = content.replace(
+                                editorContextRegex,
+                                `<editorContext>
+The user's current file is ${filePath}. The current selection is from line ${startLine} to line ${endLine}.
+<selectedLines>
+${selectedLines}
+</selectedLines>\n</editorContext>`
+                            )
+                            newContent.push(new LanguageModelTextPart(newMsg))
+                        } catch {
+                            newContent.push(part)
+                        }
+                    } else {
+                        newContent.push(part)
+                    }
+                } else {
+                    newContent.push(part)
+                }
+            }
+            newMessages.push({ ...message, content: newContent })
+        } else {
+            newMessages.push(message)
+        }
+    }
     return newMessages
 }
 
