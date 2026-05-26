@@ -28,10 +28,10 @@ https://github.com/microsoft/vscode/tree/main/extensions/copilot/src/extension/p
 import * as vscode from 'vscode'
 import { LanguageModelChatInformation, LanguageModelChatRequestMessage, LanguageModelChatMessageRole, LanguageModelTextPart } from 'vscode'
 
-export async function tweakSystemPrompt(
+export function tweakSystemPrompt(
     model: LanguageModelChatInformation,
     messages: readonly LanguageModelChatRequestMessage[]
-): Promise<readonly LanguageModelChatRequestMessage[]> {
+) {
     if (messages.length < 2) {
         return messages
     }
@@ -60,6 +60,14 @@ export async function tweakSystemPrompt(
         newMessages.push(systemMessage)
     }
     newMessages.push(userContextMessage)
+//  const newRestMessages = await tweakRestMessages(restMessages)
+//  newMessages.push(...newRestMessages)
+    newMessages.push(...restMessages)
+    return newMessages
+}
+
+export async function tweakRestMessages(restMessages: readonly LanguageModelChatRequestMessage[]) {
+    const newMessages = []
     for (const message of restMessages) {
         if (message.role === LanguageModelChatMessageRole.User) {
             const newContent: unknown[] = []

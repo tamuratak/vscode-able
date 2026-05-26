@@ -50,6 +50,7 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://docs.qwencloud.com/api-reference/chat/anthropic
     // https://www.qwencloud.com/models/qwen3.6-plus
     // https://www.qwencloud.com/models/qwen3.5-plus
+    { baseId: 'qwen3.7-max', displayName: 'Qwen3.7 Max', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
     { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
     { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
 
@@ -72,7 +73,8 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
             maxOutputTokens: def.maxOutputTokens,
             capabilities: {
                 toolCalling: true,
-                imageInput: def.vision
+                imageInput: def.vision,
+                editTools: ['find-replace']
             },
             isUserSelectable: true
         };

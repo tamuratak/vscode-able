@@ -12,6 +12,7 @@ import { openCodeGoAuthServiceId } from '../../auth/authproviders.js'
 import { renderMessages } from '../../utils/renderer.js'
 import { sleep } from '../../utils/utils.js'
 import { tweakSystemPrompt } from './systemprompt.js'
+import { tweakTools } from './tools.js'
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
@@ -32,12 +33,13 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
     async provideLanguageModelChatResponse(
         model: LanguageModelChatInformation,
         messagesOrigin: readonly LanguageModelChatRequestMessage[],
-        options: ProvideLanguageModelChatResponseOptions,
+        optionsOrigin: ProvideLanguageModelChatResponseOptions,
         progressOrigin: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
         const trackingProgress = messageLogger.wrapProgress(progressOrigin)
-        const messages = await tweakSystemPrompt(model, messagesOrigin)
+        const messages = tweakSystemPrompt(model, messagesOrigin)
+        const options = tweakTools(optionsOrigin)
         messageLogger.info('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
         messageLogger.info(await renderMessages(messages))
         const requestStartTime = Date.now();
