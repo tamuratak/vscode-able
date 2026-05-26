@@ -334,9 +334,8 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 errorMessage,
             });
             return undefined;
-        } else if (chunk.type === 'message_start' && chunk.message) {
-            // Extract message metadata (id, model, etc.)
-            return undefined;
+        } else if (chunk.type === 'message_start') {
+            return undefined
         } else if (chunk.type === 'message_delta' && chunk.delta) {
             // Process usage information from message_delta
             if (chunk.usage) {
