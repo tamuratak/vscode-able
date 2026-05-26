@@ -97,6 +97,7 @@ export type AnthropicToolChoice =
     | { type: 'none' };
 
 export interface AnthropicStreamChunk {
+    // https://platform.claude.com/docs/en/api/messages/create#raw_message_stream_event
     type:
     'message_start'
     | 'content_block_start'
