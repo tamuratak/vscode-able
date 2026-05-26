@@ -107,7 +107,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
             if (apiMode === 'messages') {
                 // Anthropic API mode
-                const anthropicApi = new AnthropicApi(model.id);
+                const anthropicApi = new AnthropicApi(model);
                 const anthropicMessages = anthropicApi.convertMessages(messages, modelConfig);
 
                 let requestBody: AnthropicRequestBody = {
@@ -139,7 +139,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 await anthropicApi.processStreamingResponse(response.body, trackingProgress, token);
             } else if (apiMode === 'chat-completions') {
                 // OpenAI Chat Completions API mode
-                const openaiApi = new OpenaiApi(model.id);
+                const openaiApi = new OpenaiApi(model);
                 const openaiMessages = openaiApi.convertMessages(messages, modelConfig);
 
                 // requestBody

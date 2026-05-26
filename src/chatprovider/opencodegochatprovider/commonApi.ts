@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import * as vscode from 'vscode'
-import { ProvideLanguageModelChatResponseOptions, LanguageModelChatRequestMessage, LanguageModelToolCallPart, LanguageModelResponsePart2, LanguageModelThinkingPart, Progress, CancellationToken, } from 'vscode'
+import { ProvideLanguageModelChatResponseOptions, LanguageModelChatRequestMessage, LanguageModelToolCallPart, LanguageModelResponsePart2, LanguageModelThinkingPart, Progress, CancellationToken, LanguageModelChatInformation } from 'vscode'
 import { OpenCodeGoModelItem } from './types.js'
 import { tryParseJSONObject } from './utils.js'
 import { logger } from './logger.js';
@@ -43,10 +43,18 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     protected _systemContent: string | AnthropicTextBlock[] | undefined;
 
     /** Set the model ID for logging purposes. */
-    protected _modelId = '';
+    protected readonly _modelInfo: LanguageModelChatInformation
 
-    constructor(modelId: string) {
-        this._modelId = modelId;
+    constructor(modelInfo: LanguageModelChatInformation) {
+        this._modelInfo = modelInfo
+    }
+
+    get modelId() {
+        return this._modelInfo.id
+    }
+
+    get modelCapabilities() {
+        return this._modelInfo.capabilities
     }
 
     /**

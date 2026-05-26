@@ -110,6 +110,24 @@ export function collectToolResultText(part: {
 }
 
 /**
+ * Collect image data parts from a tool result part.
+ */
+export function collectToolResultImages(part: {
+    content?: readonly unknown[];
+}): vscode.LanguageModelDataPart[] {
+    if (!part.content) {
+        return [];
+    }
+    const images: vscode.LanguageModelDataPart[] = [];
+    for (const item of part.content) {
+        if (item instanceof vscode.LanguageModelDataPart && isImageMimeType(item.mimeType)) {
+            images.push(item);
+        }
+    }
+    return images;
+}
+
+/**
  * Safely try to parse a JSON object from a string.
  * Returns { ok: true, value } or { ok: false }.
  */

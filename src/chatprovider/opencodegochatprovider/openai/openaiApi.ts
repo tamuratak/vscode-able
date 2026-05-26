@@ -1,8 +1,8 @@
 import * as vscode from 'vscode'
-import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress } from 'vscode'
+import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, LanguageModelChatInformation } from 'vscode'
 import type { OpenCodeGoModelItem } from '../types.js'
 import type { OpenAIChatMessage, OpenAIToolCall, ChatMessageContent, ReasoningDetail } from './openaiTypes.js'
-import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, convertToolsToOpenAI, mapRole, } from '../utils.js'
+import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, collectToolResultImages, convertToolsToOpenAI, mapRole, } from '../utils.js'
 import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
@@ -13,8 +13,8 @@ export interface ResponseResult {
 }
 
 export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unknown>> {
-    constructor(modelId: string) {
-        super(modelId);
+    constructor(modelInfo: LanguageModelChatInformation) {
+        super(modelInfo)
     }
 
     /**
@@ -30,13 +30,13 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             const textParts: string[] = [];
             const imageParts: vscode.LanguageModelDataPart[] = [];
             const toolCalls: OpenAIToolCall[] = [];
-            const toolResults: { callId: string; content: string }[] = [];
+            const toolResults: { callId: string; content: string; images: vscode.LanguageModelDataPart[] }[] = [];
             const reasoningParts: string[] = [];
 
             for (const part of m.content ?? []) {
                 if (part instanceof vscode.LanguageModelTextPart) {
                     textParts.push(part.value);
-                } else if (part instanceof vscode.LanguageModelDataPart && isImageMimeType(part.mimeType)) {
+                } else if (part instanceof vscode.LanguageModelDataPart && isImageMimeType(part.mimeType) && this.modelCapabilities.imageInput) {
                     imageParts.push(part);
                 } else if (part instanceof vscode.LanguageModelToolCallPart) {
                     const id = part.callId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -49,8 +49,9 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     toolCalls.push({ id, type: 'function', function: { name: part.name, arguments: args } });
                 } else if (isToolResultPart(part)) {
                     const callId = (part as { callId?: string }).callId ?? '';
-                    const content = collectToolResultText(part as { content?: readonly unknown[] });
-                    toolResults.push({ callId, content });
+                    const content = collectToolResultText(part)
+                    const images = collectToolResultImages(part)
+                    toolResults.push({ callId, content, images });
                 } else if (part instanceof vscode.LanguageModelThinkingPart) {
                     const content = Array.isArray(part.value) ? part.value.join('') : part.value;
                     reasoningParts.push(content);
@@ -60,7 +61,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             const joinedText = textParts.join('').trim();
             const joinedThinking = reasoningParts.join('').trim();
 
-            // process assistant message
             if (role === 'assistant') {
                 const assistantMessage: OpenAIChatMessage = {
                     role: 'assistant',
@@ -83,43 +83,40 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 }
             }
 
-            // process tool result messages
             for (const tr of toolResults) {
-                out.push({ role: 'tool', tool_call_id: tr.callId, content: tr.content || '' });
+                if (tr.images.length > 0 && this.modelCapabilities.imageInput) {
+                    const contentArray: ChatMessageContent[] = [];
+                    if (tr.content) {
+                        contentArray.push({ type: 'text', text: tr.content });
+                    }
+                    for (const img of tr.images) {
+                        const dataUrl = createDataUrl(img);
+                        contentArray.push({ type: 'image_url', image_url: { url: dataUrl } });
+                    }
+                    out.push({ role: 'tool', tool_call_id: tr.callId, content: contentArray });
+                } else {
+                    out.push({ role: 'tool', tool_call_id: tr.callId, content: tr.content || '' });
+                }
             }
 
-            // process user messages
             if (role === 'user') {
                 if (imageParts.length > 0) {
-                    // multi-modal message
                     const contentArray: ChatMessageContent[] = [];
-
                     if (joinedText) {
-                        contentArray.push({
-                            type: 'text',
-                            text: joinedText,
-                        });
+                        contentArray.push({ type: 'text', text: joinedText })
                     }
-
                     for (const imagePart of imageParts) {
                         const dataUrl = createDataUrl(imagePart);
-                        contentArray.push({
-                            type: 'image_url',
-                            image_url: {
-                                url: dataUrl,
-                            },
-                        });
+                        contentArray.push({ type: 'image_url', image_url: { url: dataUrl, } })
                     }
                     out.push({ role, content: contentArray });
                 } else {
-                    // text-only message
                     if (joinedText) {
                         out.push({ role, content: joinedText });
                     }
                 }
             }
 
-            // process system messages
             if (role === 'system' && joinedText) {
                 out.push({ role, content: joinedText });
             }
@@ -132,19 +129,16 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         um: OpenCodeGoModelItem,
         options?: ProvideLanguageModelChatResponseOptions
     ): Record<string, unknown> {
-        // temperature
         if (um.temperature !== undefined) {
             rb['temperature'] = um.temperature;
         }
 
-        // top_p
         if (um.top_p !== undefined && um.top_p !== null) {
             rb['top_p'] = um.top_p;
         }
 
         rb['max_completion_tokens'] = um.max_completion_tokens;
 
-        // OpenAI reasoning configuration (only set when thinking is enabled)
         if (um.enable_thinking && um.reasoning_effort !== undefined) {
             rb['reasoning_effort'] = um.reasoning_effort;
         }
@@ -174,7 +168,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             rb['reasoning'] = reasoningObj;
         }
 
-        // stop
         if (options?.modelOptions) {
             const mo = options.modelOptions as Record<string, unknown>;
             if (typeof mo['stop'] === 'string' || Array.isArray(mo['stop'])) {
@@ -182,7 +175,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             }
         }
 
-        // tools
         const toolConfig = convertToolsToOpenAI(options);
         if (toolConfig.tools) {
             rb['tools'] = toolConfig.tools;
@@ -191,7 +183,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             rb['tool_choice'] = toolConfig.tool_choice;
         }
 
-        // Extra model parameters
         if (um.top_k !== undefined) { rb['top_k'] = um.top_k; }
         if (um.min_p !== undefined) { rb['min_p'] = um.min_p; }
         if (um.frequency_penalty !== undefined) { rb['frequency_penalty'] = um.frequency_penalty; }
@@ -218,7 +209,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
-        const modelId = this._modelId;
+        const modelId = this.modelId
         logger.debug('openai.stream.start', { modelId });
 
         const reader = responseBody.getReader();
@@ -269,7 +260,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                         if (result.finishReason) {
                             responseResult = result
                         }
-                        this.processUsage(parsed, modelId, progress)
+                        this.processUsage(parsed, progress)
                     } catch (e) {
                         logger.error('openai.stream.chunk.error', {
                             modelId,
@@ -299,7 +290,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
     private emitFallbackResponseIfNeeded(responseResult: ResponseResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
         if (responseResult?.finishReason === 'stop') {
-            const needFallback = !this._hasEmittedAssistantText || (this._modelId.startsWith('mimo') && /<\/?think(ing)?>/.test(this._unifiedText))
+            const needFallback = !this._hasEmittedAssistantText || (this.modelId.startsWith('mimo') && /<\/?think(ing)?>/.test(this._unifiedText))
             if (needFallback) {
                 progress.report(new vscode.LanguageModelTextPart2(
                     '\n[OpenCode Go] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
@@ -317,7 +308,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
     private processUsage(
         parsed: Record<string, unknown>,
-        modelId: string,
         progress: Progress<LanguageModelResponsePart2>
     ) {
         // Capture usage from stream_options: include_usage chunks (final chunk with no choices)
@@ -356,7 +346,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             }
         }
         progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'))
-        logger.debug('openai.stream.usage', { modelId, usage: usageData })
+        logger.debug('openai.stream.usage', { modelId: this.modelId, usage: usageData })
     }
 
     /**

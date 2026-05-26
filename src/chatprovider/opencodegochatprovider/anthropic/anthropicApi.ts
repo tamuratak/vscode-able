@@ -1,19 +1,21 @@
 import * as vscode from 'vscode'
-import type { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, } from 'vscode'
+import type { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, LanguageModelChatInformation, } from 'vscode'
 import type { OpenCodeGoModelItem } from '../types.js'
-import type { AnthropicMessage, AnthropicRequestBody, AnthropicContentBlock, AnthropicTextBlock, AnthropicRedactedThinkingBlock, AnthropicToolResultBlock, AnthropicStreamChunk, } from './anthropicTypes.js'
+import type { AnthropicMessage, AnthropicRequestBody, AnthropicContentBlock, AnthropicTextBlock, AnthropicImageBlock, AnthropicRedactedThinkingBlock, AnthropicToolResultBlock, AnthropicStreamChunk, } from './anthropicTypes.js'
 import { isImageMimeType, isToolResultPart, convertToolsToOpenAI, mapRole } from '../utils.js'
 import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
 
 export interface ResponseResult {
-    finishReason: string | undefined;
+    // https://platform.claude.com/docs/en/api/messages/create#message.stop_reason
+    // "end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn", "refusal"
+    stopReason: string | undefined;
 }
 
 export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBody> {
-    constructor(modelId: string) {
-        super(modelId);
+    constructor(modelInfo: LanguageModelChatInformation) {
+        super(modelInfo)
     }
 
     /**
@@ -53,7 +55,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 } else if (part instanceof vscode.LanguageModelDataPart && part.mimeType === 'cache_control' && new TextDecoder().decode(part.data) === 'ephemeral') {
                     flushTextBuffer();
                     this.applyEphemeralToLastBlock(contentBlocks);
-                } else if (part instanceof vscode.LanguageModelDataPart && isImageMimeType(part.mimeType)) {
+                } else if (part instanceof vscode.LanguageModelDataPart && isImageMimeType(part.mimeType) && this.modelCapabilities.imageInput) {
                     flushTextBuffer();
                     contentBlocks.push({
                         type: 'image',
@@ -74,13 +76,22 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                     });
                 } else if (isToolResultPart(part)) {
                     flushTextBuffer();
-                    const resultContent: AnthropicTextBlock[] = [];
+                    const resultContent: (AnthropicTextBlock | AnthropicImageBlock)[] = [];
                     let hasEphemeral = false
                     for (const p of part.content ?? []) {
                         if (p instanceof vscode.LanguageModelTextPart) {
                             resultContent.push({ type: 'text', text: p.value });
                         } else if (p instanceof vscode.LanguageModelDataPart && p.mimeType === 'cache_control' && new TextDecoder().decode(p.data) === 'ephemeral') {
                             hasEphemeral = true;
+                        } else if (p instanceof vscode.LanguageModelDataPart && isImageMimeType(p.mimeType) && this.modelCapabilities.imageInput) {
+                            resultContent.push({
+                                type: 'image',
+                                source: {
+                                    type: 'base64',
+                                    media_type: p.mimeType,
+                                    data: Buffer.from(p.data).toString('base64'),
+                                },
+                            });
                         }
                     }
                     const toolResultBlock: AnthropicToolResultBlock = {
@@ -238,7 +249,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
-        const modelId = this._modelId;
+        const modelId = this.modelId
         logger.debug('anthropic.stream.start', { modelId });
 
         const reader = responseBody.getReader();
@@ -283,7 +294,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                     try {
                         const chunk = JSON.parse(data) as AnthropicStreamChunk;
                         const result = this.processAnthropicChunk(chunk, progress);
-                        if (result?.finishReason) {
+                        if (result?.stopReason) {
                             responseResult = result
                         }
                     } catch (e) {
@@ -302,7 +313,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         } finally {
             cancelToken.dispose()
             this.endThinking()
-            if (responseResult?.finishReason === 'end_turn') {
+            if (responseResult?.stopReason === 'end_turn') {
                 finalResponseLogger.info('\n' + this._unifiedText)
             }
             this.emitFallbackResponseIfNeeded(responseResult, progress)
@@ -323,26 +334,18 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         // Handle ping events (ignore)
         if (chunk.type === 'ping') {
             return undefined;
-        }
-
-        // Handle error events
-        if (chunk.type === 'error') {
+        } else if (chunk.type === 'error') {
             const errorType = chunk.error?.type || 'unknown_error';
             const errorMessage = chunk.error?.message || 'Anthropic API streaming error';
             logger.error('anthropic.stream.error.chunk', {
-                modelId: this._modelId,
+                modelId: this.modelId,
                 errorType,
                 errorMessage,
             });
             return undefined;
-        }
-
-        if (chunk.type === 'message_start' && chunk.message) {
-            // Extract message metadata (id, model, etc.)
-            return undefined;
-        }
-
-        if (chunk.type === 'message_delta' && chunk.delta) {
+        } else if (chunk.type === 'message_start') {
+            return undefined
+        } else if (chunk.type === 'message_delta' && chunk.delta) {
             // Process usage information from message_delta
             if (chunk.usage) {
                 const inputTokens = chunk.usage.input_tokens ?? 0;
@@ -361,7 +364,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                     }
                 };
                 progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'));
-                logger.debug('anthropic.stream.usage', { modelId: this._modelId, usage: chunk.usage });
+                logger.debug('anthropic.stream.usage', { modelId: this.modelId, usage: chunk.usage });
             }
 
             // Extract stop_reason
@@ -371,12 +374,10 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                     this.warnIfToolCallBuffersNotEmpty('stop_reason: ' + stopReason)
                     this.flushToolCallBuffers(progress)
                 }
-                return { finishReason: stopReason }
+                return { stopReason }
             }
             return undefined;
-        }
-
-        if (chunk.type === 'content_block_start' && chunk.content_block) {
+        } else if (chunk.type === 'content_block_start' && chunk.content_block) {
             // Start of a content block
             if (chunk.content_block.type === 'thinking') {
                 if (chunk.content_block.thinking) {
@@ -448,7 +449,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
     }
 
     private emitFallbackResponseIfNeeded(responseResult: ResponseResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
-        if (responseResult?.finishReason === 'end_turn') {
+        if (responseResult?.stopReason === 'end_turn') {
             const needFallback = !this._hasEmittedAssistantText
             if (needFallback) {
                 progress.report(new vscode.LanguageModelTextPart2(
