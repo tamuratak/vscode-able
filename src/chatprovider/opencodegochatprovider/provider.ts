@@ -38,7 +38,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         token: CancellationToken
     ): Promise<void> {
         const trackingProgress = messageLogger.wrapProgress(progressOrigin)
-        const messages = tweakSystemPrompt(model, messagesOrigin)
+        const messages = tweakSystemPrompt(model, messagesOrigin, optionsOrigin)
         const options = tweakTools(optionsOrigin)
         messageLogger.info('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
         messageLogger.info(await renderMessages(messages))

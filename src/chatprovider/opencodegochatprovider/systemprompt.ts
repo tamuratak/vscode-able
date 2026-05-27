@@ -25,12 +25,12 @@ SOFTWARE.
 https://github.com/microsoft/vscode/tree/main/extensions/copilot/src/extension/prompts/node/agent
 
 */
-import * as vscode from 'vscode'
-import { LanguageModelChatInformation, LanguageModelChatRequestMessage, LanguageModelChatMessageRole, LanguageModelTextPart } from 'vscode'
+import { LanguageModelChatInformation, LanguageModelChatRequestMessage, LanguageModelChatMessageRole, LanguageModelTextPart, ProvideLanguageModelChatResponseOptions } from 'vscode'
 
 export function tweakSystemPrompt(
     model: LanguageModelChatInformation,
-    messages: readonly LanguageModelChatRequestMessage[]
+    messages: readonly LanguageModelChatRequestMessage[],
+    options: ProvideLanguageModelChatResponseOptions,
 ) {
     if (messages.length < 2) {
         return messages
@@ -50,65 +50,42 @@ export function tweakSystemPrompt(
             additionalPromptPart += '\n' + reduceThinkingPromptPart
         }
 
+        newContent = newContent.replace(/run_in_terminal/g, 'able_runInSandbox')
         newContent = newContent.replace(/<instructions>\nYou are a highly sophisticated.*?<\/instructions>/s, codingAgentInstructionsPart)
         newContent = newContent.replace(/<toolUseInstructions>.*?<\/toolUseInstructions>/s, toolUseInstructionsPart)
         newContent = newContent.replace(/<outputFormatting>.*?<\/outputFormatting>/s, additionalPromptPart)
-        newContent = newContent.replace(/<memoryInstructions>.*?<\/memoryInstructions>/s, '')
+        newContent = newContent.replace(/<memoryInstructions>.*?<\/memoryInstructions>\n?/s, '')
+
+        newContent = newContent.replace(/<skill>\n<name>project-setup-info-local<\/name>.*?<\/skill>\n?/s, '')
+        const hasRunVscodeCommand = options.tools?.some(tool => tool.name === 'run_vscode_command')
+        if (!hasRunVscodeCommand) {
+            newContent = newContent.replace(/<skill>\n<name>get-search-view-results<\/name>.*?<\/skill>\n?/s, '')
+        }
+        newContent = newContent.replace(/<skill>\n<name>agent-customization<\/name>.*?<\/skill>\n?/s, '')
 
         newMessages.push({ ...systemMessage, content: [new LanguageModelTextPart(newContent)] })
     } else {
         newMessages.push(systemMessage)
     }
-    newMessages.push(userContextMessage)
-//  const newRestMessages = await tweakRestMessages(restMessages)
-//  newMessages.push(...newRestMessages)
-    newMessages.push(...restMessages)
-    return newMessages
-}
-
-export async function tweakRestMessages(restMessages: readonly LanguageModelChatRequestMessage[]) {
-    const newMessages = []
-    for (const message of restMessages) {
-        if (message.role === LanguageModelChatMessageRole.User) {
-            const newContent: unknown[] = []
-            for (const part of message.content) {
-                if (part instanceof LanguageModelTextPart) {
-                    const content = part.value
-                    const editorContextRegex = /<editorContext>\nThe user's current file is (.*?). The current selection is from line (\d+) to line (\d+).\n<\/editorContext>/
-                    const match = editorContextRegex.exec(content)
-                    if (match) {
-                        const filePath = match[1]
-                        const startLine = parseInt(match[2], 10)
-                        const endLine = parseInt(match[3], 10)
-                        try {
-                            const fileContent = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath))
-                            const fileContentStr = new TextDecoder().decode(fileContent)
-                            const fileLines = fileContentStr.split('\n')
-                            const selectedLines = fileLines.slice(startLine - 1, endLine).join('\n')
-                            const newMsg = content.replace(
-                                editorContextRegex,
-                                `<editorContext>
-The user's current file is ${filePath}. The current selection is from line ${startLine} to line ${endLine}.
-<selectedLines>
-${selectedLines}
-</selectedLines>\n</editorContext>`
-                            )
-                            newContent.push(new LanguageModelTextPart(newMsg))
-                        } catch {
-                            newContent.push(part)
-                        }
-                    } else {
-                        newContent.push(part)
-                    }
-                } else {
-                    newContent.push(part)
-                }
+    if (userContextMessage.role === LanguageModelChatMessageRole.User) {
+        let newContent = ''
+        for (const part of userContextMessage.content) {
+            if (part instanceof LanguageModelTextPart) {
+                newContent += part.value
             }
-            newMessages.push({ ...message, content: newContent })
-        } else {
-            newMessages.push(message)
         }
+        const hasMemoryTool = options.tools?.some(tool => tool.name === 'memory')
+        if (!hasMemoryTool) {
+            newContent = newContent.replace(/<userMemory>.*?<\/userMemory>\n?/s, '')
+            newContent = newContent.replace(/<sessionMemory>.*?<\/sessionMemory>\n?/s, '')
+            newContent = newContent.replace(/<repoMemory>.*?<\/repoMemory>\n?/s, '')
+        }
+        newMessages.push({ ...userContextMessage, content: [new LanguageModelTextPart(newContent)] })
+
+    } else {
+        newMessages.push(userContextMessage)
     }
+    newMessages.push(...restMessages)
     return newMessages
 }
 
