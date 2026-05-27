@@ -6,7 +6,7 @@ import { tryParseJSONObject } from './utils.js'
 import { logger } from './logger.js';
 import { EndpointApiType } from './models.js';
 import type { AnthropicTextBlock } from './anthropic/anthropicTypes.js';
-import { MessagesApiResponseResult } from './anthropic/anthropicApi.js';
+import { MessagesResult } from './anthropic/anthropicApi.js';
 import { ChatCompletionsResult } from './openai/openaiApi.js';
 
 export interface APIUsage {
@@ -92,7 +92,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         responseBody: ReadableStream<Uint8Array>,
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
-    ): Promise<ChatCompletionsResult | MessagesApiResponseResult | undefined>;
+    ): Promise<ChatCompletionsResult | MessagesResult | undefined>;
 
     /**
      * Flush all buffered tool calls, optionally throwing if arguments are not valid JSON.

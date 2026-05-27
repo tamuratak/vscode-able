@@ -7,7 +7,7 @@ import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
 
-export interface MessagesApiResponseResult {
+export interface MessagesResult {
     apiType: 'messages';
     // https://platform.claude.com/docs/en/api/messages/create#message.stop_reason
     // "end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn", "refusal"
@@ -249,7 +249,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         responseBody: ReadableStream<Uint8Array>,
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
-    ): Promise<MessagesApiResponseResult | undefined> {
+    ): Promise<MessagesResult | undefined> {
         const modelId = this.modelId
         logger.debug('anthropic.stream.start', { modelId });
 
@@ -257,7 +257,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         const decoder = new TextDecoder();
         let buffer = '';
         const cancelToken = token.onCancellationRequested(() => reader.cancel().catch(() => undefined))
-        let responseResult: MessagesApiResponseResult | undefined
+        let responseResult: MessagesResult | undefined
 
         try {
             while (true) {
@@ -332,7 +332,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
     private processAnthropicChunk(
         chunk: AnthropicStreamChunk,
         progress: Progress<LanguageModelResponsePart2>
-    ): MessagesApiResponseResult | undefined {
+    ): MessagesResult | undefined {
         // Handle ping events (ignore)
         if (chunk.type === 'ping') {
             return undefined;
@@ -450,7 +450,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         return undefined;
     }
 
-    private emitFallbackResponseIfNeeded(responseResult: MessagesApiResponseResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
+    private emitFallbackResponseIfNeeded(responseResult: MessagesResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
         if (responseResult?.stopReason === 'end_turn') {
             const needFallback = !this._hasEmittedAssistantText
             if (needFallback) {
