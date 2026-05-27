@@ -24,7 +24,14 @@ export function pushToolCall(
     _token: CancellationToken,
     responseResult: ChatCompletionsResult | MessagesResult | undefined
 ) {
-    const isToolCallFinish = responseResult ? responseResult.apiType === 'chat-completions' ? responseResult.finishReason === 'tool_calls' : responseResult.stopReason === 'tool_use' : false
+    let isToolCallFinish = false
+    if (responseResult) {
+        if (responseResult.apiType === 'chat-completions') {
+            isToolCallFinish = responseResult.finishReason === 'tool_calls'
+        } else {
+            isToolCallFinish = responseResult.stopReason === 'tool_use'
+        }
+    }
     if (!isToolCallFinish) {
         return
     }
