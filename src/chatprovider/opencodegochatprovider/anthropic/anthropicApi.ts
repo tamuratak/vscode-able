@@ -7,7 +7,8 @@ import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
 
-export interface ResponseResult {
+export interface MessagesApiResponseResult {
+    apiType: 'messages';
     // https://platform.claude.com/docs/en/api/messages/create#message.stop_reason
     // "end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn", "refusal"
     stopReason: string | undefined;
@@ -248,7 +249,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         responseBody: ReadableStream<Uint8Array>,
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
-    ): Promise<void> {
+    ): Promise<MessagesApiResponseResult | undefined> {
         const modelId = this.modelId
         logger.debug('anthropic.stream.start', { modelId });
 
@@ -256,7 +257,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         const decoder = new TextDecoder();
         let buffer = '';
         const cancelToken = token.onCancellationRequested(() => reader.cancel().catch(() => undefined))
-        let responseResult: ResponseResult | undefined
+        let responseResult: MessagesApiResponseResult | undefined
 
         try {
             while (true) {
@@ -307,6 +308,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 }
             }
             logger.info('anthropic.stream.done', { modelId, responseResult });
+            return responseResult;
         } catch (e) {
             logger.error('anthropic.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
             throw e;
@@ -330,7 +332,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
     private processAnthropicChunk(
         chunk: AnthropicStreamChunk,
         progress: Progress<LanguageModelResponsePart2>
-    ): ResponseResult | undefined {
+    ): MessagesApiResponseResult | undefined {
         // Handle ping events (ignore)
         if (chunk.type === 'ping') {
             return undefined;
@@ -374,7 +376,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                     this.warnIfToolCallBuffersNotEmpty('stop_reason: ' + stopReason)
                     this.flushToolCallBuffers(progress)
                 }
-                return { stopReason }
+                return { apiType: 'messages', stopReason }
             }
             return undefined;
         } else if (chunk.type === 'content_block_start' && chunk.content_block) {
@@ -448,7 +450,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         return undefined;
     }
 
-    private emitFallbackResponseIfNeeded(responseResult: ResponseResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
+    private emitFallbackResponseIfNeeded(responseResult: MessagesApiResponseResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
         if (responseResult?.stopReason === 'end_turn') {
             const needFallback = !this._hasEmittedAssistantText
             if (needFallback) {
