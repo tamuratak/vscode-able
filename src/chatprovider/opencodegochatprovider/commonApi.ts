@@ -4,10 +4,10 @@ import { ProvideLanguageModelChatResponseOptions, LanguageModelChatRequestMessag
 import { OpenCodeGoModelItem } from './types.js'
 import { tryParseJSONObject } from './utils.js'
 import { logger } from './logger.js';
-import { EndpointApiType } from './models.js';
+import type { EndpointApiType } from './models.js';
 import type { AnthropicTextBlock } from './anthropic/anthropicTypes.js';
-import { MessagesResult } from './anthropic/anthropicApi.js';
-import { ChatCompletionsResult } from './openai/openaiApi.js';
+import type { MessagesResult } from './anthropic/anthropicApi.js';
+import type { ChatCompletionsResult } from './openai/openaiApi.js';
 
 export interface APIUsage {
 	prompt_tokens: number;
