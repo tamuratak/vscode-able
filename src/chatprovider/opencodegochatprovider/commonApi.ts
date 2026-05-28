@@ -4,8 +4,10 @@ import { ProvideLanguageModelChatResponseOptions, LanguageModelChatRequestMessag
 import { OpenCodeGoModelItem } from './types.js'
 import { tryParseJSONObject } from './utils.js'
 import { logger } from './logger.js';
-import { EndpointApiType } from './models.js';
+import type { EndpointApiType } from './models.js';
 import type { AnthropicTextBlock } from './anthropic/anthropicTypes.js';
+import type { MessagesResult } from './anthropic/anthropicApi.js';
+import type { ChatCompletionsResult } from './openai/openaiApi.js';
 
 export interface APIUsage {
 	prompt_tokens: number;
@@ -90,7 +92,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         responseBody: ReadableStream<Uint8Array>,
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
-    ): Promise<void>;
+    ): Promise<ChatCompletionsResult | MessagesResult | undefined>;
 
     /**
      * Flush all buffered tool calls, optionally throwing if arguments are not valid JSON.

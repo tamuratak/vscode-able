@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { LanguageModelChatInformation } from 'vscode'
 import type { OpenCodeGoModelItem } from './types.js'
 
@@ -13,7 +14,9 @@ interface BuiltInModelDef {
     supportsReasoningEffort?: string[];
     maxInputTokens: number;
     maxOutputTokens: number;
-    extra?: Record<string, unknown>;
+    extra?: {
+        frequency_penalty: number
+    } | undefined;
     apiType?: EndpointApiType;
     delay?: number;
 }
@@ -38,18 +41,20 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', vision: false, defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768 },
 
     // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
-    { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, maxInputTokens: 1000000, maxOutputTokens: 131072 },
+    { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768 },
     { baseId: 'mimo-v2-omni', displayName: 'MiMo-V2-Omni', vision: true, maxInputTokens: 1000000, maxOutputTokens: 32768 },
-    { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, maxInputTokens: 1000000, maxOutputTokens: 131072 },
-    { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768 },
+    { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 } },
+    { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 } },
 
     // https://platform.minimax.io/docs/api-reference/text-anthropic-api
     { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768 },
     { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768 },
 
     // https://docs.qwencloud.com/api-reference/chat/anthropic
+    // https://www.qwencloud.com/models/qwen3.7-max
     // https://www.qwencloud.com/models/qwen3.6-plus
     // https://www.qwencloud.com/models/qwen3.5-plus
+    { baseId: 'qwen3.7-max', displayName: 'Qwen3.7 Max', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
     { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
     { baseId: 'qwen3.5-plus', displayName: 'Qwen3.5 Plus', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
 
@@ -72,7 +77,10 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
             maxOutputTokens: def.maxOutputTokens,
             capabilities: {
                 toolCalling: true,
-                imageInput: def.vision
+                imageInput: def.vision,
+                // Use replace_string_in_file tool only.
+                // https://github.com/microsoft/vscode/blob/4b04bed81a929b4603b508ce4a21993ae5fee2af/extensions/copilot/package.json#L770
+                editTools: ['find-replace']
             },
             isUserSelectable: true
         };

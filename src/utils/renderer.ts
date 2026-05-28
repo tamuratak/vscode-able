@@ -13,6 +13,7 @@ export async function renderMessages(
     const result: string[] = []
 
     for (const message of messages) {
+        result.push('\n\n')
         const roleHeader = getRoleHeader(message.role)
         result.push('\n')
         result.push(roleHeader)

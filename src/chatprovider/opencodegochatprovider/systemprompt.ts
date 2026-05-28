@@ -25,42 +25,72 @@ SOFTWARE.
 https://github.com/microsoft/vscode/tree/main/extensions/copilot/src/extension/prompts/node/agent
 
 */
-import { LanguageModelChatInformation, LanguageModelChatRequestMessage, LanguageModelChatMessageRole, LanguageModelTextPart } from 'vscode'
+import { LanguageModelChatInformation, LanguageModelChatRequestMessage, LanguageModelChatMessageRole, LanguageModelTextPart, ProvideLanguageModelChatResponseOptions } from 'vscode'
 
 export function tweakSystemPrompt(
     model: LanguageModelChatInformation,
-    messages: readonly LanguageModelChatRequestMessage[]
-): readonly LanguageModelChatRequestMessage[] {
-    const newMessages = []
-    for (const msg of messages) {
-        if (msg.role === LanguageModelChatMessageRole.System) {
-            let newContent = ''
-            for (const part of msg.content) {
-                if (part instanceof LanguageModelTextPart) {
-                    newContent += part.value
-                }
-            }
-
-            let additionalPromptPart = baseAdditionalPromptPart
-            if (model.id.startsWith('kimi')) {
-                additionalPromptPart += '\n' + reduceThinkingPromptPart
-            }
-
-            newContent = newContent.replace(/<instructions>\nYou are a highly sophisticated.*?<\/instructions>/s, codingAgentInstructionsPart)
-            newContent = newContent.replace(/<toolUseInstructions>.*?<\/toolUseInstructions>/s, toolUseInstructionsPart)
-            newContent = newContent.replace(/<outputFormatting>.*?<\/outputFormatting>/s, additionalPromptPart)
-            newContent = newContent.replace(/<memoryInstructions>.*?<\/memoryInstructions>/s, '')
-
-            newMessages.push({ ...msg, content: [new LanguageModelTextPart(newContent)] })
-        } else {
-            newMessages.push(msg)
-        }
+    messages: readonly LanguageModelChatRequestMessage[],
+    options: ProvideLanguageModelChatResponseOptions,
+) {
+    if (messages.length < 2) {
+        return messages
     }
+    const [systemMessage, userContextMessage, ...restMessages] = messages
+    const newMessages = []
+    if (systemMessage.role === LanguageModelChatMessageRole.System) {
+        let newContent = ''
+        for (const part of systemMessage.content) {
+            if (part instanceof LanguageModelTextPart) {
+                newContent += part.value
+            }
+        }
+
+        let additionalPromptPart = baseAdditionalPromptPart
+        if (model.id.startsWith('kimi')) {
+            additionalPromptPart += '\n' + reduceThinkingPromptPart
+        }
+
+        newContent = newContent.replace(/run_in_terminal/g, 'able_runInSandbox')
+        newContent = newContent.replace(/<instructions>\nYou are a highly sophisticated.*?<\/instructions>/s, codingAgentInstructionsPart)
+        newContent = newContent.replace(/<toolUseInstructions>.*?<\/toolUseInstructions>/s, toolUseInstructionsPart)
+        newContent = newContent.replace(/<outputFormatting>.*?<\/outputFormatting>/s, additionalPromptPart)
+        newContent = newContent.replace(/<memoryInstructions>.*?<\/memoryInstructions>\n?/s, '')
+
+        newContent = newContent.replace(/<skill>\n<name>project-setup-info-local<\/name>.*?<\/skill>\n?/s, '')
+        const hasRunVscodeCommand = options.tools?.some(tool => tool.name === 'run_vscode_command')
+        if (!hasRunVscodeCommand) {
+            newContent = newContent.replace(/<skill>\n<name>get-search-view-results<\/name>.*?<\/skill>\n?/s, '')
+        }
+        newContent = newContent.replace(/<skill>\n<name>agent-customization<\/name>.*?<\/skill>\n?/s, '')
+
+        newMessages.push({ ...systemMessage, content: [new LanguageModelTextPart(newContent)] })
+    } else {
+        newMessages.push(systemMessage)
+    }
+    if (userContextMessage.role === LanguageModelChatMessageRole.User) {
+        let newContent = ''
+        for (const part of userContextMessage.content) {
+            if (part instanceof LanguageModelTextPart) {
+                newContent += part.value
+            }
+        }
+        const hasMemoryTool = options.tools?.some(tool => tool.name === 'memory')
+        if (!hasMemoryTool) {
+            newContent = newContent.replace(/<userMemory>.*?<\/userMemory>\n?/s, '')
+            newContent = newContent.replace(/<sessionMemory>.*?<\/sessionMemory>\n?/s, '')
+            newContent = newContent.replace(/<repoMemory>.*?<\/repoMemory>\n?/s, '')
+        }
+        newMessages.push({ ...userContextMessage, content: [new LanguageModelTextPart(newContent)] })
+
+    } else {
+        newMessages.push(userContextMessage)
+    }
+    newMessages.push(...restMessages)
     return newMessages
 }
 
 const codingAgentInstructionsPart =
-`<instructions>
+    `<instructions>
 You are a highly sophisticated automated coding agent with expert-level knowledge across many different programming languages and frameworks.
 The user will ask a question, or ask you to perform a task, and it may require lots of research to answer correctly. There is a selection of tools that let you perform actions or retrieve helpful context to answer the user's question.
 You will be given some context and attachments along with the user prompt. You can use them if they are relevant to the task, and ignore them if not. You can use the read_file tool to read more context if needed.
@@ -74,7 +104,7 @@ NEVER print out a codeblock with file changes unless the user asked for it. Use 
 </instructions>`
 
 const toolUseInstructionsPart =
-`<tool_use_instructions>
+    `<tool_use_instructions>
 If the user is requesting a code sample, you can answer it directly without using any tools.
 When using a tool, follow the JSON schema very carefully and make sure to include ALL required properties.
 No need to ask permission before using a tool.
@@ -87,7 +117,7 @@ Tools can be disabled by the user. You may see tools used previously in the conv
 </tool_use_instructions>`
 
 const baseAdditionalPromptPart =
-`<editing_constraints>
+    `<editing_constraints>
 When editing or creating files, default to ASCII. Only introduce non-ASCII or Unicode characters when there is a clear justification and the file already uses them.
 Add succinct code comments only where code is not self-explanatory — do not add comments like "Assigns the value to the variable". Comments ahead of complex blocks are acceptable but should be rare.
 You may be in a dirty git worktree.
@@ -192,7 +222,7 @@ For inputs longer than ~10k tokens (multi-chapter docs, long threads, multiple f
 </long_context_handling>`
 
 const reduceThinkingPromptPart =
-`<reasoning_instructions>
+    `<reasoning_instructions>
 Prefer to act on your initial understanding of the context rather than deliberating extensively.
 Minimize meta-commentary about your confidence level, alternative approaches, or step-by-step internal reasoning.
 Reduce unnecessary internal drafting; your first coherent synthesis is typically sufficient.

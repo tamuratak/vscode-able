@@ -275,6 +275,10 @@
         "title": "Able: Kill Lines To End"
       },
       {
+        "command": "able.abortRequest",
+        "title": "Able: Abort Active Request"
+      },
+      {
         "command": "able.loginGemini",
         "title": "Able: Login to Gemini"
       },

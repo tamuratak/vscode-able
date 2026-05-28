@@ -3,8 +3,8 @@ import { CancellationToken, LanguageModelChatInformation, LanguageModelChatProvi
 import type { OpenCodeGoModelItem } from './types.js'
 import { getBuiltInModelConfig, getBuiltInModelInfos } from './models.js'
 import { countMessageTokens } from './provideToken.js'
-import { OpenaiApi } from './openai/openaiApi.js'
-import { AnthropicApi } from './anthropic/anthropicApi.js'
+import { ChatCompletionsResult, OpenaiApi } from './openai/openaiApi.js'
+import { AnthropicApi, MessagesResult } from './anthropic/anthropicApi.js'
 import type { AnthropicRequestBody } from './anthropic/anthropicTypes.js'
 import { CommonApi } from './commonApi.js'
 import { logger, messageLogger } from './logger.js'
@@ -12,11 +12,22 @@ import { openCodeGoAuthServiceId } from '../../auth/authproviders.js'
 import { renderMessages } from '../../utils/renderer.js'
 import { sleep } from '../../utils/utils.js'
 import { tweakSystemPrompt } from './systemprompt.js'
+import { pushToolCall, tweakTools } from './tools.js'
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
     /** Track last request completion time for delay calculation. */
     private _lastRequestTime: number | null = null;
+    /** Currently active abort controllers for concurrent requests. */
+    private readonly _activeAbortControllers = new Set<AbortController>()
+
+    /** Abort all currently active requests. */
+    abortActiveRequests(): void {
+        for (const controller of this._activeAbortControllers) {
+            controller.abort()
+        }
+        this._activeAbortControllers.clear()
+    }
 
     provideLanguageModelChatInformation(): LanguageModelChatInformation[] {
         return getBuiltInModelInfos();
@@ -32,16 +43,18 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
     async provideLanguageModelChatResponse(
         model: LanguageModelChatInformation,
         messagesOrigin: readonly LanguageModelChatRequestMessage[],
-        options: ProvideLanguageModelChatResponseOptions,
+        optionsOrigin: ProvideLanguageModelChatResponseOptions,
         progressOrigin: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
         const trackingProgress = messageLogger.wrapProgress(progressOrigin)
-        const messages = tweakSystemPrompt(model, messagesOrigin)
+        const messages = tweakSystemPrompt(model, messagesOrigin, optionsOrigin)
+        const options = tweakTools(optionsOrigin)
         messageLogger.info('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
         messageLogger.info(await renderMessages(messages))
         const requestStartTime = Date.now();
         const abortController = new AbortController();
+        this._activeAbortControllers.add(abortController)
         const requestTimeoutMs = 600000
         const timeoutId = setTimeout(() => abortController.abort(), requestTimeoutMs);
         const cancelToken = token.onCancellationRequested(() => abortController.abort() )
@@ -105,6 +118,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             });
             logger.trace('request.messages.origin', { messages });
 
+            let responseResult: ChatCompletionsResult | MessagesResult | undefined
             if (apiMode === 'messages') {
                 // Anthropic API mode
                 const anthropicApi = new AnthropicApi(model);
@@ -136,7 +150,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     logger.error('response.error', { modelId: model.id, error: 'No response body from Anthropic API' })
                     throw new Error('No response body from Anthropic API')
                 }
-                await anthropicApi.processStreamingResponse(response.body, trackingProgress, token);
+                responseResult = await anthropicApi.processStreamingResponse(response.body, trackingProgress, token);
             } else if (apiMode === 'chat-completions') {
                 // OpenAI Chat Completions API mode
                 const openaiApi = new OpenaiApi(model);
@@ -173,11 +187,12 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 }
 
                 messageLogger.info('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
-                await openaiApi.processStreamingResponse(response.body, trackingProgress, token);
+                responseResult = await openaiApi.processStreamingResponse(response.body, trackingProgress, token);
             } else {
                 apiMode satisfies 'responses'
                 throw new Error(`Unsupported API mode: ${apiMode}`)
             }
+            pushToolCall(model, messages, options, trackingProgress, token, responseResult)
         } catch (err) {
             logger.error('request.error', {
                 modelId: model.id,
@@ -189,6 +204,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         } finally {
             cancelToken.dispose()
             clearTimeout(timeoutId)
+            this._activeAbortControllers.delete(abortController)
             const durationMs = Date.now() - requestStartTime;
             logger.info('request.end', { modelId: model.id, durationMs });
             this._lastRequestTime = Date.now();

@@ -7,7 +7,8 @@ import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
 
-export interface ResponseResult {
+export interface ChatCompletionsResult {
+    apiType: 'chat-completions';
     finishReason: string | undefined;
     nativeFinishReason: string | undefined;
 }
@@ -208,7 +209,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         responseBody: ReadableStream<Uint8Array>,
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
-    ): Promise<void> {
+    ): Promise<ChatCompletionsResult | undefined> {
         const modelId = this.modelId
         logger.debug('openai.stream.start', { modelId });
 
@@ -216,7 +217,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         const decoder = new TextDecoder();
         let buffer = '';
         const cancelToken = token.onCancellationRequested(() => reader.cancel().catch(() => undefined))
-        let responseResult: ResponseResult | undefined
+        let responseResult: ChatCompletionsResult | undefined
 
         try {
             while (true) {
@@ -274,6 +275,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 }
             }
             logger.info('openai.stream.done', { modelId, responseResult });
+            return responseResult
         } catch (e) {
             logger.error('openai.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
             throw e;
@@ -288,7 +290,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         }
     }
 
-    private emitFallbackResponseIfNeeded(responseResult: ResponseResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
+    private emitFallbackResponseIfNeeded(responseResult: ChatCompletionsResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
         if (responseResult?.finishReason === 'stop') {
             const needFallback = !this._hasEmittedAssistantText || (this.modelId.startsWith('mimo') && /<\/?think(ing)?>/.test(this._unifiedText))
             if (needFallback) {
@@ -355,10 +357,10 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
     private processDelta(
         delta: Record<string, unknown>,
         progress: Progress<LanguageModelResponsePart2>
-    ): ResponseResult {
+    ): ChatCompletionsResult {
         const choice = (delta['choices'] as Record<string, unknown>[] | undefined)?.[0];
         if (!choice) {
-            return { finishReason: undefined, nativeFinishReason: undefined }
+            return { apiType: 'chat-completions', finishReason: undefined, nativeFinishReason: undefined }
         }
 
         const deltaObj = choice['delta'] as Record<string, unknown> | undefined;
@@ -462,7 +464,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             this.flushToolCallBuffers(progress)
         }
         const nativeFinishReason = choice['native_finish_reason'] as string | undefined
-        return { finishReason, nativeFinishReason }
+        return { apiType: 'chat-completions', finishReason, nativeFinishReason }
     }
 
 }
