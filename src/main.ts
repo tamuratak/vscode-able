@@ -67,10 +67,11 @@ export function activate(context: vscode.ExtensionContext) {
     const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
     const openCodeGoAuthProvider = new OpenCodeGoApiKeyAuthenticationProvider(extension, context.secrets)
     const runInSandbox = new RunInSandbox()
+    const openCodeGoProvider = new OpenCodeGoChatModelProvider()
     try {
         context.subscriptions.push(
             vscode.lm.registerLanguageModelChatProvider('gemini_with_able', new GeminiChatProvider(extension)),
-            vscode.lm.registerLanguageModelChatProvider('opencodego_with_able', new OpenCodeGoChatModelProvider()),
+            vscode.lm.registerLanguageModelChatProvider('opencodego_with_able', openCodeGoProvider),
         )
     } catch { }
     context.subscriptions.push(
@@ -90,6 +91,9 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.commands.registerCommand('able.logoutOpenCodeGo', async () => {
             await openCodeGoAuthProvider.removeSession()
+        }),
+        vscode.commands.registerCommand('able.abortRequest', () => {
+            openCodeGoProvider.abortActiveRequests()
         }),
         vscode.commands.registerCommand('able.doSomething', () => {
             void doSomething(extension)

@@ -18,6 +18,16 @@ import { pushToolCall, tweakTools } from './tools.js'
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
     /** Track last request completion time for delay calculation. */
     private _lastRequestTime: number | null = null;
+    /** Currently active abort controllers for concurrent requests. */
+    private readonly _activeAbortControllers = new Set<AbortController>()
+
+    /** Abort all currently active requests. */
+    abortActiveRequests(): void {
+        for (const controller of this._activeAbortControllers) {
+            controller.abort()
+        }
+        this._activeAbortControllers.clear()
+    }
 
     provideLanguageModelChatInformation(): LanguageModelChatInformation[] {
         return getBuiltInModelInfos();
@@ -44,6 +54,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         messageLogger.info(await renderMessages(messages))
         const requestStartTime = Date.now();
         const abortController = new AbortController();
+        this._activeAbortControllers.add(abortController)
         const requestTimeoutMs = 600000
         const timeoutId = setTimeout(() => abortController.abort(), requestTimeoutMs);
         const cancelToken = token.onCancellationRequested(() => abortController.abort() )
@@ -193,6 +204,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         } finally {
             cancelToken.dispose()
             clearTimeout(timeoutId)
+            this._activeAbortControllers.delete(abortController)
             const durationMs = Date.now() - requestStartTime;
             logger.info('request.end', { modelId: model.id, durationMs });
             this._lastRequestTime = Date.now();
