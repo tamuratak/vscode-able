@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { LanguageModelChatInformation } from 'vscode'
 import type { OpenCodeGoModelItem } from './types.js'
 
@@ -13,7 +14,9 @@ interface BuiltInModelDef {
     supportsReasoningEffort?: string[];
     maxInputTokens: number;
     maxOutputTokens: number;
-    extra?: Record<string, unknown>;
+    extra?: {
+        frequency_penalty: number
+    } | undefined;
     apiType?: EndpointApiType;
     delay?: number;
 }
@@ -40,8 +43,8 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
     { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768 },
     { baseId: 'mimo-v2-omni', displayName: 'MiMo-V2-Omni', vision: true, maxInputTokens: 1000000, maxOutputTokens: 32768 },
-    { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768 },
-    { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768 },
+    { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 } },
+    { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 } },
 
     // https://platform.minimax.io/docs/api-reference/text-anthropic-api
     { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768 },
