@@ -41,8 +41,6 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', vision: false, defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768 },
 
     // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
-    { baseId: 'mimo-v2-pro', displayName: 'MiMo-V2-Pro', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768 },
-    { baseId: 'mimo-v2-omni', displayName: 'MiMo-V2-Omni', vision: true, maxInputTokens: 1000000, maxOutputTokens: 32768 },
     { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 } },
     { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 } },
 
