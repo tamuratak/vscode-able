@@ -1,7 +1,7 @@
 {
   "name": "able",
   "displayName": "Able",
-  "version": "9.10.0",
+  "version": "9.10.1",
   "publisher": "tamuratak",
   "license": "MIT",
   "description": "An extension able to do things",
@@ -444,7 +444,7 @@
     "ajv": "8.18.0",
     "mathjax-full": "3.2.2",
     "playwright": "1.58.2",
-    "vm2": "3.11.3",
+    "vm2": "3.11.5",
     "vscode-uri": "3.1.0",
     "workerpool": "10.0.0"
   },
