@@ -54,41 +54,89 @@ class Logger {
     }
 }
 
+interface ChannelSlot {
+    channel: vscode.OutputChannel;
+    assigned: boolean;
+}
+
+const POOL_SIZE = 2
+
 class MessageLogger {
-    private readonly _outputChannel: vscode.OutputChannel;
+    private readonly _label: string;
+    private readonly _pool: ChannelSlot[];
 
     constructor(label: string) {
-        this._outputChannel = vscode.window.createOutputChannel(label);
+        this._label = label;
+        this._pool = [];
+        for (let i = 0; i < POOL_SIZE; i++) {
+            this._pool.push({
+                channel: vscode.window.createOutputChannel(`${label} ${i + 1}`),
+                assigned: false,
+            })
+        }
     }
 
-    info(message: string): void {
-        this._outputChannel.append(message)
+    private _acquireChannel(): vscode.OutputChannel {
+        const slot = this._pool.find(s => !s.assigned)
+        if (slot) {
+            slot.assigned = true
+            return slot.channel
+        }
+        // All channels are assigned; create a new one
+        const newChannel = vscode.window.createOutputChannel(
+            `${this._label} ${this._pool.length + 1}`
+        );
+        this._pool.push({ channel: newChannel, assigned: true })
+        return newChannel
     }
 
-    wrapProgress(progress: Progress<LanguageModelResponsePart2>): Progress<LanguageModelResponsePart2> {
+    private _releaseChannel(channel: vscode.OutputChannel): void {
+        const slot = this._pool.find(s => s.channel === channel)
+        if (slot) {
+            slot.assigned = false
+        }
+    }
+
+    /**
+     * Acquire a channel for a chat request and return it along with a release function.
+     */
+    acquire(): [vscode.OutputChannel, () => void] {
+        const channel = this._acquireChannel()
+        const release = () => this._releaseChannel(channel)
+        return [channel, release]
+    }
+
+    /**
+     * Wrap a progress reporter with an isolated output channel.
+     * Returns the wrapped progress, the channel, and a release function that must
+     * be called when the chat request completes to return the channel to the pool.
+     */
+    wrapProgress(progress: Progress<LanguageModelResponsePart2>): [Progress<LanguageModelResponsePart2>, vscode.OutputChannel, () => void] {
+        const [channel, releaseChannel] = this.acquire()
         let prevValue: unknown = undefined
-        return {
+        const newProgress = {
             report: (value: LanguageModelResponsePart2) => {
                 try {
                     progress.report(value)
                 } catch (e) {
                     logger.error('[OpenCodeGo] Progress.report failed', {
                         error: e instanceof Error ? { name: e.name, message: e.message } : String(e),
-                    });
+                    })
                 }
                 const capturedPrev = prevValue
                 prevValue = value
                 renderMessageContent({ content: [value] }).then(contents => {
                     const rendered = contents.join('')
                     if ((value instanceof vscode.LanguageModelTextPart && capturedPrev instanceof vscode.LanguageModelThinkingPart) || (value instanceof vscode.LanguageModelThinkingPart && capturedPrev instanceof vscode.LanguageModelTextPart)) {
-                        this._outputChannel.append('\n\n')
+                        channel.append('\n\n')
                     }
-                    this._outputChannel.append(rendered)
+                    channel.append(rendered)
                 }).catch(err => {
                     logger.error('logger.message', { error: err })
                 })
             }
         }
+        return [newProgress, channel, releaseChannel]
     }
 }
 

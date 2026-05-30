@@ -47,11 +47,11 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         progressOrigin: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<void> {
-        const trackingProgress = messageLogger.wrapProgress(progressOrigin)
+        const [trackingProgress, channel, releaseChannel] = messageLogger.wrapProgress(progressOrigin)
         const messages = tweakSystemPrompt(model, messagesOrigin, optionsOrigin)
         const options = tweakTools(optionsOrigin)
-        messageLogger.info('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
-        messageLogger.info(await renderMessages(messages))
+        channel.append('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
+        channel.append(await renderMessages(messages))
         const requestStartTime = Date.now();
         const abortController = new AbortController();
         this._activeAbortControllers.add(abortController)
@@ -186,7 +186,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     throw new Error('No response body from API');
                 }
 
-                messageLogger.info('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
+                channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
                 responseResult = await openaiApi.processStreamingResponse(response.body, trackingProgress, token);
             } else {
                 apiMode satisfies 'responses'
@@ -202,6 +202,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             });
             throw err;
         } finally {
+            releaseChannel()
             cancelToken.dispose()
             clearTimeout(timeoutId)
             this._activeAbortControllers.delete(abortController)
