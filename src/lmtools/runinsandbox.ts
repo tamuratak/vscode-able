@@ -192,6 +192,20 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
         return { stdout, stderr, exitCode, signal }
     }
 
+    private collectAncestors(targetPath: string): string[] {
+        const ancestors: string[] = []
+        let current = path.dirname(targetPath)
+        while (true) {
+            const parent = path.dirname(current)
+            if (parent === current) {
+                break
+            }
+            ancestors.push(current)
+            current = parent
+        }
+        return ancestors
+    }
+
     private buildSeatbeltPolicyAndParams(
         rwritableDirs: string[],
         userAllowedReadDirectories: string[],
@@ -308,6 +322,30 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
             allowReadWritePolicy = `\n(allow file-read*\n${allowRwPolicies.join(' ')}\n)\n(allow file-write*\n${allowRwPolicies.join(' ')}\n)`
         }
 
+        // Generate (allow file-read* (path "...")) entries for ancestor directories of rwritableDirs.
+        // Using (path ...) instead of (subpath ...) so only the directory entry itself is allowed,
+        // not its contents, blocking access to other processes' tmpdir contents.
+        const ancestorsSet = new Set<string>()
+        for (const dir of rwritableDirs) {
+            for (const ancestor of this.collectAncestors(dir)) {
+                if (!ancestorsSet.has(ancestor)) {
+                    ancestorsSet.add(ancestor)
+                }
+            }
+        }
+        // Filter out ancestors that are already covered by (subpath ...) entries
+        const filteredAncestors = [...ancestorsSet].filter(a => !rwritableDirs.includes(a))
+        const ancestorPolicies: string[] = []
+        const ancestorParams: string[] = []
+        for (let i = 0; i < filteredAncestors.length; ++i) {
+            ancestorPolicies.push(`(path (param "ANCESTOR_DIR_${i}"))`)
+            ancestorParams.push('-D', `ANCESTOR_DIR_${i}=${filteredAncestors[i]}`)
+        }
+        let ancestorPolicy = ''
+        if (ancestorPolicies.length > 0) {
+            ancestorPolicy = `\n(allow file-read*\n${ancestorPolicies.join(' ')}\n)`
+        }
+
         const allowReadPolicies: string[] = []
         const allowReadParams: string[] = []
         for (let i = 0; i < allowedReadEntries.length; ++i) {
@@ -330,8 +368,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
             denyWritePolicy = `\n(deny file-write*\n${denyWritePolicies.join(' ')}\n)\n`
         }
         // Combine deny params (for denied paths) with rw params (allowed read/write roots)
-        const params = [...allowRwParams, ...allowReadParams, ...denyWriteParams]
-        return { policy: basePolicy + allowReadWritePolicy + allowReadPolicy + denyWritePolicy, params }
+        const params = [...allowRwParams, ...ancestorParams, ...allowReadParams, ...denyWriteParams]
+        return { policy: basePolicy + allowReadWritePolicy + ancestorPolicy + allowReadPolicy + denyWritePolicy, params }
     }
 
     private getConfiguredAllowFileReadDirectories(): string[] | undefined {
