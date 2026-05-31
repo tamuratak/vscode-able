@@ -128,6 +128,130 @@ export function collectToolResultImages(part: {
 }
 
 /**
+ * Serialize a value to a JSON string with sorted keys for stable comparison.
+ */
+function sortedStringify(value: unknown): string {
+    if (value === null || value === undefined || typeof value !== 'object') {
+        return JSON.stringify(value)
+    }
+    if (Array.isArray(value)) {
+        return '[' + value.map(sortedStringify).join(',') + ']'
+    }
+    const obj = value as Record<string, unknown>
+    const keys = Object.keys(obj).sort()
+    const pairs = keys.map(k => JSON.stringify(k) + ':' + sortedStringify(obj[k]))
+    return '{' + pairs.join(',') + '}'
+}
+
+/**
+ * Information about a detected tool call loop.
+ */
+export interface ToolLoopInfo {
+    detected: boolean
+    callName: string
+    callInput: Record<string, unknown>
+    repeatCount: number
+}
+
+/**
+ * Check if the tail of the messages contains a loop of identical tool calls.
+ *
+ * Scans backwards from the end of the message list looking for the pattern:
+ *   ... assistant(toolCall) -> user(toolResult) -> assistant(toolCall) -> ...
+ * where each assistant tool call has the same name and input.
+ *
+ * @param messages The conversation messages to inspect.
+ * @param minRepeatCount Minimum consecutive repetitions to consider a loop (default: 3).
+ */
+export function isToolCallLoopDetected(
+    messages: readonly vscode.LanguageModelChatRequestMessage[],
+    minRepeatCount = 3
+): ToolLoopInfo {
+    if (messages.length === 0 || minRepeatCount < 2) {
+        return { detected: false, callName: '', callInput: {}, repeatCount: 0 }
+    }
+
+    // Collect tool calls from the last assistant message
+    const lastAssistantIdx = findLastAssistantWithToolCall(messages, messages.length - 1)
+    if (lastAssistantIdx < 0) {
+        return { detected: false, callName: '', callInput: {}, repeatCount: 0 }
+    }
+
+    const lastToolCalls = extractToolCalls(messages[lastAssistantIdx])
+    if (lastToolCalls.length === 0) {
+        return { detected: false, callName: '', callInput: {}, repeatCount: 0 }
+    }
+
+    const signature = sortedStringify(lastToolCalls)
+    const callName = lastToolCalls[0].name
+    const callInput = lastToolCalls[0].input
+
+    let repeatCount = 1
+    let currentIdx = lastAssistantIdx
+
+    for (;;) {
+        // Expect a user (tool result) message before the previous assistant message
+        const prevIdx = currentIdx - 1
+        if (prevIdx < 0) {
+            break
+        }
+        if (messages[prevIdx].role !== vscode.LanguageModelChatMessageRole.User) {
+            break
+        }
+
+        // Expect an assistant message before the user message
+        const prevAssistantIdx = findLastAssistantWithToolCall(messages, prevIdx - 1)
+        if (prevAssistantIdx < 0) {
+            break
+        }
+
+        const prevToolCalls = extractToolCalls(messages[prevAssistantIdx])
+        if (sortedStringify(prevToolCalls) !== signature) {
+            break
+        }
+
+        repeatCount += 1
+        currentIdx = prevAssistantIdx
+    }
+
+    return {
+        detected: repeatCount >= minRepeatCount,
+        callName,
+        callInput,
+        repeatCount,
+    }
+}
+
+function findLastAssistantWithToolCall(
+    messages: readonly vscode.LanguageModelChatRequestMessage[],
+    fromIndex: number
+): number {
+    for (let i = fromIndex; i >= 0; i--) {
+        const msg = messages[i]
+        if (msg.role === vscode.LanguageModelChatMessageRole.Assistant) {
+            for (const part of msg.content) {
+                if (part instanceof vscode.LanguageModelToolCallPart) {
+                    return i
+                }
+            }
+        }
+    }
+    return -1
+}
+
+function extractToolCalls(
+    message: vscode.LanguageModelChatRequestMessage
+): { name: string; input: Record<string, unknown> }[] {
+    const calls: { name: string; input: Record<string, unknown> }[] = []
+    for (const part of message.content) {
+        if (part instanceof vscode.LanguageModelToolCallPart) {
+            calls.push({ name: part.name, input: part.input as Record<string, unknown> })
+        }
+    }
+    return calls
+}
+
+/**
  * Safely try to parse a JSON object from a string.
  * Returns { ok: true, value } or { ok: false }.
  */
