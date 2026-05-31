@@ -5,7 +5,10 @@ export interface RepetitionResult {
 
 const MIN_WORDS = 20
 const MAX_TAIL_LENGTH = 8000
-const MIN_MATCH_RATIO = 0.4
+// Minimum fraction of consecutive word-matches required out of the candidate
+// period length for a candidate to be accepted as a true repetition.
+// A higher value (e.g. 0.9) reduces false positives by requiring near-exact repeats.
+const MIN_MATCH_RATIO = 0.9
 const ABSOLUTE_MIN_MATCHES = 5
 
 /**
