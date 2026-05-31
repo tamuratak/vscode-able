@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, LanguageModelChatInformation } from 'vscode'
 import type { OpenCodeGoModelItem } from '../types.js'
 import type { OpenAIChatMessage, OpenAIToolCall, ChatMessageContent, ReasoningDetail } from './openaiTypes.js'
-import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, collectToolResultImages, convertToolsToOpenAI, mapRole, } from '../utils.js'
+import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, collectToolResultImages, convertToolsToOpenAI, mapRole, } from '../vscodeutils.js'
 import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
@@ -224,6 +224,9 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 if (token.isCancellationRequested) {
                     break;
                 }
+                if (this._loopDetected) {
+                    break;
+                }
 
                 const { done, value } = await reader.read();
                 if (done) {
@@ -237,6 +240,9 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 let doneFlag = false
                 for (const line of lines) {
                     if (token.isCancellationRequested) {
+                        break
+                    }
+                    if (this._loopDetected) {
                         break
                     }
                     if (!line.startsWith('data:')) {
@@ -282,7 +288,9 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         } finally {
             cancelToken.dispose()
             this.endThinking()
-            if (responseResult?.finishReason === 'stop') {
+            if (this._loopDetected) {
+                this.emitLoopRedirectMessage(progress)
+            } else if (responseResult?.finishReason === 'stop') {
                 finalResponseLogger.info('\n' + this._unifiedText)
             }
             this.emitFallbackResponseIfNeeded(responseResult, progress)

@@ -1,146 +1,124 @@
-/* eslint-disable @typescript-eslint/naming-convention */
-import * as vscode from 'vscode'
-import { OpenAIFunctionToolDef } from './openai/openaiTypes.js'
-
-/**
- * Map VS Code message role to OpenAI message role string.
- */
-export function mapRole(message: vscode.LanguageModelChatRequestMessage): 'user' | 'assistant' | 'system' {
-    const role = message.role
-    if (role === vscode.LanguageModelChatMessageRole.User) {
-        return 'user';
-    } else if (role === vscode.LanguageModelChatMessageRole.Assistant) {
-        return 'assistant';
-    } else {
-        return 'system';
-    }
+export interface RepetitionResult {
+    pattern: string
+    count: number
 }
 
+const MIN_WORDS = 20
+const MAX_TAIL_LENGTH = 8000
+// Minimum fraction of consecutive word-matches required out of the candidate
+// period length for a candidate to be accepted as a true repetition.
+// A higher value (e.g. 0.9) reduces false positives by requiring near-exact repeats.
+const MIN_MATCH_RATIO = 0.9
+const ABSOLUTE_MIN_MATCHES = 5
+
 /**
- * Convert VS Code tool definitions to OpenAI function tool definitions.
+ * Detects whether the given text ends with a repeating pattern,
+ * which may indicate an infinite loop in LLM reasoning output.
+ *
+ * The algorithm:
+ * 1. Tokenize the tail of the text into words with character positions
+ * 2. Use the last ~30 words as probes to find candidate word-periods
+ *    by locating earlier occurrences of each probe word
+ * 3. Cluster nearby candidate periods and pick the strongest one
+ * 4. Verify by counting consecutive word-matches from the end
+ *    when shifted by the candidate period
+ * 5. Return the pattern and repetition count if at least 2 full
+ *    repetitions are found
  */
-export function convertToolsToOpenAI(
-    options?: vscode.ProvideLanguageModelChatResponseOptions
-): { tools?: OpenAIFunctionToolDef[]; tool_choice?: string | undefined } {
-    if (!options?.tools || options.tools.length === 0) {
-        return {};
+export function findRepeatingPattern(text: string): RepetitionResult | null {
+    const tail = text.length > MAX_TAIL_LENGTH ? text.slice(-MAX_TAIL_LENGTH) : text
+
+    // Step 1: Tokenize into words with character positions
+    const tokens: { word: string; start: number; end: number }[] = []
+    const wordRe = /\S+/g
+    let m: RegExpExecArray | null
+    while ((m = wordRe.exec(tail)) !== null) {
+        tokens.push({ word: m[0], start: m.index, end: m.index + m[0].length })
     }
-
-    const tools: OpenAIFunctionToolDef[] = options.tools.map((tool) => {
-        const def: OpenAIFunctionToolDef = {
-            type: 'function',
-            function: {
-                name: tool.name,
-                description: tool.description,
-            },
-        };
-        // Use the tool's inputSchema as parameters if available
-        if (tool.inputSchema) {
-            def.function.parameters = tool.inputSchema;
-        } else {
-            def.function.parameters = { type: 'object', properties: {} };
-        }
-        return def;
-    });
-
-    // Determine tool_choice mode
-    const toolMode = (options?.modelOptions as Record<string, unknown> | undefined)?.['toolMode'] as string | undefined;
-
-    let toolChoice: 'required' | 'none' | 'auto' = 'auto'
-    if (toolMode === 'required') {
-        toolChoice = 'required';
-    } else if (toolMode === 'none') {
-        toolChoice = 'none';
-    } else if (toolMode === 'auto') {
-        toolChoice = 'auto';
+    const n = tokens.length
+    if (n < MIN_WORDS) {
+        return null
     }
 
-    return { tools, tool_choice: toolChoice };
-}
-
-/**
- * Check if a mime type is an image type.
- */
-export function isImageMimeType(mimeType: string): boolean {
-    return mimeType.startsWith('image/');
-}
-
-/**
- * Create a data URL from a LanguageModelDataPart.
- */
-export function createDataUrl(part: vscode.LanguageModelDataPart): string {
-    const base64 = arrayBufferToBase64(part.data);
-    return `data:${part.mimeType};base64,${base64}`;
-}
-
-function arrayBufferToBase64(buffer: Uint8Array): string {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    for (const byte of bytes) {
-        binary += String.fromCharCode(byte);
-    }
-    return btoa(binary);
-}
-
-/**
- * Check if a part is a tool result part.
- */
-export function isToolResultPart(
-    part: unknown
-): part is vscode.LanguageModelToolResultPart {
-    return part instanceof vscode.LanguageModelToolResultPart;
-}
-
-/**
- * Collect text content from a tool result part.
- */
-export function collectToolResultText(part: {
-    content?: readonly unknown[];
-}): string {
-    if (!part.content) {
-        return '';
-    }
-    const texts: string[] = [];
-    for (const item of part.content) {
-        if (item instanceof vscode.LanguageModelTextPart) {
-            texts.push(item.value);
+    // Step 2: Find candidate word-periods using probe words from the tail
+    const probeCount = Math.min(30, Math.floor(n / 3))
+    const periodVotes = new Map<number, number>()
+    for (let i = n - probeCount; i < n; i++) {
+        for (let j = i - 1; j >= 0; j--) {
+            if (tokens[j].word === tokens[i].word) {
+                const period = i - j
+                if (period >= 3) {
+                    periodVotes.set(period, (periodVotes.get(period) || 0) + 1)
+                }
+            }
         }
     }
-    return texts.join('\n').trim();
-}
 
-/**
- * Collect image data parts from a tool result part.
- */
-export function collectToolResultImages(part: {
-    content?: readonly unknown[];
-}): vscode.LanguageModelDataPart[] {
-    if (!part.content) {
-        return [];
+    // Step 3: Cluster nearby periods and find the best candidate
+    const sorted = [...periodVotes.entries()].sort((a, b) => b[1] - a[1])
+    if (sorted.length === 0) {
+        return null
     }
-    const images: vscode.LanguageModelDataPart[] = [];
-    for (const item of part.content) {
-        if (item instanceof vscode.LanguageModelDataPart && isImageMimeType(item.mimeType)) {
-            images.push(item);
+
+    const tolerance = 2
+    const clusters: { period: number; votes: number }[] = []
+    const used = new Set<number>()
+    for (const [period, votes] of sorted) {
+        if (used.has(period)) {
+            continue
+        }
+        let sum = period * votes
+        let totalVotes = votes
+        for (const [other, ov] of sorted) {
+            if (other !== period && Math.abs(other - period) <= tolerance && !used.has(other)) {
+                sum += other * ov
+                totalVotes += ov
+                used.add(other)
+            }
+        }
+        used.add(period)
+        clusters.push({ period: Math.round(sum / totalVotes), votes: totalVotes })
+    }
+    clusters.sort((a, b) => b.votes - a.votes)
+
+    // Step 4: Verify each candidate period
+    for (const { period: wp } of clusters) {
+        if (wp < 3 || wp * 2 > n) {
+            continue
+        }
+
+        // Count consecutive word-matches from the end
+        let matchCount = 0
+        for (let offset = 0; offset < n; offset++) {
+            const idx = n - 1 - offset
+            if (idx - wp < 0) {
+                break
+            }
+            if (tokens[idx].word === tokens[idx - wp].word) {
+                matchCount++
+            } else {
+                break
+            }
+        }
+
+        const minMatches = Math.max(Math.floor(wp * MIN_MATCH_RATIO), ABSOLUTE_MIN_MATCHES)
+        if (matchCount < minMatches) {
+            continue
+        }
+
+        // Step 5: Extract the repeating pattern and count repetitions
+        // The verified match region is tokens[n-matchCount .. n-1].
+        // Shifting this region back by 'wp' words gives the preceding block,
+        // which is guaranteed to be one full period of the pattern.
+        const regionStart = Math.max(0, n - matchCount - wp)
+        const pattern = tokens.slice(regionStart, regionStart + wp).map(t => t.word).join(' ')
+        // Total matched words plus one full period gives the span for all repetitions.
+        const count = Math.floor((matchCount + wp) / wp)
+
+        if (count >= 2) {
+            return { pattern, count }
         }
     }
-    return images;
-}
 
-/**
- * Safely try to parse a JSON object from a string.
- * Returns { ok: true, value } or { ok: false }.
- */
-export function tryParseJSONObject(
-    text: string
-): { ok: true; value: Record<string, unknown> } | { ok: false } {
-    try {
-        const parsed = JSON.parse(text) as unknown;
-        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-            return { ok: true, value: parsed as Record<string, unknown> };
-        }
-        return { ok: false };
-    } catch {
-        return { ok: false };
-    }
+    return null
 }
