@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import type { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, LanguageModelChatInformation, } from 'vscode'
 import type { OpenCodeGoModelItem } from '../types.js'
 import type { AnthropicMessage, AnthropicRequestBody, AnthropicContentBlock, AnthropicTextBlock, AnthropicImageBlock, AnthropicRedactedThinkingBlock, AnthropicToolResultBlock, AnthropicStreamChunk, } from './anthropicTypes.js'
-import { isImageMimeType, isToolResultPart, convertToolsToOpenAI, mapRole } from '../utils.js'
+import { isImageMimeType, isToolResultPart, convertToolsToOpenAI, mapRole } from '../vscodeutils.js'
 import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
@@ -264,6 +264,9 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 if (token.isCancellationRequested) {
                     break;
                 }
+                if (this._loopDetected) {
+                    break;
+                }
 
                 const { done, value } = await reader.read();
                 if (done) {
@@ -276,6 +279,9 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
 
                 for (const line of lines) {
                     if (token.isCancellationRequested) {
+                        break
+                    }
+                    if (this._loopDetected) {
                         break
                     }
                     if (line.trim() === '') {
@@ -315,7 +321,9 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         } finally {
             cancelToken.dispose()
             this.endThinking()
-            if (responseResult?.stopReason === 'end_turn') {
+            if (this._loopDetected) {
+                this.emitLoopRedirectMessage(progress)
+            } else if (responseResult?.stopReason === 'end_turn') {
                 finalResponseLogger.info('\n' + this._unifiedText)
             }
             this.emitFallbackResponseIfNeeded(responseResult, progress)
