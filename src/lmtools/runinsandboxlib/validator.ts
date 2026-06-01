@@ -2,6 +2,7 @@ import type treeSitter from '#vscode-tree-sitter-wasm'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { bashParser, collectCommands, CommandNode, getNodeText, hasNoWriteRedirection, normalizeToken, parserInitialization } from './commandparser.js'
+import { validateNodeScript } from './nodevalidate.js'
 
 
 export async function isAllowedCommand(command: string, workspaceRootPath: string | undefined): Promise<boolean> {
@@ -38,6 +39,14 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
         // Sub-commands
         if (await isAllowedSubCommand(cmd, workspaceRootPath)) {
             continue
+        }
+
+        // node -e '...' with safe script
+        if (cmd.command === 'node' && cmd.args.length === 2 && cmd.args[0] === '-e') {
+            const result = await validateNodeScript(cmd.args[1])
+            if (result.ok) {
+                continue
+            }
         }
 
         const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'printf', 'sed', 'tail', 'grep', 'find', 'pwd', 'wc', 'true', 'sleep'])
