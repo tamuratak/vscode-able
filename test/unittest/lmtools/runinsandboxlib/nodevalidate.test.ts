@@ -175,4 +175,40 @@ suite('validateNodeScript', () => {
         const result = await validateNodeScript('const path = require("node:path")')
         assert.strictEqual(result.ok, true)
     })
+
+    test('rejects require with template literal fs', async () => {
+        const result = await validateNodeScript('require(`fs`)')
+        assert.strictEqual(result.ok, false)
+        assert.ok(result.reason?.includes('require'))
+    })
+
+    test('rejects import with template literal fs', async () => {
+        const result = await validateNodeScript('import(`fs`)')
+        assert.strictEqual(result.ok, false)
+        assert.ok(result.reason?.includes('import'))
+    })
+
+    test('rejects require with non-literal argument', async () => {
+        const result = await validateNodeScript('const m = "fs"; require(m)')
+        assert.strictEqual(result.ok, false)
+        assert.ok(result.reason?.includes('non-literal'))
+    })
+
+    test('rejects require("https")', async () => {
+        const result = await validateNodeScript('const https = require("https")')
+        assert.strictEqual(result.ok, false)
+        assert.ok(result.reason?.includes('https'))
+    })
+
+    test('rejects require("node:https")', async () => {
+        const result = await validateNodeScript('const https = require("node:https")')
+        assert.strictEqual(result.ok, false)
+        assert.ok(result.reason?.includes('https'))
+    })
+
+    test('rejects require with template literal node:fs', async () => {
+        const result = await validateNodeScript('require(`node:fs`)')
+        assert.strictEqual(result.ok, false)
+        assert.ok(result.reason?.includes('fs'))
+    })
 })

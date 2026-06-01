@@ -12,6 +12,7 @@ const forbiddenModules = new Set([
     'fs',
     'net',
     'http',
+    'https',
     'vm',
 ])
 
@@ -119,7 +120,7 @@ function detectForbiddenNode(node: treeSitter.Node, source: string): string | un
         }
     }
 
-    if (node.type === 'member_expression' || node.type === 'subscript_expression' || node.type === 'optional_member_expression') {
+    if (node.type === 'member_expression' || node.type === 'subscript_expression') {
         const memberReason = detectForbiddenMemberAccess(node, source)
         if (memberReason) {
             return memberReason
@@ -131,11 +132,13 @@ function detectForbiddenNode(node: treeSitter.Node, source: string): string | un
 
 function detectForbiddenImport(node: treeSitter.Node, source: string): string | undefined {
     const sourceNode = node.childForFieldName('source')
-    if (sourceNode && sourceNode.type === 'string') {
-        const moduleName = getStringLiteralValue(getNodeText(sourceNode, source))
-        const normalized = moduleName?.replace(/^node:/, '')
-        if (normalized && forbiddenModules.has(normalized)) {
-            return `forbidden: import from ${moduleName}`
+    if (sourceNode) {
+        const moduleName = getStringOrTemplateLiteralValue(sourceNode, source)
+        if (moduleName) {
+            const normalized = moduleName.replace(/^node:/, '')
+            if (forbiddenModules.has(normalized)) {
+                return `forbidden: import from ${moduleName}`
+            }
         }
     }
     return undefined
@@ -147,38 +150,43 @@ function detectForbiddenCall(node: treeSitter.Node, source: string): string | un
         return undefined
     }
 
-    // import("fs") - dynamic import
+    // import("fs") or import(`fs`) - dynamic import
     if (functionNode.type === 'import') {
         const argsNode = node.childForFieldName('arguments')
         if (argsNode) {
             const firstArg = argsNode.namedChild(0)
-            if (firstArg && firstArg.type === 'string') {
-                const moduleName = getStringLiteralValue(getNodeText(firstArg, source))
-                const normalized = moduleName?.replace(/^node:/, '')
-                if (normalized && forbiddenModules.has(normalized)) {
-                    return `forbidden: import('${moduleName}')`
+            if (firstArg) {
+                const moduleName = getStringOrTemplateLiteralValue(firstArg, source)
+                if (moduleName) {
+                    const normalized = moduleName.replace(/^node:/, '')
+                    if (forbiddenModules.has(normalized)) {
+                        return `forbidden: import('${moduleName}')`
+                    }
+                    return undefined
                 }
-                // Literal string importing a non-forbidden module is allowed
-                return undefined
             }
         }
-        // Dynamic import with non-literal argument cannot be verified
+        // Non-literal argument cannot be verified
         return 'forbidden: dynamic import with non-literal argument'
     }
 
     if (functionNode.type === 'identifier') {
         const functionName = getNodeText(functionNode, source)
 
-        // require('fs')
+        // require('fs') or require(`fs`)
         if (functionName === 'require') {
             const argsNode = node.childForFieldName('arguments')
             if (argsNode) {
                 const firstArg = argsNode.namedChild(0)
-                if (firstArg && firstArg.type === 'string') {
-                    const moduleName = getStringLiteralValue(getNodeText(firstArg, source))
-                    const normalized = moduleName?.replace(/^node:/, '')
-                    if (normalized && forbiddenModules.has(normalized)) {
-                        return `forbidden: require('${moduleName}')`
+                if (firstArg) {
+                    const moduleName = getStringOrTemplateLiteralValue(firstArg, source)
+                    if (moduleName) {
+                        const normalized = moduleName.replace(/^node:/, '')
+                        if (forbiddenModules.has(normalized)) {
+                            return `forbidden: require('${moduleName}')`
+                        }
+                    } else {
+                        return 'forbidden: require with non-literal argument'
                     }
                 }
             }
@@ -285,12 +293,14 @@ function findVariableAssignmentInScope(scopeNode: treeSitter.Node, variableName:
                             const argsNode = value.childForFieldName('arguments')
                             if (argsNode) {
                                 const firstArg = argsNode.namedChild(0)
-                                if (firstArg && firstArg.type === 'string') {
-                                    const moduleName = getStringLiteralValue(getNodeText(firstArg, source))
-                                    const normalized = moduleName?.replace(/^node:/, '')
-                                    if (normalized && forbiddenModules.has(normalized)) {
-                                        if (isInDestructuringPattern(pattern, variableName, source)) {
-                                            return `forbidden: ${variableName} destructured from ${moduleName}`
+                                if (firstArg) {
+                                    const moduleName = getStringOrTemplateLiteralValue(firstArg, source)
+                                    if (moduleName) {
+                                        const normalized = moduleName.replace(/^node:/, '')
+                                        if (forbiddenModules.has(normalized)) {
+                                            if (isInDestructuringPattern(pattern, variableName, source)) {
+                                                return `forbidden: ${variableName} destructured from ${moduleName}`
+                                            }
                                         }
                                     }
                                 }
@@ -333,11 +343,13 @@ function checkRequireCall(node: treeSitter.Node, source: string): string | undef
     }
 
     const firstArg = argsNode.namedChild(0)
-    if (firstArg && firstArg.type === 'string') {
-        const moduleName = getStringLiteralValue(getNodeText(firstArg, source))
-        const normalized = moduleName?.replace(/^node:/, '')
-        if (normalized && forbiddenModules.has(normalized)) {
-            return normalized
+    if (firstArg) {
+        const moduleName = getStringOrTemplateLiteralValue(firstArg, source)
+        if (moduleName) {
+            const normalized = moduleName.replace(/^node:/, '')
+            if (forbiddenModules.has(normalized)) {
+                return normalized
+            }
         }
     }
 
@@ -388,4 +400,28 @@ function getStringLiteralValue(value: string): string | undefined {
     }
 
     return value.slice(1, value.length - 1)
+}
+
+function getStringOrTemplateLiteralValue(node: treeSitter.Node, source: string): string | undefined {
+    if (node.type === 'string') {
+        return getStringLiteralValue(getNodeText(node, source))
+    }
+
+    if (node.type === 'template_string') {
+        // Reject template literals with interpolations
+        for (let i = 0; i < node.namedChildCount; i += 1) {
+            const child = node.namedChild(i)
+            if (child && child.type === 'template_substitution') {
+                return undefined
+            }
+        }
+        // Simple template literal without interpolations - extract string_fragment
+        const text = getNodeText(node, source)
+        if (text.length < 2 || text[0] !== '`' || text[text.length - 1] !== '`') {
+            return undefined
+        }
+        return text.slice(1, text.length - 1)
+    }
+
+    return undefined
 }

@@ -305,6 +305,103 @@ EOF`
         assert.strictEqual(ok, false)
     })
 
+    // node -e tests
+    test('allows node -e with safe code', async () => {
+        const cmd = 'node -e \'console.log("hello")\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows node -e with safe expressions', async () => {
+        const cmd = 'node -e \'const x = 1 + 2; console.log(x)\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows node -e with require("fs")', async () => {
+        const cmd = 'node -e \'require("fs")\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows node -e with process access', async () => {
+        const cmd = 'node -e \'process.exit()\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows node -e with variable assignment from forbidden module', async () => {
+        const cmd = 'node -e \'const fs = require("fs"); fs.readFileSync("/etc/passwd")\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows node without args', async () => {
+        const cmd = 'node'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows node -e without script argument', async () => {
+        const cmd = 'node -e'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows node --eval', async () => {
+        const cmd = 'node --eval \'console.log("hello")\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows node -e with extra arguments', async () => {
+        const cmd = 'node -e \'console.log("hello")\' extra_arg'
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('allows cd + node -e with safe code', async () => {
+        const cmd = 'cd /Users/tamura/src/github/vscode-copilot-chat && node -e \'console.log("hello")\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows node -e with import("fs")', async () => {
+        const cmd = 'node -e \'import("fs").then(m => m.readFileSync("/etc/passwd"))\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows node -e with eval', async () => {
+        const cmd = 'node -e \'eval("process.exit()")\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows node -e with require and non-literal argument', async () => {
+        const cmd = 'node -e \'const m = "fs"; require(m).readFileSync("/etc/passwd")\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows node -e with template literal require', async () => {
+        const cmd = 'node -e \'require(`fs`)\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows node -e with template literal import', async () => {
+        const cmd = 'node -e \'import(`fs`)\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows node -e with require("https")', async () => {
+        const cmd = 'node -e \'require("https")\''
+        const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
+        assert.strictEqual(ok, false)
+    })
+
     test('disallows 2> redirection to file', async () => {
         const cmd = 'rg pattern file.txt 2> error.log'
         const ok = await isAllowedCommand(cmd, '/Users/tamura/src/github/vscode-copilot-chat')
