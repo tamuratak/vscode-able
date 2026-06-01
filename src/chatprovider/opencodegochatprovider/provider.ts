@@ -13,6 +13,7 @@ import { renderMessages } from '../../utils/renderer.js'
 import { sleep } from '../../utils/utils.js'
 import { tweakSystemPrompt } from './systemprompt.js'
 import { pushToolCall, tweakTools } from './tools.js'
+import { isToolCallLoopDetected } from './vscodeutils.js'
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
@@ -57,9 +58,20 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         this._activeAbortControllers.add(abortController)
         const requestTimeoutMs = 600000
         const timeoutId = setTimeout(() => abortController.abort(), requestTimeoutMs);
-        const cancelToken = token.onCancellationRequested(() => abortController.abort() )
+        const cancelToken = token.onCancellationRequested(() => abortController.abort())
 
         try {
+            const loopInfo = isToolCallLoopDetected(messagesOrigin)
+            if (loopInfo.detected) {
+                logger.error('[OpenCodeGo] Tool call loop detected, aborting request', {
+                    modelId: model.id,
+                    callName: loopInfo.callName,
+                    repeatCount: loopInfo.repeatCount,
+                })
+                this.emitToolCallLoopMessage(trackingProgress)
+                return
+            }
+
             const umOrig: OpenCodeGoModelItem | undefined = getBuiltInModelConfig(model.id);
             if (!umOrig) {
                 logger.error('config.error', { modelId: model.id, error: 'Model configuration not found' });
@@ -221,4 +233,8 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         return session.accessToken
     }
 
+    private emitToolCallLoopMessage(progress: Progress<LanguageModelResponsePart2>): void {
+        const message = '[Caution] A tool call loop was detected. The response was aborted to prevent an infinite loop. The model may not have enough context to answer this question. Consider asking the user for more information or trying a different approach.'
+        progress.report(new vscode.LanguageModelTextPart(message))
+    }
 }
