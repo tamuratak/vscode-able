@@ -12,10 +12,9 @@ export class TaskWatcher implements vscode.Disposable {
     private watchers: vscode.FileSystemWatcher[] = []
     private readonly configToDispose: vscode.Disposable
     private readonly mutex = new MutexWithSizedQueue(1)
+    private readonly outputChannel = vscode.window.createOutputChannel('vscode-able TaskWatcher', { log: true })
 
-    constructor(private readonly extension: {
-        readonly outputChannel: vscode.LogOutputChannel
-    }) {
+    constructor() {
         this.initWatcher()
         this.configToDispose = vscode.workspace.onDidChangeConfiguration((e) => {
             if (e.affectsConfiguration('able.taskWatcher')) {
@@ -24,7 +23,7 @@ export class TaskWatcher implements vscode.Disposable {
         })
         setTimeout(async () => {
             const tasks = await vscode.tasks.fetchTasks()
-            debugObj('Fetched tasks: ', tasks.filter(t => !t.definition['path']).map(t => ({ name: t.name, definition: t.definition })), this.extension.outputChannel)
+            debugObj('Fetched tasks: ', tasks.filter(t => !t.definition['path']).map(t => ({ name: t.name, definition: t.definition })), this.outputChannel)
         }, 0)
     }
 
@@ -42,12 +41,12 @@ export class TaskWatcher implements vscode.Disposable {
                     if (task) {
                         const release = await this.mutex.acquire()
                         const timeout = setTimeout(() => {
-                            debugObj('Timeout reached, releasing mutex for task: ', { name: task.name, definition: task.definition }, this.extension.outputChannel)
+                            debugObj('Timeout reached, releasing mutex for task: ', { name: task.name, definition: task.definition }, this.outputChannel)
                             release()
                             disposable.dispose()
                         }, 10 * 1000) // 10 seconds timeout
                         const disposable = vscode.tasks.onDidEndTask((e) => {
-                            debugObj('Task ended: ', { name: e.execution.task.name, definition: e.execution.task.definition }, this.extension.outputChannel)
+                            debugObj('Task ended: ', { name: e.execution.task.name, definition: e.execution.task.definition }, this.outputChannel)
                             if (e.execution.task.name === task.name && e.execution.task.definition.type === task.definition.type) {
                                 release()
                                 clearTimeout(timeout)
@@ -69,15 +68,15 @@ export class TaskWatcher implements vscode.Disposable {
                     const watcher = vscode.workspace.createFileSystemWatcher(pattern)
                     this.watchers.push(watcher)
                     watcher.onDidChange(async (e) => {
-                        debugObj('File changed: ', e, this.extension.outputChannel)
+                        debugObj('File changed: ', e, this.outputChannel)
                         await executeTaskCb()
                     })
                     watcher.onDidCreate(async (e) => {
-                        debugObj('File created: ', e, this.extension.outputChannel)
+                        debugObj('File created: ', e, this.outputChannel)
                         await executeTaskCb()
                     })
                     watcher.onDidDelete(async (e) => {
-                        debugObj('File deleted: ', e, this.extension.outputChannel)
+                        debugObj('File deleted: ', e, this.outputChannel)
                         await executeTaskCb()
                     })
                 }
@@ -91,6 +90,7 @@ export class TaskWatcher implements vscode.Disposable {
     }
 
     dispose() {
+        this.outputChannel.dispose()
         this.resetWatchers()
         this.configToDispose.dispose()
     }
@@ -119,10 +119,10 @@ export class TaskWatcher implements vscode.Disposable {
         } else if (taskType === 'abletask') {
             payload = `abletask: ${task.name}`
         } else {
-            debugObj('Unsupported task type for task watcher: ', { name: task.name, definition: task.definition }, this.extension.outputChannel)
+            debugObj('Unsupported task type for task watcher: ', { name: task.name, definition: task.definition }, this.outputChannel)
             throw new Error('Unsupported task type for task watcher')
         }
-        debugObj('Executed task: ', { name: task.name, type: task.definition.type }, this.extension.outputChannel)
+        debugObj('Executed task: ', { name: task.name, type: task.definition.type }, this.outputChannel)
         return vscode.commands.executeCommand('workbench.action.tasks.runTask', payload)
     }
 

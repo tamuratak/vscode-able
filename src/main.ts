@@ -30,17 +30,11 @@ class Extension {
         this.chatHandleManager = new ChatHandleManager(this)
         this.askChatHandleManager = new AskChatHandleManager(this)
         this.ableTaskProvider = new MochaJsonTaskProvider(this)
-        this.taskWatcher = new TaskWatcher(this)
+        this.taskWatcher = new TaskWatcher()
         this.extensionUri = context.extensionUri
         this.playwrightExecTool = new PlaywrightExecTool(this)
         this.lean4Extension = new Lean4Extension(this)
         this.mathRenderer = new MathRenderer(this)
-        setTimeout(async () => {
-            const result = await vscode.lm.selectChatModels({ vendor: 'copilot' })
-            this.outputChannel.info(`GitHub Copilot Chat available models: ${JSON.stringify(result, null, 2)}`)
-            const result1 = await vscode.lm.selectChatModels({ vendor: 'gemini' })
-            this.outputChannel.info(`GitHub Copilot Chat BYOK Gemini available models: ${JSON.stringify(result1, null, 2)}`)
-        }, 5000)
     }
 
     getChatHandler() {
