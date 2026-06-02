@@ -46,4 +46,4 @@ Please refer to the following instructions only when generating the code. Ignore
 
 ## tree-sitter
 
-To verify the operation of tree-sitter, you MUST use and modify the existing dev/debugtreesitter.mjs file for this purpose. This project uses a unique method to load the tree-sitter module that cannot be replicated using your general knowledge baseline. Therefore, reusing this specific file is mandatory.
+When verifying the operation of tree-sitter, you MUST read the instructions in `.github/skills/how-to-verify-tree-sitter/SKILL.md` and follow the recommended workflow.
