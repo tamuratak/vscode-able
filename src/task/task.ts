@@ -4,6 +4,27 @@ import { collectMochaJsonFailures } from './tasklib/mochalib/mochajson.js'
 import { debugObj } from '../utils/debug.js'
 
 
+//
+// Provides VS Code tasks that run Mocha tests with a JSON reporter and collect
+// failures as VS Code diagnostics.
+//
+// ## Task discovery
+//
+// On construction, this provider calls `vscode.tasks.fetchTasks()` and filters
+// the workspace's configured tasks defined in the script criteria in their `package.json`:
+//
+//  1. The name must be "test" or start with "test:".
+//  2. The command must include "mocha" and "reporter" with "json".
+//
+// For example, a matching task might look like this in `package.json`:
+//
+//   "scripts": {
+//     "test:witsandbox:json": "sandbox-exec.js -c -- zsh -c 'mocha --require source-map-support/register --reporter json --ui tdd out/test/unittest/**/*.js'",
+//   }
+//
+// Each matching task is wrapped in a new `vscode.Task` that uses a
+// `CustomExecution` backed by a `SimpleTaskTerminal` (see below).
+//
 export class MochaJsonTaskProvider implements vscode.TaskProvider {
     static AbleTaskType = 'abletask' as const
     private readonly tasks: Promise<vscode.Task[]>

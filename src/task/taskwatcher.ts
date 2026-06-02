@@ -8,6 +8,10 @@ interface TaskWatcherEntry {
     globPattern: string[]
 }
 
+/**
+ *  Watches files matching glob patterns configured in the  `able.taskWatcher` setting at .vscode/settings.json.
+ *  Automatically runs the associated VS Code task when a file is created, changed, or deleted.
+ */
 export class TaskWatcher implements vscode.Disposable {
     private watchers: vscode.FileSystemWatcher[] = []
     private readonly configToDispose: vscode.Disposable
