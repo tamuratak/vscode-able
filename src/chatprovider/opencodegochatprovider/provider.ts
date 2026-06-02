@@ -30,8 +30,12 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         this._activeAbortControllers.clear()
     }
 
-    provideLanguageModelChatInformation(): LanguageModelChatInformation[] {
-        return getBuiltInModelInfos();
+    async provideLanguageModelChatInformation(): Promise<LanguageModelChatInformation[]> {
+        const isApiKeyAvailable = await this.getApiKey()
+        if (isApiKeyAvailable) {
+            return getBuiltInModelInfos()
+        }
+        return []
     }
 
     async provideTokenCount(
@@ -123,7 +127,11 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 }
             }
 
-            const modelApiKey = await this.ensureApiKey();
+            const modelApiKey = await this.getApiKey();
+            if (!modelApiKey) {
+                logger.error('config.error', { error: 'No authentication session found for ' + openCodeGoAuthServiceId })
+                throw new Error('No authentication session found for ' + openCodeGoAuthServiceId)
+            }
             const requestHeaders = CommonApi.prepareHeaders(modelApiKey, apiMode, um.headers);
             logger.debug('request.headers', {
                 headers: logger.sanitizeHeaders(requestHeaders),
@@ -224,11 +232,10 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         }
     }
 
-    private async ensureApiKey(): Promise<string> {
+    private async getApiKey(): Promise<string | undefined> {
         const session = await vscode.authentication.getSession(openCodeGoAuthServiceId, [], { silent: true })
         if (!session) {
-            logger.error('config.error', { error: 'No authentication session found for ' + openCodeGoAuthServiceId });
-            throw new Error('No authentication session found for ' + openCodeGoAuthServiceId)
+            return undefined
         }
         return session.accessToken
     }
