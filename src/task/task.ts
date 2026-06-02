@@ -10,21 +10,21 @@ import { debugObj } from '../utils/debug.js'
 //
 // ## Task discovery
 //
-// On construction, this provider calls `vscode.tasks.fetchTasks()` and filters
-// the workspace's configured tasks defined in their `package.json` and `tasks.json` files.
+// This provider calls `vscode.tasks.fetchTasks()` and filters the workspace's configured tasks
+// defined in their `package.json` and `tasks.json` files.
 //
 // In the script criteria in their `package.json`:
 //
 //  1. The name must be "test" or start with "test:".
 //  2. The command must include "mocha" and "reporter" with "json".
 //
-// For example, a matching task might look like this 
+// For example, a matching script criteria might look like this
 //
 //   "scripts": {
 //     "test:witsandbox:json": "sandbox-exec.js -c -- zsh -c 'mocha --require source-map-support/register --reporter json --ui tdd out/test/unittest/**/*.js'",
 //   }
 //
-// In `.vscode/tasks.json`:
+// The script criteria must be configured as a task in `.vscode/tasks.json`:
 //
 // {
 //   "label": "task-test-json",
@@ -39,6 +39,7 @@ import { debugObj } from '../utils/debug.js'
 //
 // Each matching task is wrapped in a new `vscode.Task` that uses a
 // `CustomExecution` backed by a `SimpleTaskTerminal` (see below).
+// The name of the new task is prefixed with "abletask-", e.g. "abletask-task-test-json", to distinguish it from the original task.
 //
 export class MochaJsonTaskProvider implements vscode.TaskProvider {
     static AbleTaskType = 'abletask' as const
