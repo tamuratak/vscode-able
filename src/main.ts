@@ -14,61 +14,35 @@ import { Lean4Extension } from './lean4.js'
 import { MathRenderer } from './mathjax/mathrenderer.js'
 
 
-class Extension {
-    readonly chatHandleManager: ChatHandleManager
-    readonly askChatHandleManager: AskChatHandleManager
-    readonly outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
-    readonly ableTaskProvider: MochaJsonTaskProvider
-    readonly taskWatcher: TaskWatcher
-    readonly extensionUri: vscode.Uri
-    readonly playwrightExecTool: PlaywrightExecTool
-    readonly lean4Extension: Lean4Extension
-    readonly mathRenderer: MathRenderer
-
-    constructor(context: vscode.ExtensionContext) {
-        this.chatHandleManager = new ChatHandleManager(this)
-        this.askChatHandleManager = new AskChatHandleManager(this)
-        this.ableTaskProvider = new MochaJsonTaskProvider(this)
-        this.taskWatcher = new TaskWatcher()
-        this.extensionUri = context.extensionUri
-        this.playwrightExecTool = new PlaywrightExecTool(this)
-        this.lean4Extension = new Lean4Extension(this)
-        this.mathRenderer = new MathRenderer(this)
-    }
-
-    getChatHandler() {
-        return this.chatHandleManager.getHandler()
-    }
-
-    getAskChatHandler() {
-        return this.askChatHandleManager.getHandler()
-    }
-
-    dispose() {
-        this.playwrightExecTool.dispose()
-        this.ableTaskProvider.dispose()
-        this.outputChannel.dispose()
-        this.taskWatcher.dispose()
-        this.lean4Extension.dispose()
-        void this.mathRenderer.dispose()
-    }
-
-}
-
 export function activate(context: vscode.ExtensionContext) {
-    const extension = new Extension(context)
-    const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider(extension, context.secrets)
-    const openCodeGoAuthProvider = new OpenCodeGoApiKeyAuthenticationProvider(extension, context.secrets)
+    const outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
+    const extensionUri = context.extensionUri
+    const chatHandleManager = new ChatHandleManager({ outputChannel })
+    const askChatHandleManager = new AskChatHandleManager({ outputChannel })
+    const ableTaskProvider = new MochaJsonTaskProvider({ outputChannel })
+    const taskWatcher = new TaskWatcher()
+    const playwrightExecTool = new PlaywrightExecTool({ outputChannel, extensionUri })
+    const lean4Extension = new Lean4Extension({ outputChannel })
+    const mathRenderer = new MathRenderer({ outputChannel })
+
+    const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider({ outputChannel }, context.secrets)
+    const openCodeGoAuthProvider = new OpenCodeGoApiKeyAuthenticationProvider({ outputChannel }, context.secrets)
     const runInSandbox = new RunInSandbox()
     const openCodeGoProvider = new OpenCodeGoChatModelProvider()
+
     try {
         context.subscriptions.push(
-            vscode.lm.registerLanguageModelChatProvider('gemini_with_able', new GeminiChatProvider(extension)),
+            vscode.lm.registerLanguageModelChatProvider('gemini_with_able', new GeminiChatProvider({ outputChannel })),
             vscode.lm.registerLanguageModelChatProvider('opencodego_with_able', openCodeGoProvider),
         )
     } catch { }
     context.subscriptions.push(
-        extension,
+        ableTaskProvider,
+        taskWatcher,
+        lean4Extension,
+        mathRenderer,
+        outputChannel,
+        playwrightExecTool,
         runInSandbox,
         geminiAuthProvider,
         vscode.authentication.registerAuthenticationProvider(geminiAuthProvider.serviceId, geminiAuthProvider.label, geminiAuthProvider),
@@ -88,16 +62,16 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('able.abortRequest', () => {
             openCodeGoProvider.abortActiveRequests()
         }),
-        vscode.chat.createChatParticipant('able.chatParticipant', extension.getChatHandler()),
-        vscode.chat.createChatParticipant( 'able.askParticipant', extension.getAskChatHandler()),
-        vscode.lm.registerTool('able_fetch_webpage', new FetchWebPageTool(extension)),
-        vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove(extension)),
-        vscode.lm.registerTool('able_web_search', new WebSearchTool(extension)),
+        vscode.chat.createChatParticipant('able.chatParticipant', chatHandleManager.getHandler()),
+        vscode.chat.createChatParticipant( 'able.askParticipant', askChatHandleManager.getHandler()),
+        vscode.lm.registerTool('able_fetch_webpage', new FetchWebPageTool({ outputChannel })),
+        vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove({ outputChannel })),
+        vscode.lm.registerTool('able_web_search', new WebSearchTool({ outputChannel })),
         vscode.lm.registerTool('able_runInSandbox', runInSandbox),
-        vscode.lm.registerTool('able_playwrightExec', extension.playwrightExecTool),
-        vscode.lm.registerTool('able_playwrightExecReset', new PlaywrightExecResetTool(extension.playwrightExecTool)),
-        vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, extension.ableTaskProvider),
-        vscode.languages.registerHoverProvider({ scheme: 'file', language: 'lean4' }, extension.mathRenderer),
+        vscode.lm.registerTool('able_playwrightExec', playwrightExecTool),
+        vscode.lm.registerTool('able_playwrightExecReset', new PlaywrightExecResetTool(playwrightExecTool)),
+        vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, ableTaskProvider),
+        vscode.languages.registerHoverProvider({ scheme: 'file', language: 'lean4' }, mathRenderer),
         ...registerCommands()
     )
 
