@@ -255,10 +255,6 @@
     ],
     "commands": [
       {
-        "command": "able.doSomething",
-        "title": "Able: Do Something"
-      },
-      {
         "command": "able.closeTerminalAndOpenSideBar",
         "title": "Able: Close Terminal and Open Side Bar"
       },

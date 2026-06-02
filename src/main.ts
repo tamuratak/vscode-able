@@ -7,7 +7,6 @@ import { GeminiApiKeyAuthenticationProvider, OpenCodeGoApiKeyAuthenticationProvi
 import { GeminiChatProvider, OpenCodeGoChatModelProvider } from './chatprovider/chatprovider.js'
 import { WebSearchTool } from './lmtools/websearch.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
-import { renderToolResult } from './utils/toolresultrendering.js'
 import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwebpage.js'
 import { AskChatHandleManager } from './chat/ask.js'
 import { PlaywrightExecResetTool, PlaywrightExecTool } from './playwright_exec/playwrightexectool.js'
@@ -89,9 +88,6 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('able.abortRequest', () => {
             openCodeGoProvider.abortActiveRequests()
         }),
-        vscode.commands.registerCommand('able.doSomething', () => {
-            void doSomething(extension)
-        }),
         vscode.chat.createChatParticipant('able.chatParticipant', extension.getChatHandler()),
         vscode.chat.createChatParticipant( 'able.askParticipant', extension.getAskChatHandler()),
         vscode.lm.registerTool('able_fetch_webpage', new FetchWebPageTool(extension)),
@@ -110,23 +106,5 @@ export function activate(context: vscode.ExtensionContext) {
         context.environmentVariableCollection.replace('GIT_EDITOR', 'codeInsiders -nw')
     } else {
         context.environmentVariableCollection.replace('GIT_EDITOR', 'vscode -nw')
-    }
-}
-
-
-async function doSomething(extension: Extension) {
-    try { // vscode_fetchWebPage_internal // copilot_fetchWebPage
-        const result = await vscode.lm.invokeTool('able_fetch_webpage', {
-            toolInvocationToken: undefined,
-            input: {
-                url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions'
-            }
-        })
-        const ret = await renderToolResult(result)
-        extension.outputChannel.info(`[doSomething]: result:\n ${ret}`)
-    } catch (e) {
-        if (e instanceof Error) {
-            extension.outputChannel.error(`[doSomething]: error: ${JSON.stringify([e.message, e.stack], null, 2)}`)
-        }
     }
 }
