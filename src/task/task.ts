@@ -91,6 +91,7 @@ export class MochaJsonTaskProvider implements vscode.TaskProvider {
                 close: false,
                 panel: vscode.TaskPanelKind.Dedicated
             }
+            debugObj('MochaJsonTaskProvider created task', { name: newTask.name }, this.extension.outputChannel)
             tasks.push(newTask)
         }
 
