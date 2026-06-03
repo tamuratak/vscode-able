@@ -54,7 +54,8 @@ export class MochaJsonTaskProvider implements vscode.TaskProvider {
 
     private async initTasks() {
         const mochaJsonTasks = await findMochaJsonTestCommand()
-        const tasks = mochaJsonTasks.map(task => {
+        const tasks: vscode.Task[] = []
+        for (const task of mochaJsonTasks) {
             const newTask = new vscode.Task(
                 { type: MochaJsonTaskProvider.AbleTaskType },
                 vscode.TaskScope.Workspace,
@@ -90,8 +91,8 @@ export class MochaJsonTaskProvider implements vscode.TaskProvider {
                 close: false,
                 panel: vscode.TaskPanelKind.Dedicated
             }
-            return newTask
-        })
+            tasks.push(newTask)
+        }
 
         return tasks
     }
