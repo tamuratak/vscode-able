@@ -11,20 +11,20 @@ import { debugObj } from '../utils/debug.js'
 // ## Task discovery
 //
 // This provider calls `vscode.tasks.fetchTasks()` and filters the workspace's configured tasks
-// defined in their `package.json` and `tasks.json` files.
+// from `package.json` and `tasks.json`.
 //
-// In the script criteria in their `package.json`:
+// A script in `package.json` qualifies if:
 //
-//  1. The name must be "test" or start with "test:".
-//  2. The command must include "mocha" and "reporter" with "json".
+//  1. Its name is "test" or starts with "test:".
+//  2. Its command includes both "mocha" and "reporter" with "json".
 //
-// For example, a matching script criteria might look like this
+// For example:
 //
 //   "scripts": {
 //     "test:witsandbox:json": "sandbox-exec.js -c -- zsh -c 'mocha --require source-map-support/register --reporter json --ui tdd out/test/unittest/**/*.js'",
 //   }
 //
-// The script criteria must be configured as a task in `.vscode/tasks.json`:
+// The script must also be configured as a task in `.vscode/tasks.json`:
 //
 // {
 //   "label": "task-test-json",
@@ -37,9 +37,9 @@ import { debugObj } from '../utils/debug.js'
 //   "problemMatcher": []
 // }
 //
-// Each matching task is wrapped in a new `vscode.Task` that uses a
+// Each matching task is wrapped in a new `vscode.Task` with a
 // `CustomExecution` backed by a `SimpleTaskTerminal` (see below).
-// The name of the new task is prefixed with "abletask-", e.g. "abletask-task-test-json", to distinguish it from the original task.
+// The new task's name is prefixed with "abletask-", e.g. "abletask-task-test-json", to distinguish it from the original.
 //
 export class MochaJsonTaskProvider implements vscode.TaskProvider {
     static AbleTaskType = 'abletask' as const
@@ -54,7 +54,8 @@ export class MochaJsonTaskProvider implements vscode.TaskProvider {
 
     private async initTasks() {
         const mochaJsonTasks = await findMochaJsonTestCommand()
-        const tasks = mochaJsonTasks.map(task => {
+        const tasks: vscode.Task[] = []
+        for (const task of mochaJsonTasks) {
             const newTask = new vscode.Task(
                 { type: MochaJsonTaskProvider.AbleTaskType },
                 vscode.TaskScope.Workspace,
@@ -90,8 +91,9 @@ export class MochaJsonTaskProvider implements vscode.TaskProvider {
                 close: false,
                 panel: vscode.TaskPanelKind.Dedicated
             }
-            return newTask
-        })
+            debugObj('MochaJsonTaskProvider created task', { name: newTask.name }, this.extension.outputChannel)
+            tasks.push(newTask)
+        }
 
         return tasks
     }

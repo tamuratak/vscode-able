@@ -25,10 +25,6 @@ export class TaskWatcher implements vscode.Disposable {
                 this.initWatcher()
             }
         })
-        setTimeout(async () => {
-            const tasks = await vscode.tasks.fetchTasks()
-            debugObj('Fetched tasks: ', tasks.filter(t => !t.definition['path']).map(t => ({ name: t.name, definition: t.definition })), this.outputChannel)
-        }, 0)
     }
 
     initWatcher() {
