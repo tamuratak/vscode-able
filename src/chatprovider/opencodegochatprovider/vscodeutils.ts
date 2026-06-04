@@ -252,6 +252,79 @@ function extractToolCalls(
 }
 
 /**
+ * The target tool name for duplicate detection.
+ */
+const DEDUP_TOOL_NAME = 'replace_string_in_file'
+
+/**
+ * Extract tool call signatures from the last assistant message in the conversation.
+ * Only considers tool calls whose name matches {@link DEDUP_TOOL_NAME}.
+ *
+ * @param messages The conversation messages to inspect.
+ * @returns A set of sorted-stringified signatures for the matching tool calls.
+ */
+export function extractLastToolCallSignatures(
+    messages: readonly vscode.LanguageModelChatRequestMessage[]
+): Set<string> {
+    const signatures = new Set<string>()
+    if (messages.length === 0) {
+        return signatures
+    }
+    const lastAssistantIdx = findLastAssistantWithToolCall(messages, messages.length - 1)
+    if (lastAssistantIdx < 0) {
+        return signatures
+    }
+    for (const part of messages[lastAssistantIdx].content) {
+        if (part instanceof vscode.LanguageModelToolCallPart && part.name === DEDUP_TOOL_NAME) {
+            signatures.add(sortedStringify(part.input))
+        }
+    }
+    return signatures
+}
+
+/**
+ * Create a progress wrapper that filters out duplicate {@link DEDUP_TOOL_NAME} tool calls.
+ *
+ * Duplicate detection compares each incoming tool call's signature against
+ * `previousSignatures` (from the conversation history) and any calls already
+ * reported during the current response.
+ *
+ * When a duplicate is detected, the original tool call is suppressed and two
+ * messages are reported instead: one for the user audience and one for the LLM audience.
+ *
+ * @param progress The underlying progress reporter to wrap.
+ * @param previousSignatures Signatures of tool calls from the conversation history.
+ *   This set is cloned internally and grown as new calls are reported.
+ * @returns A new progress reporter with duplicate filtering applied.
+ */
+export function createDedupProgress(
+    progress: vscode.Progress<vscode.LanguageModelResponsePart2>,
+    previousSignatures: Set<string>
+): vscode.Progress<vscode.LanguageModelResponsePart2> {
+    const reportedSignatures = new Set(previousSignatures)
+    return {
+        report(part: vscode.LanguageModelResponsePart2) {
+            if (part instanceof vscode.LanguageModelToolCallPart && part.name === DEDUP_TOOL_NAME) {
+                const sig = sortedStringify(part.input)
+                if (reportedSignatures.has(sig)) {
+                    progress.report(new vscode.LanguageModelTextPart2(
+                        '[OpenCode Go] Skipped a duplicate file edit that was identical to the previous call. No change was needed.',
+                        [vscode.LanguageModelPartAudience.User]
+                    ))
+                    progress.report(new vscode.LanguageModelTextPart2(
+                        'This replace_string_in_file call was identical to the previous call with the same arguments and was skipped. The edit has already been applied. Try a different approach or ask the user for guidance.',
+                        [vscode.LanguageModelPartAudience.Assistant]
+                    ))
+                    return
+                }
+                reportedSignatures.add(sig)
+            }
+            progress.report(part)
+        }
+    }
+}
+
+/**
  * Safely try to parse a JSON object from a string.
  * Returns { ok: true, value } or { ok: false }.
  */
