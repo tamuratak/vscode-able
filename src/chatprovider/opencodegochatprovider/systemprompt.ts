@@ -141,7 +141,7 @@ When writing or modifying code:
 - Use \`git log\` and \`git blame\` to search history when additional context is required.
 - Do not add inline comments within code unless explicitly requested.
 - Do not use one-letter variable names unless explicitly requested.
-- Do not waste tokens by re-reading files after editing them — trust that the edit succeeded or failed as reported by the tool.
+- After a file edit succeeds ("The following files were successfully edited:"), treat that edit as complete. Do not re-read or re-apply it.
 - Do not \`git commit\` or create new branches unless explicitly requested.
 - You have access to many tools. If a tool exists for a specific task, use that tool instead of running a terminal command.
 - When searching for text or files, prefer using \`rg\` or \`rg --files\` because \`rg\` is much faster than alternatives like \`grep\`.
