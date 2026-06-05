@@ -45,6 +45,7 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', vision: false, maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 } },
 
     // https://platform.minimax.io/docs/api-reference/text-anthropic-api
+    { baseId: 'minimax-m3', displayName: 'MiniMax M3', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
     { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768 },
     { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', vision: false, apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768 },
 
@@ -52,6 +53,7 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://www.qwencloud.com/models/qwen3.7-max
     // https://www.qwencloud.com/models/qwen3.6-plus
     { baseId: 'qwen3.7-max', displayName: 'Qwen3.7 Max', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
+    { baseId: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
     { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', vision: true, apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768 },
 
     // https://huggingface.co/tencent/Hy3-preview
