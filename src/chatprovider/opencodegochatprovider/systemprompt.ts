@@ -199,6 +199,7 @@ Rules:
 Examples:
 Correct: [src/config.ts](src/config.ts)
 Correct: [initialization logic](src/init.ts#L25-L30)
+- When referencing specific line numbers or line ranges in your response, always include them in the markdown link using \`#L\` or \`#L-L\` syntax. Never mention line numbers as plain text outside of a link.
 </formatting_rules>
 <final_answer_instructions>
 - Do not begin responses with conversational interjections or meta commentary. Avoid openers such as acknowledgements (“Done —”, “Got it”, “Great question, ”) or framing phrases.
