@@ -267,21 +267,11 @@ export function extractLastToolCallSignatures(
     messages: readonly vscode.LanguageModelChatRequestMessage[]
 ): Set<string> {
     const signatures = new Set<string>()
-    if (messages.length === 0) {
+    const lastAssistant = messages.findLast(msg => msg.role === vscode.LanguageModelChatMessageRole.Assistant)
+    if (!lastAssistant) {
         return signatures
     }
-    // Find the last assistant message directly (not scanning backwards past text-only messages)
-    let lastAssistantIdx = -1
-    for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].role === vscode.LanguageModelChatMessageRole.Assistant) {
-            lastAssistantIdx = i
-            break
-        }
-    }
-    if (lastAssistantIdx < 0) {
-        return signatures
-    }
-    for (const part of messages[lastAssistantIdx].content) {
+    for (const part of lastAssistant.content) {
         if (part instanceof vscode.LanguageModelToolCallPart && part.name === DEDUP_TOOL_NAME) {
             signatures.add(sortedStringify(part.input))
         }
