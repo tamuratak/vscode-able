@@ -10,15 +10,12 @@ import { CommonApi } from './commonApi.js'
 import { logger, messageLogger } from './logger.js'
 import { openCodeGoAuthServiceId } from '../../auth/authproviders.js'
 import { renderMessages } from '../../utils/renderer.js'
-import { sleep } from '../../utils/utils.js'
 import { tweakSystemPrompt } from './systemprompt.js'
 import { pushToolCall, tweakTools } from './tools.js'
 import { createDedupProgress, extractLastToolCallSignatures, isToolCallLoopDetected } from './vscodeutils.js'
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
-    /** Track last request completion time for delay calculation. */
-    private _lastRequestTime: number | null = null;
     /** Currently active abort controllers for concurrent requests. */
     private readonly _activeAbortControllers = new Set<AbortController>()
 
@@ -114,18 +111,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             // Prepare model configuration
             const modelConfig = {
                 includeReasoningInRequest: um.include_reasoning_in_request ?? true,
-            }
-
-            // Apply delay between consecutive requests
-            const delayMs = um.delay
-
-            if (delayMs > 0 && this._lastRequestTime !== null) {
-                const elapsed = Date.now() - this._lastRequestTime;
-                if (elapsed < delayMs) {
-                    const remainingDelay = delayMs - elapsed;
-                    logger.debug('request.delay', { delayMs, elapsed, remainingDelay });
-                    await sleep(remainingDelay)
-                }
             }
 
             const modelApiKey = await this.getApiKey();
@@ -229,7 +214,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             this._activeAbortControllers.delete(abortController)
             const durationMs = Date.now() - requestStartTime;
             logger.info('request.end', { modelId: model.id, durationMs });
-            this._lastRequestTime = Date.now();
         }
     }
 

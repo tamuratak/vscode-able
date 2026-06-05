@@ -18,7 +18,6 @@ interface BuiltInModelDef {
         frequency_penalty: number
     } | undefined;
     apiType?: EndpointApiType;
-    delay?: number;
 }
 
 export type EndpointApiType = 'chat-completions' | 'responses' | 'messages';
@@ -164,8 +163,7 @@ export function getBuiltInModelConfig(modelId: string): OpenCodeGoModelItem | un
         apiType: def.apiType ?? 'chat-completions',
         reasoning_effort: undefined,
         enable_thinking: true,
-        include_reasoning_in_request: true,
-        delay: def.delay ?? 0
+        include_reasoning_in_request: true
     };
 
     // Set default reasoning effort if configured

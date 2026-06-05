@@ -31,10 +31,6 @@ export interface OpenCodeGoModelItem {
      * Whether to include reasoning_content in assistant messages sent to the API.
      */
     include_reasoning_in_request?: boolean;
-    /**
-     * Model-specific delay in milliseconds between consecutive requests.
-     */
-    delay: number;
     /** API type (for internal use) */
     apiType: EndpointApiType;
     /** Custom HTTP headers */
