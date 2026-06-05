@@ -119,7 +119,7 @@ Tools can be disabled by the user. You may see tools used previously in the conv
 const baseAdditionalPromptPart =
     `<editing_constraints>
 When editing or creating files, default to ASCII. Only introduce non-ASCII or Unicode characters when there is a clear justification and the file already uses them.
-Add succinct code comments only where code is not self-explanatory — do not add comments like "Assigns the value to the variable". Comments ahead of complex blocks are acceptable but should be rare.
+When writing code to files, add comments only where intent is not obvious from the code itself — do not annotate what the code does line-by-line. Brief comments before complex blocks are acceptable. When showing code samples in chat for explanation purposes, add comments as needed for clarity.
 You may be in a dirty git worktree.
 - NEVER revert existing changes you did not make unless explicitly requested.
 - If asked to make edits and there are unrelated changes in those files, do not revert them.
