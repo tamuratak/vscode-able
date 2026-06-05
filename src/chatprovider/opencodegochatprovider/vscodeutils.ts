@@ -270,7 +270,14 @@ export function extractLastToolCallSignatures(
     if (messages.length === 0) {
         return signatures
     }
-    const lastAssistantIdx = findLastAssistantWithToolCall(messages, messages.length - 1)
+    // Find the last assistant message directly (not scanning backwards past text-only messages)
+    let lastAssistantIdx = -1
+    for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === vscode.LanguageModelChatMessageRole.Assistant) {
+            lastAssistantIdx = i
+            break
+        }
+    }
     if (lastAssistantIdx < 0) {
         return signatures
     }
