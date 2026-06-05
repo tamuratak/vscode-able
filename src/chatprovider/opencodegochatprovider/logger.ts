@@ -100,7 +100,7 @@ class MessageLogger {
     /**
      * Acquire a channel for a chat request and return it along with a release function.
      */
-    acquire(): [vscode.OutputChannel, () => void] {
+    private acquire(): [vscode.OutputChannel, () => void] {
         const channel = this._acquireChannel()
         const release = () => this._releaseChannel(channel)
         return [channel, release]

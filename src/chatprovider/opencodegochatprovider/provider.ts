@@ -13,7 +13,7 @@ import { renderMessages } from '../../utils/renderer.js'
 import { sleep } from '../../utils/utils.js'
 import { tweakSystemPrompt } from './systemprompt.js'
 import { pushToolCall, tweakTools } from './tools.js'
-import { isToolCallLoopDetected } from './vscodeutils.js'
+import { createDedupProgress, extractLastToolCallSignatures, isToolCallLoopDetected } from './vscodeutils.js'
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
@@ -53,6 +53,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         token: CancellationToken
     ): Promise<void> {
         const [trackingProgress, channel, releaseChannel] = messageLogger.wrapProgress(progressOrigin)
+        const dedupProgress = createDedupProgress(trackingProgress, extractLastToolCallSignatures(messagesOrigin))
         const messages = tweakSystemPrompt(model, messagesOrigin, optionsOrigin)
         const options = tweakTools(optionsOrigin)
         channel.append('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
@@ -170,7 +171,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     logger.error('response.error', { modelId: model.id, error: 'No response body from Anthropic API' })
                     throw new Error('No response body from Anthropic API')
                 }
-                responseResult = await anthropicApi.processStreamingResponse(response.body, trackingProgress, token);
+                responseResult = await anthropicApi.processStreamingResponse(response.body, dedupProgress, token);
             } else if (apiMode === 'chat-completions') {
                 // OpenAI Chat Completions API mode
                 const openaiApi = new OpenaiApi(model);
@@ -207,12 +208,12 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 }
 
                 channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
-                responseResult = await openaiApi.processStreamingResponse(response.body, trackingProgress, token);
+                responseResult = await openaiApi.processStreamingResponse(response.body, dedupProgress, token);
             } else {
                 apiMode satisfies 'responses'
                 throw new Error(`Unsupported API mode: ${apiMode}`)
             }
-            pushToolCall(model, messages, options, trackingProgress, token, responseResult)
+            pushToolCall(model, messages, options, dedupProgress, token, responseResult)
         } catch (err) {
             logger.error('request.error', {
                 modelId: model.id,
