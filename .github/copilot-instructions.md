@@ -50,9 +50,6 @@ When verifying the operation of tree-sitter, you MUST read the instructions in `
 
 ## OpenCodeGoChatModelProvider Concurrency Safety
 
-The provider itself must be stateless. Multiple agents may invoke providers concurrently,
-and shared mutable state inside a provider creates race conditions.
-If state must be maintained while receiving an LLM stream, it belongs on the CommonApi instance,
-which is created per-request and therefore safe to hold mutable data.
-The only state that persists across requests is the messages array.
-Never store conversation-level or request-level state on the provider object.
+The provider itself must be stateless. Multiple agents may invoke providers concurrently, and shared mutable state inside a provider creates race conditions.
+If state must be maintained while receiving an LLM stream, it belongs on the CommonApi instance, which is created per-request and therefore safe to hold mutable data.
+The only state that persists across requests is the messages array. Never store conversation-level or request-level state on the provider object.

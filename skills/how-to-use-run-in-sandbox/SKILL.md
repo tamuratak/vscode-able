@@ -5,7 +5,7 @@ description: How to use the able_runInSandbox tool
 
 ## Purpose
 
-Use `able_run_in_sandbox` to execute terminal commands in the workspace when you need concrete outputs, file inspection, or command-driven validation.
+Use `able_runInSandbox` to execute terminal commands in the workspace when you need concrete outputs, file inspection, or command-driven validation.
 
 ## Core Constraints
 
@@ -15,6 +15,11 @@ Before running commands, always remember:
 - Package installation is not possible (for example `npm install` will not work)
 - There is no option to launch background processes
 - Commands that run `vscode-test`, `electron`, or `playwright` often fail in the sandbox at execution time
+
+## Use $TMPDIR, Not /tmp
+
+- When using able_runInSandbox, use the $TMPDIR environment variable instead of `/tmp`.
+- $TMPDIR already exists. You don't need to create it. Don't use `mkdir` to create $TMPDIR.
 
 ## When to Ask the User Instead
 
@@ -29,7 +34,7 @@ Typical cases:
 ## Recommended Workflow
 
 1. Decide whether the task can complete within sandbox limits
-2. Run short, focused commands with `able_run_in_sandbox`
+2. Run short, focused commands with `able_runInSandbox`
 3. If blocked by sandbox limits, ask the user to perform the required step using `vscode_askQuestions`
 4. Continue with follow-up commands after the user confirms completion
 
