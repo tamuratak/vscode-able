@@ -35,10 +35,6 @@ Please refer to the following instructions only when generating the code. Ignore
 - Never define function parameters or callbacks with type `unknown`
 - Always use explicit union types or constrained generics instead of `unknown`
 
-- Always respond in Japanese in the chat. Write comments inside code in English.
-- Use tools like nl or cat -n to display the contents of a file with line numbers.
-- Avoid abbreviations such as DTO; when first introduced, spell them out as Data Transfer Object (DTO).
-
 ## tree-sitter
 
 When verifying the operation of tree-sitter, you MUST read the instructions in `.github/skills/how-to-verify-tree-sitter/SKILL.md` and follow the recommended workflow.
