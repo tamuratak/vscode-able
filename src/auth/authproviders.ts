@@ -39,7 +39,6 @@ import {
 	SecretStorage,
 	window,
 } from 'vscode'
-import { GoogleGenAI } from '@google/genai'
 
 
 abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvider, Disposable {
@@ -173,7 +172,7 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 
 		// Don't set `currentApiKey` here, since we want to fire the proper events in the `checkForUpdates` call
 		await this.secretStorage.store(this.secretStoreKeyId, apiKey)
-		this.extension.outputChannel.info('Successfully logged in for Gemini (with Able).')
+		this.extension.outputChannel.info('Successfully logged in for ' + this.label)
 
 		return this.toAuthenticationSession(apiKey)
 	}
@@ -197,31 +196,6 @@ abstract class BaseApiKeyAuthenticationProvider implements AuthenticationProvide
 				id: this.serviceId,
 			},
 			scopes: [],
-		}
-	}
-
-}
-
-export const GeminiAuthServiceId = 'gemini_api'
-
-
-export class GeminiApiKeyAuthenticationProvider extends BaseApiKeyAuthenticationProvider {
-	readonly label = 'Gemini (with Able)'
-	readonly accountLabel = 'Able'
-	readonly serviceId = GeminiAuthServiceId
-	protected readonly secretStoreKeyId = 'gemini_api.secret_store_key'
-
-	protected async validateKey(apiKey: string): Promise<boolean> {
-		try {
-			const client = new GoogleGenAI({ apiKey })
-			const result = await client.models.list()
-			if (result.page.length > 0) {
-				return true
-			} else {
-				return false
-			}
-		} catch {
-			return false
 		}
 	}
 

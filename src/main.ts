@@ -3,9 +3,8 @@ import { ChatHandleManager } from './chat/chat.js'
 import { registerCommands } from './commands.js'
 import { MochaJsonTaskProvider } from './task/task.js'
 import { TaskWatcher } from './task/taskwatcher.js'
-import { GeminiApiKeyAuthenticationProvider, OpenCodeGoApiKeyAuthenticationProvider } from './auth/authproviders.js'
-import { GeminiChatProvider, OpenCodeGoChatModelProvider } from './chatprovider/chatprovider.js'
-import { WebSearchTool } from './lmtools/websearch.js'
+import { OpenCodeGoApiKeyAuthenticationProvider } from './auth/authproviders.js'
+import { OpenCodeGoChatModelProvider } from './chatprovider/chatprovider.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
 import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwebpage.js'
 import { AskChatHandleManager } from './chat/ask.js'
@@ -25,14 +24,12 @@ export function activate(context: vscode.ExtensionContext) {
     const lean4Extension = new Lean4Extension({ outputChannel })
     const mathRenderer = new MathRenderer({ outputChannel })
 
-    const geminiAuthProvider = new GeminiApiKeyAuthenticationProvider({ outputChannel }, context.secrets)
     const openCodeGoAuthProvider = new OpenCodeGoApiKeyAuthenticationProvider({ outputChannel }, context.secrets)
     const runInSandbox = new RunInSandbox()
     const openCodeGoProvider = new OpenCodeGoChatModelProvider()
 
     try {
         context.subscriptions.push(
-            vscode.lm.registerLanguageModelChatProvider('gemini_with_able', new GeminiChatProvider({ outputChannel })),
             vscode.lm.registerLanguageModelChatProvider('opencodego_with_able', openCodeGoProvider),
         )
     } catch { }
@@ -44,17 +41,9 @@ export function activate(context: vscode.ExtensionContext) {
         outputChannel,
         playwrightExecTool,
         runInSandbox,
-        geminiAuthProvider,
-        vscode.authentication.registerAuthenticationProvider(geminiAuthProvider.serviceId, geminiAuthProvider.label, geminiAuthProvider),
         vscode.authentication.registerAuthenticationProvider(openCodeGoAuthProvider.serviceId, openCodeGoAuthProvider.label, openCodeGoAuthProvider),
-        vscode.commands.registerCommand('able.loginGemini', () => {
-            void vscode.authentication.getSession(geminiAuthProvider.serviceId, [], { createIfNone: true })
-        }),
         vscode.commands.registerCommand('able.loginOpenCodeGo', () => {
             void vscode.authentication.getSession(openCodeGoAuthProvider.serviceId, [], { createIfNone: true })
-        }),
-        vscode.commands.registerCommand('able.logoutGemini', async () => {
-            await geminiAuthProvider.removeSession()
         }),
         vscode.commands.registerCommand('able.logoutOpenCodeGo', async () => {
             await openCodeGoAuthProvider.removeSession()
@@ -66,7 +55,6 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.chat.createChatParticipant( 'able.askParticipant', askChatHandleManager.getHandler()),
         vscode.lm.registerTool('able_fetch_webpage', new FetchWebPageTool({ outputChannel })),
         vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove({ outputChannel })),
-        vscode.lm.registerTool('able_web_search', new WebSearchTool({ outputChannel })),
         vscode.lm.registerTool('able_runInSandbox', runInSandbox),
         vscode.lm.registerTool('able_playwrightExec', playwrightExecTool),
         vscode.lm.registerTool('able_playwrightExecReset', new PlaywrightExecResetTool(playwrightExecTool)),
