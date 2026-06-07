@@ -1,4 +1,4 @@
-import { LanguageModelChatMessageRole, LanguageModelDataPart, LanguageModelDataPart2, LanguageModelTextPart, LanguageModelTextPart2, LanguageModelThinkingPart, LanguageModelToolCallPart, LanguageModelToolResultPart, LanguageModelToolResultPart2 } from 'vscode'
+import { LanguageModelChatMessageRole, LanguageModelDataPart, LanguageModelTextPart, LanguageModelThinkingPart, LanguageModelToolCallPart, LanguageModelToolResultPart } from 'vscode'
 import { renderToolResultPart } from './toolresultrendering.js'
 
 interface ChatMessage {
@@ -29,7 +29,7 @@ export async function renderMessageContent(
     const result: string[] = []
 
     for (const part of message.content) {
-        if (part instanceof LanguageModelTextPart || part instanceof LanguageModelTextPart2) {
+        if (part instanceof LanguageModelTextPart) {
             result.push(part.value)
         } else if (part instanceof LanguageModelToolCallPart) {
             result.push('\n')
@@ -41,7 +41,7 @@ export async function renderMessageContent(
             result.push('\n')
             result.push('```')
             result.push('\n')
-        } else if (part instanceof LanguageModelToolResultPart || part instanceof LanguageModelToolResultPart2) {
+        } else if (part instanceof LanguageModelToolResultPart) {
             result.push('\n')
             result.push(`**Tool Result (${part.callId}):**`)
             result.push('\n')
@@ -57,7 +57,7 @@ export async function renderMessageContent(
             } else if (Array.isArray(part.value)) {
                 result.push(part.value.join(''))
             }
-        } else if (part instanceof LanguageModelDataPart || part instanceof LanguageModelDataPart2) {
+        } else if (part instanceof LanguageModelDataPart) {
             if (part.mimeType.startsWith('image/')) {
                 result.push('\n')
                 result.push('**Data Part:**')
