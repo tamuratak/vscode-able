@@ -1,5 +1,4 @@
-import * as vscode from 'vscode'
-import { LanguageModelChatMessage, LanguageModelChatMessageRole, LanguageModelTextPart, LanguageModelToolCallPart, LanguageModelToolResultPart, LanguageModelToolResultPart2 } from 'vscode'
+import { LanguageModelChatMessageRole, LanguageModelDataPart, LanguageModelDataPart2, LanguageModelTextPart, LanguageModelTextPart2, LanguageModelThinkingPart, LanguageModelToolCallPart, LanguageModelToolResultPart, LanguageModelToolResultPart2 } from 'vscode'
 import { renderToolResultPart } from './toolresultrendering.js'
 
 interface ChatMessage {
@@ -30,7 +29,7 @@ export async function renderMessageContent(
     const result: string[] = []
 
     for (const part of message.content) {
-        if (part instanceof LanguageModelTextPart) {
+        if (part instanceof LanguageModelTextPart || part instanceof LanguageModelTextPart2) {
             result.push(part.value)
         } else if (part instanceof LanguageModelToolCallPart) {
             result.push('\n')
@@ -42,7 +41,7 @@ export async function renderMessageContent(
             result.push('\n')
             result.push('```')
             result.push('\n')
-        } else if ((part instanceof LanguageModelToolResultPart2) || (part instanceof LanguageModelToolResultPart)) {
+        } else if (part instanceof LanguageModelToolResultPart || part instanceof LanguageModelToolResultPart2) {
             result.push('\n')
             result.push(`**Tool Result (${part.callId}):**`)
             result.push('\n')
@@ -52,11 +51,19 @@ export async function renderMessageContent(
             result.push('\n')
             result.push('```')
             result.push('\n')
-        } else if (part instanceof vscode.LanguageModelThinkingPart) {
+        } else if (part instanceof LanguageModelThinkingPart) {
             if (typeof part.value === 'string') {
                 result.push(part.value)
             } else if (Array.isArray(part.value)) {
                 result.push(part.value.join(''))
+            }
+        } else if (part instanceof LanguageModelDataPart || part instanceof LanguageModelDataPart2) {
+            if (part.mimeType.startsWith('image/')) {
+                result.push('\n')
+                result.push('**Data Part:**')
+                result.push('\n')
+                result.push('mime: ' + part.mimeType)
+                result.push('\n')
             }
         }
     }
@@ -75,55 +82,4 @@ function getRoleHeader(role: LanguageModelChatMessageRole): string {
         default:
             return '## Unknown Role'
     }
-}
-
-export async function renderMessageWithTag(message: LanguageModelChatMessage | vscode.LanguageModelChatMessage2) {
-    let startTag: string
-    let endTag: string
-
-    switch (message.role) {
-        case LanguageModelChatMessageRole.System: {
-            startTag = '<system>'
-            endTag = '</system>'
-            break
-        }
-        case LanguageModelChatMessageRole.User: {
-            startTag = '<user>'
-            endTag = '</user>'
-            break
-        }
-        case LanguageModelChatMessageRole.Assistant: {
-            startTag = '<assistant>'
-            endTag = '</assistant>'
-            break
-        }
-        default: {
-            startTag = '<unknown>'
-            endTag = '</unknown>'
-            break
-        }
-    }
-
-    const contentParts: string[] = []
-    for (const part of message.content) {
-        if (part instanceof LanguageModelTextPart) {
-            contentParts.push(part.value)
-        } if (part instanceof LanguageModelToolCallPart) {
-            contentParts.push(`<tool_call name="${part.name}" callId="${part.callId}">`)
-            contentParts.push(JSON.stringify(part.input, null, 2))
-            contentParts.push('</tool_call>')
-        } if ((part instanceof vscode.LanguageModelToolResultPart2) || (part instanceof vscode.LanguageModelToolResultPart)) {
-            contentParts.push(`<tool_result callId="${part.callId}">`)
-            contentParts.push(await renderToolResultPart(part))
-            contentParts.push('</tool_result>')
-        } if (part instanceof vscode.LanguageModelThinkingPart) {
-            const reasoning = Array.isArray(part.value) ? part.value.join('\n') : part.value
-            if (reasoning) {
-                contentParts.push('<thinking>')
-                contentParts.push(reasoning)
-                contentParts.push('</thinking>')
-            }
-        }
-    }
-    return `${startTag}\n${contentParts.join('\n')}\n${endTag}`
 }
