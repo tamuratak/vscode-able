@@ -34,10 +34,6 @@
   "contributes": {
     "authentication": [
       {
-        "id": "gemini_api",
-        "label": "Gemini (with Able)"
-      },
-      {
         "id": "opencode_go_api",
         "label": "OpenCode Go (with Able)"
       }
@@ -94,10 +90,6 @@
     ],
     "languageModelChatProviders": [
       {
-        "vendor": "gemini_with_able",
-        "displayName": "Gemini with Able"
-      },
-      {
         "vendor": "opencodego_with_able",
         "displayName": "OpenCode Go with Able"
       }
@@ -145,30 +137,6 @@
           },
           "required": [
             "url"
-          ]
-        }
-      },
-      {
-        "name": "able_web_search",
-        "toolReferenceName": "websearch",
-        "tags": [
-          "Web Search"
-        ],
-        "displayName": "Web Search",
-        "canBeReferencedInPrompt": true,
-        "userDescription": "Search the web for information.",
-        "modelDescription": "This tool performs a web search using the provided query and returns the results.",
-        "icon": "$(globe)",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "query": {
-              "type": "string",
-              "description": "The query to search the web for"
-            }
-          },
-          "required": [
-            "query"
           ]
         }
       },
@@ -275,16 +243,8 @@
         "title": "Able: Abort Active Request"
       },
       {
-        "command": "able.loginGemini",
-        "title": "Able: Login to Gemini"
-      },
-      {
         "command": "able.loginOpenCodeGo",
         "title": "Able: Login to OpenCode Go"
-      },
-      {
-        "command": "able.logoutGemini",
-        "title": "Able: Logout from Gemini"
       },
       {
         "command": "able.logoutOpenCodeGo",
@@ -433,11 +393,9 @@
     }
   },
   "dependencies": {
-    "@google/genai": "1.30.0",
     "@microsoft/tiktokenizer": "1.0.10",
     "@vscode/prompt-tsx": "0.4.0-alpha.8",
     "@vscode/tree-sitter-wasm": "0.3.1",
-    "ajv": "8.20.0",
     "mathjax-full": "3.2.2",
     "playwright": "1.60.0",
     "vm2": "3.11.5",
