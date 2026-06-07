@@ -13,18 +13,25 @@ export async function isAllowedPlanAppendCommand(command: string, workspaceRootP
     }
 
     const normalizedWorkspaceRoot = path.normalize(workspaceRootPath)
+
+    // Allowed command shapes (both use heredoc redirect appended to a file):
+    //   1 command:  cat << 'EOF' >> plan.md         (bare cat reading from stdin)
+    //   2 commands: cd /workspace/root && cat << 'EOF' >> plan.md
     if (commands.length === 1) {
-        if (commands[0].command !== 'cat' || commands[0].args.length !== 0) {
+        const [onlyCmd] = commands
+        if (onlyCmd.command !== 'cat' || onlyCmd.args.length !== 0) {
             return false
         }
     } else if (commands.length === 2) {
-        if (commands[0].command !== 'cd' || commands[1].command !== 'cat') {
+        const [cdCmd, catCmd] = commands
+        if (cdCmd.command !== 'cd' || catCmd.command !== 'cat') {
             return false
         }
-        if (commands[0].args.length !== 1 || commands[1].args.length !== 0) {
+        if (cdCmd.args.length !== 1 || catCmd.args.length !== 0) {
             return false
         }
-        const cdTargetOrig = commands[0].args[0]
+        // Require the cd target to be the workspace root so the cat runs in a known directory
+        const cdTargetOrig = cdCmd.args[0]
         if (!path.isAbsolute(cdTargetOrig)) {
             return false
         }
