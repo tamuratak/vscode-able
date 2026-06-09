@@ -26,6 +26,7 @@
     "chatProvider",
     "chatTab",
     "languageModelCapabilities",
+    "languageModelPricing",
     "languageModelSystem",
     "languageModelThinkingPart",
     "languageModelToolResultAudience",
