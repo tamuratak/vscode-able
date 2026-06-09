@@ -41,10 +41,8 @@ export type EndpointApiType = 'chat-completions' | 'responses' | 'messages';
 const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://docs.z.ai/api-reference/llm/chat-completion
     { baseId: 'glm-5.1', displayName: 'GLM-5.1', maxInputTokens: 200000, maxOutputTokens: 32768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
-    { baseId: 'glm-5', displayName: 'GLM-5', maxInputTokens: 200000, maxOutputTokens: 32768, pricing: { inputCost: 1, outputCost: 3.2, cacheCost: 0.2 } },
 
     // https://platform.kimi.ai/docs/api/chat#content-field-description
-    { baseId: 'kimi-k2.5', displayName: 'Kimi K2.5', inputModalities: ['image', 'video'], maxInputTokens: 262144, maxOutputTokens: 32768, pricing: { inputCost: 0.6, outputCost: 3, cacheCost: 0.1 } },
     { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', inputModalities: ['image', 'video'], maxInputTokens: 262144, maxOutputTokens: 32768, pricing: { inputCost: 0.95, outputCost: 4, cacheCost: 0.16 } },
 
     // https://api-docs.deepseek.com/api/create-chat-completion
@@ -58,7 +56,6 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://platform.minimax.io/docs/api-reference/text-anthropic-api
     { baseId: 'minimax-m3', displayName: 'MiniMax M3', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.3, outputCost: 1.2, cacheCost: 0.06 } },
     { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768, pricing: { inputCost: 0.3, outputCost: 1.2, cacheCost: 0.06 } },
-    { baseId: 'minimax-m2.5', displayName: 'MiniMax M2.5', apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768, pricing: { inputCost: 0.3, outputCost: 1.2, cacheCost: 0.03 } },
 
     // https://docs.qwencloud.com/api-reference/chat/anthropic
     // https://www.qwencloud.com/models/qwen3.7-max
