@@ -58,8 +58,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         const requestStartTime = Date.now();
         const abortController = new AbortController();
         this._activeAbortControllers.add(abortController)
-        const requestTimeoutMs = 600000
-        const timeoutId = setTimeout(() => abortController.abort(), requestTimeoutMs);
         const cancelToken = token.onCancellationRequested(() => abortController.abort())
 
         try {
@@ -210,7 +208,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         } finally {
             releaseChannel()
             cancelToken.dispose()
-            clearTimeout(timeoutId)
             this._activeAbortControllers.delete(abortController)
             const durationMs = Date.now() - requestStartTime;
             logger.info('request.end', { modelId: model.id, durationMs });
