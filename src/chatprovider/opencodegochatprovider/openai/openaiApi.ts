@@ -86,15 +86,32 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
             for (const tr of toolResults) {
                 if (tr.images.length > 0 && this.modelCapabilities.imageInput) {
-                    const contentArray: ChatMessageContent[] = [];
-                    if (tr.content) {
-                        contentArray.push({ type: 'text', text: tr.content });
+                    if (this.modelId === 'mimo-v2.5') {
+                        // MiMo v2.5 accepts user message images but not tool result images.
+                        // Replace tool result images with a notice and provide images as a user message.
+                        // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
+                        const imageNotice = 'Image output from this tool is provided in the next user message. Please refer to it when interpreting the result.';
+                        const toolContent = tr.content
+                            ? tr.content + '\n' + imageNotice
+                            : imageNotice;
+                        out.push({ role: 'tool', tool_call_id: tr.callId, content: toolContent });
+                        const contentArray: ChatMessageContent[] = [];
+                        for (const img of tr.images) {
+                            const dataUrl = createDataUrl(img);
+                            contentArray.push({ type: 'image_url', image_url: { url: dataUrl } });
+                        }
+                        out.push({ role: 'user', content: contentArray });
+                    } else {
+                        const contentArray: ChatMessageContent[] = [];
+                        if (tr.content) {
+                            contentArray.push({ type: 'text', text: tr.content });
+                        }
+                        for (const img of tr.images) {
+                            const dataUrl = createDataUrl(img);
+                            contentArray.push({ type: 'image_url', image_url: { url: dataUrl } });
+                        }
+                        out.push({ role: 'tool', tool_call_id: tr.callId, content: contentArray });
                     }
-                    for (const img of tr.images) {
-                        const dataUrl = createDataUrl(img);
-                        contentArray.push({ type: 'image_url', image_url: { url: dataUrl } });
-                    }
-                    out.push({ role: 'tool', tool_call_id: tr.callId, content: contentArray });
                 } else {
                     out.push({ role: 'tool', tool_call_id: tr.callId, content: tr.content || '' });
                 }
