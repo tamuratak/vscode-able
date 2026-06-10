@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, LanguageModelChatInformation } from 'vscode'
 import type { OpenCodeGoModelItem } from '../types.js'
 import type { OpenAIChatMessage, OpenAIToolCall, ChatMessageContent, ReasoningDetail } from './openaiTypes.js'
-import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, collectToolResultImages, convertToolsToOpenAI, mapRole, } from '../vscodeutils.js'
+import { isImageMimeType, toImageContentParts, isToolResultPart, collectToolResultText, collectToolResultImages, convertToolsToOpenAI, mapRole, } from '../vscodeutils.js'
 import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
@@ -95,21 +95,13 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                             ? tr.content + '\n' + imageNotice
                             : imageNotice;
                         out.push({ role: 'tool', tool_call_id: tr.callId, content: toolContent });
-                        const contentArray: ChatMessageContent[] = [];
-                        for (const img of tr.images) {
-                            const dataUrl = createDataUrl(img);
-                            contentArray.push({ type: 'image_url', image_url: { url: dataUrl } });
-                        }
-                        out.push({ role: 'user', content: contentArray });
+                        out.push({ role: 'user', content: toImageContentParts(tr.images) });
                     } else {
                         const contentArray: ChatMessageContent[] = [];
                         if (tr.content) {
                             contentArray.push({ type: 'text', text: tr.content });
                         }
-                        for (const img of tr.images) {
-                            const dataUrl = createDataUrl(img);
-                            contentArray.push({ type: 'image_url', image_url: { url: dataUrl } });
-                        }
+                        contentArray.push(...toImageContentParts(tr.images));
                         out.push({ role: 'tool', tool_call_id: tr.callId, content: contentArray });
                     }
                 } else {
@@ -123,10 +115,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     if (joinedText) {
                         contentArray.push({ type: 'text', text: joinedText })
                     }
-                    for (const imagePart of imageParts) {
-                        const dataUrl = createDataUrl(imagePart);
-                        contentArray.push({ type: 'image_url', image_url: { url: dataUrl, } })
-                    }
+                    contentArray.push(...toImageContentParts(imageParts));
                     out.push({ role, content: contentArray });
                 } else {
                     if (joinedText) {

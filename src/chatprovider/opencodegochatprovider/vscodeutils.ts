@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import * as vscode from 'vscode'
-import { OpenAIFunctionToolDef } from './openai/openaiTypes.js'
+import { ChatMessageContent, OpenAIFunctionToolDef } from './openai/openaiTypes.js'
 
 /**
  * Map VS Code message role to OpenAI message role string.
@@ -125,6 +125,12 @@ export function collectToolResultImages(part: {
         }
     }
     return images;
+}
+
+export function toImageContentParts(parts: vscode.LanguageModelDataPart[]): ChatMessageContent[] {
+    return parts
+        .filter(part => isImageMimeType(part.mimeType))
+        .map(part => ({ type: 'image_url' as const, image_url: { url: createDataUrl(part) } }))
 }
 
 /**
