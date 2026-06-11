@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageModelChatResponseOptions, LanguageModelResponsePart2, Progress, LanguageModelChatInformation } from 'vscode'
 import type { OpenCodeGoModelItem } from '../types.js'
 import type { OpenAIChatMessage, OpenAIToolCall, ChatMessageContent, ReasoningDetail } from './openaiTypes.js'
-import { isImageMimeType, createDataUrl, isToolResultPart, collectToolResultText, collectToolResultImages, convertToolsToOpenAI, mapRole, } from '../vscodeutils.js'
+import { isImageMimeType, toImageContentParts, isToolResultPart, collectToolResultText, collectToolResultImages, convertToolsToOpenAI, mapRole, } from '../vscodeutils.js'
 import { APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
@@ -86,15 +86,24 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
             for (const tr of toolResults) {
                 if (tr.images.length > 0 && this.modelCapabilities.imageInput) {
-                    const contentArray: ChatMessageContent[] = [];
-                    if (tr.content) {
-                        contentArray.push({ type: 'text', text: tr.content });
+                    if (this.modelId === 'mimo-v2.5') {
+                        // MiMo v2.5 accepts user message images but not tool result images.
+                        // Replace tool result images with a notice and provide images as a user message.
+                        // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
+                        const imageNotice = 'Image output from this tool is provided in the next user message. Please refer to it when interpreting the result.';
+                        const toolContent = tr.content
+                            ? tr.content + '\n' + imageNotice
+                            : imageNotice;
+                        out.push({ role: 'tool', tool_call_id: tr.callId, content: toolContent });
+                        out.push({ role: 'user', content: toImageContentParts(tr.images) });
+                    } else {
+                        const contentArray: ChatMessageContent[] = [];
+                        if (tr.content) {
+                            contentArray.push({ type: 'text', text: tr.content });
+                        }
+                        contentArray.push(...toImageContentParts(tr.images));
+                        out.push({ role: 'tool', tool_call_id: tr.callId, content: contentArray });
                     }
-                    for (const img of tr.images) {
-                        const dataUrl = createDataUrl(img);
-                        contentArray.push({ type: 'image_url', image_url: { url: dataUrl } });
-                    }
-                    out.push({ role: 'tool', tool_call_id: tr.callId, content: contentArray });
                 } else {
                     out.push({ role: 'tool', tool_call_id: tr.callId, content: tr.content || '' });
                 }
@@ -106,10 +115,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     if (joinedText) {
                         contentArray.push({ type: 'text', text: joinedText })
                     }
-                    for (const imagePart of imageParts) {
-                        const dataUrl = createDataUrl(imagePart);
-                        contentArray.push({ type: 'image_url', image_url: { url: dataUrl, } })
-                    }
+                    contentArray.push(...toImageContentParts(imageParts));
                     out.push({ role, content: contentArray });
                 } else {
                     if (joinedText) {
