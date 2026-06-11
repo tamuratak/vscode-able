@@ -223,7 +223,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
     }
 
     private emitToolCallLoopMessage(progress: Progress<LanguageModelResponsePart2>): void {
-        const message = '[Caution] vscode-able detected a tool call loop. The response was aborted to prevent an infinite loop. The model may not have enough context to answer this question. Consider asking the user for more information or trying a different approach.'
+        const message = '[VS Code Able] Detected a tool call loop. The response was aborted to prevent an infinite loop. The model may not have enough context to answer this question. Consider asking the user for more information or trying a different approach.'
         progress.report(new vscode.LanguageModelTextPart(message))
     }
 }

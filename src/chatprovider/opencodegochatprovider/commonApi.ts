@@ -270,7 +270,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
      * Encourages the LLM to gather broader context via tool calls in the next turn.
      */
     protected emitLoopRedirectMessage(progress: Progress<LanguageModelResponsePart2>): void {
-        const message = '[Caution] vscode-able detected repetitive output. The response was aborted to prevent an infinite loop. The model may not have enough context to answer this question. Consider asking the user for more information or trying a different approach.'
+        const message = '[VS Code Able] Detected repetitive output. The response was aborted to prevent an infinite loop. The model may not have enough context to answer this question. Consider asking the user for more information or trying a different approach.'
         progress.report(new vscode.LanguageModelTextPart(message))
         logger.error('[OpenCodeGo] Loop redirect message emitted', { modelId: this.modelId })
     }

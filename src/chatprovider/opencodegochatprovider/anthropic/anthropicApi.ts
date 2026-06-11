@@ -463,7 +463,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
             const needFallback = !this._hasEmittedAssistantText
             if (needFallback) {
                 progress.report(new vscode.LanguageModelTextPart2(
-                    '\n[OpenCode Go] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
+                    '\n[VS Code Able] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
                     [vscode.LanguageModelPartAudience.User]
                 ))
                 progress.report(
