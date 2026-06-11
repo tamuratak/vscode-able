@@ -34,11 +34,12 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     protected _hasEmittedAssistantText = false;
 
     protected _unifiedText = ''
+    protected _reasoningText = ''
     private prevContentType: 'text' | 'thinking' | undefined
 
     /** Set to true when a repeating pattern (infinite loop) is detected in the output. */
     protected _loopDetected = false
-    private _lastLoopCheckLength = 0
+    private _lastReasoningLoopCheckLength = 0
     private static readonly LOOP_CHECK_INTERVAL = 500
 
     /** Track if we emitted the begin-tool-calls whitespace flush. */
@@ -205,15 +206,18 @@ export abstract class CommonApi<TMessage, TRequestBody> {
             this._unifiedText += '\n\n';
         }
         this._unifiedText += content
+        if (contentType === 'thinking') {
+            this._reasoningText += content
+        }
         this.prevContentType = contentType
 
-        // Periodically check for repeating patterns (potential infinite loop)
-        if (!this._loopDetected && this._unifiedText.length - this._lastLoopCheckLength >= CommonApi.LOOP_CHECK_INTERVAL) {
-            this._lastLoopCheckLength = this._unifiedText.length
-            const result = findRepeatingPattern(this._unifiedText)
+        // Periodically check reasoning content for repeating patterns (potential infinite loop)
+        if (!this._loopDetected && this._reasoningText.length - this._lastReasoningLoopCheckLength >= CommonApi.LOOP_CHECK_INTERVAL) {
+            this._lastReasoningLoopCheckLength = this._reasoningText.length
+            const result = findRepeatingPattern(this._reasoningText)
             if (result) {
                 this._loopDetected = true
-                logger.warn('[OpenCodeGo] Repeating pattern detected, aborting stream', {
+                logger.warn('[OpenCodeGo] Repeating pattern detected in reasoning, aborting stream', {
                     pattern: result.pattern.slice(0, 100),
                     count: result.count,
                 })
