@@ -264,7 +264,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 if (token.isCancellationRequested) {
                     break;
                 }
-                if (this._loopDetected) {
+                if (this._reasoningLoopDetected) {
                     break;
                 }
 
@@ -281,7 +281,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                     if (token.isCancellationRequested) {
                         break
                     }
-                    if (this._loopDetected) {
+                    if (this._reasoningLoopDetected) {
                         break
                     }
                     if (line.trim() === '') {
@@ -321,8 +321,8 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         } finally {
             cancelToken.dispose()
             this.endThinking()
-            if (this._loopDetected) {
-                this.emitLoopRedirectMessage(progress)
+            if (this._reasoningLoopDetected) {
+                this.emitReasoningLoopMessage(progress)
             } else if (responseResult?.stopReason === 'end_turn') {
                 finalResponseLogger.info('\n' + this._unifiedText)
             }

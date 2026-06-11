@@ -230,7 +230,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 if (token.isCancellationRequested) {
                     break;
                 }
-                if (this._loopDetected) {
+                if (this._reasoningLoopDetected) {
                     break;
                 }
 
@@ -248,7 +248,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     if (token.isCancellationRequested) {
                         break
                     }
-                    if (this._loopDetected) {
+                    if (this._reasoningLoopDetected) {
                         break
                     }
                     if (!line.startsWith('data:')) {
@@ -294,8 +294,8 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         } finally {
             cancelToken.dispose()
             this.endThinking()
-            if (this._loopDetected) {
-                this.emitLoopRedirectMessage(progress)
+            if (this._reasoningLoopDetected) {
+                this.emitReasoningLoopMessage(progress)
             } else if (responseResult?.finishReason === 'stop') {
                 finalResponseLogger.info('\n' + this._unifiedText)
             }
