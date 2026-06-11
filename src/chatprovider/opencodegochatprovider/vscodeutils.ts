@@ -311,7 +311,7 @@ export function createDedupProgress(
                 const sig = sortedStringify(part.input)
                 if (reportedSignatures.has(sig)) {
                     progress.report(new vscode.LanguageModelTextPart2(
-                        '[OpenCode Go] Skipped a duplicate file edit that was identical to the previous call. No change was needed.',
+                        '[VS Code Able] Skipped a duplicate file edit that was identical to the previous call. No change was needed.',
                         [vscode.LanguageModelPartAudience.User]
                     ))
                     progress.report(new vscode.LanguageModelTextPart2(

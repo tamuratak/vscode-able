@@ -264,7 +264,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 if (token.isCancellationRequested) {
                     break;
                 }
-                if (this._loopDetected) {
+                if (this._reasoningLoopDetected) {
                     break;
                 }
 
@@ -281,7 +281,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                     if (token.isCancellationRequested) {
                         break
                     }
-                    if (this._loopDetected) {
+                    if (this._reasoningLoopDetected) {
                         break
                     }
                     if (line.trim() === '') {
@@ -321,8 +321,8 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         } finally {
             cancelToken.dispose()
             this.endThinking()
-            if (this._loopDetected) {
-                this.emitLoopRedirectMessage(progress)
+            if (this._reasoningLoopDetected) {
+                this.emitReasoningLoopMessage(progress)
             } else if (responseResult?.stopReason === 'end_turn') {
                 finalResponseLogger.info('\n' + this._unifiedText)
             }
@@ -463,7 +463,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
             const needFallback = !this._hasEmittedAssistantText
             if (needFallback) {
                 progress.report(new vscode.LanguageModelTextPart2(
-                    '\n[OpenCode Go] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
+                    '\n[VS Code Able] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
                     [vscode.LanguageModelPartAudience.User]
                 ))
                 progress.report(

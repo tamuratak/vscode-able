@@ -230,7 +230,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 if (token.isCancellationRequested) {
                     break;
                 }
-                if (this._loopDetected) {
+                if (this._reasoningLoopDetected) {
                     break;
                 }
 
@@ -248,7 +248,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                     if (token.isCancellationRequested) {
                         break
                     }
-                    if (this._loopDetected) {
+                    if (this._reasoningLoopDetected) {
                         break
                     }
                     if (!line.startsWith('data:')) {
@@ -294,8 +294,8 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         } finally {
             cancelToken.dispose()
             this.endThinking()
-            if (this._loopDetected) {
-                this.emitLoopRedirectMessage(progress)
+            if (this._reasoningLoopDetected) {
+                this.emitReasoningLoopMessage(progress)
             } else if (responseResult?.finishReason === 'stop') {
                 finalResponseLogger.info('\n' + this._unifiedText)
             }
@@ -309,7 +309,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             const needFallback = !this._hasEmittedAssistantText || (this.modelId.startsWith('mimo') && /<\/?think(ing)?>/.test(this._unifiedText))
             if (needFallback) {
                 progress.report(new vscode.LanguageModelTextPart2(
-                    '\n[OpenCode Go] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
+                    '\n[VS Code Able] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
                     [vscode.LanguageModelPartAudience.User]
                 ))
                 progress.report(

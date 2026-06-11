@@ -34,11 +34,12 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     protected _hasEmittedAssistantText = false;
 
     protected _unifiedText = ''
+    protected _reasoningText = ''
     private prevContentType: 'text' | 'thinking' | undefined
 
-    /** Set to true when a repeating pattern (infinite loop) is detected in the output. */
-    protected _loopDetected = false
-    private _lastLoopCheckLength = 0
+    /** Set to true when a repeating pattern (infinite loop) is detected in the reasoning. */
+    protected _reasoningLoopDetected = false
+    private _lastReasoningLoopCheckLength = 0
     private static readonly LOOP_CHECK_INTERVAL = 500
 
     /** Track if we emitted the begin-tool-calls whitespace flush. */
@@ -205,15 +206,18 @@ export abstract class CommonApi<TMessage, TRequestBody> {
             this._unifiedText += '\n\n';
         }
         this._unifiedText += content
+        if (contentType === 'thinking') {
+            this._reasoningText += content
+        }
         this.prevContentType = contentType
 
-        // Periodically check for repeating patterns (potential infinite loop)
-        if (!this._loopDetected && this._unifiedText.length - this._lastLoopCheckLength >= CommonApi.LOOP_CHECK_INTERVAL) {
-            this._lastLoopCheckLength = this._unifiedText.length
-            const result = findRepeatingPattern(this._unifiedText)
+        // Periodically check reasoning content for repeating patterns (potential infinite loop)
+        if (!this._reasoningLoopDetected && this._reasoningText.length - this._lastReasoningLoopCheckLength >= CommonApi.LOOP_CHECK_INTERVAL) {
+            this._lastReasoningLoopCheckLength = this._reasoningText.length
+            const result = findRepeatingPattern(this._reasoningText)
             if (result) {
-                this._loopDetected = true
-                logger.warn('[OpenCodeGo] Repeating pattern detected, aborting stream', {
+                this._reasoningLoopDetected = true
+                logger.warn('[OpenCodeGo] Repeating pattern detected in reasoning, aborting stream', {
                     pattern: result.pattern.slice(0, 100),
                     count: result.count,
                 })
@@ -265,8 +269,8 @@ export abstract class CommonApi<TMessage, TRequestBody> {
      * Emit a redirect message when an infinite loop is detected.
      * Encourages the LLM to gather broader context via tool calls in the next turn.
      */
-    protected emitLoopRedirectMessage(progress: Progress<LanguageModelResponsePart2>): void {
-        const message = '[Caution] vscode-able detected repetitive output. The response was aborted to prevent an infinite loop. I may not have enough context to answer this question. I would have to use tool calls (e.g., read_file, grep_search) to gather more information before attempting again. Asking the user for more information is another good strategy.'
+    protected emitReasoningLoopMessage(progress: Progress<LanguageModelResponsePart2>): void {
+        const message = '[VS Code Able] Detected repetitive output. The response was aborted to prevent an infinite loop. The model may not have enough context to answer this question. Consider asking the user for more information or trying a different approach.'
         progress.report(new vscode.LanguageModelTextPart(message))
         logger.error('[OpenCodeGo] Loop redirect message emitted', { modelId: this.modelId })
     }

@@ -199,6 +199,7 @@ Rules:
 Examples:
 Correct: [src/config.ts](src/config.ts)
 Correct: [initialization logic](src/init.ts#L25-L30)
+Correct: [L11-15](src/app.ts#L11-L15)
 - When referencing specific line numbers or line ranges in your response, always include them in the markdown link using \`#L\` or \`#L-L\` syntax. Never mention line numbers as plain text outside of a link.
 </formatting_rules>
 <final_answer_instructions>
