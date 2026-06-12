@@ -18,8 +18,11 @@ interface BuiltInModelDef {
     maxOutputTokens: number;
     extra?: {
         frequency_penalty?: number,
-        thinking?: { type: 'enabled' | 'disabled' | 'adaptive' }
-    } | undefined;
+        thinking?: {
+            type: 'enabled' | 'disabled' | 'adaptive',
+            budget_tokens?: number
+        }
+    };
     apiType?: EndpointApiType;
     pricing?: {
         readonly pricing?: string;
@@ -63,9 +66,9 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://www.qwencloud.com/models/qwen3.7-max
     // https://www.qwencloud.com/models/qwen3.7-plus
     // https://www.qwencloud.com/models/qwen3.6-plus
-    { baseId: 'qwen3.7-max', displayName: 'Qwen3.7 Max', apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 2.5, outputCost: 7.5, cacheCost: 0.5 } },
-    { baseId: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.4, outputCost: 1.6, cacheCost: 0.04, longContextInputCost: 1.2, longContextOutputCost: 4.8, longContextCacheCost: 0.12 } },
-    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.5, outputCost: 3, cacheCost: 0.05, longContextInputCost: 2, longContextOutputCost: 6, longContextCacheCost: 0.2 } }
+    { baseId: 'qwen3.7-max', displayName: 'Qwen3.7 Max', apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 16384, extra: { thinking: { type: 'enabled', budget_tokens: 32768 } }, pricing: { inputCost: 2.5, outputCost: 7.5, cacheCost: 0.5 } },
+    { baseId: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 16384, extra: { thinking: { type: 'enabled', budget_tokens: 32768 } }, pricing: { inputCost: 0.4, outputCost: 1.6, cacheCost: 0.04, longContextInputCost: 1.2, longContextOutputCost: 4.8, longContextCacheCost: 0.12 } },
+    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 16384, extra: { thinking: { type: 'enabled', budget_tokens: 32768 } }, pricing: { inputCost: 0.5, outputCost: 3, cacheCost: 0.05, longContextInputCost: 2, longContextOutputCost: 6, longContextCacheCost: 0.2 } }
 ]
 
 export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
