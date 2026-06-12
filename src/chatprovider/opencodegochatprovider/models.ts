@@ -17,7 +17,8 @@ interface BuiltInModelDef {
     maxInputTokens: number;
     maxOutputTokens: number;
     extra?: {
-        frequency_penalty: number
+        frequency_penalty?: number,
+        thinking?: { type: 'enabled' | 'disabled' | 'adaptive' }
     } | undefined;
     apiType?: EndpointApiType;
     pricing?: {
@@ -54,7 +55,7 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', inputModalities: ['image', 'audio', 'video'], maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 }, pricing: { inputCost: 0.14, outputCost: 0.28, cacheCost: 0.0028 } },
 
     // https://platform.minimax.io/docs/api-reference/text-anthropic-api
-    { baseId: 'minimax-m3', displayName: 'MiniMax M3', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.3, outputCost: 1.2, cacheCost: 0.06 } },
+    { baseId: 'minimax-m3', displayName: 'MiniMax M3', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { thinking: { type: 'adaptive' } }, pricing: { inputCost: 0.3, outputCost: 1.2, cacheCost: 0.06 } },
     { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768, pricing: { inputCost: 0.3, outputCost: 1.2, cacheCost: 0.06 } },
 
     // https://docs.qwencloud.com/api-reference/chat/anthropic
