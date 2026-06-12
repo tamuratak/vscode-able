@@ -44,6 +44,7 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'glm-5.1', displayName: 'GLM-5.1', maxInputTokens: 200000, maxOutputTokens: 32768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
 
     // https://platform.kimi.ai/docs/api/chat#content-field-description
+    { baseId: 'kimi-k2.7-code', displayName: 'Kimi K2.7 Code', inputModalities: ['image', 'video'], maxInputTokens: 262144, maxOutputTokens: 32768, pricing: { inputCost: 0.95, outputCost: 4, cacheCost: 0.19 } },
     { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', inputModalities: ['image', 'video'], maxInputTokens: 262144, maxOutputTokens: 32768, pricing: { inputCost: 0.95, outputCost: 4, cacheCost: 0.16 } },
 
     // https://api-docs.deepseek.com/api/create-chat-completion
@@ -96,6 +97,8 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
         let enumValues: string[];
         if (hasEfforts) {
             enumValues = ['disabled', ...def.supportsReasoningEffort!];
+        } else if (def.apiType === 'messages') {
+            enumValues = ['enabled']
         } else {
             enumValues = ['disabled', 'enabled'];
         }
