@@ -196,7 +196,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         if (um.presence_penalty !== undefined) { rb['presence_penalty'] = um.presence_penalty; }
         if (um.repetition_penalty !== undefined) { rb['repetition_penalty'] = um.repetition_penalty; }
 
-        // Extra body parameters
+        // Extra body parameters, applied last so they can override any previously set fields
         if (um.extra && typeof um.extra === 'object') {
             for (const [key, value] of Object.entries(um.extra)) {
                 if (value !== undefined) {

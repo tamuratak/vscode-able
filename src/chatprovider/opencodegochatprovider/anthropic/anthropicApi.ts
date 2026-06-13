@@ -243,6 +243,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
             }
         }
 
+        // Extra body parameters, applied last so they can override any previously set fields
         if (um.extra && typeof um.extra === 'object') {
             Object.assign(rb, um.extra);
         }
