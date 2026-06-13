@@ -19,8 +19,16 @@ interface BuiltInModelDef {
     extra?: {
         frequency_penalty?: number,
         thinking?: {
+            // Anthropic messages API-compat thinking configuration
+            // https://docs.qwencloud.com/api-reference/chat/anthropic#thinking
+            // https://platform.minimax.io/docs/api-reference/text-chat-anthropic#body-thinking
             type: 'enabled' | 'disabled' | 'adaptive',
             budget_tokens?: number
+        } | {
+            // Kimi API reasoning configuration
+            // https://platform.kimi.ai/docs/api/chat#body-one-of-0-thinking
+            type: 'enabled' | 'disabled',
+            keep: 'all' | null
         }
     };
     apiType?: EndpointApiType;
@@ -47,8 +55,9 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'glm-5.1', displayName: 'GLM-5.1', maxInputTokens: 200000, maxOutputTokens: 32768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
 
     // https://platform.kimi.ai/docs/api/chat#content-field-description
+    // https://docs.fireworks.ai/api-reference/post-chatcompletions
     { baseId: 'kimi-k2.7-code', displayName: 'Kimi K2.7 Code', inputModalities: ['image', 'video'], maxInputTokens: 262144, maxOutputTokens: 32768, pricing: { inputCost: 0.95, outputCost: 4, cacheCost: 0.19 } },
-    { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', inputModalities: ['image', 'video'], maxInputTokens: 262144, maxOutputTokens: 32768, pricing: { inputCost: 0.95, outputCost: 4, cacheCost: 0.16 } },
+    { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', inputModalities: ['image', 'video'], maxInputTokens: 262144, maxOutputTokens: 32768, extra: { thinking: { type: 'enabled', keep: 'all' } }, pricing: { inputCost: 0.95, outputCost: 4, cacheCost: 0.16 } },
 
     // https://api-docs.deepseek.com/api/create-chat-completion
     { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 1.74, outputCost: 3.48, cacheCost: 0.0145 } },
