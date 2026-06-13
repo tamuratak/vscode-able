@@ -16,9 +16,7 @@ import { createDedupProgress, extractLastToolCallSignatures, isToolCallLoopDetec
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
-    // At first glance this violates the convention that OpenCodeGoChatModelProvider
-    // must be stateless. It exists solely as a workaround for a bug where pressing
-    // the stop button in the VS Code UI does not propagate cancellation to the
+    // Rressing the stop button in the VS Code UI does not propagate cancellation to the
     // underlying fetch token. Without tracking active abort controllers here, there
     // would be no way to cancel in-flight requests from abortActiveRequests().
     private readonly _activeAbortControllers = new Set<AbortController>()
