@@ -16,6 +16,12 @@ interface BuiltInModelDef {
     supportsReasoningEffort?: string[];
     maxInputTokens: number;
     maxOutputTokens: number;
+    apiType?: EndpointApiType;
+    /**
+     * Additional request body fields that are merged into the API request body.
+     * Because these fields are assigned after all other body parameters,
+     * they can override any existing request body field (e.g. frequency_penalty, thinking, etc.).
+     */
     extra?: {
         frequency_penalty?: number,
         thinking?: {
@@ -31,7 +37,6 @@ interface BuiltInModelDef {
             keep: 'all' | null
         }
     };
-    apiType?: EndpointApiType;
     pricing?: {
         readonly pricing?: string;
         readonly inputCost?: number;
