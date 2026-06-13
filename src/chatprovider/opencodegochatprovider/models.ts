@@ -190,7 +190,6 @@ export function getBuiltInModelConfig(modelId: string): OpenCodeGoModelItem | un
         context_length: def.maxInputTokens,
         max_completion_tokens: def.maxOutputTokens,
         apiType: def.apiType ?? 'chat-completions',
-        reasoning_effort: undefined,
         enable_thinking: true,
         include_reasoning_in_request: true
     };
@@ -202,7 +201,7 @@ export function getBuiltInModelConfig(modelId: string): OpenCodeGoModelItem | un
 
     // Pass through extra body parameters
     if (def.extra) {
-        model.extra = { ...def.extra };
+        model.extra = structuredClone(def.extra);
     }
 
     return model;

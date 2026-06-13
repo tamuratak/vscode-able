@@ -77,7 +77,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 logger.error('config.error', { modelId: model.id, error: 'Model configuration not found' });
                 throw new Error(`Model configuration not found for model ID: ${model.id}`)
             }
-            const um: OpenCodeGoModelItem = { ...umOrig }
+            const um: OpenCodeGoModelItem = structuredClone(umOrig)
 
             if (options.modelConfiguration?.['reasoningEffort']) {
                 const effort = options.modelConfiguration['reasoningEffort'] as unknown
