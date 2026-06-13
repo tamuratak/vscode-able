@@ -33,6 +33,7 @@ import {
 	ProvideLanguageModelChatResponseOptions,
 	LanguageModelResponsePart2,
 	Progress,
+	LanguageModelChatInformation,
 } from 'vscode'
 
 import type { OpenCodeGoModelItem } from '../types.js'
@@ -46,7 +47,7 @@ import {
 	convertToolsToOpenAI,
 	tryParseJSONObject,
 	mapRole,
-} from '../utils.js'
+} from '../vscodeutils.js'
 
 import { APIUsage, CommonApi } from '../commonApi.js'
 import { logger } from '../logger.js'
@@ -149,8 +150,8 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 	private _hasEmittedText = false
 	private _usage: APIUsage | undefined
 
-	constructor(modelId: string) {
-		super(modelId)
+	constructor(modelInfo: LanguageModelChatInformation) {
+		super(modelInfo)
 	}
 
 	get responseId(): string | null {
@@ -395,10 +396,10 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		responseBody: ReadableStream<Uint8Array>,
 		progress: Progress<LanguageModelResponsePart2>,
 		token: CancellationToken
-	): Promise<void> {
+	): Promise<undefined> {
 		this._responseId = null
 		this._usage = undefined
-		const modelId = this._modelId
+		const modelId = this.modelId
 		logger.debug('responses.stream.start', { modelId })
 		const reader = responseBody.getReader()
 		const decoder = new TextDecoder()
@@ -781,7 +782,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 							? { cached_tokens: Number((u['input_tokens_details'] as Record<string, unknown>)['cached_tokens'] ?? 0) }
 							: undefined,
 					}
-					logger.debug('usage.capture', { modelId: this._modelId, usage: this._usage })
+					logger.debug('usage.capture', { modelId: this.modelId, usage: this._usage })
 				}
 				return
 			}
