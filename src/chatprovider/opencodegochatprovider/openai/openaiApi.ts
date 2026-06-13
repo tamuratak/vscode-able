@@ -306,8 +306,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
     private emitFallbackResponseIfNeeded(responseResult: ChatCompletionsResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
         if (responseResult?.finishReason === 'stop') {
-            const needFallback = !this._hasEmittedAssistantText || (this.modelId.startsWith('mimo') && /<\/?think(ing)?>/.test(this._unifiedText))
-            if (needFallback) {
+            if (!this._hasEmittedAssistantText) {
                 progress.report(new vscode.LanguageModelTextPart2(
                     '\n[VS Code Able] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
                     [vscode.LanguageModelPartAudience.User]

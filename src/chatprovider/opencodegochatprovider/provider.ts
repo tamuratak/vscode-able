@@ -154,6 +154,8 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                     logger.error('response.error', { modelId: model.id, error: 'No response body from Anthropic API' })
                     throw new Error('No response body from Anthropic API')
                 }
+
+                channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
                 responseResult = await anthropicApi.processStreamingResponse(response.body, dedupProgress, token);
             } else if (apiMode === 'chat-completions') {
                 // OpenAI Chat Completions API mode

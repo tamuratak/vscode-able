@@ -210,6 +210,17 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
             rb.top_k = um.top_k;
         }
 
+        // Add stop_sequences
+        if (options?.modelOptions) {
+            const mo = options.modelOptions as Record<string, unknown>;
+            const stop = mo['stop'];
+            if (typeof stop === 'string') {
+                rb.stop_sequences = [stop];
+            } else if (Array.isArray(stop)) {
+                rb.stop_sequences = stop.filter((s): s is string => typeof s === 'string');
+            }
+        }
+
         // Add tools configuration
         const toolConfig = convertToolsToOpenAI(options);
         if (toolConfig.tools) {

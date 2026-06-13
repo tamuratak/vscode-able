@@ -17,8 +17,20 @@ interface BuiltInModelDef {
     maxInputTokens: number;
     maxOutputTokens: number;
     extra?: {
-        frequency_penalty: number
-    } | undefined;
+        frequency_penalty?: number,
+        thinking?: {
+            // Anthropic messages API-compat thinking configuration
+            // https://docs.qwencloud.com/api-reference/chat/anthropic#thinking
+            // https://platform.minimax.io/docs/api-reference/text-chat-anthropic#body-thinking
+            type: 'enabled' | 'disabled' | 'adaptive',
+            budget_tokens?: number
+        } | {
+            // Kimi API reasoning configuration
+            // https://platform.kimi.ai/docs/api/chat#body-one-of-0-thinking
+            type: 'enabled' | 'disabled',
+            keep: 'all' | null
+        }
+    };
     apiType?: EndpointApiType;
     pricing?: {
         readonly pricing?: string;
@@ -43,7 +55,9 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'glm-5.1', displayName: 'GLM-5.1', maxInputTokens: 200000, maxOutputTokens: 32768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
 
     // https://platform.kimi.ai/docs/api/chat#content-field-description
-    { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', inputModalities: ['image', 'video'], maxInputTokens: 262144, maxOutputTokens: 32768, pricing: { inputCost: 0.95, outputCost: 4, cacheCost: 0.16 } },
+    // https://docs.fireworks.ai/api-reference/post-chatcompletions
+    { baseId: 'kimi-k2.7-code', displayName: 'Kimi K2.7 Code', inputModalities: ['image', 'video'], maxInputTokens: 262144, maxOutputTokens: 32768, pricing: { inputCost: 0.95, outputCost: 4, cacheCost: 0.19 } },
+    { baseId: 'kimi-k2.6', displayName: 'Kimi K2.6', inputModalities: ['image', 'video'], maxInputTokens: 262144, maxOutputTokens: 32768, extra: { thinking: { type: 'enabled', keep: 'all' } }, pricing: { inputCost: 0.95, outputCost: 4, cacheCost: 0.16 } },
 
     // https://api-docs.deepseek.com/api/create-chat-completion
     { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 1.74, outputCost: 3.48, cacheCost: 0.0145 } },
@@ -54,16 +68,16 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', inputModalities: ['image', 'audio', 'video'], maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 }, pricing: { inputCost: 0.14, outputCost: 0.28, cacheCost: 0.0028 } },
 
     // https://platform.minimax.io/docs/api-reference/text-anthropic-api
-    { baseId: 'minimax-m3', displayName: 'MiniMax M3', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.3, outputCost: 1.2, cacheCost: 0.06 } },
+    { baseId: 'minimax-m3', displayName: 'MiniMax M3', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { thinking: { type: 'adaptive' } }, pricing: { inputCost: 0.3, outputCost: 1.2, cacheCost: 0.06 } },
     { baseId: 'minimax-m2.7', displayName: 'MiniMax M2.7', apiType: 'messages', maxInputTokens: 197000, maxOutputTokens: 32768, pricing: { inputCost: 0.3, outputCost: 1.2, cacheCost: 0.06 } },
 
     // https://docs.qwencloud.com/api-reference/chat/anthropic
     // https://www.qwencloud.com/models/qwen3.7-max
     // https://www.qwencloud.com/models/qwen3.7-plus
     // https://www.qwencloud.com/models/qwen3.6-plus
-    { baseId: 'qwen3.7-max', displayName: 'Qwen3.7 Max', apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 2.5, outputCost: 7.5, cacheCost: 0.5 } },
-    { baseId: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.4, outputCost: 1.6, cacheCost: 0.04, longContextInputCost: 1.2, longContextOutputCost: 4.8, longContextCacheCost: 0.12 } },
-    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.5, outputCost: 3, cacheCost: 0.05, longContextInputCost: 2, longContextOutputCost: 6, longContextCacheCost: 0.2 } }
+    { baseId: 'qwen3.7-max', displayName: 'Qwen3.7 Max', apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 16384, extra: { thinking: { type: 'enabled', budget_tokens: 32768 } }, pricing: { inputCost: 2.5, outputCost: 7.5, cacheCost: 0.5 } },
+    { baseId: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 16384, extra: { thinking: { type: 'enabled', budget_tokens: 32768 } }, pricing: { inputCost: 0.4, outputCost: 1.6, cacheCost: 0.04, longContextInputCost: 1.2, longContextOutputCost: 4.8, longContextCacheCost: 0.12 } },
+    { baseId: 'qwen3.6-plus', displayName: 'Qwen3.6 Plus', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 16384, extra: { thinking: { type: 'enabled', budget_tokens: 32768 } }, pricing: { inputCost: 0.5, outputCost: 3, cacheCost: 0.05, longContextInputCost: 2, longContextOutputCost: 6, longContextCacheCost: 0.2 } }
 ]
 
 export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
@@ -95,6 +109,8 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
         let enumValues: string[];
         if (hasEfforts) {
             enumValues = ['disabled', ...def.supportsReasoningEffort!];
+        } else if (def.apiType === 'messages') {
+            enumValues = ['enabled']
         } else {
             enumValues = ['disabled', 'enabled'];
         }
