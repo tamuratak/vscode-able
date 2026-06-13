@@ -46,7 +46,7 @@ export function tweakSystemPrompt(
         }
 
         let additionalPromptPart = baseAdditionalPromptPart
-        if (model.id.startsWith('kimi')) {
+        if (model.id === 'kimi-k2.6') {
             additionalPromptPart += '\n' + reduceThinkingPromptPart
         }
 

@@ -9,8 +9,8 @@ import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
 export interface ChatCompletionsResult {
     apiType: 'chat-completions';
-    finishReason: string | undefined;
-    nativeFinishReason: string | undefined;
+    finishReason?: string | undefined;
+    nativeFinishReason?: string | undefined;
 }
 
 export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unknown>> {
@@ -373,7 +373,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
     ): ChatCompletionsResult {
         const choice = (delta['choices'] as Record<string, unknown>[] | undefined)?.[0];
         if (!choice) {
-            return { apiType: 'chat-completions', finishReason: undefined, nativeFinishReason: undefined }
+            return { apiType: 'chat-completions' }
         }
 
         const deltaObj = choice['delta'] as Record<string, unknown> | undefined;

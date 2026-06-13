@@ -10,7 +10,7 @@ export interface OpenCodeGoModelItem {
     context_length: number;
     vision: boolean;
     max_completion_tokens: number;
-    reasoning_effort: string | undefined;
+    reasoning_effort?: string | undefined;
     enable_thinking: boolean;
     thinking_budget?: number;
     temperature?: number;

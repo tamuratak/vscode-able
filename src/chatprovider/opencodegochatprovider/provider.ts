@@ -16,7 +16,11 @@ import { createDedupProgress, extractLastToolCallSignatures, isToolCallLoopDetec
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
-    /** Currently active abort controllers for concurrent requests. */
+    // At first glance this violates the convention that OpenCodeGoChatModelProvider
+    // must be stateless. It exists solely as a workaround for a bug where pressing
+    // the stop button in the VS Code UI does not propagate cancellation to the
+    // underlying fetch token. Without tracking active abort controllers here, there
+    // would be no way to cancel in-flight requests from abortActiveRequests().
     private readonly _activeAbortControllers = new Set<AbortController>()
 
     /** Abort all currently active requests. */
@@ -77,7 +81,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 logger.error('config.error', { modelId: model.id, error: 'Model configuration not found' });
                 throw new Error(`Model configuration not found for model ID: ${model.id}`)
             }
-            const um: OpenCodeGoModelItem = { ...umOrig }
+            const um: OpenCodeGoModelItem = structuredClone(umOrig)
 
             if (options.modelConfiguration?.['reasoningEffort']) {
                 const effort = options.modelConfiguration['reasoningEffort'] as unknown
