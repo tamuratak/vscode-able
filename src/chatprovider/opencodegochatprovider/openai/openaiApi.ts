@@ -136,14 +136,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         um: OpenCodeGoModelItem,
         options?: ProvideLanguageModelChatResponseOptions
     ): Record<string, unknown> {
-        if (um.temperature !== undefined) {
-            rb['temperature'] = um.temperature;
-        }
-
-        if (um.top_p !== undefined && um.top_p !== null) {
-            rb['top_p'] = um.top_p;
-        }
-
         rb['max_completion_tokens'] = um.max_completion_tokens;
 
         if (um.enable_thinking && um.reasoning_effort !== undefined) {
@@ -152,27 +144,12 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
         // Thinking mode (OpenAI-compatible format: {"thinking": {"type": "enabled"}})
         if (um.enable_thinking) {
-            rb['thinking'] = { type: 'enabled' };
-            if (um.thinking_budget !== undefined) {
-                (rb['thinking'] as Record<string, unknown>)['budget_tokens'] = um.thinking_budget;
+            // For GLM-5.2, thinking and reasoning_effort are exclusive.
+            if (this._modelInfo.id !== 'glm-5.2') {
+                rb['thinking'] = { type: 'enabled' }
             }
         } else {
             rb['thinking'] = { type: 'disabled' };
-        }
-
-        // OpenRouter/OpenCode Go reasoning configuration
-        if (um.reasoning !== undefined && um.reasoning.enabled !== false) {
-            const reasoningObj: Record<string, unknown> = {};
-            const effort = um.reasoning.effort;
-            if (effort && effort !== 'auto') {
-                reasoningObj['effort'] = effort;
-            } else {
-                reasoningObj['max_tokens'] = um.reasoning.max_tokens || 2000;
-            }
-            if (um.reasoning.exclude !== undefined) {
-                reasoningObj['exclude'] = um.reasoning.exclude;
-            }
-            rb['reasoning'] = reasoningObj;
         }
 
         if (options?.modelOptions) {
@@ -189,12 +166,6 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         if (toolConfig.tool_choice) {
             rb['tool_choice'] = toolConfig.tool_choice;
         }
-
-        if (um.top_k !== undefined) { rb['top_k'] = um.top_k; }
-        if (um.min_p !== undefined) { rb['min_p'] = um.min_p; }
-        if (um.frequency_penalty !== undefined) { rb['frequency_penalty'] = um.frequency_penalty; }
-        if (um.presence_penalty !== undefined) { rb['presence_penalty'] = um.presence_penalty; }
-        if (um.repetition_penalty !== undefined) { rb['repetition_penalty'] = um.repetition_penalty; }
 
         // Extra body parameters, applied last so they can override any previously set fields
         if (um.extra && typeof um.extra === 'object') {

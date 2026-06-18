@@ -195,21 +195,6 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
             rb.system = this._systemContent;
         }
 
-        // Add temperature
-        if (um.temperature !== undefined) {
-            rb.temperature = um.temperature;
-        }
-
-        // Add top_p if configured
-        if (um.top_p !== undefined && um.top_p !== null) {
-            rb.top_p = um.top_p;
-        }
-
-        // Add top_k if configured
-        if (um.top_k !== undefined) {
-            rb.top_k = um.top_k;
-        }
-
         // Add stop_sequences
         if (options?.modelOptions) {
             const mo = options.modelOptions as Record<string, unknown>;
