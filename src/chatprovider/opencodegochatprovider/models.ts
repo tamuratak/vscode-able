@@ -57,7 +57,7 @@ export type EndpointApiType = 'chat-completions' | 'responses' | 'messages';
  */
 const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://docs.z.ai/api-reference/llm/chat-completion
-    { baseId: 'glm-5.2', displayName: 'GLM-5.2', maxInputTokens: 1000000, maxOutputTokens: 62768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
+    { baseId: 'glm-5.2', displayName: 'GLM-5.2', defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 62768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
     { baseId: 'glm-5.1', displayName: 'GLM-5.1', maxInputTokens: 200000, maxOutputTokens: 32768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
 
     // https://platform.kimi.ai/docs/api/chat#content-field-description

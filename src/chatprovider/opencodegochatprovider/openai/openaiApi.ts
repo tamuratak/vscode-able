@@ -159,6 +159,9 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         } else {
             rb['thinking'] = { type: 'disabled' };
         }
+        if (this._modelInfo.id === 'glm-5.2') {
+            delete rb['thinking']
+        }
 
         // OpenRouter/OpenCode Go reasoning configuration
         if (um.reasoning !== undefined && um.reasoning.enabled !== false) {
