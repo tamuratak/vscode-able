@@ -12,20 +12,6 @@ export interface OpenCodeGoModelItem {
     max_completion_tokens: number;
     reasoning_effort?: string | undefined;
     enable_thinking: boolean;
-    thinking_budget?: number;
-    temperature?: number;
-    top_p?: number;
-    top_k?: number;
-    min_p?: number;
-    frequency_penalty?: number;
-    presence_penalty?: number;
-    repetition_penalty?: number;
-    reasoning?: {
-        effort?: string;
-        exclude?: boolean;
-        max_tokens?: number;
-        enabled?: boolean;
-    };
     extra?: Record<string, unknown>;
     /**
      * Whether to include reasoning_content in assistant messages sent to the API.
