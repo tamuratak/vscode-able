@@ -27,7 +27,7 @@
  * ```
  */
 
-import { DiffError, Fuzz, FuzzMatch, IGuessedIndentation, InvalidContextError, InvalidPatchFormatError, Patch, PatchAction, ActionType, Chunk } from './types.js'
+import { DiffError, Fuzz, FuzzMatch, IGuessedIndentation, InvalidContextError, InvalidPatchFormatError, Patch, PatchAction, ActionType, Chunk, Commit } from './types.js'
 import {
 	ADD_FILE_PREFIX,
 	DELETE_FILE_PREFIX,
@@ -805,3 +805,115 @@ export {
 	identifyFilesNeeded,
 	identifyFilesAdded,
 } from './utils.js'
+
+// -----------------------------------------------------------------------------
+// Patch application
+// -----------------------------------------------------------------------------
+
+/**
+ * Apply an UPDATE action's chunks to the original file text
+ * and return the resulting new content.
+ */
+function getUpdatedFile(
+	text: string,
+	action: PatchAction,
+	path: string,
+): string {
+	if (action.type !== ActionType.UPDATE) {
+		throw new Error('Expected UPDATE action')
+	}
+	const origLines = text.split('\n')
+	const destLines: string[] = []
+	let origIndex = 0
+	for (const chunk of action.chunks) {
+		if (chunk.origIndex > origLines.length) {
+			throw new DiffError(
+				`${path}: chunk.origIndex ${chunk.origIndex} > len(lines) ${origLines.length}`,
+			)
+		}
+		if (origIndex > chunk.origIndex) {
+			throw new DiffError(
+				`${path}: origIndex ${origIndex} > chunk.origIndex ${chunk.origIndex}`,
+			)
+		}
+		destLines.push(...origLines.slice(origIndex, chunk.origIndex))
+		const delta = chunk.origIndex - origIndex
+		origIndex += delta
+
+		// inserted lines
+		if (chunk.insLines.length) {
+			for (const l of chunk.insLines) {
+				destLines.push(l)
+			}
+		}
+		origIndex += chunk.delLines.length
+	}
+	destLines.push(...origLines.slice(origIndex))
+	return destLines.join('\n')
+}
+
+/**
+ * Apply a parsed Patch to the original file contents and produce a Commit
+ * describing all changes.
+ *
+ * @param patch - Parsed patch from {@link textToPatch}
+ * @param currentFiles - Map of file paths to their current content strings
+ * @returns A Commit with FileChange entries for each affected file
+ */
+export function patchToCommit(
+	patch: Patch,
+	currentFiles: Record<string, string>,
+): Commit {
+	const commit: Commit = { changes: {} }
+	for (const [pathKey, action] of Object.entries(patch.actions)) {
+		if (action.type === ActionType.DELETE) {
+			commit.changes[pathKey] = {
+				type: ActionType.DELETE,
+				oldContent: currentFiles[pathKey],
+			}
+		} else if (action.type === ActionType.ADD) {
+			commit.changes[pathKey] = {
+				type: ActionType.ADD,
+				newContent: action.newFile ?? '',
+			}
+		} else if (action.type === ActionType.UPDATE) {
+			const text = currentFiles[pathKey]
+			const newContent = getUpdatedFile(text, action, pathKey)
+			commit.changes[pathKey] = {
+				type: ActionType.UPDATE,
+				oldContent: text,
+				newContent,
+				movePath: action.movePath ?? null,
+			}
+		}
+	}
+	return commit
+}
+
+/**
+ * Apply a Commit to the filesystem using provided callbacks.
+ *
+ * @param commit - The commit to apply
+ * @param writeFn - Callback to write content to a file path
+ * @param removeFn - Callback to remove a file at a path
+ */
+export function applyCommit(
+	commit: Commit,
+	writeFn: (path: string, content: string) => void,
+	removeFn: (path: string) => void,
+): void {
+	for (const [p, change] of Object.entries(commit.changes)) {
+		if (change.type === ActionType.DELETE) {
+			removeFn(p)
+		} else if (change.type === ActionType.ADD) {
+			writeFn(p, change.newContent ?? '')
+		} else if (change.type === ActionType.UPDATE) {
+			if (change.movePath) {
+				writeFn(change.movePath, change.newContent ?? '')
+				removeFn(p)
+			} else {
+				writeFn(p, change.newContent ?? '')
+			}
+		}
+	}
+}
