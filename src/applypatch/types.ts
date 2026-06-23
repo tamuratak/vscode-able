@@ -52,6 +52,21 @@ export interface Patch {
 }
 
 // -----------------------------------------------------------------------------
+// Commit structures (result of applying a patch)
+// -----------------------------------------------------------------------------
+
+export interface FileChange {
+	type: ActionType
+	oldContent?: string | null
+	newContent?: string | null
+	movePath?: string | null
+}
+
+export interface Commit {
+	changes: Record<string, FileChange>
+}
+
+// -----------------------------------------------------------------------------
 // Fuzz flags
 // -----------------------------------------------------------------------------
 

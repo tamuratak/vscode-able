@@ -1,6 +1,6 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
-import { textToPatch, replaceExplicitTabs, replaceExplicitNl } from '../../../src/applypatch/parser.js'
+import { textToPatch, replaceExplicitTabs, replaceExplicitNl, patchToCommit, applyCommit } from '../../../src/applypatch/parser.js'
 import { identifyFilesAffected, identifyFilesNeeded, identifyFilesAdded } from '../../../src/applypatch/utils.js'
 import { DiffError, InvalidPatchFormatError, InvalidContextError, ActionType } from '../../../src/applypatch/types.js'
 
@@ -383,5 +383,201 @@ suite('identifyFilesAdded', () => {
 		assert.ok(!result.includes('a.ts'))
 		assert.ok(result.includes('b.ts'))
 		assert.ok(result.includes('c.ts'))
+	})
+})
+
+suite('patchToCommit', () => {
+	test('produces correct commit for update action', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: f.ts',
+			'@@',
+			' function greet() {',
+			'-  return "hello"',
+			'+  return "world"',
+			' }',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = { 'f.ts': 'function greet() {\n  return "hello"\n}\n' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const change = commit.changes['f.ts']
+		assert.ok(change)
+		assert.strictEqual(change.type, ActionType.UPDATE)
+		assert.strictEqual(change.oldContent, 'function greet() {\n  return "hello"\n}\n')
+		assert.strictEqual(change.newContent, 'function greet() {\n  return "world"\n}\n')
+	})
+
+	test('produces correct commit for add action', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Add File: src/new.ts',
+			'+export const x = 1',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = {}
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const change = commit.changes['src/new.ts']
+		assert.ok(change)
+		assert.strictEqual(change.type, ActionType.ADD)
+		assert.strictEqual(change.newContent, 'export const x = 1')
+	})
+
+	test('produces correct commit for delete action', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Delete File: old.ts',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = { 'old.ts': 'some content' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const change = commit.changes['old.ts']
+		assert.ok(change)
+		assert.strictEqual(change.type, ActionType.DELETE)
+		assert.strictEqual(change.oldContent, 'some content')
+	})
+
+	test('includes movePath in commit for move operations', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: src/old.ts',
+			'*** Move to: src/new.ts',
+			'@@',
+			' content',
+			'-old',
+			'+new',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = { 'src/old.ts': 'content\nold\n' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const change = commit.changes['src/old.ts']
+		assert.ok(change)
+		assert.strictEqual(change.type, ActionType.UPDATE)
+		assert.strictEqual(change.movePath, 'src/new.ts')
+	})
+
+	test('applies multiple chunks correctly', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: f.ts',
+			'@@',
+			' first',
+			'-a',
+			'+A',
+			'@@',
+			' second',
+			'-c',
+			'+C',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = { 'f.ts': 'first\na\nsecond\nc\nthird' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const change = commit.changes['f.ts']
+		assert.ok(change)
+		assert.strictEqual(change.newContent, 'first\nA\nsecond\nC\nthird')
+	})
+})
+
+suite('applyCommit', () => {
+	test('writes updated files via writeFn', () => {
+		const written: Record<string, string> = {}
+		const removed: string[] = []
+
+		const commit = {
+			changes: {
+				'f.ts': { type: ActionType.UPDATE as const, oldContent: 'old', newContent: 'new' },
+			},
+		}
+
+		applyCommit(commit, (p, c) => { written[p] = c }, (p) => { removed.push(p) })
+
+		assert.strictEqual(written['f.ts'], 'new')
+		assert.strictEqual(removed.length, 0)
+	})
+
+	test('removes deleted files via removeFn', () => {
+		const written: Record<string, string> = {}
+		const removed: string[] = []
+
+		const commit = {
+			changes: {
+				'old.ts': { type: ActionType.DELETE as const, oldContent: 'content' },
+			},
+		}
+
+		applyCommit(commit, (p, c) => { written[p] = c }, (p) => { removed.push(p) })
+
+		assert.strictEqual(Object.keys(written).length, 0)
+		assert.deepStrictEqual(removed, ['old.ts'])
+	})
+
+	test('writes new files via writeFn', () => {
+		const written: Record<string, string> = {}
+
+		const commit = {
+			changes: {
+				'new.ts': { type: ActionType.ADD as const, newContent: 'hello' },
+			},
+		}
+
+		applyCommit(commit, (p, c) => { written[p] = c }, () => { /* no-op */ })
+
+		assert.strictEqual(written['new.ts'], 'hello')
+	})
+
+	test('handles movePath by writing to new path and removing old', () => {
+		const written: Record<string, string> = {}
+		const removed: string[] = []
+
+		const commit = {
+			changes: {
+				'old.ts': { type: ActionType.UPDATE as const, oldContent: 'old', newContent: 'new', movePath: 'new.ts' },
+			},
+		}
+
+		applyCommit(commit, (p, c) => { written[p] = c }, (p) => { removed.push(p) })
+
+		assert.strictEqual(written['new.ts'], 'new')
+		assert.ok(!('old.ts' in written))
+		assert.deepStrictEqual(removed, ['old.ts'])
+	})
+
+	test('end-to-end: textToPatch then patchToCommit then applyCommit', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: a.ts',
+			'@@',
+			' function add(a, b) {',
+			'-  return a + b',
+			'+  return a - b',
+			' }',
+			'*** Add File: b.ts',
+			'+export const b = 2',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = { 'a.ts': 'function add(a, b) {\n  return a + b\n}\n' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const written: Record<string, string> = {}
+		applyCommit(commit, (p, c) => { written[p] = c }, () => { /* no-op */ })
+
+		assert.strictEqual(written['a.ts'], 'function add(a, b) {\n  return a - b\n}\n')
+		assert.strictEqual(written['b.ts'], 'export const b = 2')
 	})
 })
