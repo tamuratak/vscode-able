@@ -42,9 +42,9 @@ export interface Chunk {
 
 export interface PatchAction {
 	type: ActionType
-	newFile?: string | null
+	newFile?: string | undefined
 	chunks: Chunk[]
-	movePath?: string | null
+	movePath?: string | undefined
 }
 
 export interface Patch {
@@ -57,9 +57,9 @@ export interface Patch {
 
 export interface FileChange {
 	type: ActionType
-	oldContent?: string | null
-	newContent?: string | null
-	movePath?: string | null
+	oldContent?: string | undefined
+	newContent?: string | undefined
+	movePath?: string | undefined
 }
 
 export interface Commit {

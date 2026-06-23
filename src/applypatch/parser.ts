@@ -489,7 +489,7 @@ class Parser {
 					text,
 					indentStyle,
 				)
-				action.movePath = moveTo || null
+				action.movePath = moveTo || undefined
 				this.patch.actions[path] = action
 				continue
 			}
@@ -820,7 +820,7 @@ function getUpdatedFile(
 	path: string,
 ): string {
 	if (action.type !== ActionType.UPDATE) {
-		throw new Error('Expected UPDATE action')
+		throw new DiffError('Expected UPDATE action')
 	}
 	const origLines = text.split('\n')
 	const destLines: string[] = []
@@ -878,12 +878,17 @@ export function patchToCommit(
 			}
 		} else if (action.type === ActionType.UPDATE) {
 			const text = currentFiles[pathKey]
+			if (text === undefined) {
+				throw new DiffError(
+					`Update File Error: Missing File: ${pathKey}`,
+				)
+			}
 			const newContent = getUpdatedFile(text, action, pathKey)
 			commit.changes[pathKey] = {
 				type: ActionType.UPDATE,
 				oldContent: text,
 				newContent,
-				movePath: action.movePath ?? null,
+				movePath: action.movePath,
 			}
 		}
 	}
