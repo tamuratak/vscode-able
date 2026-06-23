@@ -580,4 +580,48 @@ suite('applyCommit', () => {
 		assert.strictEqual(written['a.ts'], 'function add(a, b) {\n  return a - b\n}\n')
 		assert.strictEqual(written['b.ts'], 'export const b = 2')
 	})
+
+	test('end-to-end: DELETE file through full pipeline', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Delete File: obsolete.ts',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = { 'obsolete.ts': 'old content here' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const written: Record<string, string> = {}
+		const removed: string[] = []
+		applyCommit(commit, (p, c) => { written[p] = c }, (p) => { removed.push(p) })
+
+		assert.strictEqual(Object.keys(written).length, 0)
+		assert.deepStrictEqual(removed, ['obsolete.ts'])
+	})
+
+	test('end-to-end: UPDATE with movePath through full pipeline', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: src/old.ts',
+			'*** Move to: src/new.ts',
+			'@@',
+			' export const value =',
+			'-  1',
+			'+  42',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = { 'src/old.ts': 'export const value =\n  1\n' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const written: Record<string, string> = {}
+		const removed: string[] = []
+		applyCommit(commit, (p, c) => { written[p] = c }, (p) => { removed.push(p) })
+
+		assert.strictEqual(written['src/new.ts'], 'export const value =\n  42\n')
+		assert.ok(!('src/old.ts' in written))
+		assert.deepStrictEqual(removed, ['src/old.ts'])
+	})
 })
