@@ -140,7 +140,10 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
             LC_ALL: process.env['LC_ALL'] ?? 'C.UTF-8',
             HOME: process.env['HOME'] ?? workspaceDirs[0],
             TMPDIR: this.tmpDir,
-            GIT_PAGER: 'cat' // Disable git pager to avoid hanging
+            GIT_PAGER: 'cat', // Disable git pager to avoid hanging
+            CLICOLOR: '0', // Suppress colored output
+            NO_COLOR: '1', // Suppress colored output
+            TERM: 'dumb' // Disable terminal control codes
         }
         debugObj('RunInSandbox args: ', { args, cwd: workspaceDirs[0], env: minimalEnv }, this.outputChannel)
         const child = spawn(seatbeltPath, args, {
