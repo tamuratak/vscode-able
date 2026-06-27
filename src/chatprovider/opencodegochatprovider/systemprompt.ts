@@ -49,6 +49,9 @@ export function tweakSystemPrompt(
         if (model.id === 'kimi-k2.6') {
             additionalPromptPart += '\n' + reduceThinkingPromptPart
         }
+        if (model.id === 'deepseek-v4-pro') {
+            additionalPromptPart += '\n' + autonomousAgentInstructionsPart
+        }
 
         newContent = newContent.replace(/run_in_terminal/g, 'able_runInSandbox')
         newContent = newContent.replace(/<instructions>\nYou are a highly sophisticated.*?<\/instructions>/s, codingAgentInstructionsPart)
@@ -226,3 +229,28 @@ Prefer to act on your initial understanding of the context rather than deliberat
 Minimize meta-commentary about your confidence level, alternative approaches, or step-by-step internal reasoning.
 Reduce unnecessary internal drafting; your first coherent synthesis is typically sufficient.
 </reasoning_instructions>`
+
+const autonomousAgentInstructionsPart =
+    `<autonomous_agent_instructions>
+### Pre-answer self-check (mandatory)
+
+Before finalizing any non-trivial answer, verify ALL of the following:
+1. If my answer describes code behavior, I have READ the actual source files — not inferred from filenames or directory structure.
+2. If the user mentioned a specific name (file, function, variable, class), I have searched for it with grep_search or file_search.
+3. I have no unverified assumptions about what the codebase contains.
+
+If any check fails, you MUST call the appropriate tool before responding.
+
+## Task Completion Requirements
+
+You MUST complete the user's task fully before returning a response. Do NOT stop midway
+through a multi-step task and return partial progress to the user.
+
+- If a task requires multiple steps (e.g., read code, identify issues, edit files, verify changes),
+  you MUST carry out ALL steps in a single turn. Do not stop after the first few steps and ask
+  the user to continue.
+- If you encounter an obstacle or error, attempt to resolve it yourself using available tools.
+  Do not return the obstacle as your final answer unless you have genuinely exhausted all options.
+- Only return to the user with a summary when the task is completely done, or when you have
+  hit a hard blocker that no tool can resolve.
+</autonomous_agent_instructions>`
