@@ -106,7 +106,7 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
                 imageInput: def.inputModalities?.includes('image') ?? false,
                 // Use replace_string_in_file tool only.
                 // https://github.com/microsoft/vscode/blob/4b04bed81a929b4603b508ce4a21993ae5fee2af/extensions/copilot/package.json#L770
-                editTools: ['find-replace']
+                editTools: ['find-replace', 'multi-find-replace']
             },
             isUserSelectable: true,
             ...def.pricing
