@@ -27,7 +27,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
 
     constructor() {
         this.setupTmpDir()
-        this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100)
+        this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 105)
         this.statusBarItem.command = 'able.toggleRunInSandboxSkip'
         this.updateStatusBar()
         this.statusBarItem.show()
