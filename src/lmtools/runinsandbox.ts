@@ -96,7 +96,10 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
         const workspaceRootPath = vscode.workspace.workspaceFolders?.[0].uri.fsPath
         const isAllowed = await isAllowedCommand(options.input.command, workspaceRootPath)
         if (this.skipMode && !isAllowed) {
-            return new LanguageModelToolResult([new LanguageModelTextPart('The user skipped this tool call. Proceed without the command output.')])
+            return new LanguageModelToolResult([new LanguageModelTextPart(
+                'The user chose to skip this tool call. This command will not be executed. ' +
+                'Proceed without the command output. If the command is essential, ask the user to run it manually.'
+            )])
         }
 
         // Validate environment
