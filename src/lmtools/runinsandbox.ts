@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { CancellationToken, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult } from 'vscode'
+import { CancellationToken, LanguageModelTextPart, LanguageModelTool, LanguageModelToolInvocationOptions, LanguageModelToolResult } from 'vscode'
 import { spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
@@ -21,12 +21,34 @@ export interface RunInSandboxInput {
 export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscode.Disposable {
     readonly tmpDir = this.setupTmpDir()
     private readonly outputChannel = vscode.window.createOutputChannel('vscode-able: RunInSandbox', { log: true })
+    private skipMode = false
+    readonly statusBarItem: vscode.StatusBarItem
+    private readonly commandDisposable: vscode.Disposable
 
     constructor() {
         this.setupTmpDir()
+        this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100)
+        this.updateStatusBar()
+        this.statusBarItem.show()
+        this.commandDisposable = vscode.commands.registerCommand('able.toggleRunInSandboxSkip', () => {
+            this.skipMode = !this.skipMode
+            this.updateStatusBar()
+        })
+    }
+
+    private updateStatusBar() {
+        if (this.skipMode) {
+            this.statusBarItem.text = 'Sandbox: Skip'
+            this.statusBarItem.tooltip = 'RunInSandbox is in skip mode. Click to enable sandbox execution.'
+        } else {
+            this.statusBarItem.text = 'Sandbox: On'
+            this.statusBarItem.tooltip = 'RunInSandbox is enabled. Click to skip tool calls.'
+        }
     }
 
     dispose() {
+        this.commandDisposable.dispose()
+        this.statusBarItem.dispose()
         this.outputChannel.dispose()
     }
 
@@ -47,6 +69,11 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
                 invocationMessage: 'Run command by using sandbox-exec'
             }
         }
+        if (this.skipMode) {
+            return {
+                invocationMessage: 'Skipping sandbox execution'
+            }
+        }
         debugObj('RunInSandbox prepareInvocation args: ', options.input, this.outputChannel)
         const foundCodes = await findScripts(options.input.command)
         let codesInMessage = ''
@@ -65,6 +92,12 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
     }
 
     async invoke(options: LanguageModelToolInvocationOptions<RunInSandboxInput>, token: CancellationToken) {
+        const workspaceRootPath = vscode.workspace.workspaceFolders?.[0].uri.fsPath
+        const isAllowed = await isAllowedCommand(options.input.command, workspaceRootPath)
+        if (this.skipMode && !isAllowed) {
+            return new LanguageModelToolResult([new LanguageModelTextPart('The user skipped this tool call. Proceed without the command output.')])
+        }
+
         // Validate environment
         if (process.platform !== 'darwin') {
             this.outputChannel.error('[RunInSandbox]: macOS only. sandbox-exec is unavailable on this platform')
