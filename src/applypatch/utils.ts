@@ -556,6 +556,52 @@ export function transformIndentation(
 }
 
 // -----------------------------------------------------------------------------
+// Code block fence stripping
+// -----------------------------------------------------------------------------
+
+const FENCE_PATTERN = /^(`{3,}|~{3,})(\w*)\s*$/
+
+/**
+ * Strip code block fences from the text.
+ *
+ * Handles these cases:
+ * - Both opening and closing fences present: strips both + adjacent empty lines
+ * - Opening fence only (no closing): strips opening + adjacent empty line, rest is content
+ * - No fences: returns text as-is
+ *
+ * @throws {Error} if the content is empty after stripping fences
+ */
+export function stripCodeBlockFences(text: string): string {
+	const lines = text.split('\n')
+	let start = 0
+	let end = lines.length
+
+	// Strip opening fence
+	if (start < end && FENCE_PATTERN.test(lines[start])) {
+		start++
+		// Strip adjacent empty line after opening fence
+		if (start < end && lines[start] === '') {
+			start++
+		}
+	}
+
+	// Strip closing fence (only if present)
+	if (end > start && FENCE_PATTERN.test(lines[end - 1])) {
+		end--
+		// Strip adjacent empty line before closing fence
+		if (end > start && lines[end - 1] === '') {
+			end--
+		}
+	}
+
+	const result = lines.slice(start, end).join('\n').trim()
+	if (result.length === 0) {
+		throw new Error('Patch text is empty after removing code block fences')
+	}
+	return result
+}
+
+// -----------------------------------------------------------------------------
 // Filepath comment helpers
 // -----------------------------------------------------------------------------
 

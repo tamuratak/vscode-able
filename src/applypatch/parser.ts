@@ -804,6 +804,7 @@ export {
 	identifyFilesAffected,
 	identifyFilesNeeded,
 	identifyFilesAdded,
+	stripCodeBlockFences,
 } from './utils.js'
 
 // -----------------------------------------------------------------------------
