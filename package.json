@@ -70,6 +70,10 @@
           {
             "name": "fixmath",
             "description": "Fix math formatting"
+          },
+          {
+            "name": "apply_patch",
+            "description": "Apply OpenAI apply_patch format diff"
           }
         ]
       },

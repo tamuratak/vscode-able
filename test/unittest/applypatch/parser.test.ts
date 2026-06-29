@@ -1,7 +1,7 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
 import { textToPatch, replaceExplicitTabs, replaceExplicitNl, patchToCommit, applyCommit } from '../../../src/applypatch/parser.js'
-import { identifyFilesAffected, identifyFilesNeeded, identifyFilesAdded } from '../../../src/applypatch/utils.js'
+import { identifyFilesAffected, identifyFilesNeeded, identifyFilesAdded, stripCodeBlockFences } from '../../../src/applypatch/utils.js'
 import { DiffError, InvalidPatchFormatError, InvalidContextError, ActionType } from '../../../src/applypatch/types.js'
 
 suite('textToPatch', () => {
@@ -623,5 +623,70 @@ suite('applyCommit', () => {
 		assert.strictEqual(written['src/new.ts'], 'export const value =\n  42\n')
 		assert.ok(!('src/old.ts' in written))
 		assert.deepStrictEqual(removed, ['src/old.ts'])
+	})
+})
+
+suite('stripCodeBlockFences', () => {
+	test('strips triple backtick fences with language tag', () => {
+		const input = '```diff\n*** Begin Patch\n*** End Patch\n```'
+		assert.strictEqual(stripCodeBlockFences(input), '*** Begin Patch\n*** End Patch')
+	})
+
+	test('strips triple backtick fences without language tag', () => {
+		const input = '```\n*** Begin Patch\n*** End Patch\n```'
+		assert.strictEqual(stripCodeBlockFences(input), '*** Begin Patch\n*** End Patch')
+	})
+
+	test('strips tilde fences with language tag', () => {
+		const input = '~~~diff\n*** Begin Patch\n*** End Patch\n~~~'
+		assert.strictEqual(stripCodeBlockFences(input), '*** Begin Patch\n*** End Patch')
+	})
+
+	test('strips tilde fences without language tag', () => {
+		const input = '~~~\n*** Begin Patch\n*** End Patch\n~~~'
+		assert.strictEqual(stripCodeBlockFences(input), '*** Begin Patch\n*** End Patch')
+	})
+
+	test('strips opening fence only (no closing fence)', () => {
+		const input = '```diff\n*** Begin Patch\n*** Update File: f.ts\n*** End Patch'
+		assert.strictEqual(stripCodeBlockFences(input), '*** Begin Patch\n*** Update File: f.ts\n*** End Patch')
+	})
+
+	test('strips opening tilde fence only (no closing fence)', () => {
+		const input = '~~~diff\n*** Begin Patch\n*** End Patch'
+		assert.strictEqual(stripCodeBlockFences(input), '*** Begin Patch\n*** End Patch')
+	})
+
+	test('strips adjacent empty lines after opening fence', () => {
+		const input = '```diff\n\n*** Begin Patch\n*** End Patch\n```'
+		assert.strictEqual(stripCodeBlockFences(input), '*** Begin Patch\n*** End Patch')
+	})
+
+	test('strips adjacent empty lines before closing fence', () => {
+		const input = '```diff\n*** Begin Patch\n*** End Patch\n\n```'
+		assert.strictEqual(stripCodeBlockFences(input), '*** Begin Patch\n*** End Patch')
+	})
+
+	test('strips opening fence only with adjacent empty line', () => {
+		const input = '```diff\n\n*** Begin Patch\n*** End Patch'
+		assert.strictEqual(stripCodeBlockFences(input), '*** Begin Patch\n*** End Patch')
+	})
+
+	test('returns text as-is when no fences present', () => {
+		const input = '*** Begin Patch\n*** End Patch'
+		assert.strictEqual(stripCodeBlockFences(input), '*** Begin Patch\n*** End Patch')
+	})
+
+	test('throws when content is empty after stripping', () => {
+		assert.throws(() => stripCodeBlockFences('```\n```'), Error)
+	})
+
+	test('throws when content is only whitespace after stripping', () => {
+		assert.throws(() => stripCodeBlockFences('```\n  \n```'), Error)
+	})
+
+	test('handles longer fence markers (4+ backticks)', () => {
+		const input = '````diff\n*** Begin Patch\n*** End Patch\n````'
+		assert.strictEqual(stripCodeBlockFences(input), '*** Begin Patch\n*** End Patch')
 	})
 })
