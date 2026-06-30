@@ -285,6 +285,18 @@ export class ChatHandleManager {
         try {
             [patch] = textToPatch(patchText, currentFiles)
         } catch (error) {
+            const oc = this.extension.outputChannel
+            oc.error(`[apply_patch] patchText:\n${patchText}`)
+            for (const [k, v] of Object.entries(currentFiles)) {
+                oc.error(`[apply_patch] currentFiles["${k}"] (first 500 chars):\n${v.slice(0, 500)}`)
+            }
+            if (error instanceof InvalidContextError) {
+                oc.error(`[apply_patch] kindForTelemetry: ${error.kindForTelemetry}`)
+                oc.error(`[apply_patch] file content (first 500 chars):\n${error.file.slice(0, 500)}`)
+            }
+            if (error instanceof Error) {
+                oc.error(`[apply_patch] error stack: ${error.stack}`)
+            }
             if (error instanceof DiffError || error instanceof InvalidPatchFormatError || error instanceof InvalidContextError) {
                 stream.markdown(`Error parsing patch: ${error.message}\n\n`)
             } else {

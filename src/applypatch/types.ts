@@ -121,6 +121,7 @@ export class InvalidContextError extends DiffError {
 	constructor(
 		message: string,
 		public readonly file: string,
+		public readonly filePath: string,
 		public readonly kindForTelemetry: string,
 	) {
 		super(message)

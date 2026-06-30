@@ -420,7 +420,13 @@ class Parser {
 		private readonly currentFiles: Record<string, string>,
 		lines: string[],
 	) {
-		this.lines = lines
+		// Preprocess: strip erroneous -/+ prefix from @@ hunk header lines.
+		// LLMs sometimes output "-@@ -1,5 +1,5 @@" instead of "@@ -1,5 +1,5 @@".
+		this.lines = lines.map((line) =>
+			line.startsWith('-@@') || line.startsWith('+@@')
+				? line.slice(1)
+				: line,
+		)
 		for (const [path, content] of Object.entries(currentFiles)) {
 			this.indentStyles[path] = guessIndentation(
 				content.split('\n'),
@@ -485,6 +491,7 @@ class Parser {
 				const text = this.currentFiles[path]
 				const filepathComment = getFilepathComment(path)
 				const action = this.parseUpdateFile(
+					path,
 					filepathComment,
 					text,
 					indentStyle,
@@ -540,6 +547,7 @@ class Parser {
 	}
 
 	private parseUpdateFile(
+		filePath: string,
 		filepathComment: string,
 		text: string,
 		targetIndentStyle: IGuessedIndentation,
@@ -639,22 +647,26 @@ class Parser {
 			}
 
 			if (!match) {
-				const ctxText = nextSection.nextChunkContext.join('\n')
+				const ctxLines = nextSection.nextChunkContext
+				const preview = ctxLines.slice(0, 3).join('\n')
+				const suffix = ctxLines.length > 3 ? '\n...' : ''
 				if (nextSection.eof) {
 					throw new InvalidContextError(
-						`Invalid EOF context at character ${index}:\n${ctxText}`,
+						`Invalid EOF context in '${filePath}' near line ${index + 1}:\n${preview}${suffix}`,
 						text,
+						filePath,
 						'invalidContext-eof',
 					)
 				} else {
-					const kindForTelemetry = ctxText.match(/^\\t/)
+					const kindForTelemetry = ctxLines[0]?.match(/^\\t/)
 						? 'invalidContext-maybeInvalidTab'
-						: ctxText.match(/^\\\t/)
+						: ctxLines[0]?.match(/^\\\t/)
 							? 'invalidContext-maybeEscapedTab'
 							: 'invalidContext'
 					throw new InvalidContextError(
-						`Invalid context at character ${index}:\n${ctxText}`,
+						`Invalid context in '${filePath}' near line ${index + 1}:\n${preview}${suffix}`,
 						text,
+						filePath,
 						kindForTelemetry,
 					)
 				}
