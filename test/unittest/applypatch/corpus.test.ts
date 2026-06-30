@@ -2,7 +2,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { suite, test } from 'mocha'
 import * as assert from 'node:assert'
-import { textToPatch, patchToCommit } from '../../../src/applypatch/parser'
+import { textToPatch, patchToCommit } from '../../../src/applypatch/parser.js'
 
 // __dirname is out/test/unittest/applypatch; corpus files are in the source tree
 const corpusDir = path.join(__dirname, '..', '..', '..', '..', 'test', 'unittest', 'applypatch', 'corpus')
