@@ -761,6 +761,11 @@ class Parser {
 /**
  * Parse an apply_patch formatted text into a Patch object.
  *
+ * Each file path appears at most once in the resulting {@link Patch.actions}.
+ * If the same file has multiple hunks, they are consolidated into the
+ * `chunks` array of a single {@link PatchAction}. Duplicate file paths
+ * in the patch text cause an error.
+ *
  * @param text - The patch text in apply_patch format
  * @param currentFiles - Map of file paths to their current content strings
  * @returns A tuple of [Patch, fuzzScore] where fuzzScore indicates
@@ -856,6 +861,9 @@ function getUpdatedFile(
 /**
  * Apply a parsed Patch to the original file contents and produce a Commit
  * describing all changes.
+ *
+ * Each file has at most one entry in the resulting Commit.
+ * For UPDATE actions, all chunks are merged into the final newContent.
  *
  * @param patch - Parsed patch from {@link textToPatch}
  * @param currentFiles - Map of file paths to their current content strings

@@ -320,6 +320,9 @@ export class ChatHandleManager {
                 if (change.movePath) {
                     stream.markdown(`Note: \`${relativePath}\` is marked for move to \`${change.movePath}\`. Moving files is not supported in this command. Please move the file manually.\n\n`)
                 } else {
+                    // Each file has at most one FileChange in the Commit (see patchToCommit),
+                    // so this TextEdit is emitted once per file. The full-range replacement
+                    // ensures that multiple hunks from the same patch are applied atomically.
                     const range = new vscode.Range(new vscode.Position(0, 0), new vscode.Position(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER))
                     stream.textEdit(uri, new vscode.TextEdit(range, change.newContent ?? ''))
                     appliedFiles.push(relativePath)
