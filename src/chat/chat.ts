@@ -81,7 +81,7 @@ export class ChatHandleManager {
             await this.fixMathFormatting(files, stream)
             return
         } else if (request.command === 'apply_patch') {
-            await this.applyPatchCommand(request.prompt, stream)
+            await this.applyPatchCommand(request.prompt, files, stream)
             return
         } else {
             this.extension.outputChannel.error(`Unknown command: ${request.command}`)
@@ -236,6 +236,7 @@ export class ChatHandleManager {
 
     private async applyPatchCommand(
         prompt: string,
+        attachedFiles: FileReference[],
         stream: vscode.ChatResponseStream,
     ): Promise<void> {
         let patchText: string
@@ -253,7 +254,8 @@ export class ChatHandleManager {
         }
 
         const affectedPaths = identifyFilesAffected(patchText)
-        const filePaths = await this.resolveFilePaths(affectedPaths, workspaceFolders)
+        const activeFileUri = vscode.window.activeTextEditor?.document.uri
+        const filePaths = await this.resolveFilePaths(affectedPaths, workspaceFolders, attachedFiles, activeFileUri)
 
         const unresolvedPaths = affectedPaths.filter(p => !filePaths.has(p))
         if (unresolvedPaths.length > 0) {
@@ -333,11 +335,42 @@ export class ChatHandleManager {
     private async resolveFilePaths(
         relativePaths: string[],
         workspaceFolders: readonly vscode.WorkspaceFolder[],
+        attachedFiles: FileReference[],
+        activeFileUri: vscode.Uri | undefined,
     ): Promise<Map<string, vscode.Uri>> {
         const result = new Map<string, vscode.Uri>()
 
+        // Build a basename index for attached files (first match wins)
+        const attachedByBasename = new Map<string, vscode.Uri>()
+        for (const ref of attachedFiles) {
+            if (ref.kind !== 'file') {
+                continue
+            }
+            const basename = path.basename(ref.uri.path)
+            if (!attachedByBasename.has(basename)) {
+                attachedByBasename.set(basename, ref.uri)
+            }
+        }
+
+        const activeBasename = activeFileUri ? path.basename(activeFileUri.path) : undefined
+
         for (const relativePath of relativePaths) {
-            // Try direct stat against each workspace folder
+            const basename = path.basename(relativePath)
+
+            // 1. Check attached files by basename
+            const attachedUri = attachedByBasename.get(basename)
+            if (attachedUri) {
+                result.set(relativePath, attachedUri)
+                continue
+            }
+
+            // 2. Check active file by basename
+            if (activeBasename === basename && activeFileUri) {
+                result.set(relativePath, activeFileUri)
+                continue
+            }
+
+            // 3. Try direct stat against each workspace folder
             let found = false
             for (const folder of workspaceFolders) {
                 const uri = vscode.Uri.joinPath(folder.uri, relativePath)
@@ -354,8 +387,7 @@ export class ChatHandleManager {
                 continue
             }
 
-            // Fallback: glob search by basename
-            const basename = path.basename(relativePath)
+            // 4. Fallback: glob search by basename
             const globPattern = `**/${basename}`
             const matches = await vscode.workspace.findFiles(globPattern, undefined, 1)
             if (matches.length > 0) {
