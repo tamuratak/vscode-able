@@ -56,9 +56,13 @@ export interface Patch {
 // -----------------------------------------------------------------------------
 
 export interface FileChange {
+	/** Type of change: add, delete, or update */
 	type: ActionType
+	/** Full content of the file before applying the patch. Present for delete and update operations; absent for add. */
 	oldContent?: string | undefined
+	/** Full content of the file after applying the patch. Present for add and update operations; absent for delete. */
 	newContent?: string | undefined
+	/** Destination path when the file is being moved, relative to the workspace root */
 	movePath?: string | undefined
 }
 
