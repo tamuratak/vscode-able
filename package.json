@@ -25,6 +25,7 @@
     "chatParticipantPrivate",
     "chatProvider",
     "chatTab",
+    "contribLanguageModelToolSets",
     "languageModelCapabilities",
     "languageModelPricing",
     "languageModelSystem",
@@ -95,6 +96,16 @@
         "displayName": "OpenCode Go with Able"
       }
     
+    ],
+    "languageModelToolSets": [
+      {
+        "name": "playwright",
+        "description": "Playwright Execution",
+        "tools": [
+          "playwrightExec",
+          "playwrightExecReset"
+        ]
+      }
     ],
     "languageModelTools": [
       {
