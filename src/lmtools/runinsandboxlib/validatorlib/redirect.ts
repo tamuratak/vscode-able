@@ -2,17 +2,18 @@ import type treeSitter from '#vscode-tree-sitter-wasm'
 import path from 'node:path'
 import { bashParser, collectCommands, getNodeText, normalizeToken, parserInitialization } from '../commandparser.js'
 
-export async function isAllowedPlanAppendCommand(command: string, workspaceRootPath: string | undefined): Promise<boolean> {
-    if (!workspaceRootPath) {
+export async function isAllowedPlanAppendCommand(command: string, workspaceRootPaths: string[] | undefined): Promise<boolean> {
+    if (!workspaceRootPaths || workspaceRootPaths.length === 0) {
         return false
     }
+
+    const roots: string[] = workspaceRootPaths
+    const normalizedWorkspaceRoots = roots.map(p => path.normalize(p))
 
     const commands = await collectCommands(command)
     if (!commands) {
         return false
     }
-
-    const normalizedWorkspaceRoot = path.normalize(workspaceRootPath)
 
     // Allowed command shapes (both use heredoc redirect appended to a file):
     //   1 command:  cat << 'EOF' >> plan.md         (bare cat reading from stdin)
@@ -30,13 +31,13 @@ export async function isAllowedPlanAppendCommand(command: string, workspaceRootP
         if (cdCmd.args.length !== 1 || catCmd.args.length !== 0) {
             return false
         }
-        // Require the cd target to be the workspace root so the cat runs in a known directory
+        // Require the cd target to be a workspace root so the cat runs in a known directory
         const cdTargetOrig = cdCmd.args[0]
         if (!path.isAbsolute(cdTargetOrig)) {
             return false
         }
         const cdTarget = path.normalize(cdTargetOrig)
-        if (cdTarget !== normalizedWorkspaceRoot) {
+        if (!normalizedWorkspaceRoots.some(r => cdTarget === r)) {
             return false
         }
     } else {
@@ -50,7 +51,7 @@ export async function isAllowedPlanAppendCommand(command: string, workspaceRootP
 
     const target = planAppendTargets[0]
     const allowRelativeTarget = commands.length === 2
-    return resolveAllowedPlanAppendTarget(target, normalizedWorkspaceRoot, allowRelativeTarget) !== undefined
+    return normalizedWorkspaceRoots.some(r => resolveAllowedPlanAppendTarget(target, r, allowRelativeTarget) !== undefined)
 }
 
 export async function collectPlanAppendTargets(source: string): Promise<string[]> {
