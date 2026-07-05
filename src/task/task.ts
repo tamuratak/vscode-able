@@ -78,7 +78,9 @@ export class MochaJsonTaskProvider implements vscode.TaskProvider {
                                 debugObj('MochaJsonTaskProvider error', error, this.extension.outputChannel)
                                 throw error
                             } finally {
-                                writeEmitter.fire('\r\nComplete.\r\n\r\n')
+                                const now = new Date()
+                                const ts = now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 })
+                                writeEmitter.fire(`\r\n${ts} [info] Complete.\r\n\r\n`)
                             }
                         })
                     )
