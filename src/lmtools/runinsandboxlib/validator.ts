@@ -5,14 +5,14 @@ import { validateNodeScript } from './nodevalidate.js'
 import { isAllowedPlanAppendCommand } from './validatorlib/redirect.js'
 
 
-export async function isAllowedCommand(command: string, workspaceRootPath: string | undefined): Promise<boolean> {
+export async function isAllowedCommand(command: string, workspaceRootPaths: string[] | undefined): Promise<boolean> {
     const forbiddenCharacters = /[~]/
     if (forbiddenCharacters.test(command)) {
         return false
     }
 
     // File redirection
-    const allowPlanAppend = await isAllowedPlanAppendCommand(command, workspaceRootPath)
+    const allowPlanAppend = await isAllowedPlanAppendCommand(command, workspaceRootPaths)
     if (!allowPlanAppend && !await hasNoWriteRedirection(command)) {
         return false
     }
@@ -22,7 +22,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
         return false
     }
 
-    const normalizedWorkspaceRoot = workspaceRootPath ? path.normalize(workspaceRootPath) : undefined
+    const normalizedWorkspaceRoots = workspaceRootPaths?.map(p => path.normalize(p)) ?? []
 
     for (const cmd of commands) {
         for (const arg of cmd.args) {
@@ -37,7 +37,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
         }
 
         // Sub-commands
-        if (await isAllowedSubCommand(cmd, workspaceRootPath)) {
+        if (await isAllowedSubCommand(cmd, normalizedWorkspaceRoots)) {
             continue
         }
 
@@ -70,7 +70,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
                 return false
             }
             const target = path.normalize(cmd.args[0])
-            if (!normalizedWorkspaceRoot || !isInside(target, normalizedWorkspaceRoot)) {
+            if (normalizedWorkspaceRoots.length === 0 || !normalizedWorkspaceRoots.some(r => isInside(target, r))) {
                 return false
             }
         }
@@ -81,7 +81,7 @@ export async function isAllowedCommand(command: string, workspaceRootPath: strin
 
 async function isAllowedSubCommand(
     command: CommandNode,
-    workspaceRootPath: string | undefined
+    normalizedWorkspaceRoots: string[]
 ): Promise<boolean> {
     if (command.command === 'git') {
         const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse)$/
@@ -89,29 +89,31 @@ async function isAllowedSubCommand(
         if (gitCmd && gitCmd.subCommand && validGitSubCommandsRegex.test(gitCmd.subCommand)) {
             const cpath = gitCmd.cPath
             if (cpath) {
-                if (workspaceRootPath && path.isAbsolute(cpath) && isInside(cpath, workspaceRootPath)) {
+                if (path.isAbsolute(cpath) && normalizedWorkspaceRoots.some(r => isInside(cpath, r))) {
                     return true
                 }
             } else {
                 return true
             }
         }
-    } else if (commandStartsWith(['lake', 'env', 'lean'], command) && workspaceRootPath) {
+    } else if (commandStartsWith(['lake', 'env', 'lean'], command) && normalizedWorkspaceRoots.length > 0) {
         // Lean 4's `lake env lean ./tmpdir/example.lean`
         if (command.args.length === 3) {
             const fileArg = command.args[2]
-            const fileArgPath = path.normalize(path.join(workspaceRootPath, fileArg))
-            const tmpDirPath = path.normalize(path.join(workspaceRootPath, './tmpdir'))
-            if (path.dirname(fileArgPath) === tmpDirPath) {
-                try {
-                    const fileContent = await fs.readFile(fileArgPath, 'utf-8')
-                    if (/\bIO\b/.test(fileContent) || /\bSystem\b/.test(fileContent)) {
+            for (const root of normalizedWorkspaceRoots) {
+                const fileArgPath = path.normalize(path.join(root, fileArg))
+                const tmpDirPath = path.normalize(path.join(root, './tmpdir'))
+                if (path.dirname(fileArgPath) === tmpDirPath) {
+                    try {
+                        const fileContent = await fs.readFile(fileArgPath, 'utf-8')
+                        if (/\bIO\b/.test(fileContent) || /\bSystem\b/.test(fileContent)) {
+                            return false
+                        } else {
+                            return true
+                        }
+                    } catch {
                         return false
-                    } else {
-                        return true
                     }
-                } catch {
-                    return false
                 }
             }
         }

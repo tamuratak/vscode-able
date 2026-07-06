@@ -13,7 +13,7 @@ suite('isAllowedPlanAppendCommand', () => {
 
 - 2026-03-28: update note
 EOF`
-        const result = await isAllowedPlanAppendCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
+        const result = await isAllowedPlanAppendCommand(cmd, ['/Users/tamura/src/github/lean4-examples/ex01'])
         assert.strictEqual(result, true)
     })
 
@@ -22,7 +22,7 @@ EOF`
 
 - 2026-03-28: update note
 EOF`
-        const result = await isAllowedPlanAppendCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
+        const result = await isAllowedPlanAppendCommand(cmd, ['/Users/tamura/src/github/lean4-examples/ex01'])
         assert.strictEqual(result, true)
     })
 
@@ -31,7 +31,7 @@ EOF`
 
 - 2026-03-28: update note
 EOF`
-        const result = await isAllowedPlanAppendCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
+        const result = await isAllowedPlanAppendCommand(cmd, ['/Users/tamura/src/github/lean4-examples/ex01'])
         assert.strictEqual(result, true)
     })
 
@@ -40,7 +40,7 @@ EOF`
 
 - 2026-03-28: update note
 EOF`
-        const result = await isAllowedPlanAppendCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
+        const result = await isAllowedPlanAppendCommand(cmd, ['/Users/tamura/src/github/lean4-examples/ex01'])
         assert.strictEqual(result, false)
     })
 
@@ -49,7 +49,7 @@ EOF`
 
 - 2026-03-28: update note
 EOF`
-        const result = await isAllowedPlanAppendCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
+        const result = await isAllowedPlanAppendCommand(cmd, ['/Users/tamura/src/github/lean4-examples/ex01'])
         assert.strictEqual(result, false)
     })
 
@@ -61,7 +61,7 @@ EOF`
 
     test('disallows cat with arguments (not bare cat)', async () => {
         const cmd = 'cat file.txt >> plan.md <<\'EOF\'\ndata\nEOF'
-        const result = await isAllowedPlanAppendCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
+        const result = await isAllowedPlanAppendCommand(cmd, ['/Users/tamura/src/github/lean4-examples/ex01'])
         assert.strictEqual(result, false)
     })
 
@@ -69,13 +69,38 @@ EOF`
         const cmd = `cd /Users/tamura/src/github/other && cat >> plan.md <<'EOF'
 data
 EOF`
-        const result = await isAllowedPlanAppendCommand(cmd, '/Users/tamura/src/github/lean4-examples/ex01')
+        const result = await isAllowedPlanAppendCommand(cmd, ['/Users/tamura/src/github/lean4-examples/ex01'])
         assert.strictEqual(result, false)
     })
 
     test('disallows more than two commands', async () => {
         const cmd = 'cd /path && echo x && cat >> plan.md <<\'EOF\'\ndata\nEOF'
-        const result = await isAllowedPlanAppendCommand(cmd, '/path')
+        const result = await isAllowedPlanAppendCommand(cmd, ['/path'])
+        assert.strictEqual(result, false)
+    })
+
+    // multi-root workspace tests
+    test('allows cd to the second workspace root for plan.md append', async () => {
+        const cmd = `cd /Users/tamura/src/github/vscode-able && cat >> plan.md <<'EOF'
+- note
+EOF`
+        const result = await isAllowedPlanAppendCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat', '/Users/tamura/src/github/vscode-able'])
+        assert.strictEqual(result, true)
+    })
+
+    test('allows cd to the first workspace root for plan.md append in multi-root', async () => {
+        const cmd = `cd /Users/tamura/src/github/vscode-copilot-chat && cat >> plan.md <<'EOF'
+- note
+EOF`
+        const result = await isAllowedPlanAppendCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat', '/Users/tamura/src/github/vscode-able'])
+        assert.strictEqual(result, true)
+    })
+
+    test('disallows cd to non-workspace path in multi-root', async () => {
+        const cmd = `cd /Users/tamura/src/github/other && cat >> plan.md <<'EOF'
+- note
+EOF`
+        const result = await isAllowedPlanAppendCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat', '/Users/tamura/src/github/vscode-able'])
         assert.strictEqual(result, false)
     })
 })

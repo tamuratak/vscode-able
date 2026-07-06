@@ -63,8 +63,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
     }
 
     async prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<RunInSandboxInput>) {
-        const workspaceRootPath = vscode.workspace.workspaceFolders?.[0].uri.fsPath
-        const isAllowed = await isAllowedCommand(options.input.command, workspaceRootPath)
+        const workspaceRootPaths = vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath)
+        const isAllowed = await isAllowedCommand(options.input.command, workspaceRootPaths)
         if (isAllowed) {
             return {
                 invocationMessage: 'Run command by using sandbox-exec'
@@ -93,8 +93,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
     }
 
     async invoke(options: LanguageModelToolInvocationOptions<RunInSandboxInput>, token: CancellationToken) {
-        const workspaceRootPath = vscode.workspace.workspaceFolders?.[0].uri.fsPath
-        const isAllowed = await isAllowedCommand(options.input.command, workspaceRootPath)
+        const workspaceRootPaths = vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath)
+        const isAllowed = await isAllowedCommand(options.input.command, workspaceRootPaths)
         if (this.skipMode && !isAllowed) {
             return new LanguageModelToolResult([new LanguageModelTextPart(
                 'The user chose to skip this tool call. This command will not be executed. ' +
