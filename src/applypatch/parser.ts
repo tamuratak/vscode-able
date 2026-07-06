@@ -467,7 +467,7 @@ class Parser {
 				? this.lines[this.index]
 				: this.lines[this.index].slice(prefix.length)
 			this.index += 1
-			return text ?? ''
+			return text
 		}
 		return ''
 	}

@@ -242,8 +242,11 @@ export class ChatHandleManager {
         let patchText: string
         try {
             patchText = stripCodeBlockFences(prompt)
-        } catch {
-            stream.markdown('Error: Patch text is empty.')
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Unknown error'
+            stream.markdown(`Error: ${msg}
+
+`)
             return
         }
 
