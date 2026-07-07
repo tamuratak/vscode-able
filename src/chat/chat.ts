@@ -11,6 +11,9 @@ import { browserPromise } from '../fetchwebpage/browser.js'
 import { getFullAXTree } from '../fetchwebpage/axtree.js'
 import { AXNode, convertAXTreeToMarkdown } from '../fetchwebpage/cdpaccessibilitydomain.js'
 import { doFixMath } from './fixmathlib/fix.js'
+import { textToPatch, patchToCommit, identifyFilesAffected, stripCodeBlockFences } from '../applypatch/parser.js'
+import { ActionType, DiffError, InvalidContextError, InvalidPatchFormatError, type Patch, type Commit } from '../applypatch/types.js'
+import path from 'node:path'
 
 
 export type RequestCommands = 'fluent' | 'fluent_ja' | 'to_en' | 'to_ja'
@@ -76,6 +79,9 @@ export class ChatHandleManager {
             return
         } else if (request.command === 'fixmath') {
             await this.fixMathFormatting(files, stream)
+            return
+        } else if (request.command === 'apply_patch') {
+            await this.applyPatchCommand(request.prompt, files, stream)
             return
         } else {
             this.extension.outputChannel.error(`Unknown command: ${request.command}`)
@@ -226,6 +232,188 @@ export class ChatHandleManager {
             }
         }
         return
+    }
+
+    private async applyPatchCommand(
+        prompt: string,
+        attachedFiles: FileReference[],
+        stream: vscode.ChatResponseStream,
+    ): Promise<void> {
+        let patchText: string
+        try {
+            patchText = stripCodeBlockFences(prompt)
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Unknown error'
+            stream.markdown(`Error: ${msg}
+
+`)
+            return
+        }
+
+        const workspaceFolders = vscode.workspace.workspaceFolders
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            stream.markdown('Error: No workspace folder is open.')
+            return
+        }
+
+        const affectedPaths = identifyFilesAffected(patchText)
+        const activeFileUri = vscode.window.activeTextEditor?.document.uri
+        const filePaths = await this.resolveFilePaths(affectedPaths, workspaceFolders, attachedFiles, activeFileUri)
+
+        const unresolvedPaths = affectedPaths.filter(p => !filePaths.has(p))
+        if (unresolvedPaths.length > 0) {
+            stream.markdown(`Error: The following files were not found in the workspace:\n\n${unresolvedPaths.map(p => `- \`${p}\``).join('\n')}\n\n`)
+            if (filePaths.size === 0) {
+                return
+            }
+        }
+
+        const currentFiles: Record<string, string> = {}
+        for (const [relativePath, uri] of filePaths) {
+            try {
+                const buf = await vscode.workspace.fs.readFile(uri)
+                currentFiles[relativePath] = new TextDecoder().decode(buf)
+            } catch {
+                stream.markdown(`Error: Failed to read file: \`${relativePath}\`\n\n`)
+                filePaths.delete(relativePath)
+            }
+        }
+
+        if (filePaths.size === 0) {
+            stream.markdown('Error: No files could be read.')
+            return
+        }
+
+        let patch: Patch
+        try {
+            [patch] = textToPatch(patchText, currentFiles)
+        } catch (error) {
+            const oc = this.extension.outputChannel
+            oc.error(`[apply_patch] patchText:\n${patchText}`)
+            for (const [k, v] of Object.entries(currentFiles)) {
+                oc.error(`[apply_patch] currentFiles["${k}"] (first 500 chars):\n${v.slice(0, 500)}`)
+            }
+            if (error instanceof InvalidContextError) {
+                oc.error(`[apply_patch] kindForTelemetry: ${error.kindForTelemetry}`)
+                oc.error(`[apply_patch] file content (first 500 chars):\n${error.file.slice(0, 500)}`)
+            }
+            if (error instanceof Error) {
+                oc.error(`[apply_patch] error stack: ${error.stack}`)
+            }
+            if (error instanceof DiffError || error instanceof InvalidPatchFormatError || error instanceof InvalidContextError) {
+                stream.markdown(`Error parsing patch: ${error.message}\n\n`)
+            } else {
+                stream.markdown('Unexpected error parsing patch.\n\n')
+            }
+            return
+        }
+
+        let commit: Commit
+        try {
+            commit = patchToCommit(patch, currentFiles)
+        } catch (error) {
+            if (error instanceof DiffError) {
+                stream.markdown(`Error applying patch: ${error.message}\n\n`)
+            } else {
+                stream.markdown('Unexpected error applying patch.\n\n')
+            }
+            return
+        }
+
+        const appliedFiles: string[] = []
+        for (const [relativePath, change] of Object.entries(commit.changes)) {
+            const uri = filePaths.get(relativePath)
+            if (!uri) {
+                continue
+            }
+
+            if (change.type === ActionType.DELETE) {
+                stream.markdown(`Note: \`${relativePath}\` is marked for deletion. Please delete the file manually.\n\n`)
+            } else if (change.type === ActionType.ADD) {
+                stream.markdown(`Note: \`${relativePath}\` is a new file. Adding files is not supported in this command. Please create the file manually.\n\n`)
+            } else if (change.type === ActionType.UPDATE) {
+                if (change.movePath) {
+                    stream.markdown(`Note: \`${relativePath}\` is marked for move to \`${change.movePath}\`. Moving files is not supported in this command. Please move the file manually.\n\n`)
+                } else {
+                    // Each file has at most one FileChange in the Commit (see patchToCommit),
+                    // so this TextEdit is emitted once per file. The full-range replacement
+                    // ensures that multiple hunks from the same patch are applied atomically.
+                    const range = new vscode.Range(new vscode.Position(0, 0), new vscode.Position(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER))
+                    stream.textEdit(uri, new vscode.TextEdit(range, change.newContent ?? ''))
+                    appliedFiles.push(relativePath)
+                }
+            }
+        }
+
+        if (appliedFiles.length > 0) {
+            stream.markdown(`Applied patch to ${appliedFiles.length} file(s): ${appliedFiles.map(f => `\`${f}\``).join(', ')}`)
+        }
+    }
+
+    private async resolveFilePaths(
+        relativePaths: string[],
+        workspaceFolders: readonly vscode.WorkspaceFolder[],
+        attachedFiles: FileReference[],
+        activeFileUri: vscode.Uri | undefined,
+    ): Promise<Map<string, vscode.Uri>> {
+        const result = new Map<string, vscode.Uri>()
+
+        // Build a basename index for attached files (first match wins)
+        const attachedByBasename = new Map<string, vscode.Uri>()
+        for (const ref of attachedFiles) {
+            if (ref.kind !== 'file') {
+                continue
+            }
+            const basename = path.basename(ref.uri.path)
+            if (!attachedByBasename.has(basename)) {
+                attachedByBasename.set(basename, ref.uri)
+            }
+        }
+
+        const activeBasename = activeFileUri ? path.basename(activeFileUri.path) : undefined
+
+        for (const relativePath of relativePaths) {
+            const basename = path.basename(relativePath)
+
+            // 1. Check attached files by basename
+            const attachedUri = attachedByBasename.get(basename)
+            if (attachedUri) {
+                result.set(relativePath, attachedUri)
+                continue
+            }
+
+            // 2. Check active file by basename
+            if (activeBasename === basename && activeFileUri) {
+                result.set(relativePath, activeFileUri)
+                continue
+            }
+
+            // 3. Try direct stat against each workspace folder
+            let found = false
+            for (const folder of workspaceFolders) {
+                const uri = vscode.Uri.joinPath(folder.uri, relativePath)
+                try {
+                    await vscode.workspace.fs.stat(uri)
+                    result.set(relativePath, uri)
+                    found = true
+                    break
+                } catch {
+                    // not found in this folder, try next
+                }
+            }
+            if (found) {
+                continue
+            }
+
+            // 4. Fallback: glob search by basename
+            const globPattern = `**/${basename}`
+            const matches = await vscode.workspace.findFiles(globPattern, undefined, 1)
+            if (matches.length > 0) {
+                result.set(relativePath, matches[0])
+            }
+        }
+
+        return result
     }
 
 }
