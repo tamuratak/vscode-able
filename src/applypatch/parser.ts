@@ -831,6 +831,7 @@ export function textToPatch(
  * Convert fuzz flags to a human-readable pass description.
  */
 function fuzzToPass(fuzz: Fuzz): number {
+	// Pass 1 = exact match (fuzz=0), 2 = trailing WS, 3 = tab, 4 = NL, 5 = whitespace, 6 = edit distance
 	if (fuzz & Fuzz.EditDistanceMatch) {
 		return 6
 	}

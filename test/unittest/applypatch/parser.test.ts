@@ -690,3 +690,52 @@ suite('stripCodeBlockFences', () => {
 		assert.strictEqual(stripCodeBlockFences(input), '*** Begin Patch\n*** End Patch')
 	})
 })
+
+suite('InvalidContextError diagnostics', () => {
+	test('contains contextLines and lineIndex when context does not match', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: f.ts',
+			'@@',
+			' totally different context that does not exist',
+			'-old',
+			'+new',
+			'*** End Patch',
+		].join('\n')
+
+		assert.throws(
+			() => textToPatch(patchText, { 'f.ts': 'completely unrelated\nold\n' }),
+			(error: unknown) => {
+				assert.ok(error instanceof InvalidContextError)
+				assert.ok(Array.isArray(error.contextLines))
+				assert.strictEqual(error.contextLines[0], 'totally different context that does not exist')
+				assert.strictEqual(typeof error.lineIndex, 'number')
+				return true
+			},
+		)
+	})
+})
+
+suite('logger injection', () => {
+	test('calls logger.debug on successful context match', () => {
+		const messages: string[] = []
+		const logger = { debug: (msg: string) => { messages.push(msg) } }
+
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: f.ts',
+			'@@',
+			' function hello() {',
+			'-  console.log("old")',
+			'+  console.log("new")',
+			' }',
+			'*** End Patch',
+		].join('\n')
+
+		textToPatch(patchText, { 'f.ts': 'function hello() {\n  console.log("old")\n}\n' }, logger)
+
+		assert.ok(messages.length > 0)
+		assert.ok(messages[0].includes('[apply_patch] MATCH:'))
+		assert.ok(messages[0].includes('f.ts'))
+	})
+})
