@@ -656,6 +656,8 @@ class Parser {
 						text,
 						filePath,
 						'invalidContext-eof',
+						ctxLines,
+						index,
 					)
 				} else {
 					const kindForTelemetry = ctxLines[0]?.match(/^\\t/)
@@ -668,6 +670,8 @@ class Parser {
 						text,
 						filePath,
 						kindForTelemetry,
+						ctxLines,
+						index,
 					)
 				}
 			}

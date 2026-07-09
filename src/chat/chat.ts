@@ -293,15 +293,24 @@ export class ChatHandleManager {
             for (const [k, v] of Object.entries(currentFiles)) {
                 oc.error(`[apply_patch] currentFiles["${k}"] (first 500 chars):\n${v.slice(0, 500)}`)
             }
-            if (error instanceof InvalidContextError) {
-                oc.error(`[apply_patch] kindForTelemetry: ${error.kindForTelemetry}`)
-                oc.error(`[apply_patch] file content (first 500 chars):\n${error.file.slice(0, 500)}`)
-            }
             if (error instanceof Error) {
                 oc.error(`[apply_patch] error stack: ${error.stack}`)
             }
-            if (error instanceof DiffError || error instanceof InvalidPatchFormatError || error instanceof InvalidContextError) {
-                stream.markdown(`Error parsing patch: ${error.message}\n\n`)
+            if (error instanceof InvalidContextError) {
+                const contextLineRange = Math.min(error.contextLines.length, 5)
+                const contextLabel = error.contextLines.length > contextLineRange
+                    ? ` (first ${contextLineRange} of ${error.contextLines.length} lines)`
+                    : ''
+                stream.markdown('**Context mismatch** — patch could not find expected lines in the file.\n\n')
+                stream.markdown(`**File**: \`${error.filePath}\`  \n`)
+                stream.markdown(`**Near line**: ${error.lineIndex + 1}  \n`)
+                stream.markdown(`**Patch expected${contextLabel}:**\n`)
+                stream.markdown('\n````\n' + error.contextLines.slice(0, contextLineRange).join('\n') + '\n````\n\n')
+                stream.markdown(`**Reason**: ${error.kindForTelemetry}\n\n`)
+            } else if (error instanceof InvalidPatchFormatError) {
+                stream.markdown(`**Invalid patch format**: ${error.message}\n\n`)
+            } else if (error instanceof DiffError) {
+                stream.markdown(`**Patch error**: ${error.message}\n\n`)
             } else {
                 stream.markdown('Unexpected error parsing patch.\n\n')
             }

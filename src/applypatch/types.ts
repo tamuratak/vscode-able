@@ -123,6 +123,8 @@ export class InvalidContextError extends DiffError {
 		public readonly file: string,
 		public readonly filePath: string,
 		public readonly kindForTelemetry: string,
+		public readonly contextLines: string[],
+		public readonly lineIndex: number,
 	) {
 		super(message)
 	}
