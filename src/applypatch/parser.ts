@@ -27,7 +27,7 @@
  * ```
  */
 
-import { DiffError, Fuzz, FuzzMatch, IGuessedIndentation, InvalidContextError, InvalidPatchFormatError, Patch, PatchAction, ActionType, Chunk, Commit } from './types.js'
+import { DiffError, Fuzz, FuzzMatch, IGuessedIndentation, InvalidContextError, InvalidPatchFormatError, Logger, Patch, PatchAction, ActionType, Chunk, Commit } from './types.js'
 import {
 	ADD_FILE_PREFIX,
 	DELETE_FILE_PREFIX,
@@ -419,6 +419,7 @@ class Parser {
 	constructor(
 		private readonly currentFiles: Record<string, string>,
 		lines: string[],
+		private readonly logger?: Logger,
 	) {
 		// Preprocess: strip erroneous -/+ prefix from @@ hunk header lines.
 		// LLMs sometimes output "-@@ -1,5 +1,5 @@" instead of "@@ -1,5 +1,5 @@".
@@ -676,6 +677,13 @@ class Parser {
 				}
 			}
 			this.fuzz += match.fuzz
+			if (this.logger) {
+				const ctxPreview = nextSection.nextChunkContext.slice(0, 2).map(l => l.trimStart()).join(' | ')
+				const fileContent = fileLines[match.line] ?? ''
+				this.logger.debug(
+					`[apply_patch] MATCH: file='${filePath}' pass=${fuzzToPass(match.fuzz)} fuzz=${fuzzToString(match.fuzz)} matchedLine=${match.line + 1} ctx=[${ctxPreview}] fileContent=[${fileContent.trimStart()}]`,
+				)
+			}
 			const srcIndentStyle = guessIndentation(
 				nextSection.chunks
 					.flatMap((c) => c.insLines)
@@ -793,6 +801,7 @@ class Parser {
 export function textToPatch(
 	text: string,
 	currentFiles: Record<string, string>,
+	logger?: Logger,
 ): [Patch, number] {
 	const lines = text.trim().split('\n')
 	if (lines.length < 2) {
@@ -812,10 +821,58 @@ export function textToPatch(
 	if (lines[lines.length - 1] !== patchSuffix) {
 		lines.push(patchSuffix)
 	}
-	const parser = new Parser(currentFiles, lines)
+	const parser = new Parser(currentFiles, lines, logger)
 	parser.index = 1
 	parser.parse()
 	return [parser.patch, parser.fuzz]
+}
+
+/**
+ * Convert fuzz flags to a human-readable pass description.
+ */
+function fuzzToPass(fuzz: Fuzz): number {
+	if (fuzz & Fuzz.EditDistanceMatch) {
+		return 6
+	}
+	if (fuzz & Fuzz.IgnoredWhitespace) {
+		return 5
+	}
+	if (fuzz & Fuzz.NormalizedExplicitNL) {
+		return 4
+	}
+	if (fuzz & Fuzz.NormalizedExplicitTab) {
+		return 3
+	}
+	if (fuzz & Fuzz.IgnoredTrailingWhitespace) {
+		return 2
+	}
+	return 1
+}
+
+function fuzzToString(fuzz: Fuzz): string {
+	const flags: string[] = []
+	if (fuzz & Fuzz.IgnoredTrailingWhitespace) {
+		flags.push('TrailingWS')
+	}
+	if (fuzz & Fuzz.NormalizedExplicitTab) {
+		flags.push('Tab')
+	}
+	if (fuzz & Fuzz.NormalizedExplicitNL) {
+		flags.push('NL')
+	}
+	if (fuzz & Fuzz.IgnoredWhitespace) {
+		flags.push('AllWS')
+	}
+	if (fuzz & Fuzz.EditDistanceMatch) {
+		flags.push('EditDist')
+	}
+	if (fuzz & Fuzz.IgnoredEofSignal) {
+		flags.push('Eof')
+	}
+	if (fuzz & Fuzz.MergedOperatorSection) {
+		flags.push('Merged')
+	}
+	return flags.length > 0 ? flags.join('+') : 'None'
 }
 
 /**

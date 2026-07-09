@@ -284,11 +284,11 @@ export class ChatHandleManager {
             return
         }
 
+        const oc = this.extension.outputChannel
         let patch: Patch
         try {
-            [patch] = textToPatch(patchText, currentFiles)
+            [patch] = textToPatch(patchText, currentFiles, oc)
         } catch (error) {
-            const oc = this.extension.outputChannel
             oc.error(`[apply_patch] patchText:\n${patchText}`)
             for (const [k, v] of Object.entries(currentFiles)) {
                 oc.error(`[apply_patch] currentFiles["${k}"] (first 500 chars):\n${v.slice(0, 500)}`)
