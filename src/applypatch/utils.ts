@@ -465,61 +465,6 @@ export function computeIndentLevel2(
 	return Math.floor(result / tabSize)
 }
 
-function nextIndentTabStop(
-	visibleColumn: number,
-	indentSize: number,
-): number {
-	return visibleColumn + indentSize - (visibleColumn % indentSize)
-}
-
-function normalizeIndentationFromWhitespace(
-	str: string,
-	indentSize: number,
-	insertSpaces: boolean,
-): string {
-	let spacesCnt = 0
-	for (let i = 0; i < str.length; i++) {
-		if (str.charAt(i) === '\t') {
-			spacesCnt = nextIndentTabStop(spacesCnt, indentSize)
-		} else {
-			spacesCnt++
-		}
-	}
-
-	let result = ''
-	if (!insertSpaces) {
-		const tabsCnt = Math.floor(spacesCnt / indentSize)
-		spacesCnt = spacesCnt % indentSize
-		for (let i = 0; i < tabsCnt; i++) {
-			result += '\t'
-		}
-	}
-
-	for (let i = 0; i < spacesCnt; i++) {
-		result += ' '
-	}
-
-	return result
-}
-
-export function normalizeIndentation(
-	str: string,
-	indentSize: number,
-	insertSpaces: boolean,
-): string {
-	let fnwi = firstNonWhitespaceIndex(str)
-	if (fnwi === -1) {
-		fnwi = str.length
-	}
-	return (
-		normalizeIndentationFromWhitespace(
-			str.substring(0, fnwi),
-			indentSize,
-			insertSpaces,
-		) + str.substring(fnwi)
-	)
-}
-
 export function getIndentationChar(indentation: IGuessedIndentation): string {
 	if (indentation.insertSpaces) {
 		return ' '.repeat(indentation.tabSize)
