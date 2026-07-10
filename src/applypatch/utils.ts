@@ -465,61 +465,6 @@ export function computeIndentLevel2(
 	return Math.floor(result / tabSize)
 }
 
-function nextIndentTabStop(
-	visibleColumn: number,
-	indentSize: number,
-): number {
-	return visibleColumn + indentSize - (visibleColumn % indentSize)
-}
-
-function normalizeIndentationFromWhitespace(
-	str: string,
-	indentSize: number,
-	insertSpaces: boolean,
-): string {
-	let spacesCnt = 0
-	for (let i = 0; i < str.length; i++) {
-		if (str.charAt(i) === '\t') {
-			spacesCnt = nextIndentTabStop(spacesCnt, indentSize)
-		} else {
-			spacesCnt++
-		}
-	}
-
-	let result = ''
-	if (!insertSpaces) {
-		const tabsCnt = Math.floor(spacesCnt / indentSize)
-		spacesCnt = spacesCnt % indentSize
-		for (let i = 0; i < tabsCnt; i++) {
-			result += '\t'
-		}
-	}
-
-	for (let i = 0; i < spacesCnt; i++) {
-		result += ' '
-	}
-
-	return result
-}
-
-export function normalizeIndentation(
-	str: string,
-	indentSize: number,
-	insertSpaces: boolean,
-): string {
-	let fnwi = firstNonWhitespaceIndex(str)
-	if (fnwi === -1) {
-		fnwi = str.length
-	}
-	return (
-		normalizeIndentationFromWhitespace(
-			str.substring(0, fnwi),
-			indentSize,
-			insertSpaces,
-		) + str.substring(fnwi)
-	)
-}
-
 export function getIndentationChar(indentation: IGuessedIndentation): string {
 	if (indentation.insertSpaces) {
 		return ' '.repeat(indentation.tabSize)
@@ -602,27 +547,56 @@ export function stripCodeBlockFences(text: string): string {
 }
 
 // -----------------------------------------------------------------------------
-// Filepath comment helpers
-// -----------------------------------------------------------------------------
-
-const HASH_COMMENT_EXTENSIONS =
-	/\.(py|rb|pl|sh|bash|zsh|fish|yaml|yml|toml|ini|cfg|conf|cmake|r|R|jl|hs|elm)$/i
-
-/**
- * Generate a filepath comment line for the given file path.
- * Uses `//` for most files, `#` for shell scripts and similar.
- */
-export function getFilepathComment(filePath: string): string {
-	const useHash = HASH_COMMENT_EXTENSIONS.test(filePath.trimEnd())
-	if (useHash) {
-		return `# filepath: ${filePath}\n`
-	}
-	return `// filepath: ${filePath}\n`
-}
-
-// -----------------------------------------------------------------------------
 // File identification utilities
 // -----------------------------------------------------------------------------
+
+// One-directional extension alternatives with priority order.
+// Key = source extension (from patch), value = ordered list of extensions to try.
+// Earlier entries have higher priority. The source extension itself is included
+// as a lower-priority fallback when it also exists.
+const EXTENSION_ALTERNATIVES: Record<string, string[]> = {
+	'.txt': ['.tex', '.txt'],
+}
+
+/**
+ * Check whether the given file extension has alternative extensions defined.
+ */
+export function hasExtensionAlternatives(filePath: string): boolean {
+	const dotIndex = filePath.lastIndexOf('.')
+	if (dotIndex === -1) {
+		return false
+	}
+	return filePath.slice(dotIndex) in EXTENSION_ALTERNATIVES
+}
+
+/**
+ * Resolve a file path against currentFiles, trying extension alternatives
+ * in priority order if the exact path is not found.
+ *
+ * @returns The resolved path if found, or undefined if not found.
+ */
+export function resolveFilePath(
+	path: string,
+	currentFiles: Record<string, string>,
+): string | undefined {
+	const dotIndex = path.lastIndexOf('.')
+	if (dotIndex === -1) {
+		return path in currentFiles ? path : undefined
+	}
+	const ext = path.slice(dotIndex)
+	const alternatives = EXTENSION_ALTERNATIVES[ext]
+	if (alternatives === undefined) {
+		return path in currentFiles ? path : undefined
+	}
+	const base = path.slice(0, dotIndex)
+	for (const altExt of alternatives) {
+		const candidate = base + altExt
+		if (candidate in currentFiles) {
+			return candidate
+		}
+	}
+	return undefined
+}
 
 export function identifyFilesAffected(text: string): string[] {
 	const lines = text.trim().split('\n')

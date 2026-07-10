@@ -42,13 +42,13 @@ import {
 import {
 	computeLevenshteinDistance,
 	count,
-	getFilepathComment,
 	getIndentationChar,
 	guessIndentation,
-
+	hasExtensionAlternatives,
 	isFalsyOrWhitespace,
 	transformIndentation,
 	computeIndentLevel2,
+	resolveFilePath,
 } from './utils.js'
 
 const CHUNK_DELIMITER = '@@'
@@ -234,21 +234,11 @@ function findContextCore(
 }
 
 function findContext(
-	path: string,
 	lines: string[],
 	context: string[],
 	start: number,
 	eof: boolean,
 ): FuzzMatch | undefined {
-	// Skip filepath comments in provided context
-	path = path.trim()
-	if (lines[0]?.includes(path)) {
-		lines = lines.slice(1)
-	}
-	if (context[0]?.includes(path)) {
-		context = context.slice(1)
-	}
-
 	if (eof) {
 		const match1 = findContextCore(
 			lines,
@@ -483,21 +473,28 @@ class Parser {
 					)
 				}
 				const moveTo = this.readStr(MOVE_FILE_TO_PREFIX)
-				if (!(path in this.currentFiles)) {
+				const resolvedPath = resolveFilePath(path, this.currentFiles)
+				if (this.logger && resolvedPath !== undefined && resolvedPath !== path) {
+					this.logger.debug(`[apply_patch] RESOLVE: '${path}' → '${resolvedPath}'`)
+				}
+				if (resolvedPath === undefined) {
+					const hint = hasExtensionAlternatives(path)
+						? ' (also tried alternative extensions)'
+						: ''
 					throw new DiffError(
-						`Update File Error: Missing File: ${path}`,
+						`Update File Error: Missing File: ${path}${hint}`,
 					)
 				}
-				const indentStyle = this.indentStyles[path]
-				const text = this.currentFiles[path]
-				const filepathComment = getFilepathComment(path)
+				const indentStyle = this.indentStyles[resolvedPath]
+				const text = this.currentFiles[resolvedPath]
 				const action = this.parseUpdateFile(
 					path,
-					filepathComment,
+					resolvedPath,
 					text,
 					indentStyle,
 				)
 				action.movePath = moveTo || undefined
+				action.resolvedPath = resolvedPath
 				this.patch.actions[path] = action
 				continue
 			}
@@ -508,14 +505,22 @@ class Parser {
 						`Delete File Error: Duplicate Path: ${path}`,
 					)
 				}
-				if (!(path in this.currentFiles)) {
+				const deleteResolvedPath = resolveFilePath(path, this.currentFiles)
+				if (this.logger && deleteResolvedPath !== undefined && deleteResolvedPath !== path) {
+					this.logger.debug(`[apply_patch] RESOLVE: '${path}' → '${deleteResolvedPath}'`)
+				}
+				if (deleteResolvedPath === undefined) {
+					const hint = hasExtensionAlternatives(path)
+						? ' (also tried alternative extensions)'
+						: ''
 					throw new DiffError(
-						`Delete File Error: Missing File: ${path}`,
+						`Delete File Error: Missing File: ${path}${hint}`,
 					)
 				}
 				this.patch.actions[path] = {
 					type: ActionType.DELETE,
 					chunks: [],
+					resolvedPath: deleteResolvedPath,
 				}
 				continue
 			}
@@ -549,7 +554,7 @@ class Parser {
 
 	private parseUpdateFile(
 		filePath: string,
-		filepathComment: string,
+		resolvedPath: string,
 		text: string,
 		targetIndentStyle: IGuessedIndentation,
 	): PatchAction {
@@ -559,7 +564,7 @@ class Parser {
 		}
 		const fileLines = text.split('\n')
 		const replaceExplicitTabsByDefault =
-			!AVOID_EXPLICIT_TABS_REGEX.test(filepathComment.trimEnd())
+			!AVOID_EXPLICIT_TABS_REGEX.test(resolvedPath.trimEnd())
 		let index = 0
 
 		while (
@@ -626,7 +631,6 @@ class Parser {
 					nextSection = peekNextSection(this.lines, this.index, i)
 				}
 				match = findContext(
-					filepathComment,
 					fileLines,
 					nextSection.nextChunkContext,
 					index,
@@ -634,7 +638,6 @@ class Parser {
 				)
 				if (!match) {
 					match = findContext(
-						filepathComment,
 						fileLines,
 						nextSection.nextChunkContext,
 						0,
@@ -831,6 +834,7 @@ export function textToPatch(
  * Convert fuzz flags to a human-readable pass description.
  */
 function fuzzToPass(fuzz: Fuzz): number {
+	// Pass 1 = exact match (fuzz=0), 2 = trailing WS, 3 = tab, 4 = NL, 5 = whitespace, 6 = edit distance
 	if (fuzz & Fuzz.EditDistanceMatch) {
 		return 6
 	}
@@ -948,10 +952,11 @@ export function patchToCommit(
 ): Commit {
 	const commit: Commit = { changes: {} }
 	for (const [pathKey, action] of Object.entries(patch.actions)) {
+		const commitKey = action.resolvedPath ?? pathKey
 		if (action.type === ActionType.DELETE) {
-			commit.changes[pathKey] = {
+			commit.changes[commitKey] = {
 				type: ActionType.DELETE,
-				oldContent: currentFiles[pathKey],
+				oldContent: currentFiles[commitKey],
 			}
 		} else if (action.type === ActionType.ADD) {
 			commit.changes[pathKey] = {
@@ -959,14 +964,14 @@ export function patchToCommit(
 				newContent: action.newFile ?? '',
 			}
 		} else if (action.type === ActionType.UPDATE) {
-			const text = currentFiles[pathKey]
+			const text = currentFiles[commitKey]
 			if (text === undefined) {
 				throw new DiffError(
 					`Update File Error: Missing File: ${pathKey}`,
 				)
 			}
-			const newContent = getUpdatedFile(text, action, pathKey)
-			commit.changes[pathKey] = {
+			const newContent = getUpdatedFile(text, action, commitKey)
+			commit.changes[commitKey] = {
 				type: ActionType.UPDATE,
 				oldContent: text,
 				newContent,
