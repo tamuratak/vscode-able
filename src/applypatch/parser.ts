@@ -42,11 +42,9 @@ import {
 import {
 	computeLevenshteinDistance,
 	count,
-	getFilepathComment,
 	getIndentationChar,
 	guessIndentation,
 	hasExtensionAlternatives,
-
 	isFalsyOrWhitespace,
 	transformIndentation,
 	computeIndentLevel2,
@@ -236,21 +234,11 @@ function findContextCore(
 }
 
 function findContext(
-	path: string,
 	lines: string[],
 	context: string[],
 	start: number,
 	eof: boolean,
 ): FuzzMatch | undefined {
-	// Skip filepath comments in provided context
-	path = path.trim()
-	if (lines[0]?.includes(path)) {
-		lines = lines.slice(1)
-	}
-	if (context[0]?.includes(path)) {
-		context = context.slice(1)
-	}
-
 	if (eof) {
 		const match1 = findContextCore(
 			lines,
@@ -499,10 +487,9 @@ class Parser {
 				}
 				const indentStyle = this.indentStyles[resolvedPath]
 				const text = this.currentFiles[resolvedPath]
-				const filepathComment = getFilepathComment(resolvedPath)
 				const action = this.parseUpdateFile(
 					path,
-					filepathComment,
+					resolvedPath,
 					text,
 					indentStyle,
 				)
@@ -567,7 +554,7 @@ class Parser {
 
 	private parseUpdateFile(
 		filePath: string,
-		filepathComment: string,
+		resolvedPath: string,
 		text: string,
 		targetIndentStyle: IGuessedIndentation,
 	): PatchAction {
@@ -577,7 +564,7 @@ class Parser {
 		}
 		const fileLines = text.split('\n')
 		const replaceExplicitTabsByDefault =
-			!AVOID_EXPLICIT_TABS_REGEX.test(filepathComment.trimEnd())
+			!AVOID_EXPLICIT_TABS_REGEX.test(resolvedPath.trimEnd())
 		let index = 0
 
 		while (
@@ -644,7 +631,6 @@ class Parser {
 					nextSection = peekNextSection(this.lines, this.index, i)
 				}
 				match = findContext(
-					filepathComment,
 					fileLines,
 					nextSection.nextChunkContext,
 					index,
@@ -652,7 +638,6 @@ class Parser {
 				)
 				if (!match) {
 					match = findContext(
-						filepathComment,
 						fileLines,
 						nextSection.nextChunkContext,
 						0,

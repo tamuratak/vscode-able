@@ -547,25 +547,6 @@ export function stripCodeBlockFences(text: string): string {
 }
 
 // -----------------------------------------------------------------------------
-// Filepath comment helpers
-// -----------------------------------------------------------------------------
-
-const HASH_COMMENT_EXTENSIONS =
-	/\.(py|rb|pl|sh|bash|zsh|fish|yaml|yml|toml|ini|cfg|conf|cmake|r|R|jl|hs|elm)$/i
-
-/**
- * Generate a filepath comment line for the given file path.
- * Uses `//` for most files, `#` for shell scripts and similar.
- */
-export function getFilepathComment(filePath: string): string {
-	const useHash = HASH_COMMENT_EXTENSIONS.test(filePath.trimEnd())
-	if (useHash) {
-		return `# filepath: ${filePath}\n`
-	}
-	return `// filepath: ${filePath}\n`
-}
-
-// -----------------------------------------------------------------------------
 // File identification utilities
 // -----------------------------------------------------------------------------
 

@@ -947,4 +947,29 @@ suite('extension alternatives integration', () => {
 		assert.strictEqual(action.newFile, 'new content')
 		assert.strictEqual(action.resolvedPath, undefined)
 	})
+
+	test('.txt to .tex resolution skips explicit tab replacement', () => {
+		// In LaTeX, \t is a valid command (e.g., \textbf), not a tab escape.
+		// When resolvedPath is .tex, AVOID_EXPLICIT_TABS_REGEX should prevent
+		// \t from being converted to real tab characters.
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: doc.txt',
+			'@@',
+			' hello',
+			'-old',
+			'+\\textbf{new}',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = { 'doc.tex': 'hello\nold\n' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const change = commit.changes['doc.tex']
+		assert.ok(change)
+		assert.strictEqual(change.type, ActionType.UPDATE)
+		// \t should remain as literal \t, not converted to a real tab
+		assert.strictEqual(change.newContent, 'hello\n\\textbf{new}\n')
+	})
 })
