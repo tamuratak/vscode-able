@@ -1,7 +1,7 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
 import { textToPatch, replaceExplicitTabs, replaceExplicitNl, patchToCommit, applyCommit } from '../../../src/applypatch/parser.js'
-import { identifyFilesAffected, identifyFilesNeeded, identifyFilesAdded, stripCodeBlockFences } from '../../../src/applypatch/utils.js'
+import { identifyFilesAffected, identifyFilesNeeded, identifyFilesAdded, stripCodeBlockFences, resolveFilePath } from '../../../src/applypatch/utils.js'
 import { DiffError, InvalidPatchFormatError, InvalidContextError, ActionType } from '../../../src/applypatch/types.js'
 
 suite('textToPatch', () => {
@@ -737,5 +737,214 @@ suite('logger injection', () => {
 		assert.ok(messages.length > 0)
 		assert.ok(messages[0].includes('[apply_patch] MATCH:'))
 		assert.ok(messages[0].includes('f.ts'))
+	})
+})
+
+suite('resolveFilePath', () => {
+	test('returns exact path when found', () => {
+		assert.strictEqual(
+			resolveFilePath('doc.txt', { 'doc.txt': 'content' }),
+			'doc.txt',
+		)
+	})
+
+	test('resolves .txt to .tex when .txt not found', () => {
+		assert.strictEqual(
+			resolveFilePath('doc.txt', { 'doc.tex': 'content' }),
+			'doc.tex',
+		)
+	})
+
+	test('prefers .tex over .txt when both exist', () => {
+		assert.strictEqual(
+			resolveFilePath('doc.txt', { 'doc.txt': 'exact', 'doc.tex': 'alt' }),
+			'doc.tex',
+		)
+	})
+
+	test('returns undefined when neither path nor alternative exists', () => {
+		assert.strictEqual(
+			resolveFilePath('doc.txt', {}),
+			undefined,
+		)
+	})
+
+	test('does not resolve .tex to .txt (one-directional)', () => {
+		assert.strictEqual(
+			resolveFilePath('doc.tex', { 'doc.txt': 'content' }),
+			undefined,
+		)
+	})
+
+	test('resolves with directory prefix', () => {
+		assert.strictEqual(
+			resolveFilePath('src/doc.txt', { 'src/doc.tex': 'content' }),
+			'src/doc.tex',
+		)
+	})
+
+	test('returns undefined for path without extension', () => {
+		assert.strictEqual(
+			resolveFilePath('Makefile', { 'Makefile': 'content' }),
+			'Makefile',
+		)
+	})
+})
+
+suite('extension alternatives integration', () => {
+	test('end-to-end: update .txt resolves to .tex through full pipeline', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: doc.txt',
+			'@@',
+			' hello',
+			'-old',
+			'+new',
+			'*** End Patch',
+		].join('\n')
+
+		const [patch, _fuzz] = textToPatch(patchText, { 'doc.tex': 'hello\nold\n' })
+		const action = patch.actions['doc.txt']
+		assert.ok(action)
+		assert.strictEqual(action.type, ActionType.UPDATE)
+	})
+
+	test('end-to-end: delete .txt resolves to .tex through full pipeline', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Delete File: doc.txt',
+			'*** End Patch',
+		].join('\n')
+
+		const [patch, _fuzz] = textToPatch(patchText, { 'doc.tex': 'content' })
+		const action = patch.actions['doc.txt']
+		assert.ok(action)
+		assert.strictEqual(action.type, ActionType.DELETE)
+	})
+
+	test('throws when neither .txt nor .tex exists on update', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: doc.txt',
+			'@@',
+			' x',
+			'-a',
+			'+b',
+			'*** End Patch',
+		].join('\n')
+
+		assert.throws(
+			() => textToPatch(patchText, {}),
+			DiffError,
+		)
+	})
+
+	test('end-to-end: update .txt produces correct commit with .tex content', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: doc.txt',
+			'@@',
+			' hello',
+			'-old',
+			'+new',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = { 'doc.tex': 'hello\nold\n' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const change = commit.changes['doc.tex']
+		assert.ok(change)
+		assert.strictEqual(change.type, ActionType.UPDATE)
+		assert.strictEqual(change.oldContent, 'hello\nold\n')
+		assert.strictEqual(change.newContent, 'hello\nnew\n')
+	})
+
+	test('end-to-end: delete .txt produces correct commit with .tex content', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Delete File: doc.txt',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = { 'doc.tex': 'content' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const change = commit.changes['doc.tex']
+		assert.ok(change)
+		assert.strictEqual(change.type, ActionType.DELETE)
+		assert.strictEqual(change.oldContent, 'content')
+	})
+
+	test('end-to-end: update .txt with movePath through full pipeline', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: doc.txt',
+			'*** Move to: output.txt',
+			'@@',
+			' hello',
+			'-old',
+			'+new',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = { 'doc.tex': 'hello\nold\n' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const change = commit.changes['doc.tex']
+		assert.ok(change)
+		assert.strictEqual(change.type, ActionType.UPDATE)
+		assert.strictEqual(change.movePath, 'output.txt')
+
+		const written: Record<string, string> = {}
+		const removed: string[] = []
+		applyCommit(commit, (p, c) => { written[p] = c }, (p) => { removed.push(p) })
+
+		assert.strictEqual(written['output.txt'], 'hello\nnew\n')
+		assert.deepStrictEqual(removed, ['doc.tex'])
+	})
+
+	test('end-to-end: update .txt applies commit correctly', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Update File: doc.txt',
+			'@@',
+			' hello',
+			'-old',
+			'+new',
+			'*** End Patch',
+		].join('\n')
+
+		const currentFiles = { 'doc.tex': 'hello\nold\n' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+		const commit = patchToCommit(patch, currentFiles)
+
+		const written: Record<string, string> = {}
+		const removed: string[] = []
+		applyCommit(commit, (p, c) => { written[p] = c }, (p) => { removed.push(p) })
+
+		assert.strictEqual(written['doc.tex'], 'hello\nnew\n')
+	})
+
+	test('add: does not use extension alternatives (exact match only)', () => {
+		const patchText = [
+			'*** Begin Patch',
+			'*** Add File: doc.txt',
+			'+new content',
+			'*** End Patch',
+		].join('\n')
+
+		// doc.tex exists but ADD should not resolve to it
+		const currentFiles = { 'doc.tex': 'existing' }
+		const [patch, _fuzz] = textToPatch(patchText, currentFiles)
+
+		const action = patch.actions['doc.txt']
+		assert.ok(action)
+		assert.strictEqual(action.type, ActionType.ADD)
+		assert.strictEqual(action.newFile, 'new content')
+		assert.strictEqual(action.resolvedPath, undefined)
 	})
 })

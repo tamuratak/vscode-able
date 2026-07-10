@@ -45,6 +45,11 @@ export interface PatchAction {
 	newFile?: string | undefined
 	chunks: Chunk[]
 	movePath?: string | undefined
+	/**
+	 * The resolved filesystem path when the patch path differs from the actual file path
+	 * (e.g., due to extension alternatives). Undefined for ADD actions.
+	 */
+	resolvedPath?: string | undefined
 }
 
 export interface Patch {

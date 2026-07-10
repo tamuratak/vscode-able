@@ -569,6 +569,54 @@ export function getFilepathComment(filePath: string): string {
 // File identification utilities
 // -----------------------------------------------------------------------------
 
+// One-directional extension alternatives with priority order.
+// Key = source extension (from patch), value = ordered list of extensions to try.
+// Earlier entries have higher priority. The source extension itself is included
+// as a lower-priority fallback when it also exists.
+const EXTENSION_ALTERNATIVES: Record<string, string[]> = {
+	'.txt': ['.tex', '.txt'],
+}
+
+/**
+ * Check whether the given file extension has alternative extensions defined.
+ */
+export function hasExtensionAlternatives(filePath: string): boolean {
+	const dotIndex = filePath.lastIndexOf('.')
+	if (dotIndex === -1) {
+		return false
+	}
+	return filePath.slice(dotIndex) in EXTENSION_ALTERNATIVES
+}
+
+/**
+ * Resolve a file path against currentFiles, trying extension alternatives
+ * in priority order if the exact path is not found.
+ *
+ * @returns The resolved path if found, or undefined if not found.
+ */
+export function resolveFilePath(
+	path: string,
+	currentFiles: Record<string, string>,
+): string | undefined {
+	const dotIndex = path.lastIndexOf('.')
+	if (dotIndex === -1) {
+		return path in currentFiles ? path : undefined
+	}
+	const ext = path.slice(dotIndex)
+	const alternatives = EXTENSION_ALTERNATIVES[ext]
+	if (alternatives === undefined) {
+		return path in currentFiles ? path : undefined
+	}
+	const base = path.slice(0, dotIndex)
+	for (const altExt of alternatives) {
+		const candidate = base + altExt
+		if (candidate in currentFiles) {
+			return candidate
+		}
+	}
+	return undefined
+}
+
 export function identifyFilesAffected(text: string): string[] {
 	const lines = text.trim().split('\n')
 	const result = new Set<string>()
