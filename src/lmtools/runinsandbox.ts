@@ -178,6 +178,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
             HOME: process.env['HOME'] ?? workspaceDirs[0],
             TMPDIR: this.tmpDir,
             GIT_PAGER: 'cat', // Disable git pager to avoid hanging
+            MANPAGER: 'cat', // Disable man pager to avoid hanging
+            PAGER: 'cat', // Fallback pager override for man
             CLICOLOR: '0', // Suppress colored output
             NO_COLOR: '1', // Suppress colored output
             TERM: 'dumb' // Disable terminal control codes
