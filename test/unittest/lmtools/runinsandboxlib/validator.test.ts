@@ -457,6 +457,67 @@ EOF`
         const ok = await isAllowedCommand(cmd, undefined)
         assert.strictEqual(ok, true)
     })
+
+    // man command tests
+    test('allows man <name>', async () => {
+        const cmd = 'man jq'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows man <name> with hyphen', async () => {
+        const cmd = 'man git-config'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows man <name> with underscore', async () => {
+        const cmd = 'man __func__'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows man with no arguments', async () => {
+        const cmd = 'man'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows man with two arguments', async () => {
+        const cmd = 'man 1 printf'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows man -P pager', async () => {
+        const cmd = 'man -P less jq'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows man with flag argument', async () => {
+        const cmd = 'man -w jq'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows man with path separator in argument', async () => {
+        const cmd = 'man ../../../etc/passwd'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows man with dot in argument', async () => {
+        const cmd = 'man file.conf'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows man with argument starting with hyphen', async () => {
+        const cmd = 'man -evil'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
 })
 
 suite('exactMatchCommand', () => {

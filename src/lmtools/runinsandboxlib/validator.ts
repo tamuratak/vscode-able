@@ -49,7 +49,7 @@ export async function isAllowedCommand(command: string, workspaceRootPaths: stri
             }
         }
 
-        const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'rg', 'printf', 'sed', 'tail', 'grep', 'find', 'pwd', 'wc', 'true', 'sleep'])
+        const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'col', 'rg', 'jq', 'man', 'printf', 'sed', 'tail', 'grep', 'find', 'pwd', 'wc', 'true', 'sleep'])
         if (!allowedCommands.has(cmd.command)) {
             return false
         }
@@ -65,6 +65,15 @@ export async function isAllowedCommand(command: string, workspaceRootPaths: stri
                 }
             }
             return false
+        } else if (cmd.command === 'man') {
+            // Only allow `man <name>` where <name> is a valid command name
+            if (cmd.args.length !== 1) {
+                return false
+            }
+            const commandNameRegex = /^[a-zA-Z0-9_][a-zA-Z0-9_-]*$/
+            if (!commandNameRegex.test(cmd.args[0])) {
+                return false
+            }
         } else if (cmd.command === 'cd') {
             if (cmd.args.length !== 1) {
                 return false
