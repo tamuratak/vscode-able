@@ -6,11 +6,6 @@ import { isAllowedPlanAppendCommand } from './validatorlib/redirect.js'
 
 
 export async function isAllowedCommand(command: string, workspaceRootPaths: string[] | undefined): Promise<boolean> {
-    const forbiddenCharacters = /[~]/
-    if (forbiddenCharacters.test(command)) {
-        return false
-    }
-
     // File redirection
     const allowPlanAppend = await isAllowedPlanAppendCommand(command, workspaceRootPaths)
     if (!allowPlanAppend && !await hasNoWriteRedirection(command)) {
@@ -27,6 +22,14 @@ export async function isAllowedCommand(command: string, workspaceRootPaths: stri
     for (const cmd of commands) {
         for (const arg of cmd.args) {
             if (arg.includes('settings.json')) {
+                return false
+            }
+            // Block tilde expansion (e.g. ~/path, ~user/path) but allow ~ in the
+            // middle of a token such as git revision syntax (HEAD~1, abc123~1:file).
+            // Note: VAR=~user assignments are not caught here because the full
+            // token starts with 'V', not '~'. This is acceptable because env/export
+            // are blocked by isConfirmationRequired.
+            if (arg.startsWith('~')) {
                 return false
             }
         }

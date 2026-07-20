@@ -196,6 +196,36 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('allows git show with ~ revision syntax', async () => {
+        const cmd = 'cd /Users/tamura/src/github/vscode && git show 4c0e33c44aa~1:src/vs/workbench/contrib/chat/browser/widget/chatListRenderer.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git show with ~ revision syntax piped to grep and head', async () => {
+        const cmd = "cd /Users/tamura/src/github/vscode && git show 4c0e33c44aa~1:src/vs/workbench/contrib/chat/browser/widget/chatListRenderer.ts | grep -n 'renderChatResponseBasic|getNextProgressiveRenderContent|codeCitations|errorDetails|changesSummary|turnPills|workingProgress|partsToRender|content.push' | head -60"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git show with HEAD~1 syntax', async () => {
+        const cmd = 'git show HEAD~1:src/main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows tilde expansion ~user/path in argument', async () => {
+        const cmd = 'cat ~otheruser/file.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows bare tilde as argument', async () => {
+        const cmd = 'ls ~'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode'])
+        assert.strictEqual(ok, false)
+    })
+
     test(' > redirection is disallowed', async () => {
         const cmd = 'echo aaa > a.txt'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
