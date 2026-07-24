@@ -45,7 +45,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
     }
 
     async provideLanguageModelChatResponse(
-        model: LanguageModelChatInformation,
+        modelOrigin: LanguageModelChatInformation,
         messagesOrigin: readonly LanguageModelChatRequestMessage[],
         optionsOrigin: ProvideLanguageModelChatResponseOptions,
         progressOrigin: Progress<LanguageModelResponsePart2>,
@@ -53,7 +53,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
     ): Promise<void> {
         const [trackingProgress, channel, releaseChannel] = messageLogger.wrapProgress(progressOrigin)
         const dedupProgress = createDedupProgress(trackingProgress, extractLastToolCallSignatures(messagesOrigin))
-        const messages = tweakSystemPrompt(model, messagesOrigin, optionsOrigin)
+        const [model, messages] = tweakSystemPrompt(modelOrigin, messagesOrigin, optionsOrigin)
         const options = tweakTools(optionsOrigin)
         channel.append('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
         channel.append(await renderMessages(messages))

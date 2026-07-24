@@ -31,9 +31,9 @@ export function tweakSystemPrompt(
     model: LanguageModelChatInformation,
     messages: readonly LanguageModelChatRequestMessage[],
     options: ProvideLanguageModelChatResponseOptions,
-) {
+): [LanguageModelChatInformation, readonly LanguageModelChatRequestMessage[]] {
     if (messages.length < 2) {
-        return messages
+        return [model, messages]
     }
     const [systemMessage, userContextMessage, ...restMessages] = messages
     const newMessages = []
@@ -89,7 +89,7 @@ export function tweakSystemPrompt(
         newMessages.push(userContextMessage)
     }
     newMessages.push(...restMessages)
-    return newMessages
+    return [model, newMessages]
 }
 
 const codingAgentInstructionsPart =
