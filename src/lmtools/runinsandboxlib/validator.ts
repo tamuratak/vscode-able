@@ -52,7 +52,7 @@ export async function isAllowedCommand(command: string, workspaceRootPaths: stri
             }
         }
 
-        const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'col', 'rg', 'jq', 'man', 'printf', 'sed', 'tail', 'grep', 'find', 'pwd', 'wc', 'true', 'sleep'])
+        const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'col', 'rg', 'jq', 'man', 'printf', 'sed', 'sort', 'tail', 'grep', 'find', 'pwd', 'wc', 'true', 'sleep'])
         if (!allowedCommands.has(cmd.command)) {
             return false
         }
@@ -64,6 +64,13 @@ export async function isAllowedCommand(command: string, workspaceRootPaths: stri
             if (args.length === 2 || args.length === 3) {
                 const [first, second] = args
                 if (first === '-n' && rangeRegex.test(second)) {
+                    continue
+                }
+            }
+            // Allow simple substitution: s/pattern/replacement/[gi]
+            if (args.length === 1) {
+                const substitutionRegex = /^s\/[^/]*\/[^/]*\/[gi]*$/
+                if (substitutionRegex.test(args[0])) {
                     continue
                 }
             }
