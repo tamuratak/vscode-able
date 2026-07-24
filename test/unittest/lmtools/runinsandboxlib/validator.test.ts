@@ -548,6 +548,105 @@ EOF`
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, false)
     })
+
+    // sort tests
+    test('allows sort', async () => {
+        const cmd = 'echo -e "b\\na" | sort'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows sort with flags', async () => {
+        const cmd = 'echo -e "b\\na" | sort -r'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows sort -n -u', async () => {
+        const cmd = 'echo -e "2\\n1" | sort -n -u'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows sort -o (output to file)', async () => {
+        const cmd = 'sort -o output.txt input.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows sort -S (buffer size)', async () => {
+        const cmd = 'sort -S 1G input.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    // sed substitution tests
+    test('disallows sed s/pattern/replacement/ file.txt', async () => {
+        const cmd = "sed 's/old/new/' file.txt"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows sed s/pattern/replacement/g file.txt', async () => {
+        const cmd = "sed 's/old/new/g' file.txt"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('allows sed s/pattern/replacement/gi', async () => {
+        const cmd = "echo 'Hello World' | sed 's/hello/hi/gi'"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows sed s/.*fix: //', async () => {
+        const cmd = "echo 'fix: bug' | sed 's/.*fix: //'"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows sed s/empty replacement/', async () => {
+        const cmd = "echo 'remove-this' | sed 's/remove-this//'"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows sed s/pattern/replacement/p (p flag not allowed)', async () => {
+        const cmd = "sed 's/old/new/p' file.txt"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows sed s/pattern/replacement/w (w flag writes to file)', async () => {
+        const cmd = "sed 's/old/new/w outfile' file.txt"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows sed with multiple substitutions', async () => {
+        const cmd = "echo 'abc' | sed 's/a/x/;s/b/y/'"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows sed non-substitution command (d)', async () => {
+        const cmd = "sed '1,5d' file.txt"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows sed with pipe delimiter', async () => {
+        const cmd = "sed 's|old|new|' file.txt"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    // pipeline with sort and sed substitution
+    test('allows git log piped through sed substitution, sort, and head', async () => {
+        const cmd = "cd /Users/tamura/src/github/vscode && git log --oneline | sed 's/^[a-f0-9]* //' | sort | head -60"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode'])
+        assert.strictEqual(ok, true)
+    })
 })
 
 suite('exactMatchCommand', () => {
