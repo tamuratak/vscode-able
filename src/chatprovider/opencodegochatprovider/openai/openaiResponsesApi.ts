@@ -125,8 +125,8 @@ export function convertToolsToOpenAIResponses(options?: vscode.ProvideLanguageMo
 	})
 
 	let tool_choice: OpenAIResponsesToolChoice | undefined
-	if (toolConfig.tool_choice === 'auto') {
-		tool_choice = 'auto'
+	if (toolConfig.tool_choice === 'auto' || toolConfig.tool_choice === 'none' || toolConfig.tool_choice === 'required') {
+		tool_choice = toolConfig.tool_choice
 	}
 
 	if (tool_choice !== undefined) {
@@ -142,7 +142,7 @@ export interface OpenAIResponsesFunctionToolDef {
 	parameters?: object
 }
 
-export type OpenAIResponsesToolChoice = 'auto' | { type: 'function'; name: string }
+export type OpenAIResponsesToolChoice = 'auto' | 'none' | 'required' | { type: 'function'; name: string }
 
 export interface ResponsesResult {
 	apiType: 'responses';
@@ -181,7 +181,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			for (const part of m.content ?? []) {
 				if (part instanceof vscode.LanguageModelTextPart) {
 					textParts.push(part.value)
-				} else if (part instanceof vscode.LanguageModelDataPart && isImageMimeType(part.mimeType)) {
+				} else if (part instanceof vscode.LanguageModelDataPart && isImageMimeType(part.mimeType) && this.modelCapabilities.imageInput) {
 					imageParts.push(part)
 				} else if (part instanceof vscode.LanguageModelToolCallPart) {
 					const id = part.callId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -202,21 +202,21 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 
 			// assistant message (optional)
 			if (role === 'assistant') {
+				if (joinedThinking) {
+					out.push({
+						summary: [{ type: 'summary_text', text: joinedThinking }],
+						type: 'reasoning',
+						id: `tk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+						status: 'completed',
+					})
+				}
+
 				if (joinedText) {
 					out.push({
 						role: 'assistant',
 						content: [{ type: 'output_text', text: joinedText }],
 						type: 'message',
 						id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-						status: 'completed',
-					})
-				}
-
-				if (joinedThinking) {
-					out.push({
-						summary: [{ type: 'summary_text', text: joinedThinking }],
-						type: 'reasoning',
-						id: `tk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
 						status: 'completed',
 					})
 				}
@@ -276,11 +276,8 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		// the last user message may be incomplete
 		if (out.length > 0) {
 			const lastItem = out[out.length - 1]
-			if (lastItem && typeof lastItem === 'object' && 'type' in lastItem) {
-				const item = lastItem as unknown as Record<string, unknown>
-				if (item['type'] === 'message' && item['role'] === 'user') {
-					item['status'] = 'incomplete'
-				}
+			if (lastItem?.type === 'message' && lastItem.role === 'user') {
+				lastItem.status = 'incomplete'
 			}
 		}
 		return out
@@ -391,6 +388,12 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 					const data = line.slice(5).trim()
 					chunkLogger.trace('responses.stream.chunk', { modelId, data })
 					if (data === '[DONE]') {
+						this.warnIfToolCallBuffersNotEmpty('[DONE] received')
+						// To prevent infinite loop of agents, throw error.
+						if (this._completedToolCallIndices.size === 0 && this._toolCallBuffers.size > 0) {
+							logger.error('responses.stream.tool_calls_incomplete', { modelId, bufferedIndices: Array.from(this._toolCallBuffers.keys()) })
+							throw new Error('Stream ended with incomplete tool calls')
+						}
 						this.flushToolCallBuffers(progress)
 						continue
 					}
@@ -404,6 +407,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 							error: e instanceof Error ? e.message : String(e),
 							data,
 						})
+						throw e
 					}
 				}
 			}
@@ -419,6 +423,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				this.emitReasoningLoopMessage(progress)
 			}
 			this.reportUsage(progress)
+			this.emitFallbackResponseIfNeeded(progress)
 		}
 
 		if (!this._finishReason) {
@@ -466,8 +471,9 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		)
 	}
 
-	private processXmlThinkBlocks(text: string, progress: Progress<LanguageModelResponsePart2>): { emittedAny: boolean } {
+	private processXmlThinkBlocks(text: string, progress: Progress<LanguageModelResponsePart2>): { emittedAny: boolean; emittedText: boolean } {
 		let emittedAny = false
+		let emittedText = false
 		let remaining = text
 
 		while (remaining.length > 0) {
@@ -486,6 +492,8 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			if (beforeText) {
 				this.reportEndThinking(progress)
 				this.processTextContent(beforeText, progress)
+				emittedAny = true
+				emittedText = true
 			}
 
 			// Find the closing tag
@@ -514,9 +522,10 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		if (remaining) {
 			this.processTextContent(remaining, progress)
 			emittedAny = true
+			emittedText = true
 		}
 
-		return { emittedAny }
+		return { emittedAny, emittedText }
 	}
 
 	private reportEndThinking(_progress: Progress<LanguageModelResponsePart2>): void {
@@ -535,22 +544,38 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		))
 	}
 
+	private emitFallbackResponseIfNeeded(progress: Progress<LanguageModelResponsePart2>): void {
+		if (this._finishReason === 'stop' && !this._hasEmittedAssistantText) {
+			progress.report(new vscode.LanguageModelTextPart2(
+				'\n[VS Code Able] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
+				[vscode.LanguageModelPartAudience.User]
+			))
+			progress.report(
+				new vscode.LanguageModelTextPart2(
+					this._unifiedText,
+					[vscode.LanguageModelPartAudience.User]
+				)
+			)
+		}
+	}
+
 	private processOutputTextChunk(text: string, progress: Progress<LanguageModelResponsePart2>): void {
 		if (!text) {
 			return
 		}
-		// Process XML think blocks or text content (mutually exclusive)
 		const xmlRes = this.processXmlThinkBlocks(text, progress)
 		if (!xmlRes.emittedAny) {
 			// If there's an active thinking sequence, end it first
 			this.reportEndThinking(progress)
 
-			// Only process text content if no XML think blocks were emitted
 			const res = this.processTextContent(text, progress)
 			if (res.emittedAny) {
 				this._hasEmittedAssistantText = true
 				this._hasEmittedText = true
 			}
+		} else if (xmlRes.emittedText) {
+			this._hasEmittedAssistantText = true
+			this._hasEmittedText = true
 		}
 	}
 
@@ -570,7 +595,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			case 'error': {
 				const errorText = JSON.stringify(event)
 				logger.error('responses.stream.process.error', { errorText })
-				return
+				throw new Error(`Responses API error event: ${errorText}`)
 			}
 
 			// Output text delta events
@@ -607,7 +632,9 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			case 'response.thought.delta':
 			case 'response.thought_summary.delta': {
 				this._hasEmittedThinking = false
-				this.processReasoningText(event, progress)
+				if (this.processReasoningText(event, progress)) {
+					this._hasEmittedThinking = true
+				}
 				return
 			}
 
@@ -817,7 +844,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 	private processReasoningText(
 		event: Record<string, unknown>,
 		progress: vscode.Progress<vscode.LanguageModelResponsePart2>
-	) {
+	): boolean {
 		const candidates = [
 			this.coerceText(event['delta']),
 			this.coerceText(event['text']),
@@ -830,8 +857,9 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				continue
 			}
 			this.bufferThinkingContent(chunk, progress)
-			break
+			return true
 		}
+		return false
 	}
 
 	private getCallIdFromEvent(event: Record<string, unknown>): string {
