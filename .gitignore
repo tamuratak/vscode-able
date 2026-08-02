@@ -5,6 +5,7 @@
 /.vscode-test/
 /.venv/
 /contexttmp/
+.github/instructions/mymisc.instructions.md
 
 /test/fixtures/repositorytree01/ignore/
 

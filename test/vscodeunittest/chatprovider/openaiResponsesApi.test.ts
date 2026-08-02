@@ -1,4 +1,4 @@
-import { strictEqual } from 'node:assert'
+import { rejects, strictEqual } from 'node:assert'
 import * as vscode from 'vscode'
 import { OpenaiResponsesApi } from '../../../src/chatprovider/opencodegochatprovider/openai/openaiResponsesApi.js'
 import { getBuiltInModelInfos } from '../../../src/chatprovider/opencodegochatprovider/models.js'
@@ -159,5 +159,52 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
         const result = await api.processStreamingResponse(stream, progress, cts.token)
         strictEqual(result, undefined)
         strictEqual(reported.length, 0)
+    })
+
+    test('throws when [DONE] arrives with incomplete tool calls', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'response.function_call_arguments.delta', output_index: 0, call_id: 'call_1', name: 'read_file', delta: '{"filePath":' },
+            '[DONE]',
+        ])
+        await rejects(api.processStreamingResponse(stream, progress, cts.token), /incomplete tool calls/)
+    })
+
+    test('throws on response.failed event', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'response.failed', response: { id: 'resp_1', error: { code: 'server_error' } } },
+        ])
+        await rejects(api.processStreamingResponse(stream, progress, cts.token), /Responses API failed/)
+    })
+
+    test('throws on error event', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'error', message: 'boom' },
+        ])
+        await rejects(api.processStreamingResponse(stream, progress, cts.token), /Responses API error event/)
+    })
+
+    test('does not duplicate text when a delta emits nothing before done', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'response.output_text.delta', output_index: 0, item_id: 'msg_1', delta: 'Hello' },
+            { type: 'response.output_text.delta', output_index: 0, item_id: 'msg_1', delta: '' },
+            { type: 'response.output_text.done', output_index: 0, item_id: 'msg_1', text: 'Hello' },
+            { type: 'response.completed', response: { id: 'resp_1', status: 'completed', output: [] } },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        const textParts = reported.filter(p => p instanceof vscode.LanguageModelTextPart)
+        strictEqual(textParts.length, 1)
+        strictEqual(result?.finishReason, 'stop')
     })
 })

@@ -152,6 +152,17 @@ export interface ResponsesResult {
 }
 
 export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<string, unknown>> {
+	/**
+	 * The response id of the current stream, captured only for the debug log.
+	 * We intentionally do not send previous_response_id:
+	 * - The Zen Go gateway (opencode packages/console/app/src/routes/zen/util/provider/openai.ts)
+	 *   normalizes requests through a chat-completions-like intermediate form and
+	 *   never forwards previous_response_id to the upstream provider.
+	 * - OpenCode's own Responses client defines the option but never sets it.
+	 * - This provider is stateless across requests, so the id cannot be retained
+	 *   reliably for a retry anyway.
+	 * Full-history requests are therefore the effective mode on this gateway.
+	 */
 	private _responseId: string | null = null
 	private _hasEmittedThinking = false
 	private _hasEmittedText = false
@@ -187,9 +198,9 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 					const args = JSON.stringify(part.input ?? {})
 					toolCalls.push({ id, type: 'function', function: { name: part.name, arguments: args } })
 				} else if (isToolResultPart(part)) {
-					const callId = (part as { callId?: string }).callId ?? ''
-					const content = collectToolResultText(part as { content?: readonly unknown[] })
-					const images = collectToolResultImages(part as { content?: readonly unknown[] })
+					const callId = part.callId
+					const content = collectToolResultText(part)
+					const images = collectToolResultImages(part)
 					toolResults.push({ callId, content, images })
 				} else if (part instanceof vscode.LanguageModelThinkingPart && modelConfig.includeReasoningInRequest) {
 					const content = Array.isArray(part.value) ? part.value.join('') : part.value
@@ -202,6 +213,12 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 
 			// assistant message (optional)
 			if (role === 'assistant') {
+				// Thinking is sent as a plain-text reasoning summary. We do not
+				// preserve encrypted_content: the Zen Go gateway drops reasoning
+				// input items during request conversion (only function_call,
+				// function_call_output and message items survive) and does not
+				// forward reasoning events in responses, so encrypted content
+				// can neither be sent upstream nor received back.
 				if (joinedThinking) {
 					out.push({
 						summary: [{ type: 'summary_text', text: joinedThinking }],
@@ -305,6 +322,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 	): Record<string, unknown> {
 		const isPlainObject = (v: unknown): v is Record<string, unknown> =>
 			!!v && typeof v === 'object' && !Array.isArray(v)
+		const isArray = (v: unknown): v is unknown[] => Array.isArray(v)
 
 		// Add system content if we extracted it
 		if (this._systemContent) {
@@ -352,8 +370,8 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 						rb['reasoning'] = { ...rb['reasoning'], ...value }
 						continue
 					}
-					if (key === 'tools' && Array.isArray(value) && Array.isArray(rb['tools'])) {
-						rb['tools'] = [...(rb['tools'] as unknown[]), ...(value as unknown[])]
+					if (key === 'tools' && isArray(value) && isArray(rb['tools'])) {
+						rb['tools'] = [...rb['tools'], ...value]
 					} else {
 						rb[key] = value
 					}
@@ -639,7 +657,6 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			// Output text delta events
 			case 'response.output_text.delta':
 			case 'response.refusal.delta': {
-				this._hasEmittedText = false
 				const delta = this.coerceText(event['delta'])
 				this.processOutputTextChunk(delta, progress)
 				return
@@ -648,12 +665,13 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			// Output text done events
 			case 'response.output_text.done': {
 				// Some gateways only emit a final "done" payload (no deltas).
-				if (this._hasEmittedText) {
-					this._hasEmittedText = false
-					return
-				}
+				// Emit the full text only when no delta produced text; the flag is
+				// reset here so a later delta/done pair starts fresh.
 				const text = this.coerceText(event['text'])
-				this.processOutputTextChunk(text, progress)
+				if (!this._hasEmittedText) {
+					this.processOutputTextChunk(text, progress)
+				}
+				this._hasEmittedText = false
 				return
 			}
 			case 'response.refusal.done': {
@@ -664,7 +682,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			case 'response.reasoning_summary.delta':
 			case 'response.reasoning_summary_text.delta': {
 				this._hasEmittedThinking = false
-				const summaryIndex = (event['summary_index'] as number) ?? 0
+				const summaryIndex = typeof event['summary_index'] === 'number' ? event['summary_index'] : 0
 				if (this._emittedReasoningSummaryIndices.has(summaryIndex)) {
 					return
 				}
@@ -692,7 +710,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			// Reasoning summary part events (standard Responses API)
 			case 'response.reasoning_summary_part.added':
 			case 'response.reasoning_summary_part.done': {
-				const summaryIndex = (event['summary_index'] as number) ?? 0
+				const summaryIndex = typeof event['summary_index'] === 'number' ? event['summary_index'] : 0
 				if (this._emittedReasoningSummaryIndices.has(summaryIndex)) {
 					if (eventType === 'response.reasoning_summary_part.done') {
 						this.reportEndThinking(progress)
@@ -716,7 +734,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			// Reasoning summary done events
 			case 'response.reasoning_summary.done':
 			case 'response.reasoning_summary_text.done': {
-				const summaryIndex = (event['summary_index'] as number) ?? 0
+				const summaryIndex = typeof event['summary_index'] === 'number' ? event['summary_index'] : 0
 				if (this._emittedReasoningSummaryIndices.has(summaryIndex)) {
 					if (this._hasEmittedThinking) {
 						this.reportEndThinking(progress)
@@ -792,8 +810,9 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 
 				if (eventType === 'response.function_call_arguments.delta') {
 					if (chunk) { buf.args += chunk }
-				} else {
-					// "done" events typically provide the full argument string.
+				} else if (chunk) {
+					// "done" events typically provide the full argument string; skip when
+					// absent so accumulated deltas are not clobbered.
 					buf.args = chunk
 				}
 				this._toolCallBuffers.set(idx, buf)
@@ -914,6 +933,8 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		}
 	}
 
+	// The captured id is used only for the debug log; see the note on _responseId
+	// for why previous_response_id is not used.
 	private captureResponseIdFromEvent(event: Record<string, unknown>): void {
 		if (this._responseId) {
 			return
@@ -940,7 +961,8 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				? (event['response'] as Record<string, unknown>)
 				: undefined
 		if (!response) {
-			return undefined
+			// Some gateways emit a flat completion event without a nested response object.
+			return event['status'] === 'completed' ? 'stop' : undefined
 		}
 
 		// If the final output contains function calls, the model requested tools.
