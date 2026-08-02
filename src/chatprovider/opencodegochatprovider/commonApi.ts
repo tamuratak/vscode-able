@@ -103,6 +103,35 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     ): Promise<ChatCompletionsResult | MessagesResult | ResponsesResult | undefined>;
 
     /**
+     * Flush a single buffered tool call by index.
+     * @param idx The tool call index to flush.
+     * @param progress Progress reporter for parts.
+     */
+    protected flushToolCallBuffer(idx: number, progress: Progress<LanguageModelResponsePart2>) {
+        const buf = this._toolCallBuffers.get(idx);
+        if (!buf) {
+            return;
+        }
+        const argsText = buf.args.trim() || '{}';
+        const parsed = tryParseJSONObject(argsText);
+        if (!parsed.ok) {
+            // Throw error if tool call arguments are not valid JSON. Do not try to recover. LLM is too broken at this point.
+            logger.error('[OpenCodeGo] Invalid JSON for tool call', {
+                idx,
+                snippet: (buf.args || '').slice(0, 200),
+            });
+            throw new Error('Invalid JSON for tool call');
+        }
+        const id = buf.id ?? `call_${Math.random().toString(36).slice(2, 10)}`;
+        const name = buf.name ?? 'unknown_tool';
+        let parameters = parsed.value;
+        parameters = this.adjustReadFileParameters(name, parameters);
+        progress.report(new LanguageModelToolCallPart(id, name, parameters));
+        this._toolCallBuffers.delete(idx);
+        this._completedToolCallIndices.add(idx);
+    }
+
+    /**
      * Flush all buffered tool calls, optionally throwing if arguments are not valid JSON.
      * @param progress Progress reporter for parts.
      */
@@ -110,24 +139,8 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         if (this._toolCallBuffers.size === 0) {
             return;
         }
-        for (const [idx, buf] of Array.from(this._toolCallBuffers.entries())) {
-            const argsText = buf.args.trim() || '{}';
-            const parsed = tryParseJSONObject(argsText);
-            if (!parsed.ok) {
-                // Throw error if tool call arguments are not valid JSON. Do not try to recover. LLM is too broken at this point.
-                logger.error('[OpenCodeGo] Invalid JSON for tool call', {
-                    idx,
-                    snippet: (buf.args || '').slice(0, 200),
-                });
-                throw new Error('Invalid JSON for tool call');
-            }
-            const id = buf.id ?? `call_${Math.random().toString(36).slice(2, 10)}`;
-            const name = buf.name ?? 'unknown_tool';
-            let parameters = parsed.value;
-            parameters = this.adjustReadFileParameters(name, parameters);
-            progress.report(new LanguageModelToolCallPart(id, name, parameters));
-            this._toolCallBuffers.delete(idx);
-            this._completedToolCallIndices.add(idx);
+        for (const idx of Array.from(this._toolCallBuffers.keys())) {
+            this.flushToolCallBuffer(idx, progress);
         }
     }
 

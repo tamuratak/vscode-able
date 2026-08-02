@@ -44,6 +44,7 @@ import {
 	createDataUrl,
 	isToolResultPart,
 	collectToolResultText,
+	collectToolResultImages,
 	convertToolsToOpenAI,
 	tryParseJSONObject,
 	mapRole,
@@ -65,6 +66,7 @@ export interface ResponsesContentPart {
 	text?: string
 	image_url?: string
 	detail?: 'auto'
+	annotations?: unknown[]
 }
 
 export interface ResponsesFunctionCall {
@@ -79,7 +81,7 @@ export interface ResponsesFunctionCall {
 export interface ResponsesFunctionCallOutput {
 	type: 'function_call_output'
 	call_id: string
-	output: string
+	output: string | ResponsesContentPart[]
 	id: string
 	status: 'completed'
 }
@@ -175,7 +177,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			const textParts: string[] = []
 			const imageParts: vscode.LanguageModelDataPart[] = []
 			const toolCalls: OpenAIToolCall[] = []
-			const toolResults: { callId: string; content: string }[] = []
+			const toolResults: { callId: string; content: string; images: vscode.LanguageModelDataPart[] }[] = []
 			const thinkingParts: string[] = []
 
 			for (const part of m.content ?? []) {
@@ -190,7 +192,8 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				} else if (isToolResultPart(part)) {
 					const callId = (part as { callId?: string }).callId ?? ''
 					const content = collectToolResultText(part as { content?: readonly unknown[] })
-					toolResults.push({ callId, content })
+					const images = collectToolResultImages(part as { content?: readonly unknown[] })
+					toolResults.push({ callId, content, images })
 				} else if (part instanceof vscode.LanguageModelThinkingPart && modelConfig.includeReasoningInRequest) {
 					const content = Array.isArray(part.value) ? part.value.join('') : part.value
 					thinkingParts.push(content)
@@ -214,7 +217,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				if (joinedText) {
 					out.push({
 						role: 'assistant',
-						content: [{ type: 'output_text', text: joinedText }],
+						content: [{ type: 'output_text', text: joinedText, annotations: [] }],
 						type: 'message',
 						id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
 						status: 'completed',
@@ -238,10 +241,23 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				if (!tr.callId) {
 					continue
 				}
+				let output: string | ResponsesContentPart[]
+				if (tr.images.length > 0) {
+					const outputParts: ResponsesContentPart[] = []
+					if (tr.content) {
+						outputParts.push({ type: 'input_text', text: tr.content })
+					}
+					for (const imagePart of tr.images) {
+						outputParts.push({ type: 'input_image', image_url: createDataUrl(imagePart), detail: 'auto' })
+					}
+					output = outputParts
+				} else {
+					output = tr.content || ''
+				}
 				out.push({
 					type: 'function_call_output',
 					call_id: tr.callId,
-					output: tr.content || '',
+					output,
 					id: `fco_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
 					status: 'completed',
 				})
@@ -301,20 +317,21 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			rb['max_output_tokens'] = um.max_completion_tokens
 		}
 
-		// OpenAI reasoning configuration (only set when thinking is enabled)
-		if (um?.enable_thinking && um.reasoning_effort !== undefined) {
+		// OpenAI reasoning configuration
+		if (um?.enable_thinking) {
+			if (um.reasoning_effort !== undefined) {
+				const existing = isPlainObject(rb['reasoning']) ? { ...rb['reasoning'] } : {}
+				rb['reasoning'] = {
+					...existing,
+					effort: um.reasoning_effort,
+				}
+			}
+		} else {
+			// Explicitly disable reasoning so the server does not fall back to its default.
 			const existing = isPlainObject(rb['reasoning']) ? { ...rb['reasoning'] } : {}
 			rb['reasoning'] = {
 				...existing,
-				effort: um.reasoning_effort,
-			}
-		}
-
-		// stop
-		if (options?.modelOptions) {
-			const mo = options.modelOptions as Record<string, unknown>
-			if (typeof mo['stop'] === 'string' || Array.isArray(mo['stop'])) {
-				rb['stop'] = mo['stop']
+				effort: 'none',
 			}
 		}
 
@@ -382,34 +399,13 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 					if (token.isCancellationRequested || this._reasoningLoopDetected) {
 						break
 					}
-					if (!line.startsWith('data:')) {
-						continue
-					}
-					const data = line.slice(5).trim()
-					chunkLogger.trace('responses.stream.chunk', { modelId, data })
-					if (data === '[DONE]') {
-						this.warnIfToolCallBuffersNotEmpty('[DONE] received')
-						// To prevent infinite loop of agents, throw error.
-						if (this._completedToolCallIndices.size === 0 && this._toolCallBuffers.size > 0) {
-							logger.error('responses.stream.tool_calls_incomplete', { modelId, bufferedIndices: Array.from(this._toolCallBuffers.keys()) })
-							throw new Error('Stream ended with incomplete tool calls')
-						}
-						this.flushToolCallBuffers(progress)
-						continue
-					}
-
-					try {
-						const parsed = JSON.parse(data) as Record<string, unknown>
-						await this.processEvent(parsed, progress)
-					} catch (e) {
-						logger.error('responses.stream.chunk.error', {
-							modelId,
-							error: e instanceof Error ? e.message : String(e),
-							data,
-						})
-						throw e
-					}
+					await this.processDataLine(line, progress, modelId)
 				}
+			}
+
+			// Process any remaining data after EOF (gateways may omit the trailing newline).
+			if (buffer.trim() && !token.isCancellationRequested && !this._reasoningLoopDetected) {
+				await this.processDataLine(buffer, progress, modelId)
 			}
 			logger.debug('responses.stream.done', { modelId, responseId: this._responseId ?? '' })
 		} catch (e) {
@@ -430,6 +426,40 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			return undefined
 		}
 		return { apiType: 'responses', finishReason: this._finishReason }
+	}
+
+	private async processDataLine(
+		line: string,
+		progress: Progress<LanguageModelResponsePart2>,
+		modelId: string
+	): Promise<void> {
+		if (!line.startsWith('data:')) {
+			return
+		}
+		const data = line.slice(5).trim()
+		chunkLogger.trace('responses.stream.chunk', { modelId, data })
+		if (data === '[DONE]') {
+			this.warnIfToolCallBuffersNotEmpty('[DONE] received')
+			// To prevent infinite loop of agents, throw error.
+			if (this._completedToolCallIndices.size === 0 && this._toolCallBuffers.size > 0) {
+				logger.error('responses.stream.tool_calls_incomplete', { modelId, bufferedIndices: Array.from(this._toolCallBuffers.keys()) })
+				throw new Error('Stream ended with incomplete tool calls')
+			}
+			this.flushToolCallBuffers(progress)
+			return
+		}
+
+		try {
+			const parsed = JSON.parse(data) as Record<string, unknown>
+			await this.processEvent(parsed, progress)
+		} catch (e) {
+			logger.error('responses.stream.chunk.error', {
+				modelId,
+				error: e instanceof Error ? e.message : String(e),
+				data,
+			})
+			throw e
+		}
 	}
 
 	private coerceText(value: unknown): string {
@@ -638,6 +668,21 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				return
 			}
 
+			// Reasoning summary part events (standard Responses API)
+			case 'response.reasoning_summary_part.added':
+			case 'response.reasoning_summary_part.done': {
+				const partText = this.coerceText(event['part'])
+				if (partText && !this.looksLikeReasoningConfigValue(partText)) {
+					this.bufferThinkingContent(partText, progress)
+					this._hasEmittedThinking = true
+				}
+				if (eventType === 'response.reasoning_summary_part.done') {
+					this.reportEndThinking(progress)
+					this._hasEmittedThinking = false
+				}
+				return
+			}
+
 			// Reasoning done events
 			case 'response.reasoning.done':
 			case 'response.reasoning_text.done':
@@ -703,7 +748,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 
 				this.tryEmitBufferedToolCall(idx, progress)
 				if (eventType === 'response.function_call_arguments.done') {
-					this.flushToolCallBuffers(progress)
+					this.flushToolCallBuffer(idx, progress)
 				}
 				return
 			}
@@ -760,7 +805,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 
 				this.tryEmitBufferedToolCall(idx, progress)
 				if (eventType === 'response.output_item.done') {
-					this.flushToolCallBuffers(progress)
+					this.flushToolCallBuffer(idx, progress)
 				}
 				return
 			}
@@ -775,17 +820,43 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				const usage = event['usage'] ?? (event['response'] as Record<string, unknown>)?.['usage']
 				if (usage && typeof usage === 'object') {
 					const u = usage as Record<string, unknown>
+					const inputDetails = u['input_tokens_details']
+					const details: { cached_tokens: number; cache_creation_input_tokens?: number } = {
+						cached_tokens: 0,
+					}
+					if (inputDetails && typeof inputDetails === 'object') {
+						details.cached_tokens = Number((inputDetails as Record<string, unknown>)['cached_tokens'] ?? 0)
+					}
+					const outputDetails = u['output_tokens_details']
+					if (outputDetails && typeof outputDetails === 'object') {
+						const cacheWriteTokens = Number((outputDetails as Record<string, unknown>)['cache_write_tokens'] ?? 0)
+						if (cacheWriteTokens > 0) {
+							details.cache_creation_input_tokens = cacheWriteTokens
+						}
+					}
 					this._usage = {
 						prompt_tokens: Number(u['input_tokens'] ?? 0),
 						completion_tokens: Number(u['output_tokens'] ?? 0),
 						total_tokens: Number(u['total_tokens'] ?? 0),
-						prompt_tokens_details: u['input_tokens_details']
-							? { cached_tokens: Number((u['input_tokens_details'] as Record<string, unknown>)['cached_tokens'] ?? 0) }
-							: undefined,
+						prompt_tokens_details: details,
 					}
 					logger.debug('usage.capture', { modelId: this.modelId, usage: this._usage })
 				}
 				return
+			}
+
+			case 'response.failed': {
+				const response = event['response']
+				logger.error('responses.stream.response_failed', { modelId: this.modelId, response })
+				throw new Error(`Responses API failed: ${JSON.stringify(response)}`)
+			}
+
+			case 'response.incomplete': {
+				const response = event['response']
+				const responseObj = response && typeof response === 'object' ? (response as Record<string, unknown>) : undefined
+				const details = responseObj?.['incomplete_details']
+				logger.error('responses.stream.response_incomplete', { modelId: this.modelId, response })
+				throw new Error(`Responses API ended incomplete: ${JSON.stringify(details)}`)
 			}
 			default: {
 				return
