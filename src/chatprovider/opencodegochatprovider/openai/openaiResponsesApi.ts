@@ -162,10 +162,6 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		super(modelInfo)
 	}
 
-	get responseId(): string | null {
-		return this._responseId
-	}
-
 	convertMessages(
 		messages: readonly LanguageModelChatRequestMessage[],
 		modelConfig: { includeReasoningInRequest: boolean }
@@ -242,7 +238,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 					continue
 				}
 				let output: string | ResponsesContentPart[]
-				if (tr.images.length > 0) {
+				if (tr.images.length > 0 && this.modelCapabilities.imageInput) {
 					const outputParts: ResponsesContentPart[] = []
 					if (tr.content) {
 						outputParts.push({ type: 'input_text', text: tr.content })
@@ -825,11 +821,9 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 						cached_tokens: 0,
 					}
 					if (inputDetails && typeof inputDetails === 'object') {
-						details.cached_tokens = Number((inputDetails as Record<string, unknown>)['cached_tokens'] ?? 0)
-					}
-					const outputDetails = u['output_tokens_details']
-					if (outputDetails && typeof outputDetails === 'object') {
-						const cacheWriteTokens = Number((outputDetails as Record<string, unknown>)['cache_write_tokens'] ?? 0)
+						const inputDetailsObj = inputDetails as Record<string, unknown>
+						details.cached_tokens = Number(inputDetailsObj['cached_tokens'] ?? 0)
+						const cacheWriteTokens = Number(inputDetailsObj['cache_write_tokens'] ?? 0)
 						if (cacheWriteTokens > 0) {
 							details.cache_creation_input_tokens = cacheWriteTokens
 						}
@@ -957,129 +951,4 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		this._completedToolCallIndices.add(idx)
 	}
 
-	async *createMessage(
-		model: OpenCodeGoModelItem,
-		systemPrompt: string,
-		messages: { role: string; content: string }[],
-		baseUrl: string,
-		apiKey: string
-	): AsyncGenerator<{ type: 'text'; text: string }> {
-		// Convert to Responses API format
-		const input: ResponsesInputItem[] = []
-
-		// Add system prompt as a system message or via instructions
-		if (systemPrompt) {
-			input.push({
-				role: 'system',
-				content: [{ type: 'input_text', text: systemPrompt }],
-				type: 'message',
-				id: `msg_sys_${Date.now()}`,
-				status: 'completed',
-			})
-		}
-
-		// Add user/assistant messages
-		for (let i = 0; i < messages.length; i++) {
-			const msg = messages[i]
-			const role = msg.role === 'user' || msg.role === 'assistant' || msg.role === 'system' ? msg.role : 'user'
-			input.push({
-				role,
-				content: [{ type: 'input_text', text: msg.content }],
-				type: 'message',
-				id: `msg_${Date.now()}_${i}`,
-				status: 'completed',
-			})
-		}
-
-		// Build request body
-		let requestBody: Record<string, unknown> = {
-			model: model.id,
-			input,
-			stream: true,
-		}
-
-		requestBody = this.prepareRequestBody(requestBody, model, undefined)
-
-		const headers = CommonApi.prepareHeaders(apiKey, model.apiType ?? 'chat-completions', model.headers)
-
-		const url = `${baseUrl.replace(/\/+$/, '')}/responses`
-
-		// Make the API request
-		const response = await fetch(url, {
-			method: 'POST',
-			headers,
-			body: JSON.stringify(requestBody),
-		})
-
-		if (!response.ok) {
-			const errorText = await response.text()
-			throw new Error(`OpenAI Responses API request failed: [${response.status}] ${response.statusText}\n${errorText}`)
-		}
-
-		if (!response.body) {
-			throw new Error('No response body from OpenAI Responses API')
-		}
-
-		// Process SSE streaming response
-		const reader = response.body.getReader()
-		const decoder = new TextDecoder()
-		let buffer = ''
-
-		try {
-			while (true) {
-				const { done, value } = await reader.read()
-				if (done) { break }
-
-				buffer += decoder.decode(value, { stream: true })
-				const lines = buffer.split('\n')
-				buffer = lines.pop() || ''
-
-				for (const line of lines) {
-					if (!line.startsWith('data:')) {
-						continue
-					}
-					const data = line.slice(5).trim()
-					if (data === '[DONE]') { continue }
-
-					try {
-						const parsed = JSON.parse(data) as Record<string, unknown>
-						const eventType = typeof parsed['type'] === 'string' ? parsed['type'] : ''
-
-						// Only handle text output events, skip reasoning/thinking events
-						const textOutputEvents = ['response.output_text.delta']
-
-						const isTextEvent = textOutputEvents.includes(eventType) || !eventType
-
-						if (isTextEvent) {
-							// Extract text from various possible locations
-							const output = parsed['output'] as unknown[] | undefined
-							const firstOutput = output?.[0] as Record<string, unknown> | undefined
-							const firstContent = firstOutput?.['content'] as unknown[] | undefined
-							const firstContentText = (firstContent?.[0] as Record<string, unknown> | undefined)?.['text']
-							const textSources = [parsed['delta'], parsed['text'], parsed['content'], firstContentText]
-
-							for (const textSource of textSources) {
-								if (typeof textSource === 'string' && textSource) {
-									yield { type: 'text', text: textSource }
-									break
-								}
-							}
-						}
-
-						// Check for completion
-						if (parsed['done'] || parsed['type'] === 'response.completed' || parsed['type'] === 'response.done') {
-							break
-						}
-					} catch (e) {
-						logger.error('responses.createMessage.chunk.error', {
-							error: e instanceof Error ? e.message : String(e),
-							data,
-						})
-					}
-				}
-			}
-		} finally {
-			reader.releaseLock()
-		}
-	}
 }

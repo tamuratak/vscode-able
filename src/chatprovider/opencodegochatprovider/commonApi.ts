@@ -108,6 +108,9 @@ export abstract class CommonApi<TMessage, TRequestBody> {
      * @param progress Progress reporter for parts.
      */
     protected flushToolCallBuffer(idx: number, progress: Progress<LanguageModelResponsePart2>) {
+        if (this._completedToolCallIndices.has(idx)) {
+            return;
+        }
         const buf = this._toolCallBuffers.get(idx);
         if (!buf) {
             return;
