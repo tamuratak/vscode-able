@@ -155,6 +155,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 	private _responseId: string | null = null
 	private _hasEmittedThinking = false
 	private _hasEmittedText = false
+	private _emittedReasoningSummaryIndices = new Set<number>()
 	private _usage: APIUsage | undefined
 	private _finishReason: string | undefined = undefined
 
@@ -281,7 +282,9 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 
 			// system message (used to build `instructions` in request body)
 			if (role === 'system' && joinedText) {
-				this._systemContent = joinedText
+				this._systemContent = this._systemContent && typeof this._systemContent === 'string'
+					? `${this._systemContent}\n\n${joinedText}`
+					: joinedText
 			}
 		}
 
@@ -369,16 +372,18 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		this._responseId = null
 		this._usage = undefined
 		this._finishReason = undefined
+		this._emittedReasoningSummaryIndices = new Set<number>()
 		const modelId = this.modelId
 		logger.debug('responses.stream.start', { modelId })
 		const reader = responseBody.getReader()
 		const decoder = new TextDecoder()
 		let buffer = ''
+		let streamEnded = false
 		const cancelToken = token.onCancellationRequested(() => reader.cancel().catch(() => undefined))
 
 		try {
 			while (true) {
-				if (token.isCancellationRequested || this._reasoningLoopDetected) {
+				if (token.isCancellationRequested || this._reasoningLoopDetected || streamEnded) {
 					break
 				}
 
@@ -392,15 +397,18 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				buffer = lines.pop() || ''
 
 				for (const line of lines) {
-					if (token.isCancellationRequested || this._reasoningLoopDetected) {
+					if (token.isCancellationRequested || this._reasoningLoopDetected || streamEnded) {
 						break
 					}
-					await this.processDataLine(line, progress, modelId)
+					if (await this.processDataLine(line, progress, modelId)) {
+						streamEnded = true
+						break
+					}
 				}
 			}
 
 			// Process any remaining data after EOF (gateways may omit the trailing newline).
-			if (buffer.trim() && !token.isCancellationRequested && !this._reasoningLoopDetected) {
+			if (buffer.trim() && !token.isCancellationRequested && !this._reasoningLoopDetected && !streamEnded) {
 				await this.processDataLine(buffer, progress, modelId)
 			}
 			logger.debug('responses.stream.done', { modelId, responseId: this._responseId ?? '' })
@@ -409,6 +417,9 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			throw e
 		} finally {
 			cancelToken.dispose()
+			if (streamEnded) {
+				reader.cancel().catch(() => undefined)
+			}
 			reader.releaseLock()
 			this.reportEndThinking(progress)
 			if (this._reasoningLoopDetected) {
@@ -428,9 +439,9 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		line: string,
 		progress: Progress<LanguageModelResponsePart2>,
 		modelId: string
-	): Promise<void> {
+	): Promise<boolean> {
 		if (!line.startsWith('data:')) {
-			return
+			return false
 		}
 		const data = line.slice(5).trim()
 		chunkLogger.trace('responses.stream.chunk', { modelId, data })
@@ -442,7 +453,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				throw new Error('Stream ended with incomplete tool calls')
 			}
 			this.flushToolCallBuffers(progress)
-			return
+			return true
 		}
 
 		try {
@@ -456,6 +467,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			})
 			throw e
 		}
+		return false
 	}
 
 	private coerceText(value: unknown): string {
@@ -648,11 +660,24 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				return
 			}
 
-			// Reasoning delta events
+			// Reasoning summary delta events
+			case 'response.reasoning_summary.delta':
+			case 'response.reasoning_summary_text.delta': {
+				this._hasEmittedThinking = false
+				const summaryIndex = (event['summary_index'] as number) ?? 0
+				if (this._emittedReasoningSummaryIndices.has(summaryIndex)) {
+					return
+				}
+				if (this.processReasoningText(event, progress)) {
+					this._hasEmittedThinking = true
+					this._emittedReasoningSummaryIndices.add(summaryIndex)
+				}
+				return
+			}
+
+			// Other reasoning delta events
 			case 'response.reasoning.delta':
 			case 'response.reasoning_text.delta':
-			case 'response.reasoning_summary.delta':
-			case 'response.reasoning_summary_text.delta':
 			case 'response.thinking.delta':
 			case 'response.thinking_summary.delta':
 			case 'response.thought.delta':
@@ -667,10 +692,19 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			// Reasoning summary part events (standard Responses API)
 			case 'response.reasoning_summary_part.added':
 			case 'response.reasoning_summary_part.done': {
+				const summaryIndex = (event['summary_index'] as number) ?? 0
+				if (this._emittedReasoningSummaryIndices.has(summaryIndex)) {
+					if (eventType === 'response.reasoning_summary_part.done') {
+						this.reportEndThinking(progress)
+						this._hasEmittedThinking = false
+					}
+					return
+				}
 				const partText = this.coerceText(event['part'])
 				if (partText && !this.looksLikeReasoningConfigValue(partText)) {
 					this.bufferThinkingContent(partText, progress)
 					this._hasEmittedThinking = true
+					this._emittedReasoningSummaryIndices.add(summaryIndex)
 				}
 				if (eventType === 'response.reasoning_summary_part.done') {
 					this.reportEndThinking(progress)
@@ -679,11 +713,33 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				return
 			}
 
-			// Reasoning done events
+			// Reasoning summary done events
+			case 'response.reasoning_summary.done':
+			case 'response.reasoning_summary_text.done': {
+				const summaryIndex = (event['summary_index'] as number) ?? 0
+				if (this._emittedReasoningSummaryIndices.has(summaryIndex)) {
+					if (this._hasEmittedThinking) {
+						this.reportEndThinking(progress)
+						this._hasEmittedThinking = false
+					}
+					return
+				}
+				if (this._hasEmittedThinking) {
+					this.reportEndThinking(progress)
+					this._hasEmittedThinking = false
+					this._emittedReasoningSummaryIndices.add(summaryIndex)
+					return
+				}
+				if (this.processReasoningText(event, progress)) {
+					this._emittedReasoningSummaryIndices.add(summaryIndex)
+				}
+				this.reportEndThinking(progress)
+				return
+			}
+
+			// Other reasoning done events
 			case 'response.reasoning.done':
 			case 'response.reasoning_text.done':
-			case 'response.reasoning_summary.done':
-			case 'response.reasoning_summary_text.done':
 			case 'response.thinking.done':
 			case 'response.thinking_summary.done':
 			case 'response.thought.done':
