@@ -3,11 +3,11 @@ import type { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguag
 import type { OpenCodeGoModelItem } from '../types.js'
 import type { AnthropicMessage, AnthropicRequestBody, AnthropicContentBlock, AnthropicTextBlock, AnthropicImageBlock, AnthropicRedactedThinkingBlock, AnthropicToolResultBlock, AnthropicStreamChunk, } from './anthropicTypes.js'
 import { isImageMimeType, isToolResultPart, convertToolsToOpenAI, mapRole } from '../vscodeutils.js'
-import { APIUsage, CommonApi } from '../commonApi.js'
+import { ApiResponseResult, APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
 
-export interface MessagesResult {
+export interface MessagesResult extends ApiResponseResult {
     apiType: 'messages';
     // https://platform.claude.com/docs/en/api/messages/create#message.stop_reason
     // "end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn", "refusal"

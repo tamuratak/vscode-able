@@ -3,11 +3,11 @@ import { CancellationToken, LanguageModelChatRequestMessage, ProvideLanguageMode
 import type { OpenCodeGoModelItem } from '../types.js'
 import type { OpenAIChatMessage, OpenAIToolCall, ChatMessageContent, ReasoningDetail } from './openaiTypes.js'
 import { isImageMimeType, toImageContentParts, isToolResultPart, collectToolResultText, collectToolResultImages, convertToolsToOpenAI, mapRole, } from '../vscodeutils.js'
-import { APIUsage, CommonApi } from '../commonApi.js'
+import { ApiResponseResult, APIUsage, CommonApi } from '../commonApi.js'
 import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 
 
-export interface ChatCompletionsResult {
+export interface ChatCompletionsResult extends ApiResponseResult {
     apiType: 'chat-completions';
     finishReason?: string | undefined;
     nativeFinishReason?: string | undefined;

@@ -7,9 +7,15 @@ import { findRepeatingPattern } from './utils.js'
 import { logger } from './logger.js';
 import type { EndpointApiType } from './models.js';
 import type { AnthropicTextBlock } from './anthropic/anthropicTypes.js';
-import type { MessagesResult } from './anthropic/anthropicApi.js';
-import type { ChatCompletionsResult } from './openai/openaiApi.js';
-import type { ResponsesResult } from './openai/openaiResponsesApi.js';
+
+/**
+ * Base result of a streamed API response, refined by each concrete API class
+ * with a literal apiType and its own fields.
+ */
+export interface ApiResponseResult {
+	apiType: EndpointApiType;
+	finishReason?: string;
+}
 
 export interface APIUsage {
 	prompt_tokens: number;
@@ -18,6 +24,9 @@ export interface APIUsage {
 	prompt_tokens_details?: {
 		cached_tokens: number;
 		cache_creation_input_tokens?: number;
+	} | undefined;
+	completion_tokens_details?: {
+		reasoning_tokens: number;
 	} | undefined;
 }
 
@@ -106,10 +115,11 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         responseBody: ReadableStream<Uint8Array>,
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
-    ): Promise<ChatCompletionsResult | MessagesResult | ResponsesResult | undefined>;
+    ): Promise<ApiResponseResult | undefined>;
 
     /**
      * Flush a single buffered tool call by index.
+     * Throws when the buffered arguments are not valid JSON.
      * @param idx The tool call index to flush.
      * @param progress Progress reporter for parts.
      */
@@ -345,7 +355,8 @@ export abstract class CommonApi<TMessage, TRequestBody> {
      * @param progress Progress reporter for parts.
      */
     protected emitFallbackResponseIfNeeded(progress: Progress<LanguageModelResponsePart2>): void {
-        if (this._finishReason === 'stop' && !this._hasEmittedAssistantText) {
+        // Do not claim "stopped before emitting text" when tool calls were emitted.
+        if (this._finishReason === 'stop' && !this._hasEmittedAssistantText && this._completedToolCallIndices.size === 0) {
             progress.report(new vscode.LanguageModelTextPart2(
                 '\n[VS Code Able] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
                 [vscode.LanguageModelPartAudience.User]
