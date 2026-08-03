@@ -140,26 +140,10 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
                 const url = `${BASE_URL}/messages`
                 logger.trace('request.body', { url, requestBody })
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: requestHeaders,
-                    body: JSON.stringify(requestBody),
-                    signal: abortController.signal,
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    logger.error('[Anthropic Provider] Anthropic API error response', { errorText });
-                    throw new Error(`Anthropic API error: [${response.status}] ${response.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`)
-                }
-
-                if (!response.body) {
-                    logger.error('response.error', { modelId: model.id, error: 'No response body from Anthropic API' })
-                    throw new Error('No response body from Anthropic API')
-                }
+                const body = await anthropicApi.postAndGetBody(url, requestBody, requestHeaders, abortController.signal, 'Anthropic API');
 
                 channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
-                responseResult = await anthropicApi.processStreamingResponse(response.body, dedupProgress, token);
+                responseResult = await anthropicApi.processStreamingResponse(body, dedupProgress, token);
             } else if (apiMode === 'chat-completions') {
                 // OpenAI Chat Completions API mode
                 const openaiApi = new OpenaiApi(model);
@@ -177,29 +161,12 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 // Send chat request
                 const url = `${BASE_URL}/chat/completions`;
                 logger.trace('request.body', { url, requestBody });
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: requestHeaders,
-                    body: JSON.stringify(requestBody),
-                    signal: abortController.signal,
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    logger.error('[OpenCodeGo] API error response', { errorText });
-                    throw new Error(`API error: [${response.status}] ${response.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`)
-                }
-
-                if (!response.body) {
-                    logger.error('response.error', { modelId: model.id, error: 'No response body from API' })
-                    throw new Error('No response body from API');
-                }
+                const body = await openaiApi.postAndGetBody(url, requestBody, requestHeaders, abortController.signal, 'API');
 
                 channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
-                responseResult = await openaiApi.processStreamingResponse(response.body, dedupProgress, token);
-            } else {
+                responseResult = await openaiApi.processStreamingResponse(body, dedupProgress, token);
+            } else if (apiMode === 'responses') {
                 // OpenAI Responses API mode
-                apiMode satisfies 'responses'
                 const openaiResponsesApi = new OpenaiResponsesApi(model);
                 const responsesMessages = openaiResponsesApi.convertMessages(messages, modelConfig);
 
@@ -214,26 +181,13 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 // Send responses request
                 const url = `${BASE_URL}/responses`;
                 logger.trace('request.body', { url, requestBody });
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: requestHeaders,
-                    body: JSON.stringify(requestBody),
-                    signal: abortController.signal,
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    logger.error('[OpenCodeGo] Responses API error response', { errorText });
-                    throw new Error(`Responses API error: [${response.status}] ${response.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`)
-                }
-
-                if (!response.body) {
-                    logger.error('response.error', { modelId: model.id, error: 'No response body from Responses API' })
-                    throw new Error('No response body from Responses API');
-                }
+                const body = await openaiResponsesApi.postAndGetBody(url, requestBody, requestHeaders, abortController.signal, 'Responses API');
 
                 channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
-                responseResult = await openaiResponsesApi.processStreamingResponse(response.body, dedupProgress, token);
+                responseResult = await openaiResponsesApi.processStreamingResponse(body, dedupProgress, token);
+            } else {
+                // Exhaustiveness guard: fail loudly when a new API mode is added.
+                throw new Error(`Unsupported API mode: ${String(apiMode)}`)
             }
             pushToolCall(model, messages, options, dedupProgress, token, responseResult)
         } catch (err) {

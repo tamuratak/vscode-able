@@ -113,7 +113,7 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
             capabilities: {
                 toolCalling: true,
                 imageInput: def.inputModalities?.includes('image') ?? false,
-                // Use replace_string_in_file tool only.
+                // Default edit tools when the model definition does not specify any.
                 // https://github.com/microsoft/vscode/blob/4b04bed81a929b4603b508ce4a21993ae5fee2af/extensions/copilot/package.json#L770
                 editTools: def.editTools ?? ['find-replace', 'multi-find-replace']
             },

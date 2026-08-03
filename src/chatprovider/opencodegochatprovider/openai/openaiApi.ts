@@ -189,6 +189,8 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
     ): Promise<ChatCompletionsResult | undefined> {
         const modelId = this.modelId
         logger.debug('openai.stream.start', { modelId });
+        this._usage = undefined;
+        this._finishReason = undefined;
 
         const reader = responseBody.getReader();
         const decoder = new TextDecoder();
@@ -244,7 +246,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                         if (result.finishReason) {
                             responseResult = result
                         }
-                        this.processUsage(parsed, progress)
+                        this.processUsage(parsed)
                     } catch (e) {
                         logger.error('openai.stream.chunk.error', {
                             modelId,
@@ -267,35 +269,16 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             this.endThinking()
             if (this._reasoningLoopDetected) {
                 this.emitReasoningLoopMessage(progress)
-            } else if (responseResult?.finishReason === 'stop') {
+            } else if (this._finishReason === 'stop') {
                 finalResponseLogger.info('\n' + this._unifiedText)
             }
-            this.emitFallbackResponseIfNeeded(responseResult, progress)
+            this.reportUsageData(progress)
+            this.emitFallbackResponseIfNeeded(progress)
             reader.releaseLock()
         }
     }
 
-    private emitFallbackResponseIfNeeded(responseResult: ChatCompletionsResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
-        if (responseResult?.finishReason === 'stop') {
-            if (!this._hasEmittedAssistantText) {
-                progress.report(new vscode.LanguageModelTextPart2(
-                    '\n[VS Code Able] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
-                    [vscode.LanguageModelPartAudience.User]
-                ))
-                progress.report(
-                    new vscode.LanguageModelTextPart2(
-                        this._unifiedText,
-                        [vscode.LanguageModelPartAudience.User]
-                    )
-                )
-            }
-        }
-    }
-
-    private processUsage(
-        parsed: Record<string, unknown>,
-        progress: Progress<LanguageModelResponsePart2>
-    ) {
+    private processUsage(parsed: Record<string, unknown>) {
         // Capture usage from stream_options: include_usage chunks (final chunk with no choices)
         const usageData = parsed['usage'] as Record<string, unknown> | undefined;
         if (!usageData) {
@@ -331,7 +314,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
                 cache_creation_input_tokens: cacheMissTokens
             }
         }
-        progress.report(new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(apiUsage)), 'usage'))
+        this._usage = apiUsage;
         logger.debug('openai.stream.usage', { modelId: this.modelId, usage: usageData })
     }
 
@@ -439,6 +422,9 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         }
 
         const finishReason = choice['finish_reason'] as string | undefined
+        if (finishReason) {
+            this._finishReason = finishReason;
+        }
         if (finishReason === 'tool_calls' || finishReason === 'stop') {
             if (finishReason === 'stop') {
                 this.warnIfToolCallBuffersNotEmpty('finish_reason: stop received')

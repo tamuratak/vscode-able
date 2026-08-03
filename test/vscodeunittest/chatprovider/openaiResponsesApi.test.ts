@@ -1,7 +1,8 @@
-import { rejects, strictEqual } from 'node:assert'
+import { deepStrictEqual, rejects, strictEqual } from 'node:assert'
 import * as vscode from 'vscode'
 import { OpenaiResponsesApi } from '../../../src/chatprovider/opencodegochatprovider/openai/openaiResponsesApi.js'
-import { getBuiltInModelInfos } from '../../../src/chatprovider/opencodegochatprovider/models.js'
+import { getBuiltInModelConfig, getBuiltInModelInfos } from '../../../src/chatprovider/opencodegochatprovider/models.js'
+import type { OpenCodeGoModelItem } from '../../../src/chatprovider/opencodegochatprovider/types.js'
 
 const RESPONSES_MODEL_ID = 'gpt-5.6-luna'
 
@@ -113,6 +114,57 @@ suite('OpenaiResponsesApi.convertMessages', () => {
     })
 })
 
+suite('OpenaiResponsesApi.prepareRequestBody', () => {
+    function makeModel(overrides: Partial<OpenCodeGoModelItem>): OpenCodeGoModelItem {
+        const base = getBuiltInModelConfig(RESPONSES_MODEL_ID)
+        if (!base) {
+            throw new Error(`Model not found: ${RESPONSES_MODEL_ID}`)
+        }
+        return { ...base, ...overrides }
+    }
+
+    test('sets reasoning effort when thinking is enabled', () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const rb = api.prepareRequestBody({}, makeModel({ enable_thinking: true, reasoning_effort: 'high' }), undefined)
+        deepStrictEqual(rb['reasoning'], { effort: 'high' })
+    })
+
+    test('disables reasoning when thinking is not enabled', () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const rb = api.prepareRequestBody({}, makeModel({ enable_thinking: false }), undefined)
+        deepStrictEqual(rb['reasoning'], { effort: 'none' })
+    })
+
+    test('deep-merges extra reasoning config into the reasoning object', () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const rb = api.prepareRequestBody(
+            {},
+            makeModel({
+                enable_thinking: true,
+                reasoning_effort: 'low',
+                extra: { reasoning: { summary: 'detailed' } },
+            }),
+            undefined
+        )
+        deepStrictEqual(rb['reasoning'], { effort: 'low', summary: 'detailed' })
+    })
+
+    test('maps modelOptions.toolMode to tool_choice', () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const options: vscode.ProvideLanguageModelChatResponseOptions = {
+            toolMode: vscode.LanguageModelChatToolMode.Auto,
+            tools: [{ name: 'read_file', description: 'Read a file', inputSchema: { type: 'object', properties: {} } }],
+            modelOptions: { toolMode: 'required' },
+            requestInitiator: 'test',
+        }
+        const rb = api.prepareRequestBody({}, undefined, options)
+        strictEqual(rb['tool_choice'], 'required')
+        const tools = rb['tools'] as Record<string, unknown>[] | undefined
+        strictEqual(tools?.length, 1)
+        strictEqual(tools?.[0]?.['name'], 'read_file')
+    })
+})
+
 suite('OpenaiResponsesApi.processStreamingResponse', () => {
     test('emits reasoning summary thinking parts only once', async () => {
         const api = new OpenaiResponsesApi(makeModelInfo())
@@ -161,15 +213,31 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
         strictEqual(reported.length, 0)
     })
 
-    test('throws when [DONE] arrives with incomplete tool calls', async () => {
+    test('throws when [DONE] arrives with invalid tool call arguments', async () => {
         const api = new OpenaiResponsesApi(makeModelInfo())
         const { progress } = createMockProgress()
         const cts = new vscode.CancellationTokenSource()
         const stream = makeSseStream([
             { type: 'response.function_call_arguments.delta', output_index: 0, call_id: 'call_1', name: 'read_file', delta: '{"filePath":' },
+            { type: 'response.function_call_arguments.done', output_index: 0, call_id: 'call_1', name: 'read_file' },
             '[DONE]',
         ])
-        await rejects(api.processStreamingResponse(stream, progress, cts.token), /incomplete tool calls/)
+        await rejects(api.processStreamingResponse(stream, progress, cts.token), /Invalid JSON for tool call/)
+    })
+
+    test('flushes complete tool calls when [DONE] arrives', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'response.function_call_arguments.delta', output_index: 0, call_id: 'call_1', name: 'read_file', delta: '{"filePath":"a.ts"}' },
+            { type: 'response.function_call_arguments.done', output_index: 0, call_id: 'call_1', name: 'read_file', arguments: '{"filePath":"a.ts"}' },
+            '[DONE]',
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        const toolCallParts = reported.filter((p): p is vscode.LanguageModelToolCallPart => p instanceof vscode.LanguageModelToolCallPart)
+        strictEqual(toolCallParts.length, 1)
+        strictEqual(result, undefined)
     })
 
     test('throws on response.failed event', async () => {
@@ -206,5 +274,134 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
         const textParts = reported.filter(p => p instanceof vscode.LanguageModelTextPart)
         strictEqual(textParts.length, 1)
         strictEqual(result?.finishReason, 'stop')
+    })
+
+    test('does not duplicate think blocks on the done event', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'response.output_text.delta', output_index: 0, item_id: 'msg_1', delta: '<think>my thought</think>' },
+            { type: 'response.output_text.done', output_index: 0, item_id: 'msg_1', text: '<think>my thought</think>' },
+            { type: 'response.completed', response: { id: 'resp_1', status: 'completed', output: [] } },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        const thinkingParts = reported.filter(p => p instanceof vscode.LanguageModelThinkingPart)
+        strictEqual(thinkingParts.length, 1)
+        const textParts = reported.filter(p => p instanceof vscode.LanguageModelTextPart)
+        strictEqual(textParts.some(p => p.value.includes('<think>')), false)
+        strictEqual(result?.finishReason, 'stop')
+    })
+
+    test('continues an unclosed think block across chunks', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'response.output_text.delta', output_index: 0, item_id: 'msg_1', delta: '<think>part one' },
+            { type: 'response.output_text.delta', output_index: 0, item_id: 'msg_1', delta: ' part two</think>after' },
+            { type: 'response.output_text.done', output_index: 0, item_id: 'msg_1', text: '<think>part one part two</think>after' },
+            { type: 'response.completed', response: { id: 'resp_1', status: 'completed', output: [] } },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        const thinkingParts = reported.filter(p => p instanceof vscode.LanguageModelThinkingPart)
+        strictEqual(thinkingParts.length, 2)
+        strictEqual(thinkingParts.every(p => p.id === thinkingParts[0].id), true)
+        strictEqual(thinkingParts.map(p => Array.isArray(p.value) ? p.value.join('') : p.value).join(''), 'part one part two')
+        const textParts = reported.filter(p => p instanceof vscode.LanguageModelTextPart)
+        strictEqual(textParts.some(p => p.value === 'after'), true)
+        strictEqual(textParts.some(p => p.value.includes('<')), false)
+        strictEqual(result?.finishReason, 'stop')
+    })
+
+    test('stops reading when cancelled', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const encoder = new TextEncoder()
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"Hello"}\n'))
+            },
+        })
+        const promise = api.processStreamingResponse(stream, progress, cts.token)
+        setTimeout(() => cts.cancel(), 50)
+        const result = await promise
+        strictEqual(result, undefined)
+    })
+
+    test('reports usage from the completed event', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'response.completed', response: { id: 'resp_1', status: 'completed', output: [], usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15, input_tokens_details: { cached_tokens: 3, cache_write_tokens: 2 } } } },
+        ])
+        await api.processStreamingResponse(stream, progress, cts.token)
+        const usageParts = reported.filter((p): p is vscode.LanguageModelDataPart => p instanceof vscode.LanguageModelDataPart && p.mimeType === 'usage')
+        strictEqual(usageParts.length, 1)
+        const usage = JSON.parse(new TextDecoder().decode(usageParts[0].data)) as Record<string, unknown>
+        strictEqual(usage['prompt_tokens'], 10)
+        strictEqual(usage['completion_tokens'], 5)
+        strictEqual(usage['total_tokens'], 15)
+        const details = usage['prompt_tokens_details'] as Record<string, unknown>
+        strictEqual(details['cached_tokens'], 3)
+        strictEqual(details['cache_creation_input_tokens'], 2)
+    })
+
+    test('emits fallback text when the model stops without emitting text', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'response.completed', response: { id: 'resp_1', status: 'completed', output: [] } },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        strictEqual(result?.finishReason, 'stop')
+        const fallbackParts = reported.filter((p): p is vscode.LanguageModelTextPart2 =>
+            p instanceof vscode.LanguageModelTextPart2 && p.value.includes('The model stopped before emitting text'))
+        strictEqual(fallbackParts.length, 1)
+    })
+
+    test('does not emit fallback text when text was emitted', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'response.output_text.delta', output_index: 0, item_id: 'msg_1', delta: 'Hello' },
+            { type: 'response.completed', response: { id: 'resp_1', status: 'completed', output: [] } },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        strictEqual(result?.finishReason, 'stop')
+        const fallbackParts = reported.filter((p): p is vscode.LanguageModelTextPart2 =>
+            p instanceof vscode.LanguageModelTextPart2 && p.value.includes('The model stopped before emitting text'))
+        strictEqual(fallbackParts.length, 0)
+    })
+
+    test('treats response.incomplete as a normal length finish', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'response.incomplete', response: { id: 'resp_1', status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' } } },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        strictEqual(result?.finishReason, 'length')
+    })
+
+    test('emits a tool call once with the done-event full arguments', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'response.function_call_arguments.delta', output_index: 0, call_id: 'call_1', name: 'grep', delta: '{"pattern":"foo"}' },
+            { type: 'response.function_call_arguments.done', output_index: 0, call_id: 'call_1', name: 'grep', arguments: '{"pattern":"foo","count":3}' },
+            { type: 'response.completed', response: { id: 'resp_1', status: 'completed', output: [{ type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'grep', arguments: '{"pattern":"foo","count":3}' }] } },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        const toolCallParts = reported.filter((p): p is vscode.LanguageModelToolCallPart => p instanceof vscode.LanguageModelToolCallPart)
+        strictEqual(toolCallParts.length, 1)
+        deepStrictEqual(toolCallParts[0].input, { pattern: 'foo', count: 3 })
+        strictEqual(result?.finishReason, 'tool_calls')
     })
 })

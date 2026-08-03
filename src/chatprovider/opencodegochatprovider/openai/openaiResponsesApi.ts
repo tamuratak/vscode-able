@@ -46,11 +46,10 @@ import {
 	collectToolResultText,
 	collectToolResultImages,
 	convertToolsToOpenAI,
-	tryParseJSONObject,
 	mapRole,
 } from '../vscodeutils.js'
 
-import { APIUsage, CommonApi } from '../commonApi.js'
+import { CommonApi } from '../commonApi.js'
 import { chunkLogger, logger } from '../logger.js'
 
 export interface ResponsesInputMessage {
@@ -167,8 +166,8 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 	private _hasEmittedThinking = false
 	private _hasEmittedText = false
 	private _emittedReasoningSummaryIndices = new Set<number>()
-	private _usage: APIUsage | undefined
-	private _finishReason: string | undefined = undefined
+	/** Closing tag of a <think> block that spans chunk boundaries, if any. */
+	private _openThinkCloseTag: string | null = null
 
 	constructor(modelInfo: LanguageModelChatInformation) {
 		super(modelInfo)
@@ -391,6 +390,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		this._usage = undefined
 		this._finishReason = undefined
 		this._emittedReasoningSummaryIndices = new Set<number>()
+		this._openThinkCloseTag = null
 		const modelId = this.modelId
 		logger.debug('responses.stream.start', { modelId })
 		const reader = responseBody.getReader()
@@ -439,11 +439,11 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				reader.cancel().catch(() => undefined)
 			}
 			reader.releaseLock()
-			this.reportEndThinking(progress)
+			this.endThinking()
 			if (this._reasoningLoopDetected) {
 				this.emitReasoningLoopMessage(progress)
 			}
-			this.reportUsage(progress)
+			this.reportUsageData(progress)
 			this.emitFallbackResponseIfNeeded(progress)
 		}
 
@@ -465,11 +465,8 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		chunkLogger.trace('responses.stream.chunk', { modelId, data })
 		if (data === '[DONE]') {
 			this.warnIfToolCallBuffersNotEmpty('[DONE] received')
-			// To prevent infinite loop of agents, throw error.
-			if (this._completedToolCallIndices.size === 0 && this._toolCallBuffers.size > 0) {
-				logger.error('responses.stream.tool_calls_incomplete', { modelId, bufferedIndices: Array.from(this._toolCallBuffers.keys()) })
-				throw new Error('Stream ended with incomplete tool calls')
-			}
+			// Emit complete tool calls; invalid JSON still throws inside
+			// flushToolCallBuffer to prevent infinite agent loops.
 			this.flushToolCallBuffers(progress)
 			return true
 		}
@@ -532,6 +529,29 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		let emittedText = false
 		let remaining = text
 
+		// Continue a think block that was left open by a previous chunk.
+		if (this._openThinkCloseTag) {
+			const closeTag = this._openThinkCloseTag
+			const closeIndex = remaining.indexOf(closeTag)
+			if (closeIndex === -1) {
+				// The block is still open; keep buffering as thinking.
+				this.bufferThinkingContent(remaining, progress)
+				return { emittedAny: true, emittedText: false }
+			}
+			const thinkingContent = remaining.slice(0, closeIndex)
+			if (thinkingContent) {
+				this.bufferThinkingContent(thinkingContent, progress)
+			}
+			this._openThinkCloseTag = null
+			this.endThinking()
+			remaining = remaining.slice(closeIndex + closeTag.length)
+			if (!remaining) {
+				// The chunk ended right after the closing tag.
+				return { emittedAny: true, emittedText: false }
+			}
+			// Fall through to process any text following the closing tag.
+		}
+
 		while (remaining.length > 0) {
 			const thinkOpenMatch = remaining.match(/<(think(?:ing)?)>/)
 			if (!thinkOpenMatch || thinkOpenMatch.index === undefined) {
@@ -546,30 +566,31 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			// Emit any text before the think block as regular text
 			const beforeText = remaining.slice(0, openIndex)
 			if (beforeText) {
-				this.reportEndThinking(progress)
+				this.endThinking()
 				this.processTextContent(beforeText, progress)
-				emittedAny = true
 				emittedText = true
 			}
 
 			// Find the closing tag
 			const closeIndex = remaining.indexOf(closeTag, openIndex + openTag.length)
 			if (closeIndex === -1) {
-				// No closing tag yet - treat the rest as thinking content
+				// No closing tag yet - treat the rest as thinking content and
+				// remember the closing tag for continuation in the next chunk.
 				const thinkingContent = remaining.slice(openIndex + openTag.length)
 				if (thinkingContent) {
 					this.bufferThinkingContent(thinkingContent, progress)
-					emittedAny = true
 				}
+				this._openThinkCloseTag = closeTag
+				emittedAny = true
 				remaining = ''
 			} else {
 				// Extract thinking content between tags
 				const thinkingContent = remaining.slice(openIndex + openTag.length, closeIndex)
 				if (thinkingContent) {
 					this.bufferThinkingContent(thinkingContent, progress)
-					emittedAny = true
 				}
-				this.reportEndThinking(progress)
+				this.endThinking()
+				emittedAny = true
 				remaining = remaining.slice(closeIndex + closeTag.length)
 			}
 		}
@@ -584,37 +605,6 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		return { emittedAny, emittedText }
 	}
 
-	private reportEndThinking(_progress: Progress<LanguageModelResponsePart2>): void {
-		if (this._currentThinkingId) {
-			this.endThinking()
-		}
-	}
-
-	private reportUsage(progress: Progress<LanguageModelResponsePart2>): void {
-		if (!this._usage) {
-			return
-		}
-		progress.report(new vscode.LanguageModelDataPart(
-			new TextEncoder().encode(JSON.stringify(this._usage)),
-			'usage'
-		))
-	}
-
-	private emitFallbackResponseIfNeeded(progress: Progress<LanguageModelResponsePart2>): void {
-		if (this._finishReason === 'stop' && !this._hasEmittedAssistantText) {
-			progress.report(new vscode.LanguageModelTextPart2(
-				'\n[VS Code Able] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
-				[vscode.LanguageModelPartAudience.User]
-			))
-			progress.report(
-				new vscode.LanguageModelTextPart2(
-					this._unifiedText,
-					[vscode.LanguageModelPartAudience.User]
-				)
-			)
-		}
-	}
-
 	private processOutputTextChunk(text: string, progress: Progress<LanguageModelResponsePart2>): void {
 		if (!text) {
 			return
@@ -622,7 +612,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		const xmlRes = this.processXmlThinkBlocks(text, progress)
 		if (!xmlRes.emittedAny) {
 			// If there's an active thinking sequence, end it first
-			this.reportEndThinking(progress)
+			this.endThinking()
 
 			const res = this.processTextContent(text, progress)
 			if (res.emittedAny) {
@@ -631,6 +621,10 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			}
 		} else if (xmlRes.emittedText) {
 			this._hasEmittedAssistantText = true
+			this._hasEmittedText = true
+		} else {
+			// Thinking-only chunk: mark the item as emitted so the done event
+			// does not re-emit the same content.
 			this._hasEmittedText = true
 		}
 	}
@@ -671,6 +665,10 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				if (!this._hasEmittedText) {
 					this.processOutputTextChunk(text, progress)
 				}
+				// The done payload may contain the closing part of a think block
+				// that was left open by deltas. Clear the continuation tag so a
+				// stale tag does not misclassify later chunks.
+				this._openThinkCloseTag = null
 				this._hasEmittedText = false
 				return
 			}
@@ -713,7 +711,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				const summaryIndex = typeof event['summary_index'] === 'number' ? event['summary_index'] : 0
 				if (this._emittedReasoningSummaryIndices.has(summaryIndex)) {
 					if (eventType === 'response.reasoning_summary_part.done') {
-						this.reportEndThinking(progress)
+						this.endThinking()
 						this._hasEmittedThinking = false
 					}
 					return
@@ -725,7 +723,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 					this._emittedReasoningSummaryIndices.add(summaryIndex)
 				}
 				if (eventType === 'response.reasoning_summary_part.done') {
-					this.reportEndThinking(progress)
+					this.endThinking()
 					this._hasEmittedThinking = false
 				}
 				return
@@ -737,13 +735,13 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				const summaryIndex = typeof event['summary_index'] === 'number' ? event['summary_index'] : 0
 				if (this._emittedReasoningSummaryIndices.has(summaryIndex)) {
 					if (this._hasEmittedThinking) {
-						this.reportEndThinking(progress)
+						this.endThinking()
 						this._hasEmittedThinking = false
 					}
 					return
 				}
 				if (this._hasEmittedThinking) {
-					this.reportEndThinking(progress)
+					this.endThinking()
 					this._hasEmittedThinking = false
 					this._emittedReasoningSummaryIndices.add(summaryIndex)
 					return
@@ -751,7 +749,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				if (this.processReasoningText(event, progress)) {
 					this._emittedReasoningSummaryIndices.add(summaryIndex)
 				}
-				this.reportEndThinking(progress)
+				this.endThinking()
 				return
 			}
 
@@ -763,20 +761,20 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			case 'response.thought.done':
 			case 'response.thought_summary.done': {
 				if (this._hasEmittedThinking) {
-					this.reportEndThinking(progress)
+					this.endThinking()
 					this._hasEmittedThinking = false
 					return
 				}
 
 				this.processReasoningText(event, progress)
-				this.reportEndThinking(progress)
+				this.endThinking()
 				return
 			}
 
 			// Tool call events
 			case 'response.function_call_arguments.delta':
 			case 'response.function_call_arguments.done': {
-				this.reportEndThinking(progress)
+				this.endThinking()
 
 				// If first tool call appears after text, emit a whitespace to flush UI buffers.
 				if (!this._emittedBeginToolCallsHint && this._hasEmittedAssistantText) {
@@ -784,7 +782,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 					this._emittedBeginToolCallsHint = true
 				}
 
-				const idx = (event['output_index'] as number) ?? 0
+				const idx = typeof event['output_index'] === 'number' ? event['output_index'] : 0
 				if (this._completedToolCallIndices.has(idx)) {
 					return
 				}
@@ -817,7 +815,6 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				}
 				this._toolCallBuffers.set(idx, buf)
 
-				this.tryEmitBufferedToolCall(idx, progress)
 				if (eventType === 'response.function_call_arguments.done') {
 					this.flushToolCallBuffer(idx, progress)
 				}
@@ -831,7 +828,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 					return
 				}
 
-				this.reportEndThinking(progress)
+				this.endThinking()
 
 				// If first tool call appears after text, emit a whitespace to flush UI buffers.
 				if (!this._emittedBeginToolCallsHint && this._hasEmittedAssistantText) {
@@ -839,7 +836,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 					this._emittedBeginToolCallsHint = true
 				}
 
-				const idx = (event['output_index'] as number) ?? 0
+				const idx = typeof event['output_index'] === 'number' ? event['output_index'] : 0
 				if (this._completedToolCallIndices.has(idx)) {
 					return
 				}
@@ -874,7 +871,6 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				}
 				this._toolCallBuffers.set(idx, buf)
 
-				this.tryEmitBufferedToolCall(idx, progress)
 				if (eventType === 'response.output_item.done') {
 					this.flushToolCallBuffer(idx, progress)
 				}
@@ -885,32 +881,9 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			case 'response.done': {
 				// End of message - ensure thinking is ended and flush all tool calls
 				this.flushToolCallBuffers(progress)
-				this.reportEndThinking(progress)
+				this.endThinking()
 				this._finishReason = this.synthesizeFinishReason(event)
-				// Capture usage from the completed event
-				const usage = event['usage'] ?? (event['response'] as Record<string, unknown>)?.['usage']
-				if (usage && typeof usage === 'object') {
-					const u = usage as Record<string, unknown>
-					const inputDetails = u['input_tokens_details']
-					const details: { cached_tokens: number; cache_creation_input_tokens?: number } = {
-						cached_tokens: 0,
-					}
-					if (inputDetails && typeof inputDetails === 'object') {
-						const inputDetailsObj = inputDetails as Record<string, unknown>
-						details.cached_tokens = Number(inputDetailsObj['cached_tokens'] ?? 0)
-						const cacheWriteTokens = Number(inputDetailsObj['cache_write_tokens'] ?? 0)
-						if (cacheWriteTokens > 0) {
-							details.cache_creation_input_tokens = cacheWriteTokens
-						}
-					}
-					this._usage = {
-						prompt_tokens: Number(u['input_tokens'] ?? 0),
-						completion_tokens: Number(u['output_tokens'] ?? 0),
-						total_tokens: Number(u['total_tokens'] ?? 0),
-						prompt_tokens_details: details,
-					}
-					logger.debug('usage.capture', { modelId: this.modelId, usage: this._usage })
-				}
+				this.captureUsage(event)
 				return
 			}
 
@@ -924,8 +897,15 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				const response = event['response']
 				const responseObj = response && typeof response === 'object' ? (response as Record<string, unknown>) : undefined
 				const details = responseObj?.['incomplete_details']
-				logger.error('responses.stream.response_incomplete', { modelId: this.modelId, response })
-				throw new Error(`Responses API ended incomplete: ${JSON.stringify(details)}`)
+				logger.warn('responses.stream.response_incomplete', { modelId: this.modelId, response })
+				// Treat an incomplete response as a normal end (like the chat
+				// completions `length` finish reason) instead of a hard error,
+				// so the agent turn ends rather than surfacing an exception.
+				this.warnIfToolCallBuffersNotEmpty('response.incomplete')
+				this.endThinking()
+				this._finishReason = this.synthesizeIncompleteFinishReason(details)
+				this.captureUsage(event)
+				return
 			}
 			default: {
 				return
@@ -984,6 +964,40 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		return undefined
 	}
 
+	private captureUsage(event: Record<string, unknown>): void {
+		const usage = event['usage'] ?? (event['response'] as Record<string, unknown> | undefined)?.['usage']
+		if (!usage || typeof usage !== 'object') {
+			return
+		}
+		const u = usage as Record<string, unknown>
+		const inputDetails = u['input_tokens_details']
+		const details: { cached_tokens: number; cache_creation_input_tokens?: number } = {
+			cached_tokens: 0,
+		}
+		if (inputDetails && typeof inputDetails === 'object') {
+			const inputDetailsObj = inputDetails as Record<string, unknown>
+			details.cached_tokens = Number(inputDetailsObj['cached_tokens'] ?? 0)
+			const cacheWriteTokens = Number(inputDetailsObj['cache_write_tokens'] ?? 0)
+			if (cacheWriteTokens > 0) {
+				details.cache_creation_input_tokens = cacheWriteTokens
+			}
+		}
+		this._usage = {
+			prompt_tokens: Number(u['input_tokens'] ?? 0),
+			completion_tokens: Number(u['output_tokens'] ?? 0),
+			total_tokens: Number(u['total_tokens'] ?? 0),
+			prompt_tokens_details: details,
+		}
+		logger.debug('usage.capture', { modelId: this.modelId, usage: this._usage })
+	}
+
+	private synthesizeIncompleteFinishReason(details: unknown): string {
+		const reason = details && typeof details === 'object'
+			? (details as Record<string, unknown>)['reason']
+			: undefined
+		return reason === 'content_filter' ? 'content_filter' : 'length'
+	}
+
 	private processReasoningText(
 		event: Record<string, unknown>,
 		progress: vscode.Progress<vscode.LanguageModelResponsePart2>
@@ -1008,25 +1022,6 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 	private getCallIdFromEvent(event: Record<string, unknown>): string {
 		const callIdRaw = event['call_id'] ?? event['callId'] ?? event['id'] ?? event['item_id']
 		return typeof callIdRaw === 'string' ? callIdRaw : ''
-	}
-
-	private tryEmitBufferedToolCall(idx: number, progress: Progress<LanguageModelResponsePart2>): void {
-		const buf = this._toolCallBuffers.get(idx)
-		if (!buf || !buf.id || !buf.name) {
-			return
-		}
-		if (!buf.args.trim()) {
-			return
-		}
-		const parsed = tryParseJSONObject(buf.args.trim())
-		if (!parsed.ok) {
-			return
-		}
-		let parameters = parsed.value
-		parameters = this.adjustReadFileParameters(buf.name, parameters)
-		progress.report(new vscode.LanguageModelToolCallPart(buf.id, buf.name, parameters))
-		this._toolCallBuffers.delete(idx)
-		this._completedToolCallIndices.add(idx)
 	}
 
 }

@@ -323,7 +323,7 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
             } else if (responseResult?.stopReason === 'end_turn') {
                 finalResponseLogger.info('\n' + this._unifiedText)
             }
-            this.emitFallbackResponseIfNeeded(responseResult, progress)
+            this.emitAnthropicFallbackResponseIfNeeded(responseResult, progress)
             reader.releaseLock()
         }
     }
@@ -455,7 +455,9 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         return undefined;
     }
 
-    private emitFallbackResponseIfNeeded(responseResult: MessagesResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
+    // Named differently from the base-class fallback because this one keys off
+    // the MessagesResult stop reason rather than the shared _finishReason state.
+    private emitAnthropicFallbackResponseIfNeeded(responseResult: MessagesResult | undefined, progress: Progress<LanguageModelResponsePart2>) {
         if (responseResult?.stopReason === 'end_turn') {
             const needFallback = !this._hasEmittedAssistantText
             if (needFallback) {
