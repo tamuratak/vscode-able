@@ -46,9 +46,6 @@ export function tweakSystemPrompt(
         }
 
         let additionalPromptPart = baseAdditionalPromptPart
-        if (model.id === 'kimi-k2.6') {
-            additionalPromptPart += '\n' + reduceThinkingPromptPart
-        }
         if (model.id === 'deepseek-v4-pro') {
             additionalPromptPart += '\n' + autonomousAgentInstructionsPart
         }
@@ -222,13 +219,6 @@ For inputs longer than ~10k tokens (multi-chapter docs, long threads, multiple f
 - Anchor claims to specific sections rather than speaking generically.
 - If the answer depends on fine details, quote or paraphrase them.
 </long_context_handling>`
-
-const reduceThinkingPromptPart =
-    `<reasoning_instructions>
-Prefer to act on your initial understanding of the context rather than deliberating extensively.
-Minimize meta-commentary about your confidence level, alternative approaches, or step-by-step internal reasoning.
-Reduce unnecessary internal drafting; your first coherent synthesis is typically sufficient.
-</reasoning_instructions>`
 
 const autonomousAgentInstructionsPart =
     `<autonomous_agent_instructions>
