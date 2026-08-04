@@ -2,6 +2,7 @@
 import { CancellationToken, LanguageModelChatInformation, LanguageModelChatMessageRole, LanguageModelChatRequestMessage, LanguageModelResponsePart2, LanguageModelTextPart, LanguageModelToolCallPart, Progress, ProvideLanguageModelChatResponseOptions } from 'vscode'
 import { MessagesResult } from './anthropic/anthropicApi.js'
 import { ChatCompletionsResult } from './openai/openaiApi.js'
+import { ResponsesResult } from './openai/openaiResponsesApi.js'
 import { getNonce } from '../../utils/getnonce.js'
 
 
@@ -22,11 +23,13 @@ export function pushToolCall(
     options: ProvideLanguageModelChatResponseOptions,
     progress: Progress<LanguageModelResponsePart2>,
     _token: CancellationToken,
-    responseResult: ChatCompletionsResult | MessagesResult | undefined
+    responseResult: ChatCompletionsResult | MessagesResult | ResponsesResult | undefined
 ) {
     let isToolCallFinish = false
     if (responseResult) {
         if (responseResult.apiType === 'chat-completions') {
+            isToolCallFinish = responseResult.finishReason === 'tool_calls'
+        } else if (responseResult.apiType === 'responses') {
             isToolCallFinish = responseResult.finishReason === 'tool_calls'
         } else {
             isToolCallFinish = responseResult.stopReason === 'tool_use'

@@ -4,6 +4,7 @@ import type { OpenCodeGoModelItem } from './types.js'
 import { getBuiltInModelConfig, getBuiltInModelInfos } from './models.js'
 import { countMessageTokens } from './provideToken.js'
 import { ChatCompletionsResult, OpenaiApi } from './openai/openaiApi.js'
+import { OpenaiResponsesApi, ResponsesResult } from './openai/openaiResponsesApi.js'
 import { AnthropicApi, MessagesResult } from './anthropic/anthropicApi.js'
 import type { AnthropicRequestBody } from './anthropic/anthropicTypes.js'
 import { CommonApi } from './commonApi.js'
@@ -124,7 +125,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             });
             logger.trace('request.messages.origin', { messages });
 
-            let responseResult: ChatCompletionsResult | MessagesResult | undefined
+            let responseResult: ChatCompletionsResult | MessagesResult | ResponsesResult | undefined
             if (apiMode === 'messages') {
                 // Anthropic API mode
                 const anthropicApi = new AnthropicApi(model);
@@ -139,26 +140,10 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
                 const url = `${BASE_URL}/messages`
                 logger.trace('request.body', { url, requestBody })
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: requestHeaders,
-                    body: JSON.stringify(requestBody),
-                    signal: abortController.signal,
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    logger.error('[Anthropic Provider] Anthropic API error response', { errorText });
-                    throw new Error(`Anthropic API error: [${response.status}] ${response.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`)
-                }
-
-                if (!response.body) {
-                    logger.error('response.error', { modelId: model.id, error: 'No response body from Anthropic API' })
-                    throw new Error('No response body from Anthropic API')
-                }
+                const body = await anthropicApi.postAndGetBody(url, requestBody, requestHeaders, abortController.signal, 'Anthropic API');
 
                 channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
-                responseResult = await anthropicApi.processStreamingResponse(response.body, dedupProgress, token);
+                responseResult = await anthropicApi.processStreamingResponse(body, dedupProgress, token);
             } else if (apiMode === 'chat-completions') {
                 // OpenAI Chat Completions API mode
                 const openaiApi = new OpenaiApi(model);
@@ -176,29 +161,33 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 // Send chat request
                 const url = `${BASE_URL}/chat/completions`;
                 logger.trace('request.body', { url, requestBody });
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: requestHeaders,
-                    body: JSON.stringify(requestBody),
-                    signal: abortController.signal,
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    logger.error('[OpenCodeGo] API error response', { errorText });
-                    throw new Error(`API error: [${response.status}] ${response.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`)
-                }
-
-                if (!response.body) {
-                    logger.error('response.error', { modelId: model.id, error: 'No response body from API' })
-                    throw new Error('No response body from API');
-                }
+                const body = await openaiApi.postAndGetBody(url, requestBody, requestHeaders, abortController.signal, 'API');
 
                 channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
-                responseResult = await openaiApi.processStreamingResponse(response.body, dedupProgress, token);
+                responseResult = await openaiApi.processStreamingResponse(body, dedupProgress, token);
+            } else if (apiMode === 'responses') {
+                // OpenAI Responses API mode
+                const openaiResponsesApi = new OpenaiResponsesApi(model);
+                const responsesMessages = openaiResponsesApi.convertMessages(messages, modelConfig);
+
+                // requestBody
+                let requestBody: Record<string, unknown> = {
+                    model: um.id ?? model.id,
+                    input: responsesMessages,
+                    stream: true,
+                }
+                requestBody = openaiResponsesApi.prepareRequestBody(requestBody, um, options);
+
+                // Send responses request
+                const url = `${BASE_URL}/responses`;
+                logger.trace('request.body', { url, requestBody });
+                const body = await openaiResponsesApi.postAndGetBody(url, requestBody, requestHeaders, abortController.signal, 'Responses API');
+
+                channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
+                responseResult = await openaiResponsesApi.processStreamingResponse(body, dedupProgress, token);
             } else {
-                apiMode satisfies 'responses'
-                throw new Error(`Unsupported API mode: ${apiMode}`)
+                // Exhaustiveness guard: fail loudly when a new API mode is added.
+                throw new Error(`Unsupported API mode: ${String(apiMode)}`)
             }
             pushToolCall(model, messages, options, dedupProgress, token, responseResult)
         } catch (err) {

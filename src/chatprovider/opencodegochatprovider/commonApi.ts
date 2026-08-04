@@ -7,8 +7,15 @@ import { findRepeatingPattern } from './utils.js'
 import { logger } from './logger.js';
 import type { EndpointApiType } from './models.js';
 import type { AnthropicTextBlock } from './anthropic/anthropicTypes.js';
-import type { MessagesResult } from './anthropic/anthropicApi.js';
-import type { ChatCompletionsResult } from './openai/openaiApi.js';
+
+/**
+ * Base result of a streamed API response, refined by each concrete API class
+ * with a literal apiType and its own fields.
+ */
+export interface ApiResponseResult {
+	apiType: EndpointApiType;
+	finishReason?: string;
+}
 
 export interface APIUsage {
 	prompt_tokens: number;
@@ -17,6 +24,9 @@ export interface APIUsage {
 	prompt_tokens_details?: {
 		cached_tokens: number;
 		cache_creation_input_tokens?: number;
+	} | undefined;
+	completion_tokens_details?: {
+		reasoning_tokens: number;
 	} | undefined;
 }
 
@@ -36,6 +46,12 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     protected _unifiedText = ''
     protected _reasoningText = ''
     private prevContentType: 'text' | 'thinking' | undefined
+
+    /** Usage captured from the stream, reported at the end of the response. */
+    protected _usage: APIUsage | undefined
+
+    /** The last finish reason observed in the stream. */
+    protected _finishReason: string | undefined = undefined
 
     /** Set to true when a repeating pattern (infinite loop) is detected in the reasoning. */
     protected _reasoningLoopDetected = false
@@ -99,7 +115,40 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         responseBody: ReadableStream<Uint8Array>,
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
-    ): Promise<ChatCompletionsResult | MessagesResult | undefined>;
+    ): Promise<ApiResponseResult | undefined>;
+
+    /**
+     * Flush a single buffered tool call by index.
+     * Throws when the buffered arguments are not valid JSON.
+     * @param idx The tool call index to flush.
+     * @param progress Progress reporter for parts.
+     */
+    protected flushToolCallBuffer(idx: number, progress: Progress<LanguageModelResponsePart2>) {
+        if (this._completedToolCallIndices.has(idx)) {
+            return;
+        }
+        const buf = this._toolCallBuffers.get(idx);
+        if (!buf) {
+            return;
+        }
+        const argsText = buf.args.trim() || '{}';
+        const parsed = tryParseJSONObject(argsText);
+        if (!parsed.ok) {
+            // Throw error if tool call arguments are not valid JSON. Do not try to recover. LLM is too broken at this point.
+            logger.error('[OpenCodeGo] Invalid JSON for tool call', {
+                idx,
+                snippet: (buf.args || '').slice(0, 200),
+            });
+            throw new Error('Invalid JSON for tool call');
+        }
+        const id = buf.id ?? `call_${Math.random().toString(36).slice(2, 10)}`;
+        const name = buf.name ?? 'unknown_tool';
+        let parameters = parsed.value;
+        parameters = this.adjustReadFileParameters(name, parameters);
+        progress.report(new LanguageModelToolCallPart(id, name, parameters));
+        this._toolCallBuffers.delete(idx);
+        this._completedToolCallIndices.add(idx);
+    }
 
     /**
      * Flush all buffered tool calls, optionally throwing if arguments are not valid JSON.
@@ -109,24 +158,8 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         if (this._toolCallBuffers.size === 0) {
             return;
         }
-        for (const [idx, buf] of Array.from(this._toolCallBuffers.entries())) {
-            const argsText = buf.args.trim() || '{}';
-            const parsed = tryParseJSONObject(argsText);
-            if (!parsed.ok) {
-                // Throw error if tool call arguments are not valid JSON. Do not try to recover. LLM is too broken at this point.
-                logger.error('[OpenCodeGo] Invalid JSON for tool call', {
-                    idx,
-                    snippet: (buf.args || '').slice(0, 200),
-                });
-                throw new Error('Invalid JSON for tool call');
-            }
-            const id = buf.id ?? `call_${Math.random().toString(36).slice(2, 10)}`;
-            const name = buf.name ?? 'unknown_tool';
-            let parameters = parsed.value;
-            parameters = this.adjustReadFileParameters(name, parameters);
-            progress.report(new LanguageModelToolCallPart(id, name, parameters));
-            this._toolCallBuffers.delete(idx);
-            this._completedToolCallIndices.add(idx);
+        for (const idx of Array.from(this._toolCallBuffers.keys())) {
+            this.flushToolCallBuffer(idx, progress);
         }
     }
 
@@ -248,11 +281,12 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         if (apiMode === 'messages') {
             headers['x-api-key'] = apiKey;
             headers['anthropic-version'] = '2023-06-01';
-        } else if (apiMode === 'chat-completions') {
+        } else if (apiMode === 'chat-completions' || apiMode === 'responses') {
             // OpenAI-compatible API uses Bearer auth
             headers['Authorization'] = `Bearer ${apiKey}`;
         } else {
-            throw new Error(`Unsupported API mode: ${apiMode}`)
+            // Exhaustiveness guard: fail loudly when a new API mode is added.
+            throw new Error(`Unsupported API mode: ${String(apiMode)}`);
         }
 
         // Merge custom headers if provided
@@ -263,6 +297,77 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         }
 
         return headers;
+    }
+
+    /**
+     * POST a JSON body to the given URL and return the response body stream.
+     * @param url The endpoint URL.
+     * @param requestBody The request body to serialize.
+     * @param requestHeaders Headers to send.
+     * @param signal Abort signal for cancellation.
+     * @param label Human-readable API name used in error messages.
+     * @returns The response body stream.
+     */
+    public async postAndGetBody(
+        url: string,
+        requestBody: unknown,
+        requestHeaders: Record<string, string>,
+        signal: AbortSignal,
+        label: string
+    ): Promise<ReadableStream<Uint8Array>> {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: requestHeaders,
+            body: JSON.stringify(requestBody),
+            signal,
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            logger.error(`[OpenCodeGo] ${label} error response`, { errorText });
+            throw new Error(`${label} error: [${response.status}] ${response.statusText}${errorText ? `\n${errorText}` : ''}\nURL: ${url}`);
+        }
+
+        if (!response.body) {
+            logger.error('response.error', { modelId: this.modelId, error: `No response body from ${label}` });
+            throw new Error(`No response body from ${label}`);
+        }
+
+        return response.body;
+    }
+
+    /**
+     * Report captured usage as a data part with mime type "usage".
+     * @param progress Progress reporter for parts.
+     */
+    protected reportUsageData(progress: Progress<LanguageModelResponsePart2>): void {
+        if (!this._usage) {
+            return;
+        }
+        progress.report(new vscode.LanguageModelDataPart(
+            new TextEncoder().encode(JSON.stringify(this._usage)),
+            'usage'
+        ));
+    }
+
+    /**
+     * Emit a fallback response when the model stopped without emitting any text.
+     * @param progress Progress reporter for parts.
+     */
+    protected emitFallbackResponseIfNeeded(progress: Progress<LanguageModelResponsePart2>): void {
+        // Do not claim "stopped before emitting text" when tool calls were emitted.
+        if (this._finishReason === 'stop' && !this._hasEmittedAssistantText && this._completedToolCallIndices.size === 0) {
+            progress.report(new vscode.LanguageModelTextPart2(
+                '\n[VS Code Able] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
+                [vscode.LanguageModelPartAudience.User]
+            ));
+            progress.report(
+                new vscode.LanguageModelTextPart2(
+                    this._unifiedText,
+                    [vscode.LanguageModelPartAudience.User]
+                )
+            );
+        }
     }
 
     /**
