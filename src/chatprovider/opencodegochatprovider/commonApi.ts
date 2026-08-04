@@ -14,7 +14,7 @@ import type { AnthropicTextBlock } from './anthropic/anthropicTypes.js';
  */
 export interface ApiResponseResult {
 	apiType: EndpointApiType;
-	finishReason?: string;
+	finishReason?: string | undefined;
 }
 
 export interface APIUsage {
