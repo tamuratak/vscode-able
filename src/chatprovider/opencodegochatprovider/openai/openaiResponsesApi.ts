@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 /**
 MIT License
 
@@ -37,145 +36,38 @@ import {
 } from 'vscode'
 
 import type { OpenCodeGoModelItem } from '../types.js'
-import type { OpenAIToolCall } from './openaiTypes.js'
-import {
-	decodeEncryptedReasoningPart,
-	encodeEncryptedReasoningPart,
-	type EncryptedReasoningData,
-} from '../encryptedreasoning.js'
-
-import {
-	isImageMimeType,
-	createDataUrl,
-	isToolResultPart,
-	collectToolResultText,
-	collectToolResultImages,
-	convertToolsToOpenAI,
-	mapRole,
-} from '../vscodeutils.js'
+import { createEncryptedReasoningParts } from '../encryptedreasoning.js'
 
 import { ApiResponseResult, CommonApi } from '../commonApi.js'
 import { chunkLogger, logger } from '../logger.js'
+import { ResponsesMessageConverter, type ResponsesInputItem } from './responsesMessageConverter.js'
+import { ResponsesRequestBuilder } from './responsesRequestBuilder.js'
+import {
+	coerceText,
+	extractOutputText,
+	extractUsage,
+	getCallIdFromEvent,
+	looksLikeReasoningConfigValue,
+	refusalTextOf,
+	summaryTextOf,
+	synthesizeFinishReason,
+	synthesizeIncompleteFinishReason,
+} from './responsesEventUtils.js'
 
-export interface ResponsesInputMessage {
-	role: 'user' | 'assistant' | 'system'
-	content: ResponsesContentPart[]
-	type?: 'message'
-	id?: string
-	status?: 'completed' | 'incomplete'
-}
-
-export interface ResponsesContentPart {
-	type: 'input_text' | 'input_image' | 'output_text' | 'summary_text'
-	text?: string
-	image_url?: string
-	detail?: 'auto'
-	annotations?: unknown[]
-}
-
-export interface ResponsesFunctionCall {
-	type: 'function_call'
-	id: string
-	call_id: string
-	name: string
-	arguments: string
-	status: 'completed'
-}
-
-export interface ResponsesFunctionCallOutput {
-	type: 'function_call_output'
-	call_id: string
-	output: string | ResponsesContentPart[]
-	id: string
-	status: 'completed'
-}
-
-export interface ResponsesReasoning {
-	type: 'reasoning'
-	summary: ResponsesContentPart[]
-	id: string
-	status: 'completed'
-	encrypted_content?: string
-}
-
-export type ResponsesInputItem =
-	| ResponsesInputMessage
-	| ResponsesFunctionCall
-	| ResponsesFunctionCallOutput
-	| ResponsesReasoning
-
-/**
- * Convert VS Code tool definitions to OpenAI Responses API tool definitions.
- * Responses uses `{ type: "function", name, description, parameters }` (no nested `function` object).
- */
-export function convertToolsToOpenAIResponses(options?: vscode.ProvideLanguageModelChatResponseOptions): {
-	tools?: OpenAIResponsesFunctionToolDef[]
-	tool_choice?: OpenAIResponsesToolChoice
-} {
-	const toolConfig = convertToolsToOpenAI(options)
-	if (!toolConfig.tools || toolConfig.tools.length === 0) {
-		return {}
-	}
-
-	const tools: OpenAIResponsesFunctionToolDef[] = toolConfig.tools.map((t) => {
-		const out: OpenAIResponsesFunctionToolDef = {
-			type: 'function',
-			name: t.function.name,
-		}
-		if (t.function.description) {
-			out.description = t.function.description
-		}
-		if (t.function.parameters) {
-			out.parameters = t.function.parameters
-		}
-		return out
-	})
-
-	let tool_choice: OpenAIResponsesToolChoice | undefined
-	if (toolConfig.tool_choice === 'auto' || toolConfig.tool_choice === 'none' || toolConfig.tool_choice === 'required') {
-		tool_choice = toolConfig.tool_choice
-	}
-
-	if (tool_choice !== undefined) {
-		return { tools, tool_choice }
-	}
-	return { tools }
-}
-
-export interface OpenAIResponsesFunctionToolDef {
-	type: 'function'
-	name: string
-	description?: string
-	parameters?: object
-}
-
-export type OpenAIResponsesToolChoice = 'auto' | 'none' | 'required'
+export type {
+	ResponsesContentPart,
+	ResponsesFunctionCall,
+	ResponsesFunctionCallOutput,
+	ResponsesInputItem,
+	ResponsesInputMessage,
+	ResponsesReasoning,
+} from './responsesMessageConverter.js'
+export { convertToolsToOpenAIResponses } from './responsesRequestBuilder.js'
+export type { OpenAIResponsesFunctionToolDef, OpenAIResponsesToolChoice } from './responsesRequestBuilder.js'
 
 export interface ResponsesResult extends ApiResponseResult {
 	apiType: 'responses';
 	finishReason?: string | undefined;
-}
-
-/** Extract the text of a Responses API summary content part, or '' when absent. */
-function summaryTextOf(part: unknown): string {
-	if (typeof part !== 'object' || part === null || Array.isArray(part)) {
-		return ''
-	}
-	if (!('text' in part)) {
-		return ''
-	}
-	return typeof part['text'] === 'string' ? part['text'] : ''
-}
-
-/** Extract the refusal text of a chat-completions style delta object, or '' when absent. */
-function refusalTextOf(delta: unknown): string {
-	if (typeof delta !== 'object' || delta === null || Array.isArray(delta)) {
-		return ''
-	}
-	if (!('refusal' in delta)) {
-		return ''
-	}
-	return typeof delta['refusal'] === 'string' ? delta['refusal'] : ''
 }
 
 /**
@@ -209,201 +101,26 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 	private _completedReasoningItemKeys = new Set<string>()
 	/** Closing tag of a <think> block that spans chunk boundaries, if any. */
 	private _openThinkCloseTag: string | null = null
+	/** Set when a terminal event (response.completed / response.incomplete) was processed; the read loop stops so rogue later events are ignored. */
+	private _terminalEventEncountered = false
+	/** Drop the stream when no data arrives for this long (a gateway may keep the connection open without ever delivering a terminal event). */
+	public static readonly DEFAULT_INACTIVITY_TIMEOUT_MS = 120_000
 
-	constructor(modelInfo: LanguageModelChatInformation) {
+	private readonly _converter: ResponsesMessageConverter
+	private readonly _requestBuilder = new ResponsesRequestBuilder()
+	private readonly _inactivityTimeoutMs: number
+
+	constructor(modelInfo: LanguageModelChatInformation, inactivityTimeoutMs: number = OpenaiResponsesApi.DEFAULT_INACTIVITY_TIMEOUT_MS) {
 		super(modelInfo)
+		this._converter = new ResponsesMessageConverter(modelInfo)
+		this._inactivityTimeoutMs = inactivityTimeoutMs
 	}
 
 	convertMessages(
 		messages: readonly LanguageModelChatRequestMessage[],
 		modelConfig: { includeReasoningInRequest: boolean }
 	): ResponsesInputItem[] {
-		const out: ResponsesInputItem[] = []
-		// Same reasoning item id may arrive via a thinking part (same-turn tool
-		// call rounds) and via a stateful marker (previous turns), so dedupe
-		// across the whole request rather than per message.
-		const reasoningItemIds = new Set<string>()
-
-		for (const m of messages) {
-			const role = mapRole(m)
-			const textParts: string[] = []
-			const imageParts: vscode.LanguageModelDataPart[] = []
-			const toolCalls: OpenAIToolCall[] = []
-			const toolResults: { callId: string; content: string; images: vscode.LanguageModelDataPart[] }[] = []
-			const thinkingPartObjects: vscode.LanguageModelThinkingPart[] = []
-			const encryptedReasoningDataList: EncryptedReasoningData[] = []
-
-			for (const part of m.content ?? []) {
-				if (part instanceof vscode.LanguageModelTextPart) {
-					textParts.push(part.value)
-				} else if (part instanceof vscode.LanguageModelDataPart && isImageMimeType(part.mimeType) && this.modelCapabilities.imageInput) {
-					imageParts.push(part)
-				} else if (part instanceof vscode.LanguageModelToolCallPart) {
-					const id = part.callId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-					const args = JSON.stringify(part.input ?? {})
-					toolCalls.push({ id, type: 'function', function: { name: part.name, arguments: args } })
-				} else if (isToolResultPart(part)) {
-					const callId = part.callId
-					const content = collectToolResultText(part)
-					const images = collectToolResultImages(part)
-					toolResults.push({ callId, content, images })
-				} else if (part instanceof vscode.LanguageModelThinkingPart && modelConfig.includeReasoningInRequest) {
-					thinkingPartObjects.push(part)
-				} else if (part instanceof vscode.LanguageModelDataPart && modelConfig.includeReasoningInRequest) {
-					// Stateful markers replay Copilot's own response-id markers and
-					// the encrypted reasoning markers emitted by processReasoningItem.
-					const data = decodeEncryptedReasoningPart(part, this.modelId)
-					if (data) {
-						encryptedReasoningDataList.push(data)
-					}
-				}
-			}
-
-			const joinedText = textParts.join('').trim()
-
-			// assistant message (optional)
-			if (role === 'assistant') {
-				// Round-trip encrypted reasoning from thinking parts, matching
-				// the Copilot extension. Copilot replays thinking parts of the
-				// current turn's tool-call rounds, so this covers rounds within
-				// one user turn. The Responses API rejects reasoning items whose
-				// id it did not issue (400 "Expected an ID that begins with
-				// 'rs'"), so plain thinking text is not sent back and encrypted
-				// content is forwarded only when the original reasoning item id
-				// (rs_*) is preserved via the thinking part metadata.
-				for (const part of thinkingPartObjects) {
-					const id = typeof part.id === 'string' ? part.id : ''
-					if (!id.startsWith('rs')) {
-						continue
-					}
-					const encryptedContent =
-						typeof part.metadata?.['encrypted_content'] === 'string'
-							? part.metadata['encrypted_content']
-							: typeof part.metadata?.['encrypted'] === 'string'
-								? part.metadata['encrypted']
-								: ''
-					if (encryptedContent.length === 0 || reasoningItemIds.has(id)) {
-						continue
-					}
-					reasoningItemIds.add(id)
-					out.push({
-						type: 'reasoning',
-						id,
-						summary: [],
-						encrypted_content: encryptedContent,
-						status: 'completed',
-					})
-				}
-
-				// Encrypted reasoning carried over across user turns via Copilot's
-				// stateful marker data parts (see processReasoningItem and
-				// encryptedreasoning.ts). This round trip only works when the
-				// upstream forwards the Responses format unchanged (Zen gateway
-				// passthrough); gateways that normalize to chat-completions drop
-				// reasoning input items.
-				for (const data of encryptedReasoningDataList) {
-					if (!data.id.startsWith('rs') || data.content.length === 0 || reasoningItemIds.has(data.id)) {
-						continue
-					}
-					reasoningItemIds.add(data.id)
-					logger.debug('responses.reasoning.marker.replayed', { modelId: this.modelId, id: data.id })
-					out.push({
-						type: 'reasoning',
-						id: data.id,
-						summary: [],
-						encrypted_content: data.content,
-						status: 'completed',
-					})
-				}
-
-				if (joinedText) {
-					out.push({
-						role: 'assistant',
-						content: [{ type: 'output_text', text: joinedText, annotations: [] }],
-						type: 'message',
-						id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-						status: 'completed',
-					})
-				}
-
-				for (const tc of toolCalls) {
-					out.push({
-						type: 'function_call',
-						// The Zen gateway's chat-completions normalization uses the
-						// item id as the tool_call id, so it must equal call_id
-						// (tool_call_id of the matching function_call_output).
-						id: tc.id,
-						call_id: tc.id,
-						name: tc.function.name,
-						arguments: tc.function.arguments,
-						status: 'completed',
-					})
-				}
-			}
-
-			// tool outputs
-			for (const tr of toolResults) {
-				if (!tr.callId) {
-					continue
-				}
-				let output: string | ResponsesContentPart[]
-				if (tr.images.length > 0 && this.modelCapabilities.imageInput) {
-					const outputParts: ResponsesContentPart[] = []
-					if (tr.content) {
-						outputParts.push({ type: 'input_text', text: tr.content })
-					}
-					for (const imagePart of tr.images) {
-						outputParts.push({ type: 'input_image', image_url: createDataUrl(imagePart), detail: 'auto' })
-					}
-					output = outputParts
-				} else {
-					output = tr.content || ''
-				}
-				out.push({
-					type: 'function_call_output',
-					call_id: tr.callId,
-					output,
-					id: `fco_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-					status: 'completed',
-				})
-			}
-
-			// user message
-			if (role === 'user') {
-				const contentArray: ResponsesContentPart[] = []
-				if (joinedText) {
-					contentArray.push({ type: 'input_text', text: joinedText })
-				}
-				for (const imagePart of imageParts) {
-					const dataUrl = createDataUrl(imagePart)
-					contentArray.push({ type: 'input_image', image_url: dataUrl, detail: 'auto' })
-				}
-				if (contentArray.length > 0) {
-					out.push({
-						role: 'user',
-						content: contentArray,
-						type: 'message',
-						status: 'completed',
-					})
-				}
-			}
-
-			// system message (used to build `instructions` in request body)
-			if (role === 'system' && joinedText) {
-				this._systemContent = this._systemContent && typeof this._systemContent === 'string'
-					? `${this._systemContent}\n\n${joinedText}`
-					: joinedText
-			}
-		}
-
-		// the last user message may be incomplete
-		if (out.length > 0) {
-			const lastItem = out[out.length - 1]
-			if (lastItem?.type === 'message' && lastItem.role === 'user') {
-				lastItem.status = 'incomplete'
-			}
-		}
-		return out
+		return this._converter.convertMessages(messages, modelConfig)
 	}
 
 	prepareRequestBody(
@@ -411,78 +128,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		um: OpenCodeGoModelItem | undefined,
 		options?: ProvideLanguageModelChatResponseOptions
 	): Record<string, unknown> {
-		const isPlainObject = (v: unknown): v is Record<string, unknown> =>
-			!!v && typeof v === 'object' && !Array.isArray(v)
-		const isArray = (v: unknown): v is unknown[] => Array.isArray(v)
-
-		// Add system content if we extracted it
-		if (this._systemContent) {
-			rb['instructions'] = this._systemContent
-		}
-
-		// max_output_tokens
-		if (um?.max_completion_tokens !== undefined) {
-			rb['max_output_tokens'] = um.max_completion_tokens
-		}
-
-		// OpenAI reasoning configuration
-		if (um?.enable_thinking) {
-			if (um.reasoning_effort !== undefined) {
-				const existing = isPlainObject(rb['reasoning']) ? { ...rb['reasoning'] } : {}
-				rb['reasoning'] = {
-					...existing,
-					effort: um.reasoning_effort,
-				}
-			}
-		} else {
-			// Explicitly disable reasoning so the server does not fall back to its default.
-			const existing = isPlainObject(rb['reasoning']) ? { ...rb['reasoning'] } : {}
-			rb['reasoning'] = {
-				...existing,
-				effort: 'none',
-			}
-		}
-
-		// tools
-		const toolConfig = convertToolsToOpenAIResponses(options)
-		if (toolConfig.tools) {
-			rb['tools'] = toolConfig.tools
-		}
-		if (toolConfig.tool_choice) {
-			rb['tool_choice'] = toolConfig.tool_choice
-		}
-
-		// Extra body parameters
-		if (um?.extra && typeof um.extra === 'object') {
-			for (const [key, value] of Object.entries(um.extra)) {
-				if (value !== undefined) {
-					// Deep-merge reasoning config so `extra.reasoning` doesn't clobber `reasoning.effort`.
-					if (key === 'reasoning' && isPlainObject(value) && isPlainObject(rb['reasoning'])) {
-						rb['reasoning'] = { ...rb['reasoning'], ...value }
-						continue
-					}
-					if (key === 'tools' && isArray(value) && isArray(rb['tools'])) {
-						rb['tools'] = [...rb['tools'], ...value]
-					} else {
-						rb[key] = value
-					}
-				}
-			}
-		}
-
-		// Request encrypted reasoning content so it can be round-tripped in
-		// subsequent requests (see processReasoningItem / convertMessages).
-		// Gated to match convertMessages (the provider toggles enable_thinking
-		// and include_reasoning_in_request together): reasoning must be enabled
-		// and forwarded, otherwise the include is meaningless and a strict
-		// gateway may reject the unknown value.
-		const includeEncryptedReasoning = !!um?.enable_thinking && (um.include_reasoning_in_request ?? true)
-		if (includeEncryptedReasoning) {
-			const existingInclude = isArray(rb['include']) ? rb['include'] : []
-			rb['include'] = Array.from(new Set([...existingInclude, 'reasoning.encrypted_content']))
-		}
-
-		return rb
+		return this._requestBuilder.prepareRequestBody(rb, this._converter.systemContent, um, options)
 	}
 
 	async processStreamingResponse(
@@ -505,21 +151,44 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		this._emittedReasoningSummaryOutputIndices = new Set<number>()
 		this._completedReasoningItemKeys = new Set<string>()
 		this._openThinkCloseTag = null
+		this._terminalEventEncountered = false
 		const modelId = this.modelId
 		logger.debug('responses.stream.start', { modelId })
 		const reader = responseBody.getReader()
 		const decoder = new TextDecoder()
 		let buffer = ''
 		let streamEnded = false
+		let timedOut = false
 		const cancelToken = token.onCancellationRequested(() => reader.cancel().catch(() => undefined))
+
+		// Drop the stream when no data arrives for too long: a gateway may keep
+		// the connection open without ever delivering a terminal event. The
+		// timer is armed only while read() is pending, so chunk processing time
+		// is never counted as inactivity and a processing error cannot be
+		// masked as a timeout.
+		let inactivityTimer: ReturnType<typeof setTimeout> | undefined
+		const armInactivityTimer = (): void => {
+			inactivityTimer = setTimeout(() => {
+				timedOut = true
+				reader.cancel().catch(() => undefined)
+			}, this._inactivityTimeoutMs)
+		}
+		const clearInactivityTimer = (): void => {
+			if (inactivityTimer !== undefined) {
+				clearTimeout(inactivityTimer)
+				inactivityTimer = undefined
+			}
+		}
 
 		try {
 			while (true) {
-				if (token.isCancellationRequested || this._reasoningLoopDetected || streamEnded) {
+				if (token.isCancellationRequested || this._reasoningLoopDetected || streamEnded || this._terminalEventEncountered || timedOut) {
 					break
 				}
 
+				armInactivityTimer()
 				const { done, value } = await reader.read()
+				clearInactivityTimer()
 				if (done) {
 					break
 				}
@@ -529,10 +198,12 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				buffer = lines.pop() || ''
 
 				for (const line of lines) {
-					if (token.isCancellationRequested || this._reasoningLoopDetected || streamEnded) {
+					if (token.isCancellationRequested || this._reasoningLoopDetected || streamEnded || this._terminalEventEncountered || timedOut) {
 						break
 					}
-					if (await this.processDataLine(line, progress, modelId)) {
+					// A terminal event ends the turn; stop reading even when the
+					// stream never closes (misbehaving gateways).
+					if ((await this.processDataLine(line, progress, modelId)) || this._terminalEventEncountered) {
 						streamEnded = true
 						break
 					}
@@ -540,10 +211,16 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			}
 
 			// Process any remaining data after EOF (gateways may omit the trailing newline).
-			if (buffer.trim() && !token.isCancellationRequested && !this._reasoningLoopDetected && !streamEnded) {
+			if (buffer.trim() && !token.isCancellationRequested && !this._reasoningLoopDetected && !streamEnded && !timedOut) {
 				await this.processDataLine(buffer, progress, modelId)
 			}
+			if (timedOut) {
+				throw new Error(`Responses API stream timed out after ${this._inactivityTimeoutMs}ms without data`)
+			}
 			logger.debug('responses.stream.done', { modelId, responseId: this._responseId ?? '' })
+			if (!streamEnded && !this._finishReason && !token.isCancellationRequested && !this._reasoningLoopDetected) {
+				logger.warn('responses.stream.no_terminal_event', { modelId })
+			}
 		} catch (e) {
 			if (token.isCancellationRequested) {
 				// reader.cancel() from the cancellation callback can reject the
@@ -551,13 +228,21 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				logger.debug('responses.stream.cancelled', { modelId: this.modelId })
 				return undefined
 			}
+			if (timedOut) {
+				// The inactivity timer cancelled the pending read; surface the
+				// timeout instead of the raw cancellation error.
+				logger.error('responses.stream.inactivity_timeout', { modelId: this.modelId, timeoutMs: this._inactivityTimeoutMs })
+				throw new Error(`Responses API stream timed out after ${this._inactivityTimeoutMs}ms without data`, { cause: e })
+			}
 			logger.error('responses.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) })
 			throw e
 		} finally {
+			clearInactivityTimer()
 			cancelToken.dispose()
-			if (streamEnded || this._reasoningLoopDetected || token.isCancellationRequested) {
-				reader.cancel().catch(() => undefined)
-			}
+			// Cancel unconditionally: the pending read may still be active when
+			// the parser throws, and cancel() on an already-read stream is a
+			// no-op, so this is safe on every path.
+			await reader.cancel().catch(() => undefined)
 			reader.releaseLock()
 			this.endThinking()
 			if (this._reasoningLoopDetected) {
@@ -621,45 +306,6 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			throw e
 		}
 		return false
-	}
-
-	private coerceText(value: unknown): string {
-		if (typeof value === 'string') {
-			return value
-		}
-		if (value && typeof value === 'object') {
-			const obj = value as Record<string, unknown>
-			if (typeof obj['text'] === 'string') {
-				return obj['text']
-			}
-			if (typeof obj['thinking'] === 'string') {
-				return obj['thinking']
-			}
-			if (typeof obj['reasoning'] === 'string') {
-				return obj['reasoning']
-			}
-			if (typeof obj['summary'] === 'string') {
-				return obj['summary']
-			}
-			if (typeof obj['value'] === 'string') {
-				return obj['value']
-			}
-		}
-		return ''
-	}
-
-	private looksLikeReasoningConfigValue(value: string): boolean {
-		const v = (value || '').trim().toLowerCase()
-		return (
-			v === 'high' ||
-			v === 'medium' ||
-			v === 'low' ||
-			v === 'minimal' ||
-			v === 'auto' ||
-			v === 'none' ||
-			v === 'detailed' ||
-			v === 'concise'
-		)
 	}
 
 	private processXmlThinkBlocks(text: string, progress: Progress<LanguageModelResponsePart2>): { emittedAny: boolean; emittedText: boolean } {
@@ -791,7 +437,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			case 'response.refusal.delta': {
 				// Some gateways forward chat-completions style deltas
 				// ({ refusal: '...' }) instead of plain strings.
-				const delta = this.coerceText(event['delta']) || refusalTextOf(event['delta'])
+				const delta = coerceText(event['delta']) || refusalTextOf(event['delta'])
 				this.processOutputTextChunk(delta, progress)
 				return
 			}
@@ -801,7 +447,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				// Some gateways only emit a final "done" payload (no deltas).
 				// Emit the full text only when no delta produced text; the flag is
 				// reset here so a later delta/done pair starts fresh.
-				const text = this.coerceText(event['text'])
+				const text = coerceText(event['text'])
 				if (!this._hasEmittedText) {
 					this.processOutputTextChunk(text, progress)
 				}
@@ -998,7 +644,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 					return
 				}
 
-				const callId = this.getCallIdFromEvent(item)
+				const callId = getCallIdFromEvent(item)
 				const name =
 					typeof item['name'] === 'string'
 						? item['name']
@@ -1036,15 +682,22 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 
 			case 'response.completed':
 			case 'response.done': {
+				// The completed payload is the canonical source: restore output
+				// items first so complete function call arguments overwrite
+				// partial delta buffers, then flush whatever remains.
+				this.processCompletedOutputItems(event, progress)
 				// End of message - ensure thinking is ended and flush all tool calls
 				this.flushToolCallBuffers(progress)
 				this.endThinking()
-				this._finishReason = this.synthesizeFinishReason(event)
-				this.captureUsage(event)
-				// Gateways that omit output_item events deliver reasoning items and
-				// messages only in the completed payload; process any not yet
-				// emitted so encrypted content and text are not lost.
-				this.processCompletedOutputItems(event, progress)
+				this._finishReason = synthesizeFinishReason(event, this._completedToolCallIndices)
+				const usage = extractUsage(event)
+				if (usage) {
+					this._usage = usage
+					logger.debug('usage.capture', { modelId: this.modelId, usage })
+				}
+				// Stop the read loop so a rogue later event (or an unclosed
+				// stream) cannot extend the turn.
+				this._terminalEventEncountered = true
 				return
 			}
 
@@ -1063,12 +716,27 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				// completions `length` finish reason) instead of a hard error,
 				// so the agent turn ends rather than surfacing an exception.
 				this.warnIfToolCallBuffersNotEmpty('response.incomplete')
+				// Discard buffered tool calls explicitly: their arguments were
+				// cut off mid-stream, and a later [DONE] would otherwise report
+				// them as incomplete and fail the whole response.
+				this._toolCallBuffers.clear()
+				this._completedToolCallIndices.clear()
 				this.endThinking()
-				this._finishReason = this.synthesizeIncompleteFinishReason(details)
-				this.captureUsage(event)
+				this._finishReason = synthesizeIncompleteFinishReason(details)
+				// The turn is over; the read loop stops so rogue later events are
+				// ignored and an unclosed stream cannot hang the request.
+				this._terminalEventEncountered = true
+				const usage = extractUsage(event)
+				if (usage) {
+					this._usage = usage
+					logger.debug('usage.capture', { modelId: this.modelId, usage })
+				}
 				return
 			}
 			default: {
+				// Gateways may emit non-standard event types; record them so
+				// protocol drift stays observable instead of silently ignored.
+				logger.debug('responses.stream.unknown_event', { modelId: this.modelId, type: eventType })
 				return
 			}
 		}
@@ -1096,99 +764,20 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		}
 	}
 
-	private synthesizeFinishReason(event: Record<string, unknown>): string | undefined {
-		const response =
-			event['response'] && typeof event['response'] === 'object' && !Array.isArray(event['response'])
-				? (event['response'] as Record<string, unknown>)
-				: undefined
-		if (!response) {
-			// Some gateways emit a flat completion event without a nested response object.
-			// Fall back to the tool call flush state so a tool-call response is
-			// not misclassified as stop.
-			return event['status'] === 'completed'
-				? this._completedToolCallIndices.size > 0
-					? 'tool_calls'
-					: 'stop'
-				: undefined
-		}
-
-		// If the final output contains function calls, the model requested tools.
-		const output = response['output']
-		if (Array.isArray(output)) {
-			for (const item of output) {
-				if (item && typeof item === 'object' && !Array.isArray(item)) {
-					const record = item as Record<string, unknown>
-					if (record['type'] === 'function_call') {
-						return 'tool_calls'
-					}
-				}
-			}
-		}
-
-		if (response['status'] === 'completed') {
-			// Gateways may omit the output array; fall back to the tool call
-			// flush state so a tool-call response is not misclassified as stop.
-			return this._completedToolCallIndices.size > 0 ? 'tool_calls' : 'stop'
-		}
-		return undefined
-	}
-
-	private captureUsage(event: Record<string, unknown>): void {
-		const usage = event['usage'] ?? (event['response'] as Record<string, unknown> | undefined)?.['usage']
-		if (!usage || typeof usage !== 'object') {
-			return
-		}
-		const u = usage as Record<string, unknown>
-		const inputDetails = u['input_tokens_details']
-		const details: { cached_tokens: number; cache_creation_input_tokens?: number } = {
-			cached_tokens: 0,
-		}
-		if (inputDetails && typeof inputDetails === 'object') {
-			const inputDetailsObj = inputDetails as Record<string, unknown>
-			details.cached_tokens = Number(inputDetailsObj['cached_tokens'] ?? 0)
-			const cacheWriteTokens = Number(inputDetailsObj['cache_write_tokens'] ?? 0)
-			if (cacheWriteTokens > 0) {
-				details.cache_creation_input_tokens = cacheWriteTokens
-			}
-		}
-		// Map the Responses output token breakdown to the chat-completions style
-		// completion_tokens_details so reasoning tokens are visible to clients.
-		const outputDetails = u['output_tokens_details']
-		const completionDetails: { reasoning_tokens: number } | undefined =
-			outputDetails && typeof outputDetails === 'object'
-				? { reasoning_tokens: Number((outputDetails as Record<string, unknown>)['reasoning_tokens'] ?? 0) }
-				: undefined
-		this._usage = {
-			prompt_tokens: Number(u['input_tokens'] ?? 0),
-			completion_tokens: Number(u['output_tokens'] ?? 0),
-			total_tokens: Number(u['total_tokens'] ?? 0),
-			prompt_tokens_details: details,
-			completion_tokens_details: completionDetails,
-		}
-		logger.debug('usage.capture', { modelId: this.modelId, usage: this._usage })
-	}
-
-	private synthesizeIncompleteFinishReason(details: unknown): string {
-		const reason = details && typeof details === 'object'
-			? (details as Record<string, unknown>)['reason']
-			: undefined
-		return reason === 'content_filter' ? 'content_filter' : 'length'
-	}
-
 	private processReasoningText(
 		event: Record<string, unknown>,
 		progress: vscode.Progress<vscode.LanguageModelResponsePart2>
 	): boolean {
 		const candidates = [
-			this.coerceText(event['delta']),
-			this.coerceText(event['text']),
-			this.coerceText(event['reasoning']),
-			this.coerceText(event['summary']),
-			this.coerceText(event['part']),
+			coerceText(event['delta']),
+			coerceText(event['text']),
+			coerceText(event['reasoning']),
+			coerceText(event['summary']),
+			coerceText(event['part']),
 		].filter(Boolean)
 
 		for (const chunk of candidates) {
-			if (this.looksLikeReasoningConfigValue(chunk)) {
+			if (looksLikeReasoningConfigValue(chunk)) {
 				continue
 			}
 			this.bufferThinkingContent(chunk, progress)
@@ -1220,11 +809,13 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		const summaryText = summaryParts.map(part => summaryTextOf(part)).join('')
 		const summaryStreamed = this._emittedReasoningSummaryOutputIndices.has(outputIndex)
 		const value = summaryText && !summaryStreamed ? summaryText : '[REDACTED]'
-		progress.report(new vscode.LanguageModelThinkingPart(value, id || undefined, { encrypted_content: encryptedContent }))
+		// The thinking part carries the encrypted content in metadata; the
+		// stateful marker data part is replayed by Copilot in later user turns
+		// (see encryptedreasoning.ts).
+		for (const part of createEncryptedReasoningParts(this.modelId, { id, content: encryptedContent }, value)) {
+			progress.report(part)
+		}
 		if (id) {
-			// Stateful marker data part replayed by Copilot in later user turns
-			// (see encryptedreasoning.ts).
-			progress.report(encodeEncryptedReasoningPart(this.modelId, { id, content: encryptedContent }))
 			logger.debug('responses.reasoning.marker.emitted', { modelId: this.modelId, id, contentLength: encryptedContent.length })
 		}
 		// The item may arrive before the summary events (non-standard ordering);
@@ -1288,31 +879,13 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			} else if (record['type'] === 'message' && !this._hasEmittedAssistantText) {
 				// Restore text for done-only gateways that deliver the message
 				// only in the completed payload.
-				const text = this.extractOutputText(record)
+				const text = extractOutputText(record)
 				if (text) {
 					this.processOutputTextChunk(text, progress)
 					this._hasEmittedAssistantText = true
 				}
 			}
 		}
-	}
-
-	private extractOutputText(item: Record<string, unknown>): string {
-		const content = item['content']
-		if (!Array.isArray(content)) {
-			return ''
-		}
-		let text = ''
-		for (const part of content) {
-			if (!part || typeof part !== 'object' || Array.isArray(part)) {
-				continue
-			}
-			const record = part as Record<string, unknown>
-			if (record['type'] === 'output_text' && typeof record['text'] === 'string') {
-				text += record['text']
-			}
-		}
-		return text
 	}
 
 	/**
@@ -1328,15 +901,6 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			throw new Error('Tool call missing id')
 		}
 		this.flushToolCallBuffer(idx, progress)
-	}
-
-	private getCallIdFromEvent(event: Record<string, unknown>): string {
-		// The arguments delta/done events carry only item_id (the output item
-		// id, fc_*), never the tool call id (call_*); falling back to item_id
-		// would emit a mismatched id that breaks the next turn's tool results.
-		// The call id is obtained from the output_item events instead.
-		const callIdRaw = event['call_id'] ?? event['callId']
-		return typeof callIdRaw === 'string' ? callIdRaw : ''
 	}
 
 }

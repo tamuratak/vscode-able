@@ -975,6 +975,190 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
             p instanceof vscode.LanguageModelTextPart2 && p.value.includes('The model stopped before emitting text'))
         strictEqual(fallbackParts.length, 0)
     })
+
+    test('emits multiple tool calls with distinct ids', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            { type: 'response.output_item.done', output_index: 0, item: { type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'read_file', arguments: '{"filePath":"/a.ts"}' } },
+            { type: 'response.output_item.done', output_index: 1, item: { type: 'function_call', id: 'fc_2', call_id: 'call_2', name: 'grep', arguments: '{"pattern":"foo"}' } },
+            { type: 'response.completed', response: { id: 'resp_1', status: 'completed', output: [] } },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        const toolCallParts = reported.filter((p): p is vscode.LanguageModelToolCallPart => p instanceof vscode.LanguageModelToolCallPart)
+        strictEqual(toolCallParts.length, 2)
+        strictEqual(toolCallParts[0].callId, 'call_1')
+        // adjustReadFileParameters extends read_file to 1500 lines by default.
+        deepStrictEqual(toolCallParts[0].input, { filePath: '/a.ts', endLine: 1501 })
+        strictEqual(toolCallParts[1].callId, 'call_2')
+        deepStrictEqual(toolCallParts[1].input, { pattern: 'foo' })
+        strictEqual(result?.finishReason, 'tool_calls')
+    })
+
+    test('ignores unknown event types without throwing', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const stream = makeSseStream([
+            // A gateway-specific event type must not break the stream.
+            { type: 'custom.gateway_event', data: 'x' },
+            { type: 'response.output_text.delta', output_index: 0, item_id: 'msg_1', delta: 'Hello' },
+            { type: 'response.completed', response: { id: 'resp_1', status: 'completed', output: [] } },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        const textParts = reported.filter(p => p instanceof vscode.LanguageModelTextPart)
+        strictEqual(textParts.length, 1)
+        strictEqual(textParts[0].value, 'Hello')
+        strictEqual(result?.finishReason, 'stop')
+    })
+
+    test('returns undefined when the stream ends without a terminal event', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        // Only a delta, then EOF: no completed/incomplete/[DONE].
+        const stream = makeSseStream([
+            { type: 'response.output_text.delta', output_index: 0, item_id: 'msg_1', delta: 'Hello' },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        strictEqual(result, undefined)
+    })
+
+    test('cancels the reader when the stream processing throws', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        let cancelCount = 0
+        const encoder = new TextEncoder()
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(encoder.encode('data: {"type":"response.failed","response":{"id":"resp_1","error":{"code":"server_error"}}}\n'))
+            },
+            cancel() {
+                cancelCount++
+            },
+        })
+        await rejects(api.processStreamingResponse(stream, progress, cts.token), /Responses API failed/)
+        strictEqual(cancelCount, 1)
+    })
+
+    test('does not fail when [DONE] follows response.incomplete with buffered tool calls', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        // The tool call never completed; response.incomplete must discard it so
+        // the following [DONE] does not report it as incomplete.
+        const stream = makeSseStream([
+            { type: 'response.function_call_arguments.delta', output_index: 0, item_id: 'fc_1', name: 'read_file', delta: '{"filePath":"/a.ts"}' },
+            { type: 'response.incomplete', response: { id: 'resp_1', status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' } } },
+            '[DONE]',
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        strictEqual(result?.finishReason, 'length')
+        const toolCallParts = reported.filter((p): p is vscode.LanguageModelToolCallPart => p instanceof vscode.LanguageModelToolCallPart)
+        strictEqual(toolCallParts.length, 0)
+    })
+
+    test('ignores a rogue response.completed after response.incomplete', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        // A misbehaving gateway may follow response.incomplete with a
+        // response.completed; the finish reason must stay 'length' and the
+        // cut-off tool call from the completed payload must not be re-emitted.
+        const stream = makeSseStream([
+            { type: 'response.function_call_arguments.delta', output_index: 0, item_id: 'fc_1', name: 'read_file', delta: '{"filePath":"/a.ts"}' },
+            { type: 'response.incomplete', response: { id: 'resp_1', status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' } } },
+            { type: 'response.completed', response: { id: 'resp_1', status: 'completed', output: [{ type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'read_file', arguments: '{"filePath":"/a.ts"}' }] } },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        strictEqual(result?.finishReason, 'length')
+        const toolCallParts = reported.filter((p): p is vscode.LanguageModelToolCallPart => p instanceof vscode.LanguageModelToolCallPart)
+        strictEqual(toolCallParts.length, 0)
+    })
+
+    test('does not emit text after response.incomplete', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        // A rogue delta after the terminal event must not be emitted.
+        const stream = makeSseStream([
+            { type: 'response.incomplete', response: { id: 'resp_1', status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' } } },
+            { type: 'response.output_text.delta', output_index: 0, item_id: 'msg_1', delta: 'rogue text' },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        strictEqual(result?.finishReason, 'length')
+        const textParts = reported.filter(p => p instanceof vscode.LanguageModelTextPart)
+        strictEqual(textParts.some(p => p.value.includes('rogue')), false)
+    })
+
+    test('resolves when the stream never closes after a terminal event', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const encoder = new TextEncoder()
+        // The stream stays open forever; the terminal event must end
+        // processing without waiting for EOF.
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(encoder.encode('data: ' + JSON.stringify({ type: 'response.incomplete', response: { id: 'resp_1', status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' } } }) + '\n'))
+            },
+        })
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        strictEqual(result?.finishReason, 'length')
+    })
+
+    test('restores a complete tool call from the completed payload over partial deltas', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        // The delta stream cuts off mid-JSON; the completed payload carries
+        // the complete function call and must win over the partial buffer.
+        const stream = makeSseStream([
+            { type: 'response.function_call_arguments.delta', output_index: 0, item_id: 'fc_1', name: 'read_file', delta: '{"filePath":' },
+            { type: 'response.completed', response: { id: 'resp_1', status: 'completed', output: [{ type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'read_file', arguments: '{"filePath":"/a.ts"}' }] } },
+        ])
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        const toolCallParts = reported.filter((p): p is vscode.LanguageModelToolCallPart => p instanceof vscode.LanguageModelToolCallPart)
+        strictEqual(toolCallParts.length, 1)
+        strictEqual(toolCallParts[0].callId, 'call_1')
+        deepStrictEqual(toolCallParts[0].input, { filePath: '/a.ts', endLine: 1501 })
+        strictEqual(result?.finishReason, 'tool_calls')
+    })
+
+    test('times out when the stream delivers no data', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo(), 50)
+        const { progress } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        // The stream never enqueues data and never closes; the inactivity
+        // timeout must end the request with an error.
+        const stream = new ReadableStream<Uint8Array>()
+        await rejects(api.processStreamingResponse(stream, progress, cts.token), /timed out/)
+    })
+
+    test('does not time out while chunks keep arriving', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo(), 500)
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const encoder = new TextEncoder()
+        // The second chunk arrives 100ms after the first; the 500ms timeout
+        // must be re-armed per read, so the gap between chunks is fine.
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(encoder.encode('data: ' + JSON.stringify({ type: 'response.output_text.delta', output_index: 0, item_id: 'msg_1', delta: 'Hello' }) + '\n'))
+                setTimeout(() => {
+                    controller.enqueue(encoder.encode('data: ' + JSON.stringify({ type: 'response.completed', response: { id: 'resp_1', status: 'completed', output: [] } }) + '\n'))
+                    controller.close()
+                }, 100)
+            },
+        })
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        strictEqual(result?.finishReason, 'stop')
+        const textParts = reported.filter(p => p instanceof vscode.LanguageModelTextPart)
+        strictEqual(textParts.length, 1)
+        strictEqual(textParts[0].value, 'Hello')
+    })
 })
 
 suite('encryptedreasoning.decode', () => {
