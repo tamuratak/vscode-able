@@ -1,6 +1,6 @@
-import { deepStrictEqual, rejects, strictEqual } from 'node:assert'
+import { deepStrictEqual, rejects, strictEqual, throws } from 'node:assert'
 import * as vscode from 'vscode'
-import { OpenaiResponsesApi } from '../../../src/chatprovider/opencodegochatprovider/openai/openaiResponsesApi.js'
+import { OpenaiResponsesApi, ResponsesStreamError } from '../../../src/chatprovider/opencodegochatprovider/openai/openaiResponsesApi.js'
 import { getBuiltInModelConfig, getBuiltInModelInfos } from '../../../src/chatprovider/opencodegochatprovider/models.js'
 import type { OpenCodeGoModelItem } from '../../../src/chatprovider/opencodegochatprovider/types.js'
 import {
@@ -570,6 +570,25 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
         strictEqual(reported.length, 0)
     })
 
+    test('accepts a final [DONE] without a trailing newline', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const encoder = new TextEncoder()
+        // No trailing newline: the [DONE] marker arrives in the EOF-residual
+        // buffer and must be treated as a normal end, not as a missing
+        // terminal event.
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(encoder.encode('data: [DONE]'))
+                controller.close()
+            },
+        })
+        const result = await api.processStreamingResponse(stream, progress, cts.token)
+        strictEqual(result, undefined)
+        strictEqual(reported.length, 0)
+    })
+
     test('throws when [DONE] arrives with invalid tool call arguments', async () => {
         const api = new OpenaiResponsesApi(makeModelInfo())
         const { progress } = createMockProgress()
@@ -654,7 +673,9 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
         const result = await api.processStreamingResponse(stream, progress, cts.token)
         const toolCallParts = reported.filter((p): p is vscode.LanguageModelToolCallPart => p instanceof vscode.LanguageModelToolCallPart)
         strictEqual(toolCallParts.length, 1)
-        strictEqual(result, undefined)
+        // The [DONE] marker carries no finish reason; it is synthesized from
+        // the flushed tool calls so pushToolCall can act on them.
+        strictEqual(result?.finishReason, 'tool_calls')
     })
 
     test('throws on response.failed event', async () => {
@@ -1013,7 +1034,7 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
         strictEqual(result?.finishReason, 'stop')
     })
 
-    test('returns undefined when the stream ends without a terminal event', async () => {
+    test('throws when the stream ends without a terminal event', async () => {
         const api = new OpenaiResponsesApi(makeModelInfo())
         const { progress } = createMockProgress()
         const cts = new vscode.CancellationTokenSource()
@@ -1021,8 +1042,10 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
         const stream = makeSseStream([
             { type: 'response.output_text.delta', output_index: 0, item_id: 'msg_1', delta: 'Hello' },
         ])
-        const result = await api.processStreamingResponse(stream, progress, cts.token)
-        strictEqual(result, undefined)
+        await rejects(
+            api.processStreamingResponse(stream, progress, cts.token),
+            (err: unknown) => err instanceof ResponsesStreamError && err.code === 'no_terminal_event'
+        )
     })
 
     test('cancels the reader when the stream processing throws', async () => {
@@ -1128,17 +1151,26 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
     })
 
     test('times out when the stream delivers no data', async () => {
-        const api = new OpenaiResponsesApi(makeModelInfo(), 50)
+        const api = new OpenaiResponsesApi(makeModelInfo(), { inactivityTimeoutMs: 50 })
         const { progress } = createMockProgress()
         const cts = new vscode.CancellationTokenSource()
+        let cancelCount = 0
         // The stream never enqueues data and never closes; the inactivity
-        // timeout must end the request with an error.
-        const stream = new ReadableStream<Uint8Array>()
-        await rejects(api.processStreamingResponse(stream, progress, cts.token), /timed out/)
+        // timeout must end the request with an error and cancel the reader.
+        const stream = new ReadableStream<Uint8Array>({
+            cancel() {
+                cancelCount++
+            },
+        })
+        await rejects(
+            api.processStreamingResponse(stream, progress, cts.token),
+            (err: unknown) => err instanceof ResponsesStreamError && err.code === 'inactivity_timeout'
+        )
+        strictEqual(cancelCount, 1)
     })
 
     test('does not time out while chunks keep arriving', async () => {
-        const api = new OpenaiResponsesApi(makeModelInfo(), 500)
+        const api = new OpenaiResponsesApi(makeModelInfo(), { inactivityTimeoutMs: 500 })
         const { progress, reported } = createMockProgress()
         const cts = new vscode.CancellationTokenSource()
         const encoder = new TextEncoder()
@@ -1158,6 +1190,45 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
         const textParts = reported.filter(p => p instanceof vscode.LanguageModelTextPart)
         strictEqual(textParts.length, 1)
         strictEqual(textParts[0].value, 'Hello')
+    })
+
+    test('times out when the streaming phase is exceeded', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo(), { streamTimeoutMs: 50 })
+        const { progress } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        const encoder = new TextEncoder()
+        // Chunks keep arriving (so the inactivity timer never fires) but no
+        // terminal event ever comes; the total timeout must end the request.
+        let timer: ReturnType<typeof setInterval> | undefined
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                timer = setInterval(() => {
+                    controller.enqueue(encoder.encode('data: ' + JSON.stringify({ type: 'response.output_text.delta', output_index: 0, item_id: 'msg_1', delta: 'x' }) + '\n'))
+                }, 10)
+            },
+            cancel() {
+                if (timer !== undefined) {
+                    clearInterval(timer)
+                }
+            },
+        })
+        try {
+            await rejects(
+                api.processStreamingResponse(stream, progress, cts.token),
+                (err: unknown) => err instanceof ResponsesStreamError && err.code === 'stream_timeout'
+            )
+        } finally {
+            if (timer !== undefined) {
+                clearInterval(timer)
+            }
+        }
+    })
+
+    test('rejects invalid timeout values', () => {
+        for (const bad of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+            throws(() => new OpenaiResponsesApi(makeModelInfo(), { inactivityTimeoutMs: bad }), TypeError)
+            throws(() => new OpenaiResponsesApi(makeModelInfo(), { streamTimeoutMs: bad }), TypeError)
+        }
     })
 })
 

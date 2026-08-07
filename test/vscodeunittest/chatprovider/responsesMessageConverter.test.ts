@@ -1,6 +1,6 @@
 import { strictEqual } from 'node:assert'
 import * as vscode from 'vscode'
-import { ResponsesMessageConverter } from '../../../src/chatprovider/opencodegochatprovider/openai/responsesMessageConverter.js'
+import { ResponsesMessageConverter } from '../../../src/chatprovider/opencodegochatprovider/openai/responsesapilib/responsesMessageConverter.js'
 import { getBuiltInModelInfos } from '../../../src/chatprovider/opencodegochatprovider/models.js'
 
 const RESPONSES_MODEL_ID = 'gpt-5.6-luna'

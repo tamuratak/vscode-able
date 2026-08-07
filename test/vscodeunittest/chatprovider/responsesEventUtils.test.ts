@@ -9,7 +9,7 @@ import {
     summaryTextOf,
     synthesizeFinishReason,
     synthesizeIncompleteFinishReason,
-} from '../../../src/chatprovider/opencodegochatprovider/openai/responsesEventUtils.js'
+} from '../../../src/chatprovider/opencodegochatprovider/openai/responsesapilib/responsesEventUtils.js'
 
 suite('responsesEventUtils', () => {
     test('coerceText passes through plain strings', () => {
@@ -103,8 +103,8 @@ suite('responsesEventUtils', () => {
         strictEqual(usage?.prompt_tokens, 10)
         strictEqual(usage?.completion_tokens, 5)
         strictEqual(usage?.total_tokens, 15)
-        strictEqual(usage?.prompt_tokens_details.cached_tokens, 3)
-        strictEqual(usage?.prompt_tokens_details.cache_creation_input_tokens, 2)
+        strictEqual(usage?.prompt_tokens_details?.cached_tokens, 3)
+        strictEqual(usage?.prompt_tokens_details?.cache_creation_input_tokens, 2)
         strictEqual(usage?.completion_tokens_details?.reasoning_tokens, 4)
     })
 

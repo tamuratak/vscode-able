@@ -29,8 +29,8 @@ SOFTWARE.
 import * as vscode from 'vscode'
 import { LanguageModelChatInformation, LanguageModelChatRequestMessage } from 'vscode'
 
-import type { OpenAIToolCall } from './openaiTypes.js'
-import { decodeEncryptedReasoningPart, type EncryptedReasoningData } from '../encryptedreasoning.js'
+import type { OpenAIToolCall } from '../openaiTypes.js'
+import { decodeEncryptedReasoningPart, type EncryptedReasoningData } from '../../encryptedreasoning.js'
 
 import {
 	isImageMimeType,
@@ -39,9 +39,9 @@ import {
 	collectToolResultText,
 	collectToolResultImages,
 	mapRole,
-} from '../vscodeutils.js'
+} from '../../vscodeutils.js'
 
-import { logger } from '../logger.js'
+import { logger } from '../../logger.js'
 
 export interface ResponsesInputMessage {
 	role: 'user' | 'assistant' | 'system'

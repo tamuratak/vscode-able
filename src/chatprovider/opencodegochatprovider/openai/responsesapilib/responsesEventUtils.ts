@@ -26,7 +26,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-import type { APIUsage } from '../commonApi.js'
+import type { APIUsage } from '../../commonApi.js'
 
 /** Extract the text of a Responses API summary content part, or '' when absent. */
 export function summaryTextOf(part: unknown): string {

@@ -1,6 +1,6 @@
 import { deepStrictEqual, strictEqual } from 'node:assert'
 import * as vscode from 'vscode'
-import { ResponsesRequestBuilder } from '../../../src/chatprovider/opencodegochatprovider/openai/responsesRequestBuilder.js'
+import { ResponsesRequestBuilder } from '../../../src/chatprovider/opencodegochatprovider/openai/responsesapilib/responsesRequestBuilder.js'
 import { getBuiltInModelConfig } from '../../../src/chatprovider/opencodegochatprovider/models.js'
 import type { OpenCodeGoModelItem } from '../../../src/chatprovider/opencodegochatprovider/types.js'
 
@@ -17,7 +17,7 @@ function makeModel(overrides: Partial<OpenCodeGoModelItem>): OpenCodeGoModelItem
 suite('ResponsesRequestBuilder', () => {
     test('mutates and returns the passed body object', () => {
         const builder = new ResponsesRequestBuilder()
-        const rb = { model: 'm', input: [] }
+        const rb: Record<string, unknown> = { model: 'm', input: [] }
         const result = builder.prepareRequestBody(rb, 'instructions', makeModel({ enable_thinking: true }), undefined)
         strictEqual(result, rb)
         strictEqual(rb['instructions'], 'instructions')

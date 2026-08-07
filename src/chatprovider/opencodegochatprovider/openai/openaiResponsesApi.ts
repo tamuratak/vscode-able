@@ -40,8 +40,8 @@ import { createEncryptedReasoningParts } from '../encryptedreasoning.js'
 
 import { ApiResponseResult, CommonApi } from '../commonApi.js'
 import { chunkLogger, logger } from '../logger.js'
-import { ResponsesMessageConverter, type ResponsesInputItem } from './responsesMessageConverter.js'
-import { ResponsesRequestBuilder } from './responsesRequestBuilder.js'
+import { ResponsesMessageConverter, type ResponsesInputItem } from './responsesapilib/responsesMessageConverter.js'
+import { ResponsesRequestBuilder } from './responsesapilib/responsesRequestBuilder.js'
 import {
 	coerceText,
 	extractOutputText,
@@ -52,7 +52,7 @@ import {
 	summaryTextOf,
 	synthesizeFinishReason,
 	synthesizeIncompleteFinishReason,
-} from './responsesEventUtils.js'
+} from './responsesapilib/responsesEventUtils.js'
 
 export type {
 	ResponsesContentPart,
@@ -61,13 +61,45 @@ export type {
 	ResponsesInputItem,
 	ResponsesInputMessage,
 	ResponsesReasoning,
-} from './responsesMessageConverter.js'
-export { convertToolsToOpenAIResponses } from './responsesRequestBuilder.js'
-export type { OpenAIResponsesFunctionToolDef, OpenAIResponsesToolChoice } from './responsesRequestBuilder.js'
+} from './responsesapilib/responsesMessageConverter.js'
+export { convertToolsToOpenAIResponses } from './responsesapilib/responsesRequestBuilder.js'
+export type { OpenAIResponsesFunctionToolDef, OpenAIResponsesToolChoice } from './responsesapilib/responsesRequestBuilder.js'
 
 export interface ResponsesResult extends ApiResponseResult {
 	apiType: 'responses';
 	finishReason?: string | undefined;
+}
+
+/** Errors raised by the Responses stream processing, classified by code. */
+export class ResponsesStreamError extends Error {
+	constructor(
+		message: string,
+		public readonly code: ResponsesStreamErrorCode,
+		options?: { cause?: unknown }
+	) {
+		super(message, options)
+		this.name = 'ResponsesStreamError'
+	}
+}
+
+export type ResponsesStreamErrorCode = 'inactivity_timeout' | 'stream_timeout' | 'no_terminal_event'
+
+/** Options for the Responses API client. Timeouts are finite positive numbers. */
+export interface OpenaiResponsesApiOptions {
+	/** Drop the stream when no data arrives for this long (default 120s). */
+	inactivityTimeoutMs?: number
+	/** Bound the streaming phase of the request (default 600s); the HTTP connect phase is bounded by the provider. */
+	streamTimeoutMs?: number
+}
+
+function validateTimeoutMs(value: number | undefined, name: string, fallback: number): number {
+	if (value === undefined) {
+		return fallback
+	}
+	if (!Number.isFinite(value) || value <= 0) {
+		throw new TypeError(`${name} must be a finite positive number`)
+	}
+	return value
 }
 
 /**
@@ -103,17 +135,23 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 	private _openThinkCloseTag: string | null = null
 	/** Set when a terminal event (response.completed / response.incomplete) was processed; the read loop stops so rogue later events are ignored. */
 	private _terminalEventEncountered = false
+	/** Number of parsed events processed in the current stream, for the done log. */
+	private _processedEventCount = 0
 	/** Drop the stream when no data arrives for this long (a gateway may keep the connection open without ever delivering a terminal event). */
 	public static readonly DEFAULT_INACTIVITY_TIMEOUT_MS = 120_000
+	/** Bound the streaming phase so a slow-but-alive gateway cannot hold the turn forever; the HTTP connect phase is bounded by the provider. */
+	public static readonly DEFAULT_STREAM_TIMEOUT_MS = 600_000
 
 	private readonly _converter: ResponsesMessageConverter
 	private readonly _requestBuilder = new ResponsesRequestBuilder()
 	private readonly _inactivityTimeoutMs: number
+	private readonly _streamTimeoutMs: number
 
-	constructor(modelInfo: LanguageModelChatInformation, inactivityTimeoutMs: number = OpenaiResponsesApi.DEFAULT_INACTIVITY_TIMEOUT_MS) {
+	constructor(modelInfo: LanguageModelChatInformation, options: OpenaiResponsesApiOptions = {}) {
 		super(modelInfo)
 		this._converter = new ResponsesMessageConverter(modelInfo)
-		this._inactivityTimeoutMs = inactivityTimeoutMs
+		this._inactivityTimeoutMs = validateTimeoutMs(options.inactivityTimeoutMs, 'inactivityTimeoutMs', OpenaiResponsesApi.DEFAULT_INACTIVITY_TIMEOUT_MS)
+		this._streamTimeoutMs = validateTimeoutMs(options.streamTimeoutMs, 'streamTimeoutMs', OpenaiResponsesApi.DEFAULT_STREAM_TIMEOUT_MS)
 	}
 
 	convertMessages(
@@ -152,14 +190,23 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		this._completedReasoningItemKeys = new Set<string>()
 		this._openThinkCloseTag = null
 		this._terminalEventEncountered = false
+		this._processedEventCount = 0
+		this.resetStreamState()
 		const modelId = this.modelId
 		logger.debug('responses.stream.start', { modelId })
 		const reader = responseBody.getReader()
 		const decoder = new TextDecoder()
 		let buffer = ''
 		let streamEnded = false
-		let timedOut = false
+		let timedOut: 'inactivity' | 'stream' | null = null
 		const cancelToken = token.onCancellationRequested(() => reader.cancel().catch(() => undefined))
+		const streamTimer = setTimeout(() => {
+			if (timedOut !== null) {
+				return
+			}
+			timedOut = 'stream'
+			reader.cancel().catch(() => undefined)
+		}, this._streamTimeoutMs)
 
 		// Drop the stream when no data arrives for too long: a gateway may keep
 		// the connection open without ever delivering a terminal event. The
@@ -169,7 +216,10 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		let inactivityTimer: ReturnType<typeof setTimeout> | undefined
 		const armInactivityTimer = (): void => {
 			inactivityTimer = setTimeout(() => {
-				timedOut = true
+				if (timedOut !== null) {
+					return
+				}
+				timedOut = 'inactivity'
 				reader.cancel().catch(() => undefined)
 			}, this._inactivityTimeoutMs)
 		}
@@ -182,13 +232,20 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 
 		try {
 			while (true) {
-				if (token.isCancellationRequested || this._reasoningLoopDetected || streamEnded || this._terminalEventEncountered || timedOut) {
+				if (token.isCancellationRequested || this._reasoningLoopDetected || streamEnded || this._terminalEventEncountered || timedOut !== null) {
 					break
 				}
 
 				armInactivityTimer()
-				const { done, value } = await reader.read()
-				clearInactivityTimer()
+				let done: boolean
+				let value: Uint8Array | undefined
+				try {
+					const result = await reader.read()
+					done = result.done
+					value = result.value
+				} finally {
+					clearInactivityTimer()
+				}
 				if (done) {
 					break
 				}
@@ -198,7 +255,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				buffer = lines.pop() || ''
 
 				for (const line of lines) {
-					if (token.isCancellationRequested || this._reasoningLoopDetected || streamEnded || this._terminalEventEncountered || timedOut) {
+					if (token.isCancellationRequested || this._reasoningLoopDetected || streamEnded || this._terminalEventEncountered || timedOut !== null) {
 						break
 					}
 					// A terminal event ends the turn; stop reading even when the
@@ -211,16 +268,31 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			}
 
 			// Process any remaining data after EOF (gateways may omit the trailing newline).
-			if (buffer.trim() && !token.isCancellationRequested && !this._reasoningLoopDetected && !streamEnded && !timedOut) {
-				await this.processDataLine(buffer, progress, modelId)
+			if (buffer.trim() && !token.isCancellationRequested && !this._reasoningLoopDetected && !streamEnded && timedOut === null) {
+				streamEnded = (await this.processDataLine(buffer, progress, modelId)) || this._terminalEventEncountered
 			}
-			if (timedOut) {
+			if (timedOut === 'inactivity') {
 				throw new Error(`Responses API stream timed out after ${this._inactivityTimeoutMs}ms without data`)
 			}
-			logger.debug('responses.stream.done', { modelId, responseId: this._responseId ?? '' })
-			if (!streamEnded && !this._finishReason && !token.isCancellationRequested && !this._reasoningLoopDetected) {
-				logger.warn('responses.stream.no_terminal_event', { modelId })
+			if (timedOut === 'stream') {
+				throw new Error(`Responses API stream exceeded the ${this._streamTimeoutMs}ms streaming timeout`)
 			}
+			if (!streamEnded && !this._terminalEventEncountered && !this._finishReason && !token.isCancellationRequested && !this._reasoningLoopDetected) {
+				logger.error('responses.stream.no_terminal_event', {
+					modelId,
+					responseId: this._responseId ?? '',
+					eventCount: this._processedEventCount,
+				})
+				throw new ResponsesStreamError('Responses API stream ended before a terminal event', 'no_terminal_event')
+			}
+			logger.debug('responses.stream.done', {
+				modelId,
+				responseId: this._responseId ?? '',
+				finishReason: this._finishReason ?? '',
+				terminalType: this._terminalEventEncountered ? 'terminal_event' : streamEnded ? 'done_marker' : 'eof',
+				eventCount: this._processedEventCount,
+				toolCallCount: this._completedToolCallIndices.size,
+			})
 		} catch (e) {
 			if (token.isCancellationRequested) {
 				// reader.cancel() from the cancellation callback can reject the
@@ -228,16 +300,25 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				logger.debug('responses.stream.cancelled', { modelId: this.modelId })
 				return undefined
 			}
-			if (timedOut) {
+			if (timedOut === 'inactivity') {
 				// The inactivity timer cancelled the pending read; surface the
 				// timeout instead of the raw cancellation error.
 				logger.error('responses.stream.inactivity_timeout', { modelId: this.modelId, timeoutMs: this._inactivityTimeoutMs })
-				throw new Error(`Responses API stream timed out after ${this._inactivityTimeoutMs}ms without data`, { cause: e })
+				throw new ResponsesStreamError(`Responses API stream timed out after ${this._inactivityTimeoutMs}ms without data`, 'inactivity_timeout', { cause: e })
+			}
+			if (timedOut === 'stream') {
+				logger.error('responses.stream.stream_timeout', { modelId: this.modelId, timeoutMs: this._streamTimeoutMs })
+				throw new ResponsesStreamError(`Responses API stream exceeded the ${this._streamTimeoutMs}ms streaming timeout`, 'stream_timeout', { cause: e })
+			}
+			if (e instanceof ResponsesStreamError) {
+				// Already logged at the throw site; propagate as-is.
+				throw e
 			}
 			logger.error('responses.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) })
 			throw e
 		} finally {
 			clearInactivityTimer()
+			clearTimeout(streamTimer)
 			cancelToken.dispose()
 			// Cancel unconditionally: the pending read may still be active when
 			// the parser throws, and cancel() on an already-read stream is a
@@ -284,6 +365,12 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			// Emit complete tool calls; invalid JSON still throws inside
 			// flushToolCallBuffer to prevent infinite agent loops.
 			this.flushToolCallBuffers(progress)
+			// The [DONE] marker (chat-completions style) carries no finish
+			// reason; synthesize it from the flushed tool calls so pushToolCall
+			// can act on them in the agent host.
+			if (this._completedToolCallIndices.size > 0) {
+				this._finishReason = 'tool_calls'
+			}
 			return true
 		}
 
@@ -293,6 +380,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				// Not an event object (e.g. JSON null or an array); ignore.
 				return false
 			}
+			this._processedEventCount++
 			await this.processEvent(parsed as Record<string, unknown>, progress)
 		} catch (e) {
 			// Debug-only here: the outer catch in processStreamingResponse logs
@@ -864,7 +952,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				if (this._completedToolCallIndices.has(i)) {
 					continue
 				}
-				const callId = typeof record['call_id'] === 'string' ? record['call_id'] : ''
+				const callId = getCallIdFromEvent(record)
 				const name = typeof record['name'] === 'string' ? record['name'] : ''
 				const argumentsText = typeof record['arguments'] === 'string' ? record['arguments'] : ''
 				if (!callId) {

@@ -28,8 +28,8 @@ SOFTWARE.
 */
 import type { ProvideLanguageModelChatResponseOptions } from 'vscode'
 
-import type { OpenCodeGoModelItem } from '../types.js'
-import { convertToolsToOpenAI } from '../vscodeutils.js'
+import type { OpenCodeGoModelItem } from '../../types.js'
+import { convertToolsToOpenAI } from '../../vscodeutils.js'
 
 /**
  * Convert VS Code tool definitions to OpenAI Responses API tool definitions.
