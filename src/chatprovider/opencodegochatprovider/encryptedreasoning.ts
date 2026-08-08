@@ -1,4 +1,4 @@
-import { LanguageModelDataPart } from 'vscode'
+import { LanguageModelDataPart, LanguageModelResponsePart2, LanguageModelThinkingPart } from 'vscode'
 
 /**
  * Contract for round-tripping encrypted reasoning content across user turns.
@@ -94,4 +94,24 @@ export function decodeEncryptedReasoningPart(part: LanguageModelDataPart, expect
 		return undefined
 	}
 	return decodeMarker(decoded.slice(separatorIndex + 1))
+}
+
+/**
+ * Build the response parts that carry encrypted reasoning content to the chat
+ * agent: a thinking part holding the encrypted content in metadata, and a
+ * stateful marker data part so the content round-trips into later user turns.
+ * The marker is only emitted when the reasoning item has an id to replay.
+ */
+export function createEncryptedReasoningParts(
+	modelId: string,
+	data: EncryptedReasoningData,
+	value: string
+): LanguageModelResponsePart2[] {
+	const parts: LanguageModelResponsePart2[] = [
+		new LanguageModelThinkingPart(value, data.id || undefined, { encrypted_content: data.content }),
+	]
+	if (data.id) {
+		parts.push(encodeEncryptedReasoningPart(modelId, data))
+	}
+	return parts
 }

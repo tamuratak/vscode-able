@@ -4,7 +4,7 @@ import type { OpenCodeGoModelItem } from './types.js'
 import { getBuiltInModelConfig, getBuiltInModelInfos } from './models.js'
 import { countMessageTokens } from './provideToken.js'
 import { ChatCompletionsResult, OpenaiApi } from './openai/openaiApi.js'
-import { OpenaiResponsesApi, ResponsesResult } from './openai/openaiResponsesApi.js'
+import { OpenaiResponsesApi, ResponsesResult, ResponsesStreamError } from './openai/openaiResponsesApi.js'
 import { AnthropicApi, MessagesResult } from './anthropic/anthropicApi.js'
 import type { AnthropicRequestBody } from './anthropic/anthropicTypes.js'
 import { CommonApi } from './commonApi.js'
@@ -21,6 +21,9 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
     // underlying fetch token. Without tracking active abort controllers here, there
     // would be no way to cancel in-flight requests from abortActiveRequests().
     private readonly _activeAbortControllers = new Set<AbortController>()
+
+    /** Bound the HTTP connect phase (connect + response headers); the Responses API's streaming phase is bounded by its own timers. */
+    private static readonly DEFAULT_HTTP_TIMEOUT_MS = 600_000
 
     /** Abort all currently active requests. */
     abortActiveRequests(): void {
@@ -62,6 +65,13 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         const abortController = new AbortController();
         this._activeAbortControllers.add(abortController)
         const cancelToken = token.onCancellationRequested(() => abortController.abort())
+        let httpTimedOut = false
+        // Abort the fetch when the HTTP connect phase stalls; user cancellation
+        // and abortActiveRequests() use the same controller.
+        const httpTimeoutTimer = setTimeout(() => {
+            httpTimedOut = true
+            abortController.abort()
+        }, OpenCodeGoChatModelProvider.DEFAULT_HTTP_TIMEOUT_MS)
 
         try {
             const loopInfo = isToolCallLoopDetected(messagesOrigin)
@@ -141,6 +151,9 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 const url = `${BASE_URL}/messages`
                 logger.trace('request.body', { url, requestBody })
                 const body = await anthropicApi.postAndGetBody(url, requestBody, requestHeaders, abortController.signal, 'Anthropic API');
+                // The connect phase is over once headers arrive; the streaming
+                // phase is bounded by each API's own timers.
+                clearTimeout(httpTimeoutTimer)
 
                 channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
                 responseResult = await anthropicApi.processStreamingResponse(body, dedupProgress, token);
@@ -162,6 +175,9 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 const url = `${BASE_URL}/chat/completions`;
                 logger.trace('request.body', { url, requestBody });
                 const body = await openaiApi.postAndGetBody(url, requestBody, requestHeaders, abortController.signal, 'API');
+                // The connect phase is over once headers arrive; the streaming
+                // phase is bounded by each API's own timers.
+                clearTimeout(httpTimeoutTimer)
 
                 channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
                 responseResult = await openaiApi.processStreamingResponse(body, dedupProgress, token);
@@ -182,6 +198,9 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 const url = `${BASE_URL}/responses`;
                 logger.trace('request.body', { url, requestBody });
                 const body = await openaiResponsesApi.postAndGetBody(url, requestBody, requestHeaders, abortController.signal, 'Responses API');
+                // The connect phase is over once headers arrive; the streaming
+                // phase is bounded by each API's own timers.
+                clearTimeout(httpTimeoutTimer)
 
                 channel.append('\n\n\n\n\n\n\n                ======================= Progress Assistant Part =======================              \n\n\n\n\n\n')
                 responseResult = await openaiResponsesApi.processStreamingResponse(body, dedupProgress, token);
@@ -196,9 +215,11 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 messageCount: messages.length,
                 errorName: err instanceof Error ? err.name : String(err),
                 errorMessage: err instanceof Error ? err.message : String(err),
+                errorCode: err instanceof ResponsesStreamError ? err.code : httpTimedOut ? 'http_timeout' : undefined,
             });
             throw err;
         } finally {
+            clearTimeout(httpTimeoutTimer)
             releaseChannel()
             cancelToken.dispose()
             this._activeAbortControllers.delete(abortController)

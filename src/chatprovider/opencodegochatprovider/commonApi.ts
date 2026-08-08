@@ -67,6 +67,17 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     /** System prompts to include in requests. */
     protected _systemContent: string | AnthropicTextBlock[] | undefined;
 
+    /**
+     * Reset stream-accumulated state so a reused instance does not leak text,
+     * thinking, or loop-detection position into a new request.
+     */
+    protected resetStreamState(): void {
+        this._unifiedText = ''
+        this._reasoningText = ''
+        this.prevContentType = undefined
+        this._lastReasoningLoopCheckLength = 0
+    }
+
     /** Set the model ID for logging purposes. */
     protected readonly _modelInfo: LanguageModelChatInformation
 
