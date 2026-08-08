@@ -189,7 +189,7 @@ function isConfirmationRequired(command: CommandNode): boolean {
     const needConfirmationPatterns: [string, RegExp][] = [
         ['date', /^(-s|--set)\b/],
         ['rg', /^--(pre|hostname-bin)\b/],
-        ['find', /^-(delete|exec|execdir|fprint|fprintf|fls|ok|okdir)\b/],
+        ['find', /^-(delete|exec|execdir|fprint(?:0)?|fprintf|fls|ok|okdir)\b/],
         ['sed', /^(-[a-zA-Z]*(e|i|I|f)[a-zA-Z]*|--expression|--file|--in-place)\b/],
         ['sort', /^-(o|S)\b/],
         ['tree', /^-o\b/],

@@ -46,6 +46,15 @@ Use concise requests such as:
 - "Please start the development server and share the startup result"
 - "This step needs network access. Please run it locally and paste the output"
 
+## Avoid `find -exec`
+
+Never use `find -exec` (or `-execdir`, `-delete`, `-ok`, `-okdir`, `-fprint*`, `-fls`) — always rejected by the sandbox validator.
+
+Use instead:
+
+- List files with line numbers: `find ... -print | nl -ba`
+- Per-file commands: list files first (`find ... -print` or `rg --files`), then run `nl -ba` on each file in a `for` loop with each path quoted.
+
 ## Practical Tips
 
 - Prefer deterministic commands with explicit paths

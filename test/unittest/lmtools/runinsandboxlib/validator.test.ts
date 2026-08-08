@@ -46,6 +46,12 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('find -fprint0 is disallowed', async () => {
+        const cmd = 'find . -fprint0 out.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test("allow sed -n '100,150p' /Users/tamura/src/github/vscode-copilot-chat/src/vs/workbench/contrib/chat/browser/widget/chatListRenderer.ts", async () => {
         const cmd = "sed -n '100,150p' /Users/tamura/src/github/vscode-copilot-chat/src/vs/workbench/contrib/chat/browser/widget/chatListRenderer.ts"
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
