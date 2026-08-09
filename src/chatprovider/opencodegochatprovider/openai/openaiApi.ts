@@ -270,7 +270,8 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             if (this._reasoningLoopDetected) {
                 this.emitReasoningLoopMessage(progress)
             } else if (this._finishReason === 'stop') {
-                finalResponseLogger.info('\n' + this._unifiedText)
+                const prefix = '\n\n\n\n\n\n\n                ======================= Final Response =======================              \n\n\n\n\n\n'
+                finalResponseLogger.info(prefix + this._unifiedText)
             }
             this.reportUsageData(progress)
             this.emitFallbackResponseIfNeeded(progress)
