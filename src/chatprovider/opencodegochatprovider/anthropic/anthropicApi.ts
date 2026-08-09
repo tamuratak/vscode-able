@@ -321,7 +321,8 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
             if (this._reasoningLoopDetected) {
                 this.emitReasoningLoopMessage(progress)
             } else if (responseResult?.stopReason === 'end_turn') {
-                finalResponseLogger.info('\n' + this._unifiedText)
+                const prefix = '\n\n\n\n\n\n\n                ======================= Final Response =======================              \n\n\n\n\n\n'
+                finalResponseLogger.info(prefix + this._unifiedText)
             }
             this.emitAnthropicFallbackResponseIfNeeded(responseResult, progress)
             reader.releaseLock()
