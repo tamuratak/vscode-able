@@ -39,7 +39,7 @@ import type { OpenCodeGoModelItem } from '../types.js'
 import { createEncryptedReasoningParts } from '../encryptedreasoning.js'
 
 import { ApiResponseResult, CommonApi } from '../commonApi.js'
-import { chunkLogger, logger } from '../logger.js'
+import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
 import { ResponsesMessageConverter, type ResponsesInputItem } from './responsesapilib/responsesMessageConverter.js'
 import { ResponsesRequestBuilder } from './responsesapilib/responsesRequestBuilder.js'
 import {
@@ -328,6 +328,9 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			this.endThinking()
 			if (this._reasoningLoopDetected) {
 				this.emitReasoningLoopMessage(progress)
+			} else if (this._finishReason === 'stop') {
+				const prefix = '\n\n\n\n\n\n\n                ======================= Final Response =======================              \n\n\n\n\n\n'
+				finalResponseLogger.info(prefix + this._unifiedText)
 			}
 			this.reportUsageData(progress)
 			this.emitFallbackResponseIfNeeded(progress)
