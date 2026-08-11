@@ -52,7 +52,7 @@ export async function isAllowedCommand(command: string, workspaceRootPaths: stri
             }
         }
 
-        const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'col', 'rg', 'jq', 'man', 'printf', 'sed', 'sort', 'tail', 'grep', 'find', 'pwd', 'wc', 'true', 'sleep'])
+        const allowedCommands = new Set(['cat', 'cd', 'echo', 'head', 'ls', 'nl', 'col', 'rg', 'jq', 'man', 'printf', 'sed', 'sort', 'tail', 'grep', 'find', 'pwd', 'wc', 'true', 'sleep', 'tr'])
         if (!allowedCommands.has(cmd.command)) {
             return false
         }
