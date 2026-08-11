@@ -97,7 +97,7 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
         const info: LanguageModelChatInformation = {
             id: def.baseId,
             name: def.displayName,
-            category: 'poowerful',
+            category: 'powerful',
             detail: 'OpenCode Go',
             isBYOK: true,
             tooltip: 'OpenCode Go',
