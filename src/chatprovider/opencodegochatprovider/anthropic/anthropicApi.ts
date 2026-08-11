@@ -257,11 +257,10 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
         let responseResult: MessagesResult | undefined
 
         try {
+            // [DONE] ends the SSE event flow; the transport stream may still be open.
+            let doneReceived = false
             while (true) {
-                if (token.isCancellationRequested) {
-                    break;
-                }
-                if (this._reasoningLoopDetected) {
+                if (token.isCancellationRequested || this._reasoningLoopDetected || doneReceived) {
                     break;
                 }
 
@@ -275,58 +274,100 @@ export class AnthropicApi extends CommonApi<AnthropicMessage, AnthropicRequestBo
                 buffer = lines.pop() || '';
 
                 for (const line of lines) {
-                    if (token.isCancellationRequested) {
+                    if (token.isCancellationRequested || this._reasoningLoopDetected || doneReceived) {
                         break
                     }
-                    if (this._reasoningLoopDetected) {
+                    const res = this.processDataLine(line, progress, modelId)
+                    if (res.result?.stopReason) {
+                        responseResult = res.result
+                    }
+                    if (res.ended) {
+                        // [DONE] ends the turn: stop reading even when the gateway
+                        // never closes the connection (this also fixes an infinite
+                        // wait on keep-alive gateways that omit EOF after [DONE]).
+                        doneReceived = true
                         break
                     }
-                    if (line.trim() === '') {
-                        continue;
-                    }
-                    if (!line.startsWith('data:')) {
-                        continue;
-                    }
+                }
+            }
 
-                    const data = line.slice(5).trim()
-                    chunkLogger.trace('anthropic.stream.chunk', { modelId, data })
-                    if (data === '[DONE]') {
-                        this.warnIfToolCallBuffersNotEmpty('[DONE] received')
-                        break
-                    }
-
-                    try {
-                        const chunk = JSON.parse(data) as AnthropicStreamChunk;
-                        const result = this.processAnthropicChunk(chunk, progress);
-                        if (result?.stopReason) {
-                            responseResult = result
-                        }
-                    } catch (e) {
-                        logger.error('anthropic.stream.chunk.error', {
-                            modelId,
-                            error: e instanceof Error ? e.message : String(e),
-                            data,
-                        });
+            // Process any remaining data after EOF (gateways may omit the trailing
+            // newline). A truncated final line fails JSON.parse below and is logged
+            // as a chunk error, indistinguishable from a parse failure. Flush the
+            // decoder so multi-byte characters split at a chunk boundary are kept.
+            if (!token.isCancellationRequested && !this._reasoningLoopDetected && !doneReceived) {
+                buffer += decoder.decode()
+                if (buffer.trim()) {
+                    const res = this.processDataLine(buffer, progress, modelId)
+                    if (res.result?.stopReason) {
+                        responseResult = res.result
                     }
                 }
             }
             logger.info('anthropic.stream.done', { modelId, responseResult });
             return responseResult;
         } catch (e) {
+            if (token.isCancellationRequested) {
+                // reader.cancel() from the cancellation callback can reject the
+                // pending read; treat that as a clean end rather than an error.
+                logger.debug('anthropic.stream.cancelled', { modelId: this.modelId })
+                return undefined
+            }
             logger.error('anthropic.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
             throw e;
         } finally {
             cancelToken.dispose()
+            // Cancel unconditionally: the token may cancel a read in flight, or the
+            // transport may still be open when the parser throws or [DONE] ends the
+            // turn. cancel() on an already-read/closed stream is a no-op, so this
+            // is safe on every path.
+            await reader.cancel().catch(() => undefined)
+            reader.releaseLock()
             this.endThinking()
             if (this._reasoningLoopDetected) {
                 this.emitReasoningLoopMessage(progress)
             } else if (responseResult?.stopReason === 'end_turn') {
-                const prefix = '\n\n\n\n\n\n\n                ======================= Final Response =======================              \n\n\n\n\n\n'
+                const prefix = '\n\n\n\n\n\n\n                ======================= Final Response =======================              \n\n\n\n\n\n\n'
                 finalResponseLogger.info(prefix + this._unifiedText)
             }
             this.emitAnthropicFallbackResponseIfNeeded(responseResult, progress)
-            reader.releaseLock()
         }
+    }
+
+    /**
+     * Process a single SSE data line, returning whether the stream ended
+     * ([DONE] received) and the response result when a stop reason was observed.
+     */
+    private processDataLine(
+        line: string,
+        progress: Progress<LanguageModelResponsePart2>,
+        modelId: string
+    ): { ended: boolean; result: MessagesResult | undefined } {
+        if (line.trim() === '' || !line.startsWith('data:')) {
+            return { ended: false, result: undefined }
+        }
+
+        const data = line.slice(5).trim()
+        chunkLogger.trace('anthropic.stream.chunk', { modelId, data })
+        if (data === '[DONE]') {
+            this.warnIfToolCallBuffersNotEmpty('[DONE] received')
+            return { ended: true, result: undefined }
+        }
+
+        try {
+            const chunk = JSON.parse(data) as AnthropicStreamChunk
+            const result = this.processAnthropicChunk(chunk, progress)
+            if (result?.stopReason) {
+                return { ended: false, result }
+            }
+        } catch (e) {
+            logger.error('anthropic.stream.chunk.error', {
+                modelId,
+                error: e instanceof Error ? e.message : String(e),
+                data,
+            });
+        }
+        return { ended: false, result: undefined }
     }
 
     /**
