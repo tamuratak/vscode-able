@@ -73,7 +73,7 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'kimi-k2.7-code', displayName: 'Kimi K2.7 Code', inputModalities: ['image', 'video'], maxInputTokens: 262144, maxOutputTokens: 32768, pricing: { inputCost: 0.95, outputCost: 4, cacheCost: 0.19 } },
 
     // https://api-docs.deepseek.com/api/create-chat-completion
-    { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 1.74, outputCost: 3.48, cacheCost: 0.0145 } },
+    { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.435, outputCost: 0.87, cacheCost: 0.003625 } },
     { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.14, outputCost: 0.28, cacheCost: 0.0028 } },
 
     // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
