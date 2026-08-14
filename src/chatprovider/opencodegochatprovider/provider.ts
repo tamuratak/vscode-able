@@ -45,6 +45,11 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         _model: LanguageModelChatInformation,
         text: string | LanguageModelChatRequestMessage
     ): Promise<number> {
+        // Tool definitions are not counted here: callers (e.g. Copilot's
+        // ExtensionContributedChatTokenizer) invoke this per message and per
+        // tool field string, and count tool tokens separately. Adding tool
+        // tokens here would overcount by (messages x tools) and immediately
+        // trigger auto-compaction.
         return countMessageTokens(text, { includeReasoningInRequest: true });
     }
 

@@ -4,7 +4,7 @@ import { ProvideLanguageModelChatResponseOptions, LanguageModelChatRequestMessag
 import { OpenCodeGoModelItem } from './types.js'
 import { tryParseJSONObject } from './vscodeutils.js'
 import { findRepeatingPattern } from './utils.js'
-import { logger } from './logger.js';
+import { logger, finalResponseLogger } from './logger.js';
 import type { EndpointApiType } from './models.js';
 import type { AnthropicTextBlock } from './anthropic/anthropicTypes.js';
 
@@ -15,6 +15,31 @@ import type { AnthropicTextBlock } from './anthropic/anthropicTypes.js';
 export interface ApiResponseResult {
 	apiType: EndpointApiType;
 	finishReason?: string | undefined;
+}
+
+/** Result of processing a single SSE data line. */
+interface SseStreamResult<TResult> {
+	ended: boolean;
+	// Contract: result must be set only for lines that observed an
+	// end-of-turn reason (stop/finish reason); the shared loop treats
+	// the last such result as the stream result.
+	result: TResult | undefined;
+}
+
+/** Hooks that customize the shared SSE read loop for a concrete API client. */
+interface SseStreamHooks<TResult> {
+	/** Tag used in stream lifecycle log messages. */
+	tag: string;
+	/**
+	 * Whether to log the unified text as the final response.
+	 * The `processLine` callback returns a result only when it observed an
+	 * end-of-turn reason (finish reason / stop reason), so the result passed
+	 * here is the last such reason of the stream. Hooks must keep relying on
+	 * that contract and not expect results for intermediate chunks.
+	 */
+	shouldLogFinalResponse(result: TResult | undefined): boolean;
+	/** Emit a subclass-specific fallback response after the stream ends. */
+	emitFallback(result: TResult | undefined, progress: Progress<LanguageModelResponsePart2>): void;
 }
 
 export interface APIUsage {
@@ -345,6 +370,122 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         }
 
         return response.body;
+    }
+
+    /**
+     * Prefix used when logging the final unified response text. Shared by all
+     * three API clients; the Responses client previously used a variant with
+     * six trailing newlines and was deliberately unified to seven.
+     */
+    public static readonly FINAL_RESPONSE_PREFIX = '\n\n\n\n\n\n\n                ======================= Final Response =======================              \n\n\n\n\n\n\n';
+
+    /**
+     * Run the SSE read loop shared by the chat-completions and Anthropic
+     * clients: read chunks, split them into lines, delegate each line to
+     * `processLine`, stop on [DONE] or cancellation, and run the common
+     * cleanup (thinking end, loop message, usage report, fallback response).
+     * The loop resets `_usage` and `_finishReason` at the start; the Anthropic
+     * client does not set them, so the resets are no-ops there. Usage is
+     * reported only when a subclass set `_usage`; the Anthropic client reports
+     * usage inside its own chunk processing, so the common report never fires
+     * for it.
+     */
+    protected async runSseStream<TResult>(
+        responseBody: ReadableStream<Uint8Array>,
+        progress: Progress<LanguageModelResponsePart2>,
+        token: CancellationToken,
+        hooks: SseStreamHooks<TResult>,
+        processLine: (line: string, progress: Progress<LanguageModelResponsePart2>) => SseStreamResult<TResult>
+    ): Promise<TResult | undefined> {
+        const modelId = this.modelId;
+        logger.debug(`${hooks.tag}.stream.start`, { modelId });
+        this._usage = undefined;
+        this._finishReason = undefined;
+
+        const reader = responseBody.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        const cancelToken = token.onCancellationRequested(() => reader.cancel().catch(() => undefined));
+        let result: TResult | undefined;
+
+        try {
+            // [DONE] ends the SSE event flow; the transport stream may still be open.
+            let doneReceived = false;
+            while (true) {
+                if (token.isCancellationRequested || this._reasoningLoopDetected || doneReceived) {
+                    break;
+                }
+
+                const { done, value } = await reader.read();
+                if (done) {
+                    break;
+                }
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (token.isCancellationRequested || this._reasoningLoopDetected || doneReceived) {
+                        break;
+                    }
+                    const res = processLine(line, progress);
+                    // Only terminal observations may contribute a result (see SseStreamHooks).
+                    if (res.result) {
+                        result = res.result;
+                    }
+                    if (res.ended) {
+                        // [DONE] ends the turn: stop reading even when the gateway
+                        // never closes the connection (this also fixes an infinite
+                        // wait on keep-alive gateways that omit EOF after [DONE]).
+                        doneReceived = true;
+                        break;
+                    }
+                }
+            }
+
+            // Process any remaining data after EOF (gateways may omit the trailing
+            // newline). A truncated final line fails JSON.parse below and is logged
+            // as a chunk error, indistinguishable from a parse failure. Flush the
+            // decoder so multi-byte characters split at a chunk boundary are kept.
+            if (!token.isCancellationRequested && !this._reasoningLoopDetected && !doneReceived) {
+                buffer += decoder.decode();
+                if (buffer.trim()) {
+                    const res = processLine(buffer, progress);
+                    // Only terminal observations may contribute a result (see SseStreamHooks).
+                    if (res.result) {
+                        result = res.result;
+                    }
+                }
+            }
+            logger.info(`${hooks.tag}.stream.done`, { modelId, result });
+            return result;
+        } catch (e) {
+            if (token.isCancellationRequested) {
+                // reader.cancel() from the cancellation callback can reject the
+                // pending read; treat that as a clean end rather than an error.
+                logger.debug(`${hooks.tag}.stream.cancelled`, { modelId: this.modelId });
+                return undefined;
+            }
+            logger.error(`${hooks.tag}.stream.error`, { modelId, error: e instanceof Error ? e.message : String(e) });
+            throw e;
+        } finally {
+            cancelToken.dispose();
+            // Cancel unconditionally: the token may cancel a read in flight, or the
+            // transport may still be open when the parser throws or [DONE] ends the
+            // turn. cancel() on an already-read/closed stream is a no-op, so this
+            // is safe on every path.
+            await reader.cancel().catch(() => undefined);
+            reader.releaseLock();
+            this.endThinking();
+            if (this._reasoningLoopDetected) {
+                this.emitReasoningLoopMessage(progress);
+            } else if (hooks.shouldLogFinalResponse(result)) {
+                finalResponseLogger.info(CommonApi.FINAL_RESPONSE_PREFIX + this._unifiedText);
+            }
+            this.reportUsageData(progress);
+            hooks.emitFallback(result, progress);
+        }
     }
 
     /**

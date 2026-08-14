@@ -1,8 +1,8 @@
 import * as vscode from 'vscode'
-import { LanguageModelChatTool } from 'vscode'
 import { tokenizerManager } from './tokenizer/tokenizerManager.js'
 import { getImageDimensions } from './tokenizer/imageUtils.js'
 import { createDataUrl } from './vscodeutils.js'
+import { logger } from './logger.js'
 
 export const BaseTokensPerMessage = 3;
 export const BaseTokensPerName = 1;
@@ -38,7 +38,14 @@ export async function countMessageTokens(
                     totalTokens += await textTokenLength(thinkingText);
                 }
             } else {
-                console.warn(`Unknown part type: ${JSON.stringify(part)}`);
+                const partType = part === null ? 'null' : typeof part === 'object' ? (part.constructor?.name ?? 'object') : typeof part;
+                let partSample: string
+                try {
+                    partSample = JSON.stringify(part) ?? ''
+                } catch {
+                    partSample = String(part)
+                }
+                logger.warn('token.count.unknown_part', { partType, partSample: partSample.slice(0, 200) });
             }
         }
         return totalTokens;
@@ -51,22 +58,6 @@ export async function textTokenLength(text: string): Promise<number> {
     } catch {
         return 0;
     }
-}
-
-export async function countToolTokens(tools: readonly LanguageModelChatTool[]): Promise<number> {
-    const baseToolTokens = 16;
-    let numTokens = 0;
-    if (tools.length) {
-        numTokens += baseToolTokens;
-    }
-
-    const baseTokensPerTool = 8;
-    for (const tool of tools) {
-        numTokens += baseTokensPerTool;
-        numTokens += await textTokenLength(JSON.stringify(tool));
-    }
-
-    return numTokens;
 }
 
 /**
