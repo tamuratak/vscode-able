@@ -25,6 +25,7 @@
         "sourceMap": true,
         "strict": true,
         "target": "es2024",
+        "types": ["node", "mocha", "vscode"],
         "paths": {
             "vscodegit": ["./types/vscodegit/git.d.ts"],
             "mathjax-full": ["./types/mathjax-full/index.js"]
