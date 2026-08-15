@@ -75,8 +75,14 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     /** Usage captured from the stream, reported at the end of the response. */
     protected _usage: APIUsage | undefined
 
-    /** The last finish reason observed in the stream. */
-    protected _finishReason: string | undefined = undefined
+    // https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create#(resource)%20chat.completions%20%3E%20(model)%20chat_completion%20%3E%20(schema)%20%3E%20(property)%20choices%20%3E%20(items)%20%3E%20(property)%20finish_reason
+    /**
+     * The last finish reason observed in the stream. The union matches the
+     * OpenAI chat-completions spec, including 'function_call' from legacy
+     * function calling; 'length' and 'content_filter' are only consumed via
+     * truthiness today but are kept for exhaustive future branches.
+     */
+    protected _finishReason: 'stop' | 'tool_calls' | 'content_filter' | 'length' | 'function_call' | undefined = undefined
 
     /** Set to true when a repeating pattern (infinite loop) is detected in the reasoning. */
     protected _reasoningLoopDetected = false
