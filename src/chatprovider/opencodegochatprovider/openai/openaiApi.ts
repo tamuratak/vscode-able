@@ -383,7 +383,8 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             }
         }
 
-        const finishReason = choice['finish_reason'] as string | undefined
+        // https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create#(resource)%20chat.completions%20%3E%20(model)%20chat_completion%20%3E%20(schema)%20%3E%20(property)%20choices%20%3E%20(items)%20%3E%20(property)%20finish_reason
+        const finishReason = choice['finish_reason'] as 'stop' | 'tool_calls' | 'content_filter' | 'length' | 'function_call' | undefined
         if (finishReason) {
             this._finishReason = finishReason;
         }

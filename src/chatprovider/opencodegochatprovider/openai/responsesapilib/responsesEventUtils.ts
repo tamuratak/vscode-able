@@ -121,7 +121,7 @@ export function getCallIdFromEvent(event: Record<string, unknown>): string {
 }
 
 /** Synthesize a finish reason from a completed event, using the flushed tool call state as a fallback. */
-export function synthesizeFinishReason(event: Record<string, unknown>, completedToolCallIndices: Set<number>): string | undefined {
+export function synthesizeFinishReason(event: Record<string, unknown>, completedToolCallIndices: Set<number>): 'stop' | 'tool_calls' | undefined {
 	const response =
 		event['response'] && typeof event['response'] === 'object' && !Array.isArray(event['response'])
 			? (event['response'] as Record<string, unknown>)
@@ -159,7 +159,7 @@ export function synthesizeFinishReason(event: Record<string, unknown>, completed
 }
 
 /** Map the incomplete details of a response.incomplete event to a finish reason. */
-export function synthesizeIncompleteFinishReason(details: unknown): string {
+export function synthesizeIncompleteFinishReason(details: unknown): 'content_filter' | 'length' {
 	const reason = details && typeof details === 'object'
 		? (details as Record<string, unknown>)['reason']
 		: undefined
