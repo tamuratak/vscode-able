@@ -126,6 +126,13 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
             throw new Error('[RunInSandbox]: no workspace folders')
         }
         const workspaceDirsWorkTrees = workspaceDirs.map(dir => `${dir}.worktrees`)
+        // Allow git to write only the index (and its lock file) inside .git
+        // directories so `git checkout <rev> -- <path>` can restore files.
+        // The allow rule is appended after the deny rule below (last match wins).
+        const gitIndexAllowList = workspaceDirs.flatMap(dir => [
+            path.join(dir, '.git', 'index'),
+            path.join(dir, '.git', 'index.lock'),
+        ])
         const denyWriteList = [
             ...workspaceDirs.map(dir => path.join(dir, '.vscode')),
             ...workspaceDirs.map(dir => path.join(dir, '.git')),
@@ -146,7 +153,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
                 }
             }
         }
-        const { policy, params } = this.buildSeatbeltPolicyAndParams(mergedReadableWritable, userAllowedReadDirectories, denyWriteList)
+        const { policy, params } = this.buildSeatbeltPolicyAndParams(mergedReadableWritable, userAllowedReadDirectories, denyWriteList, gitIndexAllowList)
 
         const { stdout, stderr, exitCode, signal } = await this.executeInSandbox(policy, params, command, workspaceDirs, seatbeltPath, token)
 
@@ -251,7 +258,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
     private buildSeatbeltPolicyAndParams(
         rwritableDirs: string[],
         userAllowedReadDirectories: string[],
-        denyWriteList: string[]
+        denyWriteList: string[],
+        gitIndexAllowList: string[]
     ) {
         for (const dir of rwritableDirs) {
             if (!path.isAbsolute(dir) || dir === '') {
@@ -409,9 +417,33 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
         if (denyWritePolicies.length > 0) {
             denyWritePolicy = `\n(deny file-write*\n${denyWritePolicies.join(' ')}\n)\n`
         }
+
+        // Allow git to write only the index (and its lock file) inside the
+        // denied .git directories so `git checkout <rev> -- <path>` can
+        // restore files. In seatbelt, the last matching rule wins, so this
+        // allow must come after the deny. Git updates the index by renaming
+        // index.lock over index; seatbelt checks rename as unlink on the
+        // source (index.lock) and create on the destination (index). Do not
+        // allow unlink on index itself so that `rm .git/index` fails inside
+        // the sandbox.
+        const gitIndexPolicies: string[] = []
+        const gitIndexParams: string[] = []
+        for (const p of gitIndexAllowList) {
+            const n = gitIndexPolicies.length
+            const ops = path.basename(p) === 'index.lock'
+                ? 'file-write-create file-write-data file-write-unlink'
+                : 'file-write-create file-write-data'
+            gitIndexPolicies.push(`(allow ${ops} (path (param "ALLOW_GIT_INDEX_${n}")))`)
+            gitIndexParams.push('-D', `ALLOW_GIT_INDEX_${n}=${p}`)
+        }
+        let gitIndexPolicy = ''
+        if (gitIndexPolicies.length > 0) {
+            gitIndexPolicy = `\n${gitIndexPolicies.join('\n')}\n`
+        }
+
         // Combine deny params (for denied paths) with rw params (allowed read/write roots)
-        const params = [...allowRwParams, ...ancestorParams, ...allowReadParams, ...denyWriteParams]
-        return { policy: basePolicy + allowReadWritePolicy + ancestorPolicy + allowReadPolicy + denyWritePolicy, params }
+        const params = [...allowRwParams, ...ancestorParams, ...allowReadParams, ...denyWriteParams, ...gitIndexParams]
+        return { policy: basePolicy + allowReadWritePolicy + ancestorPolicy + allowReadPolicy + denyWritePolicy + gitIndexPolicy, params }
     }
 
     private getConfiguredAllowFileReadDirectories(): string[] | undefined {

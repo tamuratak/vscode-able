@@ -178,6 +178,138 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('allows git checkout <hash> -- <file>', async () => {
+        const cmd = 'git checkout 4c0e33c44aa -- main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git checkout -- <file>', async () => {
+        const cmd = 'git checkout -- main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git checkout <hash> -- multiple files', async () => {
+        const cmd = 'git checkout 4c0e33c44aa -- file1.ts file2.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git checkout <hash> -- .', async () => {
+        const cmd = 'git checkout 4c0e33c44aa -- .'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git checkout with full 40-char hash', async () => {
+        const cmd = 'git checkout 4c0e33c44a4c0e33c44a4c0e33c44a4c0e33c44a -- main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git -C workspace checkout <hash> -- <file>', async () => {
+        const cmd = 'git -C /Users/tamura/src/github/vscode-copilot-chat checkout 4c0e33c44aa -- main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows git checkout <branch> (HEAD move)', async () => {
+        const cmd = 'git checkout main'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout <hash> without --', async () => {
+        const cmd = 'git checkout 4c0e33c44aa'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout with HEAD revision', async () => {
+        const cmd = 'git checkout HEAD -- main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout with HEAD~1 revision', async () => {
+        const cmd = 'git checkout HEAD~1 -- main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout with branch name revision', async () => {
+        const cmd = 'git checkout main -- main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout -b', async () => {
+        const cmd = 'git checkout -b new-branch'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout --detach', async () => {
+        const cmd = 'git checkout --detach 4c0e33c44aa -- main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout -f', async () => {
+        const cmd = 'git checkout -f 4c0e33c44aa -- main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout with path containing /', async () => {
+        const cmd = 'git checkout 4c0e33c44aa -- src/main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout with .. pathspec', async () => {
+        const cmd = 'git checkout 4c0e33c44aa -- ..'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout with absolute pathspec', async () => {
+        const cmd = 'git checkout 4c0e33c44aa -- /Users/tamura/src/github/vscode-copilot-chat/main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout without pathspec', async () => {
+        const cmd = 'git checkout 4c0e33c44aa --'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout -- alone', async () => {
+        const cmd = 'git checkout --'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout with flag-like pathspec', async () => {
+        const cmd = 'git checkout 4c0e33c44aa -- -weird'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout with too-short hash', async () => {
+        const cmd = 'git checkout 4c0 -- main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git checkout with non-hex revision', async () => {
+        const cmd = 'git checkout 4c0e33c44aaZ -- main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test('head command is allowed', async () => {
         const cmd = 'cat a.txt | head -n 10'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
@@ -478,6 +610,12 @@ EOF`
 
     test('allows git -C to the second workspace root in multi-root', async () => {
         const cmd = 'git -C /Users/tamura/src/github/vscode-able status'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat', '/Users/tamura/src/github/vscode-able'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git -C second workspace root checkout <hash> -- <file> in multi-root', async () => {
+        const cmd = 'git -C /Users/tamura/src/github/vscode-able checkout 4c0e33c44aa -- main.ts'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat', '/Users/tamura/src/github/vscode-able'])
         assert.strictEqual(ok, true)
     })
@@ -807,6 +945,18 @@ suite('parseGitCommand', () => {
         const cmd: CommandNode = { command: 'git', args: ['rev-parse', 'HEAD'] }
         const result = parseGitCommand(cmd)
         assert.deepStrictEqual(result, { subCommand: 'rev-parse', subCommandArgs: ['HEAD'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git checkout with rev and pathspec', () => {
+        const cmd: CommandNode = { command: 'git', args: ['checkout', '4c0e33c44aa', '--', 'main.ts'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'checkout', subCommandArgs: ['4c0e33c44aa', '--', 'main.ts'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git checkout with -- only', () => {
+        const cmd: CommandNode = { command: 'git', args: ['checkout', '--', 'main.ts'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'checkout', subCommandArgs: ['--', 'main.ts'], mainArgs: [], cPath: undefined })
     })
 
     test('returns undefined when -C has no following arg', () => {

@@ -103,9 +103,12 @@ async function isAllowedSubCommand(
     normalizedWorkspaceRoots: string[]
 ): Promise<boolean> {
     if (command.command === 'git') {
-        const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse)$/
+        const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse|checkout)$/
         const gitCmd = parseGitCommand(command)
         if (gitCmd && gitCmd.subCommand && validGitSubCommandsRegex.test(gitCmd.subCommand)) {
+            if (gitCmd.subCommand === 'checkout' && !isAllowedGitCheckout(gitCmd)) {
+                return false
+            }
             const cpath = gitCmd.cPath
             if (cpath) {
                 if (path.isAbsolute(cpath) && normalizedWorkspaceRoots.some(r => isInside(cpath, r))) {
@@ -154,7 +157,7 @@ export function parseGitCommand(command: CommandNode): GitCommandInfo | undefine
     const mainArgs: string[] = []
     let cPath: string | undefined = undefined
     for (let i = 0; i < command.args.length; i++) {
-        if (/^(status|log|diff|show|blame|rev-parse)$/.exec(command.args[i])) {
+        if (/^(status|log|diff|show|blame|rev-parse|checkout)$/.exec(command.args[i])) {
             return { subCommand: command.args[i], subCommandArgs: command.args.slice(i + 1), mainArgs, cPath }
         } else if (command.args[i] === '-C') {
             cPath = command.args[i + 1]
@@ -166,6 +169,44 @@ export function parseGitCommand(command: CommandNode): GitCommandInfo | undefine
         }
     }
     return
+}
+
+/**
+ * Validates `git checkout` argument forms:
+ * - `git checkout <hash> -- <pathspec>...` (restore index and worktree)
+ * - `git checkout -- <pathspec>...` (restore worktree from the index)
+ *
+ * The revision must be a 4-40 digit hex hash (no HEAD, branches, or tags).
+ * Pathspecs must be single path components: no `/`, not `..`, and not
+ * starting with `-`. Note this constrains syntax only; pathspecs such as `.`
+ * or a directory name still match everything beneath them.
+ */
+function isAllowedGitCheckout(gitCmd: GitCommandInfo): boolean {
+    const args = gitCmd.subCommandArgs
+    if (args.length < 2) {
+        return false
+    }
+    let index = 0
+    if (args[index] !== '--') {
+        const rev = args[index]
+        if (!/^[0-9a-f]{4,40}$/.test(rev)) {
+            return false
+        }
+        index += 1
+    }
+    if (args[index] !== '--') {
+        return false
+    }
+    const pathspecs = args.slice(index + 1)
+    if (pathspecs.length === 0) {
+        return false
+    }
+    for (const p of pathspecs) {
+        if (p.startsWith('-') || p.includes('/') || p === '..') {
+            return false
+        }
+    }
+    return true
 }
 
 
