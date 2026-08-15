@@ -329,8 +329,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 			if (this._reasoningLoopDetected) {
 				this.emitReasoningLoopMessage(progress)
 			} else if (this._finishReason === 'stop') {
-				const prefix = '\n\n\n\n\n\n\n                ======================= Final Response =======================              \n\n\n\n\n\n'
-				finalResponseLogger.info(prefix + this._unifiedText)
+				finalResponseLogger.info(CommonApi.FINAL_RESPONSE_PREFIX + this._unifiedText)
 			}
 			this.reportUsageData(progress)
 			this.emitFallbackResponseIfNeeded(progress)

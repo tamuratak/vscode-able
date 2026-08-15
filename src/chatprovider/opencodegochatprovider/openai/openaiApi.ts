@@ -4,7 +4,7 @@ import type { OpenCodeGoModelItem } from '../types.js'
 import type { OpenAIChatMessage, OpenAIToolCall, ChatMessageContent, ReasoningDetail } from './openaiTypes.js'
 import { isImageMimeType, toImageContentParts, isToolResultPart, collectToolResultText, collectToolResultImages, convertToolsToOpenAI, mapRole, } from '../vscodeutils.js'
 import { ApiResponseResult, APIUsage, CommonApi } from '../commonApi.js'
-import { chunkLogger, finalResponseLogger, logger } from '../logger.js'
+import { chunkLogger, logger } from '../logger.js'
 
 
 export interface ChatCompletionsResult extends ApiResponseResult {
@@ -187,94 +187,17 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
         progress: Progress<LanguageModelResponsePart2>,
         token: CancellationToken
     ): Promise<ChatCompletionsResult | undefined> {
-        const modelId = this.modelId
-        logger.debug('openai.stream.start', { modelId });
-        this._usage = undefined;
-        this._finishReason = undefined;
-
-        const reader = responseBody.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        const cancelToken = token.onCancellationRequested(() => reader.cancel().catch(() => undefined))
-        let responseResult: ChatCompletionsResult | undefined
-
-        try {
-            // [DONE] ends the SSE event flow; the transport stream may still be open.
-            let doneReceived = false
-            while (true) {
-                if (token.isCancellationRequested || this._reasoningLoopDetected || doneReceived) {
-                    break;
-                }
-
-                const { done, value } = await reader.read();
-                if (done) {
-                    break;
-                }
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                    if (token.isCancellationRequested || this._reasoningLoopDetected || doneReceived) {
-                        break
-                    }
-                    const res = this.processDataLine(line, progress, modelId)
-                    if (res.result?.finishReason) {
-                        responseResult = res.result
-                    }
-                    if (res.ended) {
-                        // [DONE] ends the turn: stop reading even when the gateway
-                        // never closes the connection (this also fixes an infinite
-                        // wait on keep-alive gateways that omit EOF after [DONE]).
-                        doneReceived = true
-                        break
-                    }
-                }
-            }
-
-            // Process any remaining data after EOF (gateways may omit the trailing
-            // newline). A truncated final line fails JSON.parse below and is logged
-            // as a chunk error, indistinguishable from a parse failure. Flush the
-            // decoder so multi-byte characters split at a chunk boundary are kept.
-            if (!token.isCancellationRequested && !this._reasoningLoopDetected && !doneReceived) {
-                buffer += decoder.decode()
-                if (buffer.trim()) {
-                    const res = this.processDataLine(buffer, progress, modelId)
-                    if (res.result?.finishReason) {
-                        responseResult = res.result
-                    }
-                }
-            }
-            logger.info('openai.stream.done', { modelId, responseResult });
-            return responseResult
-        } catch (e) {
-            if (token.isCancellationRequested) {
-                // reader.cancel() from the cancellation callback can reject the
-                // pending read; treat that as a clean end rather than an error.
-                logger.debug('openai.stream.cancelled', { modelId: this.modelId })
-                return undefined
-            }
-            logger.error('openai.stream.error', { modelId, error: e instanceof Error ? e.message : String(e) });
-            throw e;
-        } finally {
-            cancelToken.dispose()
-            // Cancel unconditionally: the token may cancel a read in flight, or the
-            // transport may still be open when the parser throws or [DONE] ends the
-            // turn. cancel() on an already-read/closed stream is a no-op, so this
-            // is safe on every path.
-            await reader.cancel().catch(() => undefined)
-            reader.releaseLock()
-            this.endThinking()
-            if (this._reasoningLoopDetected) {
-                this.emitReasoningLoopMessage(progress)
-            } else if (this._finishReason === 'stop') {
-                const prefix = '\n\n\n\n\n\n\n                ======================= Final Response =======================              \n\n\n\n\n\n\n'
-                finalResponseLogger.info(prefix + this._unifiedText)
-            }
-            this.reportUsageData(progress)
-            this.emitFallbackResponseIfNeeded(progress)
-        }
+        return this.runSseStream<ChatCompletionsResult>(
+            responseBody,
+            progress,
+            token,
+            {
+                tag: 'openai',
+                shouldLogFinalResponse: (result) => result?.finishReason === 'stop',
+                emitFallback: (_result, p) => this.emitFallbackResponseIfNeeded(p),
+            },
+            (line, p) => this.processDataLine(line, p)
+        );
     }
 
     /**
@@ -283,19 +206,18 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
      */
     private processDataLine(
         line: string,
-        progress: Progress<LanguageModelResponsePart2>,
-        modelId: string
+        progress: Progress<LanguageModelResponsePart2>
     ): { ended: boolean; result: ChatCompletionsResult | undefined } {
         if (!line.startsWith('data:')) {
             return { ended: false, result: undefined }
         }
         const data = line.slice(5).trim()
-        chunkLogger.trace('openai.stream.chunk', { modelId, data })
+        chunkLogger.trace('openai.stream.chunk', { modelId: this.modelId, data })
         if (data === '[DONE]') {
             this.warnIfToolCallBuffersNotEmpty('[DONE] received')
             // To prevent infinite loop of agents, throw error.
             if (this._completedToolCallIndices.size === 0 && this._toolCallBuffers.size > 0) {
-                logger.error('openai.stream.tool_calls_incomplete', { modelId, bufferedIndices: Array.from(this._toolCallBuffers.keys()) })
+                logger.error('openai.stream.tool_calls_incomplete', { modelId: this.modelId, bufferedIndices: Array.from(this._toolCallBuffers.keys()) })
                 throw new Error('Stream ended with incomplete tool calls')
             }
             return { ended: true, result: undefined }
@@ -310,7 +232,7 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
             }
         } catch (e) {
             logger.error('openai.stream.chunk.error', {
-                modelId,
+                modelId: this.modelId,
                 error: e instanceof Error ? e.message : String(e),
                 data,
             });

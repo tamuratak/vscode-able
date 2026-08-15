@@ -74,12 +74,17 @@ export function createDataUrl(part: vscode.LanguageModelDataPart): string {
 }
 
 function arrayBufferToBase64(buffer: Uint8Array): string {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    for (const byte of bytes) {
-        binary += String.fromCharCode(byte);
+    // Encode in chunks so the spread into String.fromCharCode stays below
+    // the argument-count limit on large buffers. The chunk size must be a
+    // multiple of 3: otherwise "=" padding appears
+    // in the middle of the joined string, which corrupts strict decoders and
+    // truncates data on lenient ones.
+    const CHUNK_SIZE = 0x6000; // 24576 = 3 * 8192
+    const chunks: string[] = [];
+    for (let i = 0; i < buffer.length; i += CHUNK_SIZE) {
+        chunks.push(btoa(String.fromCharCode(...buffer.subarray(i, i + CHUNK_SIZE))));
     }
-    return btoa(binary);
+    return chunks.join('');
 }
 
 /**
@@ -167,13 +172,18 @@ export interface ToolLoopInfo {
  * where each assistant tool call has the same name and input.
  *
  * @param messages The conversation messages to inspect.
- * @param minRepeatCount Minimum consecutive repetitions to consider a loop (default: 3).
+ * @param minRepeatCount Minimum consecutive repetitions to consider a loop
+ *   (default: 3). Values below 2 are clamped to 2 so a loop is never
+ *   reported from a single call (repeatCount must be at least 2).
  */
 export function isToolCallLoopDetected(
     messages: readonly vscode.LanguageModelChatRequestMessage[],
     minRepeatCount = 3
 ): ToolLoopInfo {
-    if (messages.length === 0 || minRepeatCount < 2) {
+    // Clamp to at least 2 so a caller passing 1 cannot report a loop from a
+    // single repeated call.
+    const minRepeats = Math.max(2, minRepeatCount);
+    if (messages.length === 0) {
         return { detected: false, callName: '', callInput: {}, repeatCount: 0 }
     }
 
@@ -221,7 +231,7 @@ export function isToolCallLoopDetected(
     }
 
     return {
-        detected: repeatCount >= minRepeatCount,
+        detected: repeatCount >= minRepeats,
         callName,
         callInput,
         repeatCount,

@@ -125,6 +125,19 @@ suite('isToolCallLoopDetected', () => {
         strictEqual(result.repeatCount, 2)
     })
 
+    test('clamps minRepeatCount below 2 to 2', () => {
+        const input = { filePath: '/a.ts' }
+        const messages = [
+            makeAssistantToolCallMsg('c1', 'read_file', input),
+            makeUserToolResultMsg('c1', 'r1'),
+            makeAssistantToolCallMsg('c2', 'read_file', input),
+            makeUserToolResultMsg('c2', 'r2'),
+        ]
+        const result = isToolCallLoopDetected(messages, 1)
+        strictEqual(result.detected, true)
+        strictEqual(result.repeatCount, 2)
+    })
+
     test('ignores text messages interspersed before the loop', () => {
         const input = { filePath: '/a.ts' }
         const messages = [

@@ -30,13 +30,8 @@ function getMimeType(base64: string): string {
     if (header.startsWith('GIF87a') || header.startsWith('GIF89a')) {
         return 'image/gif';
     }
-    // Default assume PNG (PNG signatures start with byte 137 'PNG'...)
-    // atob of the first few bytes will contain the PNG signature
-    const uint8 = new Uint8Array(base64.length);
-    for (let i = 0; i < base64.length; i++) {
-        uint8[i] = base64.charCodeAt(i);
-    }
-    if (uint8[0] === 0x89 && uint8[1] === 0x50 && uint8[2] === 0x4e && uint8[3] === 0x47) {
+    // PNG signature: 0x89 'P' 'N' 'G'
+    if (header.charCodeAt(0) === 0x89 && header.charCodeAt(1) === 0x50 && header.charCodeAt(2) === 0x4e && header.charCodeAt(3) === 0x47) {
         return 'image/png';
     }
     return 'unknown';
@@ -65,6 +60,21 @@ export function getGifDimensions(base64: string) {
 }
 
 export function getJpegDimensions(base64: string) {
+    // SOF markers (0xFFC0-0xFFC2) typically appear within the first few KB,
+    // so decoding the beginning of the file is sufficient and avoids
+    // decoding the whole (potentially large) image. When the marker is not
+    // found in the prefix (e.g. unusually large metadata), fall back to the
+    // full decode before giving up.
+    const MAX_BYTES = 64 * 1024;
+    const maxBase64Chars = Math.floor((MAX_BYTES * 4) / 3 / 4) * 4;
+    try {
+        return findJpegDimensions(base64.slice(0, maxBase64Chars));
+    } catch {
+        return findJpegDimensions(base64);
+    }
+}
+
+function findJpegDimensions(base64: string) {
     const binary = atob(base64);
     const uint8 = Uint8Array.from(binary, (c) => c.charCodeAt(0));
     const length = uint8.length;
@@ -89,7 +99,8 @@ export function getJpegDimensions(base64: string) {
 }
 
 export function getWebPDimensions(base64String: string) {
-    const binaryString = atob(base64String);
+    // The WebP header and dimension fields live in the first 36 bytes.
+    const binaryString = atob(base64String.slice(0, 48));
     const binaryData = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
         binaryData[i] = binaryString.charCodeAt(i);
@@ -117,10 +128,12 @@ export function getWebPDimensions(base64String: string) {
             height: ((bits >> 14) & 0x3fff) + 1,
         };
     } else if (chunkHeader === 'VP8X') {
-        // Extended WebP
+        // Extended WebP. Canvas width/height minus one are 24-bit
+        // little-endian values; read them directly (the previous code
+        // mixed the reserved bits of the width field into the height).
         const dataView = new DataView(binaryData.buffer, 24, 6);
-        const width = ((dataView.getUint16(0, true) | ((dataView.getUint8(2) & 0x3f) << 16)) + 1) & 0xffffff;
-        const height = (((dataView.getUint8(2) >> 6) | (dataView.getUint16(3, true) << 2)) + 1) & 0xffffff;
+        const width = ((dataView.getUint16(0, true) | (dataView.getUint8(2) << 16)) + 1) & 0xffffff;
+        const height = ((dataView.getUint16(3, true) | (dataView.getUint8(5) << 16)) + 1) & 0xffffff;
         return { width, height };
     }
 
