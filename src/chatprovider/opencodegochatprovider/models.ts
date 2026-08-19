@@ -87,7 +87,12 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://www.qwencloud.com/models/qwen3.7-max
     // https://www.qwencloud.com/models/qwen3.7-plus
     { baseId: 'qwen3.7-max', displayName: 'Qwen3.7 Max', apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 16384, extra: { thinking: { type: 'enabled', budget_tokens: 32768 } }, pricing: { inputCost: 2.5, outputCost: 7.5, cacheCost: 0.5 } },
-    { baseId: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 16384, extra: { thinking: { type: 'enabled', budget_tokens: 32768 } }, pricing: { inputCost: 0.4, outputCost: 1.6, cacheCost: 0.04, longContextInputCost: 1.2, longContextOutputCost: 4.8, longContextCacheCost: 0.12 } }
+    { baseId: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 16384, extra: { thinking: { type: 'enabled', budget_tokens: 32768 } }, pricing: { inputCost: 0.4, outputCost: 1.6, cacheCost: 0.04, longContextInputCost: 1.2, longContextOutputCost: 4.8, longContextCacheCost: 0.12 } },
+
+    // https://dev.meta.ai/docs/models
+    // https://dev.meta.ai/docs/protocols/responses
+    { baseId: 'muse-spark-1.2-contributor', displayName: 'Muse Spark 1.2 Contributor', inputModalities: ['image', 'video', 'pdf'], apiType: 'responses', defaultReasoningEffort: 'xhigh', supportsReasoningEffort: ['minimal', 'low', 'medium', 'high', 'xhigh'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.1, outputCost: 0.2, cacheCost: 0.02 } }
+
 ]
 
 export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
@@ -120,11 +125,11 @@ export function getBuiltInModelInfos(): LanguageModelChatInformation[] {
         const hasEfforts = def.supportsReasoningEffort && def.supportsReasoningEffort.length > 0;
         let enumValues: string[];
         if (hasEfforts) {
-            enumValues = ['disabled', ...def.supportsReasoningEffort!];
+            enumValues = [...def.supportsReasoningEffort!];
         } else if (def.apiType === 'messages') {
             enumValues = ['enabled']
         } else {
-            enumValues = ['disabled', 'enabled'];
+            enumValues = ['enabled'];
         }
 
         const enumItemLabels = enumValues.map(getLabel);
@@ -164,6 +169,7 @@ function getLabel(e: string): string {
         case 'low': return 'Low';
         case 'medium': return 'Medium';
         case 'high': return 'High';
+        case 'xhigh': return 'Extra High';
         case 'max': return 'Maximum';
         default: return e.charAt(0).toUpperCase() + e.slice(1);
     }
