@@ -63,7 +63,7 @@ export type EndpointApiType = 'chat-completions' | 'responses' | 'messages';
 const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://developers.openai.com/api/docs/models/gpt-5.6-luna
     // https://developers.openai.com/api/reference/resources/responses/methods/create
-    { baseId: 'gpt-5.6-luna', displayName: 'GPT-5.6 Luna', apiType: 'responses', defaultReasoningEffort: 'max', supportsReasoningEffort: ['none', 'low', 'medium', 'high', 'xhigh', 'max'], maxInputTokens: 1000000, maxOutputTokens: 100000, editTools: ['apply-patch'], pricing: { inputCost: 0.2, outputCost: 1.2, cacheCost: 0.02, cacheWriteCost: 0.25, longContextInputCost: 0.4, longContextOutputCost: 1.8, longContextCacheCost: 0.04, longContextCacheWriteCost: 0.50 } },
+    { baseId: 'gpt-5.6-luna', displayName: 'GPT-5.6 Luna', apiType: 'responses', inputModalities: ['image'], defaultReasoningEffort: 'max', supportsReasoningEffort: ['none', 'low', 'medium', 'high', 'xhigh', 'max'], maxInputTokens: 1000000, maxOutputTokens: 100000, editTools: ['apply-patch'], pricing: { inputCost: 0.2, outputCost: 1.2, cacheCost: 0.02, cacheWriteCost: 0.25, longContextInputCost: 0.4, longContextOutputCost: 1.8, longContextCacheCost: 0.04, longContextCacheWriteCost: 0.50 } },
 
     // https://docs.x.ai/developers/model-capabilities/text/reasoning
     { baseId: 'grok-4.5', displayName: 'Grok-4.5', apiType: 'responses', inputModalities: ['image', 'video'], defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'medium', 'high'], maxInputTokens: 200000, maxOutputTokens: 32768, pricing: { inputCost: 4, outputCost: 12, cacheCost: 1 } },
