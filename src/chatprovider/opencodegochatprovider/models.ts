@@ -66,6 +66,7 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'gpt-5.6-luna', displayName: 'GPT-5.6 Luna', apiType: 'responses', defaultReasoningEffort: 'max', supportsReasoningEffort: ['none', 'low', 'medium', 'high', 'xhigh', 'max'], maxInputTokens: 1000000, maxOutputTokens: 100000, editTools: ['apply-patch'], pricing: { inputCost: 0.2, outputCost: 1.2, cacheCost: 0.02, cacheWriteCost: 0.25, longContextInputCost: 0.4, longContextOutputCost: 1.8, longContextCacheCost: 0.04, longContextCacheWriteCost: 0.50 } },
 
     // https://docs.z.ai/api-reference/llm/chat-completion
+    { baseId: 'glm-5.3', displayName: 'GLM-5.3', defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 62768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
     { baseId: 'glm-5.2', displayName: 'GLM-5.2', defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 62768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
 
     // https://platform.kimi.ai/docs/api/chat#content-field-description
