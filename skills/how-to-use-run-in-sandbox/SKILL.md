@@ -55,6 +55,18 @@ Use instead:
 - List files with line numbers: `find ... -print | nl -ba`
 - Per-file commands: list files first (`find ... -print` or `rg --files`), then run `nl -ba` on each file in a `for` loop with each path quoted.
 
+## Use Pipes, Not Temporary Patch Files
+
+To restore a file to a past commit, pipe the diff directly into `git apply -R`. Do NOT save the patch to a temporary file first — write redirection (`>`/`>>`) is rejected by the validator, and `git apply` with a file argument is rejected too (only `git apply -R` reading from stdin is allowed).
+
+Use instead:
+
+```sh
+cd <workspace-root> && git diff <hash> -- <file> | git apply -R
+```
+
+This reverse-applies the patch from `git diff <hash> -- <file>` to the working tree without touching `.git`, so it works inside the sandbox. Note this restores the working tree only; staged changes in the index are left as-is.
+
 ## Practical Tips
 
 - Prefer deterministic commands with explicit paths

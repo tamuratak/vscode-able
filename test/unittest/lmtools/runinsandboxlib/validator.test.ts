@@ -178,6 +178,114 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('allows git diff <hash> -- <file> piped to git apply -R', async () => {
+        const cmd = 'git diff 4c0e33c44aa -- README.md | git apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git apply -R', async () => {
+        const cmd = 'git apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git apply -R after cd to workspace', async () => {
+        const cmd = 'cd /Users/tamura/src/github/vscode-copilot-chat && git diff 4c0e33c44aa -- main.ts | git apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git apply -R with -C workspace', async () => {
+        const cmd = 'git diff 4c0e33c44aa -- main.ts | git -C /Users/tamura/src/github/vscode-copilot-chat apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows git apply without -R', async () => {
+        const cmd = 'git apply'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git apply --index', async () => {
+        const cmd = 'git apply --index -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git apply --cached', async () => {
+        const cmd = 'git apply --cached -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git apply -R --directory=..', async () => {
+        const cmd = 'git apply -R --directory=..'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git apply -R -p1', async () => {
+        const cmd = 'git apply -R -p1'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git apply -R --3way', async () => {
+        const cmd = 'git apply -R --3way'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('allows git cat-file -p <hash>', async () => {
+        const cmd = 'git cat-file -p 4c0e33c44aa'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git cat-file -t <hash>', async () => {
+        const cmd = 'git cat-file -t 4c0e33c44aa'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git cat-file <type> <hash>', async () => {
+        const cmd = 'git cat-file commit 4c0e33c44aa'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git cat-file -p with -C workspace', async () => {
+        const cmd = 'git -C /Users/tamura/src/github/vscode-copilot-chat cat-file -p 4c0e33c44aa'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows git cat-file --filters (runs smudge/clean scripts)', async () => {
+        const cmd = 'git cat-file --filters --path=src/main.ts 4c0e33c44aa'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git cat-file --textconv (runs textconv scripts)', async () => {
+        const cmd = 'git cat-file --textconv --path=file.txt 4c0e33c44aa'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git cat-file --path with plain arg', async () => {
+        const cmd = 'git cat-file --path=src/main.ts blob 4c0e33c44aa'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git cat-file --batch-command (can create objects)', async () => {
+        const cmd = 'git cat-file --batch-command'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test('head command is allowed', async () => {
         const cmd = 'cat a.txt | head -n 10'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
@@ -807,6 +915,18 @@ suite('parseGitCommand', () => {
         const cmd: CommandNode = { command: 'git', args: ['rev-parse', 'HEAD'] }
         const result = parseGitCommand(cmd)
         assert.deepStrictEqual(result, { subCommand: 'rev-parse', subCommandArgs: ['HEAD'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git apply -R', () => {
+        const cmd: CommandNode = { command: 'git', args: ['apply', '-R'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'apply', subCommandArgs: ['-R'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git cat-file -p', () => {
+        const cmd: CommandNode = { command: 'git', args: ['cat-file', '-p', '4c0e33c44aa'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'cat-file', subCommandArgs: ['-p', '4c0e33c44aa'], mainArgs: [], cPath: undefined })
     })
 
     test('returns undefined when -C has no following arg', () => {

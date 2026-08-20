@@ -103,9 +103,15 @@ async function isAllowedSubCommand(
     normalizedWorkspaceRoots: string[]
 ): Promise<boolean> {
     if (command.command === 'git') {
-        const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse)$/
+        const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse|apply|cat-file)$/
         const gitCmd = parseGitCommand(command)
         if (gitCmd && gitCmd.subCommand && validGitSubCommandsRegex.test(gitCmd.subCommand)) {
+            if (gitCmd.subCommand === 'apply' && !isAllowedGitApply(gitCmd)) {
+                return false
+            }
+            if (gitCmd.subCommand === 'cat-file' && !isAllowedGitCatFile(gitCmd)) {
+                return false
+            }
             const cpath = gitCmd.cPath
             if (cpath) {
                 if (path.isAbsolute(cpath) && normalizedWorkspaceRoots.some(r => isInside(cpath, r))) {
@@ -154,7 +160,7 @@ export function parseGitCommand(command: CommandNode): GitCommandInfo | undefine
     const mainArgs: string[] = []
     let cPath: string | undefined = undefined
     for (let i = 0; i < command.args.length; i++) {
-        if (/^(status|log|diff|show|blame|rev-parse)$/.exec(command.args[i])) {
+        if (/^(status|log|diff|show|blame|rev-parse|apply|cat-file)$/.exec(command.args[i])) {
             return { subCommand: command.args[i], subCommandArgs: command.args.slice(i + 1), mainArgs, cPath }
         } else if (command.args[i] === '-C') {
             cPath = command.args[i + 1]
@@ -166,6 +172,39 @@ export function parseGitCommand(command: CommandNode): GitCommandInfo | undefine
         }
     }
     return
+}
+
+/**
+ * Validates `git apply` so it can only reverse-apply a patch from stdin to
+ * the working tree (e.g. `git diff <hash> -- <path> | git apply -R`). Only
+ * `-R` with no other arguments is allowed:
+ * - `--index` / `--cached` would mutate the git index (rejected)
+ * - `--directory`, `-p`, `--whitespace` etc. could redirect or rewrite the
+ *   patch application (rejected)
+ *
+ * Reverse-applying a diff touches only the working tree, never `.git`, so
+ * this restores files without needing any seatbelt carve-out for `.git`.
+ */
+function isAllowedGitApply(gitCmd: GitCommandInfo): boolean {
+    const args = gitCmd.subCommandArgs
+    return args.length === 1 && args[0] === '-R'
+}
+
+/**
+ * Validates `git cat-file` so it only reads git objects. All read forms are
+ * allowed (`-t`, `-s`, `-e`, `-p`, `<type> <object>`, `--batch`, `--batch-check`).
+ * Options with side effects are rejected:
+ * - `--filters` / `--textconv` / `--path=<path>` run user-configured smudge,
+ *   clean, or textconv scripts (arbitrary command execution)
+ * - `--batch-command` can create objects via its `create` subcommand (writes)
+ */
+function isAllowedGitCatFile(gitCmd: GitCommandInfo): boolean {
+    for (const arg of gitCmd.subCommandArgs) {
+        if (arg === '--filters' || arg === '--textconv' || arg === '--batch-command' || arg.startsWith('--path')) {
+            return false
+        }
+    }
+    return true
 }
 
 
