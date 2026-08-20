@@ -14,5 +14,6 @@
             "name": "abletask-task-test-json",
             "globPattern": ["src/**/*.ts", "test/**/*.ts"],
         }
-    ]
+    ],
+    "chat.utilitySmallModel": "opencodego_with_able/mimo-v2.5"
 }
