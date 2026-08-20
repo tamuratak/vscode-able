@@ -1,7 +1,7 @@
 {
   "name": "able",
   "displayName": "Able",
-  "version": "10.3.0",
+  "version": "10.3.1",
   "publisher": "tamuratak",
   "license": "MIT",
   "description": "An extension able to do things",
@@ -415,7 +415,7 @@
     "@vscode/tree-sitter-wasm": "0.3.1",
     "mathjax-full": "3.2.2",
     "playwright": "1.60.0",
-    "vm2": "3.11.5",
+    "vm2": "3.11.6",
     "vscode-uri": "3.1.0",
     "workerpool": "10.0.2"
   },
