@@ -12,6 +12,7 @@ const commandQuerySource = `(command
 (command
     name: (command_name (word)) @cmd_name
 )
+(variable_assignment) @assignment
 `
 
 export let bashParser: treeSitter.Parser | undefined
@@ -47,6 +48,11 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
 
     try {
         const matches = commandQuery.matches(tree.rootNode)
+        // Reject lines that assign environment variables (e.g. GIT_PAGER=x git log),
+        // which can alter command behavior (arbitrary pager/diff execution, repo redirect)
+        if (matches.some(m => m.captures.some(c => c.name === 'assignment'))) {
+            return undefined
+        }
         const commands: CommandNode[] = []
         const commandMap = new Map<number, CommandNode>()
 

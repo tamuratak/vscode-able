@@ -98,18 +98,25 @@ export async function isAllowedCommand(command: string, workspaceRootPaths: stri
     return true
 }
 
+const validGitSubCommandNames = ['status', 'log', 'diff', 'show', 'blame', 'rev-parse',
+    'apply', 'cat-file', 'grep', 'ls-tree', 'ls-files', 'rev-list',
+    'describe', 'name-rev', 'shortlog', 'count-objects']
+const validGitSubCommandsRegex = new RegExp(`^(?:${validGitSubCommandNames.join('|')})$`)
+
 async function isAllowedSubCommand(
     command: CommandNode,
     normalizedWorkspaceRoots: string[]
 ): Promise<boolean> {
     if (command.command === 'git') {
-        const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse|apply|cat-file)$/
         const gitCmd = parseGitCommand(command)
         if (gitCmd && gitCmd.subCommand && validGitSubCommandsRegex.test(gitCmd.subCommand)) {
             if (gitCmd.subCommand === 'apply' && !isAllowedGitApply(gitCmd)) {
                 return false
             }
             if (gitCmd.subCommand === 'cat-file' && !isAllowedGitCatFile(gitCmd)) {
+                return false
+            }
+            if (gitCmd.subCommand === 'grep' && !isAllowedGitGrep(gitCmd)) {
                 return false
             }
             const cpath = gitCmd.cPath
@@ -160,7 +167,7 @@ export function parseGitCommand(command: CommandNode): GitCommandInfo | undefine
     const mainArgs: string[] = []
     let cPath: string | undefined = undefined
     for (let i = 0; i < command.args.length; i++) {
-        if (/^(status|log|diff|show|blame|rev-parse|apply|cat-file)$/.exec(command.args[i])) {
+        if (validGitSubCommandsRegex.exec(command.args[i])) {
             return { subCommand: command.args[i], subCommandArgs: command.args.slice(i + 1), mainArgs, cPath }
         } else if (command.args[i] === '-C') {
             cPath = command.args[i + 1]
@@ -184,6 +191,9 @@ export function parseGitCommand(command: CommandNode): GitCommandInfo | undefine
  *
  * Reverse-applying a diff touches only the working tree, never `.git`, so
  * this restores files without needing any seatbelt carve-out for `.git`.
+ * Note that it does not update the index: staged changes stay staged even
+ * when the working tree file is reverted. Patch contents arriving on stdin
+ * are not validated here; the seatbelt denies writes outside the workspace.
  */
 function isAllowedGitApply(gitCmd: GitCommandInfo): boolean {
     const args = gitCmd.subCommandArgs
@@ -200,7 +210,34 @@ function isAllowedGitApply(gitCmd: GitCommandInfo): boolean {
  */
 function isAllowedGitCatFile(gitCmd: GitCommandInfo): boolean {
     for (const arg of gitCmd.subCommandArgs) {
-        if (arg === '--filters' || arg === '--textconv' || arg === '--batch-command' || arg.startsWith('--path')) {
+        if (arg === '--filters' || arg === '--textconv' || arg.startsWith('--batch-command') || arg.startsWith('--path')) {
+            return false
+        }
+    }
+    return true
+}
+
+/**
+ * Validates `git grep` so it only searches repository content. Options
+ * that escape the repository or launch external programs are rejected:
+ * - `--open-files-in-pager[=<pager>]` / `-O[<pager>]` open matches in a
+ *   pager (user-configured `core.pager`) — arbitrary command execution
+ * - `--no-index` turns the search into a raw file search over arbitrary
+ *   paths outside the repository (e.g. `/etc/passwd`)
+ *
+ * `-O` is the only short option containing 'O', so clustering like
+ * `-nO/path/to/pager` (which git parses as `-n -O /path/to/pager`) and
+ * `-O/bin/sh` are rejected by scanning every single-dash token for 'O'.
+ */
+function isAllowedGitGrep(gitCmd: GitCommandInfo): boolean {
+    for (const arg of gitCmd.subCommandArgs) {
+        if (arg === '--no-index') {
+            return false
+        }
+        if (arg === '--open-files-in-pager' || arg.startsWith('--open-files-in-pager=')) {
+            return false
+        }
+        if (arg.startsWith('-') && !arg.startsWith('--') && arg.slice(1).includes('O')) {
             return false
         }
     }

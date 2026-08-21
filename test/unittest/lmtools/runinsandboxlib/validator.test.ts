@@ -286,6 +286,150 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('disallows git cat-file --batch-command=<format>', async () => {
+        const cmd = 'git cat-file --batch-command=%(objectname)'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git grep with env var prefix', async () => {
+        const cmd = 'GIT_PAGER=/bin/sh git grep foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git diff with GIT_EXTERNAL_DIFF env var prefix', async () => {
+        const cmd = 'GIT_EXTERNAL_DIFF=/bin/sh git diff HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows cd followed by env var prefix in pipeline', async () => {
+        const cmd = 'cd /Users/tamura/src/github/vscode-copilot-chat && GIT_PAGER=/bin/sh git log'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('allows git grep -n <pattern>', async () => {
+        const cmd = 'git grep -n foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git grep --cached <pattern>', async () => {
+        const cmd = 'git grep --cached foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git grep with -C workspace', async () => {
+        const cmd = 'git -C /Users/tamura/src/github/vscode-copilot-chat grep -l foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows git grep --open-files-in-pager (runs pager)', async () => {
+        const cmd = 'git grep --open-files-in-pager foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git grep --open-files-in-pager=<pager>', async () => {
+        const cmd = 'git grep --open-files-in-pager=less foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git grep -O (runs pager)', async () => {
+        const cmd = 'git grep -O foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git grep -nO/bin/sh (clustered -O runs arbitrary pager)', async () => {
+        const cmd = 'git grep -nO/bin/sh foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git grep -inOless (clustered -O runs pager)', async () => {
+        const cmd = 'git grep -inOless foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('allows git grep -nE (clustered -E is safe)', async () => {
+        const cmd = 'git grep -nE foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows git grep --no-index (searches arbitrary paths)', async () => {
+        const cmd = 'git grep --no-index foo /etc/passwd'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('allows git ls-tree HEAD', async () => {
+        const cmd = 'git ls-tree HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git ls-tree -r --name-only HEAD src', async () => {
+        const cmd = 'git ls-tree -r --name-only HEAD src'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git ls-files', async () => {
+        const cmd = 'git ls-files'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git ls-files --stage', async () => {
+        const cmd = 'git ls-files --stage src'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git rev-list --count HEAD', async () => {
+        const cmd = 'git rev-list --count HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git rev-list --all --oneline', async () => {
+        const cmd = 'git rev-list --all --oneline'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git describe', async () => {
+        const cmd = 'git describe --tags'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git name-rev HEAD', async () => {
+        const cmd = 'git name-rev HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git shortlog -sn', async () => {
+        const cmd = 'git shortlog -sn --all'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git count-objects -vH', async () => {
+        const cmd = 'git count-objects -vH'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
     test('head command is allowed', async () => {
         const cmd = 'cat a.txt | head -n 10'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
@@ -927,6 +1071,54 @@ suite('parseGitCommand', () => {
         const cmd: CommandNode = { command: 'git', args: ['cat-file', '-p', '4c0e33c44aa'] }
         const result = parseGitCommand(cmd)
         assert.deepStrictEqual(result, { subCommand: 'cat-file', subCommandArgs: ['-p', '4c0e33c44aa'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git grep', () => {
+        const cmd: CommandNode = { command: 'git', args: ['grep', '-n', 'foo'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'grep', subCommandArgs: ['-n', 'foo'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git ls-tree', () => {
+        const cmd: CommandNode = { command: 'git', args: ['ls-tree', 'HEAD'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'ls-tree', subCommandArgs: ['HEAD'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git ls-files', () => {
+        const cmd: CommandNode = { command: 'git', args: ['ls-files'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'ls-files', subCommandArgs: [], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git rev-list', () => {
+        const cmd: CommandNode = { command: 'git', args: ['rev-list', '--count', 'HEAD'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'rev-list', subCommandArgs: ['--count', 'HEAD'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git describe', () => {
+        const cmd: CommandNode = { command: 'git', args: ['describe', '--tags'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'describe', subCommandArgs: ['--tags'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git name-rev', () => {
+        const cmd: CommandNode = { command: 'git', args: ['name-rev', 'HEAD'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'name-rev', subCommandArgs: ['HEAD'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git shortlog', () => {
+        const cmd: CommandNode = { command: 'git', args: ['shortlog', '-sn'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'shortlog', subCommandArgs: ['-sn'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git count-objects', () => {
+        const cmd: CommandNode = { command: 'git', args: ['count-objects', '-v'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'count-objects', subCommandArgs: ['-v'], mainArgs: [], cPath: undefined })
     })
 
     test('returns undefined when -C has no following arg', () => {
