@@ -184,10 +184,70 @@ suite('validator', () => {
         assert.strictEqual(ok, true)
     })
 
-    test('allows git apply -R', async () => {
-        const cmd = 'git apply -R'
+    test('allows git show <hash> piped to git apply -R', async () => {
+        const cmd = 'git show 4c0e33c44aa | git apply -R'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, true)
+    })
+
+    test('allows git --no-pager diff piped to git apply -R', async () => {
+        const cmd = 'git --no-pager diff HEAD -- main.ts | git apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows git apply -R without a pipe source', async () => {
+        const cmd = 'git apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows echo piped to git apply -R', async () => {
+        const cmd = 'echo x | git apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git apply -R with input redirection', async () => {
+        const cmd = 'git apply -R < patch.diff'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git apply -R after semicolon (stdin is terminal)', async () => {
+        const cmd = 'git diff HEAD -- main.ts; git apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git log -p piped to git apply -R (only diff/show are sources)', async () => {
+        const cmd = 'git log -p HEAD | git apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git diff piped through sed to git apply -R', async () => {
+        const cmd = "git diff HEAD -- main.ts | sed -n '1,10p' | git apply -R"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git apply -R with pipe and input redirection (overrides pipe)', async () => {
+        const cmd = 'git diff HEAD -- main.ts | git apply -R < patch.diff'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git apply -R with pipe and heredoc (overrides pipe)', async () => {
+        const cmd = "git diff HEAD -- main.ts | git apply -R <<'EOF'\npatch content\nEOF"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git apply -R with pipe and herestring (overrides pipe)', async () => {
+        const cmd = 'git diff HEAD -- main.ts | git apply -R <<< patch'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
     })
 
     test('allows git apply -R after cd to workspace', async () => {
@@ -348,6 +408,18 @@ suite('validator', () => {
 
     test('disallows git grep -nO/bin/sh (clustered -O runs arbitrary pager)', async () => {
         const cmd = 'git grep -nO/bin/sh foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git grep --output=<file> (writes matches)', async () => {
+        const cmd = 'git grep --output=/tmp/out foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git grep --textconv (runs textconv filters)', async () => {
+        const cmd = 'git grep --textconv foo'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, false)
     })

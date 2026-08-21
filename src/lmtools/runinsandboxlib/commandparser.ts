@@ -33,6 +33,14 @@ export const parserInitialization = (async () => {
 export interface CommandNode {
     command: string
     args: string[]
+    // Start index of the nearest ancestor `pipeline` node. Commands in the
+    // same pipeline share the same id, which lets the validator identify the
+    // command feeding stdin (e.g. `git diff ... | git apply -R`).
+    pipelineId?: number
+    // True when the command has an explicit stdin redirect (`<`, `<<`, `<<<`)
+    // attached to itself or to an ancestor (e.g. the pipeline it belongs to).
+    // Such a redirect overrides the stdin supplied by a pipeline.
+    stdinRedirected?: boolean
 }
 
 export async function collectCommands(source: string): Promise<CommandNode[] | undefined> {
@@ -59,6 +67,8 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
         for (const match of matches) {
             let commandName: string | undefined
             let commandStartIndex: number | undefined
+            let pipelineStartIndex: number | undefined
+            let stdinRedirected: boolean | undefined
             const args: string[] = []
 
             for (const capture of match.captures) {
@@ -72,6 +82,14 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
                     }
                     if (node) {
                         commandStartIndex = node.startIndex
+                        stdinRedirected = hasStdinRedirect(node, source) || undefined
+                        let ancestor: treeSitter.Node | null | undefined = node.parent
+                        while (ancestor && ancestor.type !== 'pipeline') {
+                            ancestor = ancestor.parent
+                        }
+                        if (ancestor) {
+                            pipelineStartIndex = ancestor.startIndex
+                        }
                     }
                 } else if (capture.name === 'arg' && text.length > 0) {
                     args.push(text)
@@ -84,8 +102,11 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
                     for (const a of args) {
                         existing.args.push(a)
                     }
+                    if (stdinRedirected) {
+                        existing.stdinRedirected = true
+                    }
                 } else {
-                    const entry: CommandNode = { command: commandName, args }
+                    const entry: CommandNode = { command: commandName, args, pipelineId: pipelineStartIndex, stdinRedirected }
                     commandMap.set(commandStartIndex, entry)
                     commands.push(entry)
                 }
@@ -95,6 +116,59 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
     } finally {
         tree.delete()
     }
+}
+
+/**
+ * Returns true when the file_redirect node redirects stdin (`<`, `0<`).
+ * Writes (`>`, `>>`, `>&`, `&>` ...) and FD redirects like `2<` are not stdin.
+ */
+function isStdinFileRedirect(node: treeSitter.Node, source: string): boolean {
+    if (node.type !== 'file_redirect') {
+        return false
+    }
+    for (let i = 0; i < node.childCount; i++) {
+        const child = node.child(i)
+        if (!child) {
+            continue
+        }
+        if (child.type === '<') {
+            return true
+        }
+        if (child.type === 'file_descriptor' && getNodeText(child, source) === '0') {
+            const next = node.child(i + 1)
+            if (next && next.type === '<') {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+/**
+ * Returns true when the command (or an ancestor such as the pipeline it
+ * belongs to) has an explicit stdin redirect: `file_redirect` with `<`,
+ * `heredoc_redirect` (`<<`) or `herestring_redirect` (`<<<`). Bash lets such
+ * a redirect override the stdin supplied by a pipe, so a piped command with
+ * its own stdin redirect does not read from the pipe.
+ */
+function hasStdinRedirect(startNode: treeSitter.Node, source: string): boolean {
+    let node: treeSitter.Node | null | undefined = startNode
+    while (node) {
+        for (let i = 0; i < node.childCount; i++) {
+            const child = node.child(i)
+            if (!child) {
+                continue
+            }
+            if (child.type === 'heredoc_redirect' || child.type === 'herestring_redirect') {
+                return true
+            }
+            if (isStdinFileRedirect(child, source)) {
+                return true
+            }
+        }
+        node = node.parent
+    }
+    return false
 }
 
 export function getNodeText(node: treeSitter.Node, source: string): string {

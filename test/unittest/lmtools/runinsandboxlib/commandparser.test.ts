@@ -123,6 +123,66 @@ suite('collectCommands', () => {
  		const cmds = await collectCommands('GIT_EXTERNAL_DIFF=/bin/evil git diff HEAD')
  		assert.strictEqual(cmds, undefined)
  	})
+
+	test('assigns the same pipelineId to piped commands', async () => {
+ 		const cmds = await collectCommands('echo hi | cat')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds.length, 2)
+ 		assert.ok(cmds[0].pipelineId !== undefined)
+ 		assert.strictEqual(cmds[0].pipelineId, cmds[1].pipelineId)
+ 	})
+
+	test('leaves pipelineId undefined without a pipeline', async () => {
+ 		const cmds = await collectCommands('echo hi; cat')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds.length, 2)
+ 		assert.strictEqual(cmds[0].pipelineId, undefined)
+ 		assert.strictEqual(cmds[1].pipelineId, undefined)
+ 	})
+
+	test('leaves pipelineId undefined for a redirected command', async () => {
+ 		const cmds = await collectCommands('git apply -R < patch.diff')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds.length, 1)
+ 		assert.strictEqual(cmds[0].pipelineId, undefined)
+ 	})
+
+	test('flags stdin redirect on file redirect', async () => {
+ 		const cmds = await collectCommands('git apply -R < patch.diff')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds[0].stdinRedirected, true)
+ 	})
+
+	test('flags stdin redirect on heredoc', async () => {
+ 		const cmds = await collectCommands("cat <<'EOF'\nhi\nEOF")
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds[0].stdinRedirected, true)
+ 	})
+
+	test('flags stdin redirect on herestring', async () => {
+ 		const cmds = await collectCommands('git apply -R <<< patch')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds[0].stdinRedirected, true)
+ 	})
+
+	test('flags stdin redirect on pipeline tail with file redirect', async () => {
+ 		const cmds = await collectCommands('git diff HEAD | git apply -R < patch.diff')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds.length, 2)
+ 		assert.strictEqual(cmds[1].stdinRedirected, true)
+ 	})
+
+	test('leaves stdinRedirected unset without a redirect', async () => {
+ 		const cmds = await collectCommands('git apply -R')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds[0].stdinRedirected, undefined)
+ 	})
+
+	test('does not flag stdout write as stdin redirect', async () => {
+ 		const cmds = await collectCommands('echo hi > out.txt')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds[0].stdinRedirected, undefined)
+ 	})
 })
 
 suite('findScripts', () => {
