@@ -37,6 +37,13 @@ export interface CommandNode {
     // same pipeline share the same id, which lets the validator identify the
     // command feeding stdin (e.g. `git diff ... | git apply -R`).
     pipelineId?: number
+    // True when the command node is a direct element of its pipeline (only a
+    // possible redirect wrapper lies between the command and the pipeline
+    // node). Commands inside compound statements (subshells, groups, loops)
+    // are nested in a `body` node, and their stdout is aggregated into the
+    // pipeline segment; the validator refuses such aggregation before
+    // trusting pipe input.
+    directPipelineMember?: boolean
     // True when the command has an explicit stdin redirect (`<`, `<<`, `<<<`)
     // attached to itself or to an ancestor (e.g. the pipeline it belongs to).
     // Such a redirect overrides the stdin supplied by a pipeline.
@@ -55,6 +62,17 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
     }
 
     try {
+        // The bash grammar does not know every shell construct - e.g. the
+        // `<>` read-write redirect parses differently depending on its place
+        // (`git apply -R <> patch` yields `ERROR "<"` plus a `> patch`
+        // file_redirect, `cat <> file` yields a file_redirect containing
+        // `ERROR ">"`). Reject any tree containing an ERROR node instead of
+        // guessing: unknown syntax could behave differently at run time than
+        // the parse suggests (bash accepts `<>` and would reopen stdin
+        // read-write, overriding a pipe).
+        if (tree.rootNode.hasError) {
+            return undefined
+        }
         const matches = commandQuery.matches(tree.rootNode)
         // Reject lines that assign environment variables (e.g. GIT_PAGER=x git log),
         // which can alter command behavior (arbitrary pager/diff execution, repo redirect).
@@ -71,6 +89,7 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
             let commandName: string | undefined
             let commandStartIndex: number | undefined
             let pipelineStartIndex: number | undefined
+            let directPipelineMember: boolean | undefined
             let stdinRedirected: boolean | undefined
             const args: string[] = []
 
@@ -92,6 +111,7 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
                         }
                         if (ancestor) {
                             pipelineStartIndex = ancestor.startIndex
+                            directPipelineMember = isDirectPipelineMember(node, ancestor) || undefined
                         }
                     }
                 } else if (capture.name === 'arg' && text.length > 0) {
@@ -108,10 +128,16 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
                     if (stdinRedirected) {
                         existing.stdinRedirected = true
                     }
+                    if (directPipelineMember) {
+                        existing.directPipelineMember = true
+                    }
                 } else {
                     const entry: CommandNode = { command: commandName, args }
                     if (pipelineStartIndex !== undefined) {
                         entry.pipelineId = pipelineStartIndex
+                    }
+                    if (directPipelineMember !== undefined) {
+                        entry.directPipelineMember = true
                     }
                     if (stdinRedirected !== undefined) {
                         entry.stdinRedirected = true
@@ -128,9 +154,34 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
 }
 
 /**
+ * Returns true when `commandNode` is a direct element of `pipeline`: the
+ * command's parent is the pipeline node, possibly with a single redirect
+ * wrapper (`redirected_statement`) in between. Commands inside compound
+ * statements (subshells, groups, loops) are nested under a `body` node and
+ * therefore return false - their stdout is aggregated into the pipeline
+ * segment instead of being fed directly to the next command.
+ */
+function isDirectPipelineMember(commandNode: treeSitter.Node, pipeline: treeSitter.Node): boolean {
+    const parent = commandNode.parent
+    if (parent && parent.startIndex === pipeline.startIndex && parent.endIndex === pipeline.endIndex) {
+        return true
+    }
+    if (parent?.type === 'redirected_statement' && parent.parent &&
+        parent.parent.startIndex === pipeline.startIndex && parent.parent.endIndex === pipeline.endIndex) {
+        return true
+    }
+    return false
+}
+
+/**
  * Returns true when the file_redirect node redirects stdin (`<`, `0<`, and
  * the fd duplication forms `<&` / `0<&`). Writes (`>`, `>>`, `>&`, `&>` ...)
  * and non-stdin FD redirects like `2<` are not stdin.
+ *
+ * `<>` reopens stdin read-write but the current bash grammar parses it as an
+ * ERROR node, so such commands are rejected wholesale in collectCommands /
+ * hasNoWriteRedirection. The `<>` / `0<>` checks below are a fallback in case
+ * a future grammar version parses them as a single token.
  */
 function isStdinFileRedirect(node: treeSitter.Node, source: string): boolean {
     if (node.type !== 'file_redirect') {
@@ -145,7 +196,7 @@ function isStdinFileRedirect(node: treeSitter.Node, source: string): boolean {
         if (!child) {
             continue
         }
-        if (child.type === '<' || child.type === '<&') {
+        if (child.type === '<' || child.type === '<&' || child.type === '<>') {
             return true
         }
     }
@@ -160,6 +211,9 @@ function isStdinFileRedirect(node: treeSitter.Node, source: string): boolean {
  * `herestring_redirect` (`<<<`). Bash lets such a redirect override the
  * stdin supplied by a pipe, so a piped command with its own stdin redirect
  * does not read from the pipe.
+ *
+ * The `<>` read-write form is not detected here: the current grammar parses
+ * it as an ERROR node and collectCommands rejects the whole command.
  */
 function hasStdinRedirect(startNode: treeSitter.Node, source: string): boolean {
     let node: treeSitter.Node | null | undefined = startNode
@@ -216,7 +270,12 @@ function isWriteRedirect(node: treeSitter.Node): boolean {
         if (!child || child.isNamed) {
             continue
         }
-        if (child.type === '>' || child.type === '>>' || child.type === '&>' || child.type === '&>>' || child.type === '>|') {
+        // `<>` opens the file read-write (creating it when missing), a
+        // write-capable open that must not bypass the write restrictions.
+        // The current grammar parses `<>` as an ERROR node (rejected in
+        // hasNoWriteRedirection); this check is a fallback for future
+        // grammar versions that tokenize it.
+        if (child.type === '>' || child.type === '>>' || child.type === '&>' || child.type === '&>>' || child.type === '>|' || child.type === '<>') {
             return true
         }
         // >& writes to a file when the target is a word, not a number (FD duplication like 2>&1)
@@ -255,6 +314,13 @@ export async function hasNoWriteRedirection(source: string): Promise<boolean> {
     }
 
     try {
+        // Trees containing ERROR nodes (e.g. the `<>` read-write redirect,
+        // which the grammar does not know) are refused wholesale: `<>` opens
+        // the file read-write and would bypass the write restrictions, but its
+        // parse shape varies with placement so no node-level rule is reliable.
+        if (tree.rootNode.hasError) {
+            return false
+        }
         const matches = redirectQuery.matches(tree.rootNode)
         for (const match of matches) {
             for (const capture of match.captures) {

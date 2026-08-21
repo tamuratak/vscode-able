@@ -143,6 +143,14 @@ async function isAllowedSubCommand(
             if (gitCmd.subCommandArgs.some(arg => arg === '--output' || arg.startsWith('--output='))) {
                 return false
             }
+            // `--textconv` / `--ext-diff` on log/diff/show/blame run user- or
+            // gitattributes-configured external programs (the same class of
+            // arbitrary command execution as the GIT_EXTERNAL_DIFF env var
+            // already rejected above).
+            if (['log', 'diff', 'show', 'blame'].includes(gitCmd.subCommand) &&
+                gitCmd.subCommandArgs.some(arg => arg === '--textconv' || arg === '--ext-diff')) {
+                return false
+            }
             if (gitCmd.subCommand === 'apply' && !isAllowedGitApply(gitCmd, pipeSource, command)) {
                 return false
             }
@@ -230,6 +238,13 @@ export function parseGitCommand(command: CommandNode): GitCommandInfo | undefine
  * (`git diff ... | git apply -R < patch`) overrides the pipe, so any form
  * of `<`, `<<`, `<<<` on the command is rejected.
  *
+ * The pipe source must be a direct element of the pipeline: a compound
+ * statement (subshell/group/loop) aggregates the stdout of every command
+ * inside it, so `(echo <patch>; git diff HEAD) | git apply -R` would feed
+ * attacker content plus git's output, and git apply applies every patch it
+ * finds. `--no-index` is rejected as well - compared against /dev/null it
+ * produces new-file patches whose reverse deletes the working tree file.
+ *
  * Reverse-applying a diff touches only the working tree, never `.git`, so
  * this restores files without needing any seatbelt carve-out for `.git`.
  * Note that it does not update the index: staged changes stay staged even
@@ -246,8 +261,26 @@ function isAllowedGitApply(gitCmd: GitCommandInfo, pipeSource: CommandNode | und
     if (command.stdinRedirected) {
         return false
     }
-    const source = pipeSource !== undefined ? parseGitCommand(pipeSource) : undefined
-    return source !== undefined && (source.subCommand === 'diff' || source.subCommand === 'show')
+    if (pipeSource === undefined) {
+        return false
+    }
+    const source = parseGitCommand(pipeSource)
+    if (source === undefined || (source.subCommand !== 'diff' && source.subCommand !== 'show')) {
+        return false
+    }
+    // Refuse compound pipe sources: a subshell/group/loop aggregates the
+    // stdout of everything inside it, so the source must be a plain git
+    // command that is a direct element of the pipeline.
+    if (pipeSource.directPipelineMember !== true) {
+        return false
+    }
+    // `git diff --no-index <a> <b>` compares two arbitrary files (e.g.
+    // /dev/null vs a workspace file yields a new-file patch whose reverse
+    // deletes that file), escaping the "restore to a past commit" design.
+    if (source.subCommand === 'diff' && source.subCommandArgs.includes('--no-index')) {
+        return false
+    }
+    return true
 }
 
 /**
@@ -304,7 +337,6 @@ function isAllowedGitGrep(gitCmd: GitCommandInfo): boolean {
     }
     return true
 }
-
 
 //
 // https://github.com/microsoft/vscode/blob/698d618f29e978c2ca7f45570d148e6eb9aa2a66/src/vs/workbench/contrib/terminalContrib/chatAgentTools/common/terminalChatAgentToolsConfiguration.ts#L240

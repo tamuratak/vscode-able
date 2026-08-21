@@ -310,6 +310,84 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('disallows git apply -R with <> read-write redirect', async () => {
+        const cmd = 'git apply -R <> patch'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git apply -R with pipe and <> redirect (overrides pipe)', async () => {
+        const cmd = 'git diff HEAD -- main.ts | git apply -R <> patch'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows subshell with extra output piped to git apply -R (aggregated stdin)', async () => {
+        const cmd = "(echo 'diff --git a/f b/f'; git diff HEAD) | git apply -R"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows group with extra output piped to git apply -R (aggregated stdin)', async () => {
+        const cmd = "{ echo 'diff --git a/f b/f'; git diff HEAD; } | git apply -R"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows group with nested pipe output piped to git apply -R (aggregated stdin)', async () => {
+        const cmd = "{ echo 'diff --git a/f b/f' | cat; git diff HEAD; } | git apply -R"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git diff inside a subshell as apply source', async () => {
+        const cmd = '(git diff HEAD -- main.ts) | git apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('allows git diff with stderr redirect as apply source', async () => {
+        const cmd = 'git diff HEAD -- main.ts 2>/dev/null | git apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows git diff --no-index as apply source (writes/removes workspace files)', async () => {
+        const cmd = 'git diff --no-index a b | git apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git show --textconv (runs textconv filters)', async () => {
+        const cmd = 'git show --textconv HEAD:file.pdf'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git diff --textconv (runs textconv filters)', async () => {
+        const cmd = 'git diff --textconv HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git diff --ext-diff (runs external diff driver)', async () => {
+        const cmd = 'git diff --ext-diff HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git log --textconv (runs textconv filters)', async () => {
+        const cmd = 'git log --textconv HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git blame --textconv (runs textconv filters)', async () => {
+        const cmd = 'git blame --textconv file.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test('allows git cat-file -p <hash>', async () => {
         const cmd = 'git cat-file -p 4c0e33c44aa'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])

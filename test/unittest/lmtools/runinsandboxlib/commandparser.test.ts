@@ -4,6 +4,11 @@ import { hasNoWriteRedirection, normalizeToken, collectCommands } from '../../..
 import { findScripts } from '../../../../src/lmtools/runinsandboxlib/findscripts.js'
 
 suite('tree-sitter command parser', () => {
+	test('detects <> read-write redirection', async () => {
+		const result = await hasNoWriteRedirection('cat <> file')
+		assert.strictEqual(result, false)
+	})
+
 	test('detects truncate redirection', async () => {
 		const result = await hasNoWriteRedirection('echo hi > output.txt')
 		assert.strictEqual(result, false)
@@ -83,6 +88,45 @@ suite('normalizeToken', () => {
 })
 
 suite('collectCommands', () => {
+	test('rejects <> read-write redirect (grammar ERROR node)', async () => {
+		const cmds = await collectCommands('git apply -R <> patch')
+		assert.strictEqual(cmds, undefined)
+	})
+
+	test('rejects 0<> read-write redirect (grammar ERROR node)', async () => {
+		const cmds = await collectCommands('git apply -R 0<> patch')
+		assert.strictEqual(cmds, undefined)
+	})
+
+	test('marks direct pipeline members', async () => {
+		const cmds = await collectCommands('git diff HEAD | git apply -R')
+		assert.ok(cmds)
+		assert.strictEqual(cmds[0].directPipelineMember, true)
+		assert.strictEqual(cmds[1].directPipelineMember, true)
+	})
+
+	test('does not mark commands inside a subshell as direct pipeline members', async () => {
+		const cmds = await collectCommands('(echo hi) | cat')
+		assert.ok(cmds)
+		assert.strictEqual(cmds[0].directPipelineMember, undefined)
+		assert.strictEqual(cmds[1].directPipelineMember, true)
+	})
+
+	test('does not mark commands inside a group as direct pipeline members', async () => {
+		const cmds = await collectCommands('{ echo hi; git diff HEAD; } | git apply -R')
+		assert.ok(cmds)
+		assert.strictEqual(cmds[0].directPipelineMember, undefined)
+		assert.strictEqual(cmds[1].directPipelineMember, undefined)
+		assert.strictEqual(cmds[2].directPipelineMember, true)
+	})
+
+	test('marks redirected pipeline members as direct', async () => {
+		const cmds = await collectCommands('git diff HEAD 2>/dev/null | git apply -R')
+		assert.ok(cmds)
+		assert.strictEqual(cmds[0].directPipelineMember, true)
+		assert.strictEqual(cmds[1].directPipelineMember, true)
+	})
+
 	test('parses simple command and arg', async () => {
  		const cmds = await collectCommands('echo hi')
  		assert.ok(cmds)
