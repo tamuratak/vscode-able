@@ -110,6 +110,9 @@ const validGitSubCommandsRegex = new RegExp(`^(?:${validGitSubCommandNames.join(
  * listed before index with the same id are pipe sources. Returns undefined
  * when the command is not in a pipeline or is its first command (stdin is
  * then the terminal, a file redirect, or a heredoc).
+ * Note: a pipeline nested in a subshell/group (`{ a | b; } | c`) gets its
+ * own `pipelineId`, so the outer command finds no pipe source here. That is
+ * safe (it refuses the command) and only affects grouping syntax.
  */
 function getPipeSource(commands: CommandNode[], index: number): CommandNode | undefined {
     const cmd = commands[index]
@@ -132,6 +135,14 @@ async function isAllowedSubCommand(
     if (command.command === 'git') {
         const gitCmd = parseGitCommand(command)
         if (gitCmd && gitCmd.subCommand && validGitSubCommandsRegex.test(gitCmd.subCommand)) {
+            // `--output[=<file>]` writes command output to an arbitrary path
+            // (git diff/log/show support it), bypassing the sandbox write
+            // restrictions. Reject it for every sub-command. The bare `--output`
+            // and `--output=` are matched so diff-specific `--output-indicator-*`
+            // options stay allowed.
+            if (gitCmd.subCommandArgs.some(arg => arg === '--output' || arg.startsWith('--output='))) {
+                return false
+            }
             if (gitCmd.subCommand === 'apply' && !isAllowedGitApply(gitCmd, pipeSource, command)) {
                 return false
             }
@@ -249,7 +260,9 @@ function isAllowedGitApply(gitCmd: GitCommandInfo, pipeSource: CommandNode | und
  */
 function isAllowedGitCatFile(gitCmd: GitCommandInfo): boolean {
     for (const arg of gitCmd.subCommandArgs) {
-        if (arg === '--filters' || arg === '--textconv' || arg.startsWith('--batch-command') || arg.startsWith('--path')) {
+        // startsWith also rejects `=`-suffixed forms (--filters=... / --textconv=...)
+        // defensively, even though git itself rejects them.
+        if (arg.startsWith('--filters') || arg.startsWith('--textconv') || arg.startsWith('--batch-command') || arg.startsWith('--path')) {
             return false
         }
     }

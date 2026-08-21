@@ -298,6 +298,18 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('disallows git apply -R with <&1 fd duplication', async () => {
+        const cmd = 'git diff 4c0e33c44aa -- README.md | git apply -R <&1'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git apply -R with 0<&1 fd duplication', async () => {
+        const cmd = 'git diff 4c0e33c44aa -- README.md | git apply -R 0<&1'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test('allows git cat-file -p <hash>', async () => {
         const cmd = 'git cat-file -p 4c0e33c44aa'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
@@ -330,6 +342,18 @@ suite('validator', () => {
 
     test('disallows git cat-file --textconv (runs textconv scripts)', async () => {
         const cmd = 'git cat-file --textconv --path=file.txt 4c0e33c44aa'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git cat-file --filters=<...> (defensive)', async () => {
+        const cmd = 'git cat-file --filters=foo 4c0e33c44aa'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git cat-file --textconv=<...> (defensive)', async () => {
+        const cmd = 'git cat-file --textconv=foo 4c0e33c44aa'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, false)
     })
@@ -440,6 +464,30 @@ suite('validator', () => {
         const cmd = 'git grep --no-index foo /etc/passwd'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, false)
+    })
+
+    test('disallows git diff --output=<file> (writes to arbitrary path)', async () => {
+        const cmd = 'git diff --output=/tmp/out HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git log --output=<file>', async () => {
+        const cmd = 'git log --output=/tmp/out HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git show --output <file>', async () => {
+        const cmd = 'git show --output /tmp/out 4c0e33c44aa'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('allows git diff --output-indicator-new=+ (not a write)', async () => {
+        const cmd = 'git diff --output-indicator-new=+ HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
     })
 
     test('allows git ls-tree HEAD', async () => {

@@ -183,6 +183,24 @@ suite('collectCommands', () => {
  		assert.ok(cmds)
  		assert.strictEqual(cmds[0].stdinRedirected, undefined)
  	})
+
+	test('flags <& fd duplication as stdin redirect', async () => {
+ 		const cmds = await collectCommands('git apply -R <&1')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds[0].stdinRedirected, true)
+ 	})
+
+	test('flags 0<& fd duplication as stdin redirect', async () => {
+ 		const cmds = await collectCommands('git apply -R 0<&1')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds[0].stdinRedirected, true)
+ 	})
+
+	test('does not flag 2<&1 as stdin redirect', async () => {
+ 		const cmds = await collectCommands('git diff HEAD 2<&1')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds[0].stdinRedirected, undefined)
+ 	})
 })
 
 suite('findScripts', () => {

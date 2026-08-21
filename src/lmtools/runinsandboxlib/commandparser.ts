@@ -57,7 +57,10 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
     try {
         const matches = commandQuery.matches(tree.rootNode)
         // Reject lines that assign environment variables (e.g. GIT_PAGER=x git log),
-        // which can alter command behavior (arbitrary pager/diff execution, repo redirect)
+        // which can alter command behavior (arbitrary pager/diff execution, repo redirect).
+        // Plain shell variable assignments (e.g. `x=1; echo hi`) are also rejected
+        // intentionally: a standalone assignment cannot be distinguished from an env
+        // var prefix at the token level, and over-blocking is safer than allowing it.
         if (matches.some(m => m.captures.some(c => c.name === 'assignment'))) {
             return undefined
         }
@@ -106,7 +109,13 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
                         existing.stdinRedirected = true
                     }
                 } else {
-                    const entry: CommandNode = { command: commandName, args, pipelineId: pipelineStartIndex, stdinRedirected }
+                    const entry: CommandNode = { command: commandName, args }
+                    if (pipelineStartIndex !== undefined) {
+                        entry.pipelineId = pipelineStartIndex
+                    }
+                    if (stdinRedirected !== undefined) {
+                        entry.stdinRedirected = true
+                    }
                     commandMap.set(commandStartIndex, entry)
                     commands.push(entry)
                 }
@@ -119,11 +128,16 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
 }
 
 /**
- * Returns true when the file_redirect node redirects stdin (`<`, `0<`).
- * Writes (`>`, `>>`, `>&`, `&>` ...) and FD redirects like `2<` are not stdin.
+ * Returns true when the file_redirect node redirects stdin (`<`, `0<`, and
+ * the fd duplication forms `<&` / `0<&`). Writes (`>`, `>>`, `>&`, `&>` ...)
+ * and non-stdin FD redirects like `2<` are not stdin.
  */
 function isStdinFileRedirect(node: treeSitter.Node, source: string): boolean {
     if (node.type !== 'file_redirect') {
+        return false
+    }
+    const fd = node.children.find(ch => ch?.type === 'file_descriptor')
+    if (fd && getNodeText(fd, source) !== '0') {
         return false
     }
     for (let i = 0; i < node.childCount; i++) {
@@ -131,14 +145,8 @@ function isStdinFileRedirect(node: treeSitter.Node, source: string): boolean {
         if (!child) {
             continue
         }
-        if (child.type === '<') {
+        if (child.type === '<' || child.type === '<&') {
             return true
-        }
-        if (child.type === 'file_descriptor' && getNodeText(child, source) === '0') {
-            const next = node.child(i + 1)
-            if (next && next.type === '<') {
-                return true
-            }
         }
     }
     return false
@@ -146,10 +154,12 @@ function isStdinFileRedirect(node: treeSitter.Node, source: string): boolean {
 
 /**
  * Returns true when the command (or an ancestor such as the pipeline it
- * belongs to) has an explicit stdin redirect: `file_redirect` with `<`,
- * `heredoc_redirect` (`<<`) or `herestring_redirect` (`<<<`). Bash lets such
- * a redirect override the stdin supplied by a pipe, so a piped command with
- * its own stdin redirect does not read from the pipe.
+ * belongs to) has an explicit stdin redirect: `file_redirect` with `<`
+ * (`<&` fd duplication included), `heredoc_redirect` (`<<`, including
+ * explicit-FD forms like `0<<EOF` which keep the same node type) or
+ * `herestring_redirect` (`<<<`). Bash lets such a redirect override the
+ * stdin supplied by a pipe, so a piped command with its own stdin redirect
+ * does not read from the pipe.
  */
 function hasStdinRedirect(startNode: treeSitter.Node, source: string): boolean {
     let node: treeSitter.Node | null | undefined = startNode
