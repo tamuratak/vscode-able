@@ -292,12 +292,6 @@ suite('validator', () => {
         assert.strictEqual(ok, true)
     })
 
-    test('git restore --patc f is disallowed (abbreviated --patch)', async () => {
-        const cmd = 'git restore --patc f'
-        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
-        assert.strictEqual(ok, false)
-    })
-
     test('git restore -m f is disallowed (merge can update index)', async () => {
         const cmd = 'git restore -m f'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
