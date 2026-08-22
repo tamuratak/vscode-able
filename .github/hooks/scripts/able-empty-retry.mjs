@@ -30,7 +30,7 @@ function debugLog(message) {
 // that merely appears somewhere in source code quoted by the model can never
 // match, because the suffix is unique per emission and the content would
 // contain surrounding text.
-const STOP_MARKER_PATTERN = /^<!--\s*ABLE_EMPTY_RESPONSE_[0-9a-f]{8}\s*-->$/
+const STOP_MARKER_PATTERN = /<!--\s*ABLE_EMPTY_RESPONSE_[0-9a-f]{8}\s*-->$/
 
 function readStdin() {
     return new Promise((resolve, reject) => {
@@ -92,8 +92,8 @@ async function main() {
     // block a second time, so the model can legitimately stop after the
     // "continue" nudge.
     if (input.stop_hook_active === true) {
-        debugLog('exit: stop_hook_active is true, letting the agent stop')
-        process.exit(0)
+        debugLog('exit: stop_hook_active is true')
+//        process.exit(0)
     }
 
     const transcriptPath = input.transcript_path
@@ -111,7 +111,7 @@ async function main() {
 
     const trimmed = lastAssistantContent.trim()
     if (!STOP_MARKER_PATTERN.test(trimmed)) {
-        debugLog(`exit: last assistant content does not match the marker pattern (length=${trimmed.length}, head=${JSON.stringify(trimmed.slice(0, 120))})`)
+        debugLog(`exit: last assistant content does not match the marker pattern (length=${trimmed.length}, head=${JSON.stringify(trimmed.slice(0, 300))})`)
         process.exit(0)
     }
 
