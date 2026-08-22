@@ -70,6 +70,10 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
         // guessing: unknown syntax could behave differently at run time than
         // the parse suggests (bash accepts `<>` and would reopen stdin
         // read-write, overriding a pipe).
+        // If a construct must be allowed later (e.g. process substitution),
+        // the options are: wait for a grammar version that parses it without
+        // errors, or replace this wholesale rejection with node-level
+        // detection for exactly that construct.
         if (tree.rootNode.hasError) {
             return undefined
         }
@@ -214,6 +218,13 @@ function isStdinFileRedirect(node: treeSitter.Node, source: string): boolean {
  *
  * The `<>` read-write form is not detected here: the current grammar parses
  * it as an ERROR node and collectCommands rejects the whole command.
+ *
+ * A redirect attached to an enclosing compound statement (e.g.
+ * `(git diff HEAD | git apply -R) < file`) is picked up for the inner
+ * commands as well. The redirect then applies to the compound statement's
+ * stdin, which inner commands without their own input inherit - so flagging
+ * it is the correct rejection when they would otherwise read the file, and
+ * a harmless over-block otherwise.
  */
 function hasStdinRedirect(startNode: treeSitter.Node, source: string): boolean {
     let node: treeSitter.Node | null | undefined = startNode
@@ -318,6 +329,7 @@ export async function hasNoWriteRedirection(source: string): Promise<boolean> {
         // which the grammar does not know) are refused wholesale: `<>` opens
         // the file read-write and would bypass the write restrictions, but its
         // parse shape varies with placement so no node-level rule is reliable.
+        // See collectCommands for the policy on relaxing this in the future.
         if (tree.rootNode.hasError) {
             return false
         }

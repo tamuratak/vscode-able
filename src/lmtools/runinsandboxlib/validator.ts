@@ -147,10 +147,15 @@ async function isAllowedSubCommand(
             // gitattributes-configured external programs (the same class of
             // arbitrary command execution as the GIT_EXTERNAL_DIFF env var
             // already rejected above). git expands unambiguous long-option
-            // prefixes, so reject the shortest unique prefixes as well
-            // (`--textc` -> --textconv, `--ext-d` -> --ext-diff).
+            // prefixes, so reject the shortest unique prefixes: `--ext` ->
+            // --ext-diff (no other --ext* option exists there); `--textc` ->
+            // --textconv on log/diff/show (they have their own `--text`
+            // option, so `--text` is ambiguous and errors out there), while
+            // blame has no `--text` option of its own, so `--text` alone
+            // already resolves to --textconv.
             if (['log', 'diff', 'show', 'blame'].includes(gitCmd.subCommand) &&
-                gitCmd.subCommandArgs.some(arg => arg.startsWith('--textc') || arg.startsWith('--ext-d'))) {
+                gitCmd.subCommandArgs.some(arg => arg.startsWith('--ext') ||
+                    (gitCmd.subCommand === 'blame' ? arg.startsWith('--text') : arg.startsWith('--textc')))) {
                 return false
             }
             if (gitCmd.subCommand === 'apply' && !isAllowedGitApply(gitCmd, pipeSource, command)) {
@@ -245,7 +250,10 @@ export function parseGitCommand(command: CommandNode): GitCommandInfo | undefine
  * inside it, so `(echo <patch>; git diff HEAD) | git apply -R` would feed
  * attacker content plus git's output, and git apply applies every patch it
  * finds. `--no-index` is rejected as well - compared against /dev/null it
- * produces new-file patches whose reverse deletes the working tree file.
+ * produces new-file patches whose reverse deletes the working tree file;
+ * shorter prefixes of it (`--no-in`, ...) are rejected too because git
+ * expands unambiguous long-option prefixes, and which prefix is unambiguous
+ * depends on the git version's option set.
  *
  * The apply command itself must also be a direct element of the pipeline:
  * placed inside a group or subshell (`git diff HEAD | { cat; git apply -R; }`)
@@ -289,7 +297,11 @@ function isAllowedGitApply(gitCmd: GitCommandInfo, pipeSource: CommandNode | und
     // `git diff --no-index <a> <b>` compares two arbitrary files (e.g.
     // /dev/null vs a workspace file yields a new-file patch whose reverse
     // deletes that file), escaping the "restore to a past commit" design.
-    if (source.subCommand === 'diff' && source.subCommandArgs.includes('--no-index')) {
+    // git expands unambiguous long-option prefixes, so the whole --no-i*
+    // family is rejected (`--no-index` and its longer prefixes always
+    // resolve to --no-index; shorter ones like --no-in / --no-inde become
+    // unambiguous when a competing option is not registered).
+    if (source.subCommand === 'diff' && source.subCommandArgs.some(arg => arg.startsWith('--no-i'))) {
         return false
     }
     return true
@@ -304,14 +316,19 @@ function isAllowedGitApply(gitCmd: GitCommandInfo, pipeSource: CommandNode | und
  * - `--batch-command` can create objects via its `create` subcommand (writes)
  *
  * Unambiguous long-option prefixes are rejected too because git expands them
- * (`--fi` -> --filters, `--textc` -> --textconv, `--pa` -> --path,
- * `--batch-co` -> --batch-command).
+ * (`--f` -> --filters, `--text` -> --textconv, `--p` -> --path,
+ * `--batch-co` -> --batch-command). The bare `--f` also blocks the harmless
+ * read-only `--follow-symlinks`: over-blocking is intentional, because the
+ * set of `--f*` options may grow in future git versions and following
+ * symlinks has no use case here. If `--follow-symlinks` ever needs to be
+ * allowed, reject only `--fi*` (the shortest unambiguous prefix of
+ * --filters) and permit `--fo*`.
  */
 function isAllowedGitCatFile(gitCmd: GitCommandInfo): boolean {
     for (const arg of gitCmd.subCommandArgs) {
         // `--batch-c` is ambiguous with `--batch-check` (git errors out), so
         // `--batch-co` is the shortest unambiguous prefix of --batch-command.
-        if (arg.startsWith('--fi') || arg.startsWith('--textc') || arg.startsWith('--pa') || arg.startsWith('--batch-co')) {
+        if (arg.startsWith('--f') || arg.startsWith('--text') || arg.startsWith('--p') || arg.startsWith('--batch-co')) {
             return false
         }
     }
@@ -330,7 +347,7 @@ function isAllowedGitCatFile(gitCmd: GitCommandInfo): boolean {
  *   paths outside the repository (e.g. `/etc/passwd`)
  *
  * Unambiguous long-option prefixes are rejected too because git expands them
- * (`--no-i` -> --no-index, `--textc` -> --textconv, `--out=...` -> --output=...,
+ * (`--no-i` -> --no-index, `--text` -> --textconv, `--out=...` -> --output=...,
  * `--open-files-in-p=...` -> --open-files-in-pager=...).
  *
  * `-O` is the only short option containing 'O', so clustering like
@@ -339,7 +356,7 @@ function isAllowedGitCatFile(gitCmd: GitCommandInfo): boolean {
  */
 function isAllowedGitGrep(gitCmd: GitCommandInfo): boolean {
     for (const arg of gitCmd.subCommandArgs) {
-        if (arg.startsWith('--no-i') || arg.startsWith('--textc') || arg.startsWith('--out') || arg.startsWith('--open-files-in-p')) {
+        if (arg.startsWith('--no-i') || arg.startsWith('--text') || arg.startsWith('--out') || arg.startsWith('--open-files-in-p')) {
             return false
         }
         if (arg.startsWith('-') && !arg.startsWith('--') && arg.slice(1).includes('O')) {
