@@ -118,6 +118,13 @@ suite('collectCommands', () => {
  		const cmds = await collectCommands('GIT_PAGER=cat git log')
  		assert.strictEqual(cmds, undefined)
  	})
+
+ 	test('allows c-style for loop with variable assignment initializer', async () => {
+ 		const cmds = await collectCommands('for ((i=0; i<3; i++)); do echo $i; done')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds.length, 1)
+ 		assert.strictEqual(cmds[0].command, 'echo')
+ 	})
 })
 
 suite('findScripts', () => {

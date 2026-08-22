@@ -160,6 +160,8 @@ function isGitRestoreRejectedArg(arg: string): boolean {
     if (arg === '-C' || arg.startsWith('--st') || arg.startsWith('--pa')) {
         return true
     }
+    // `--` itself does not match /^-[a-zA-Z]+$/ (its second character is `-`),
+    // so paths after `--` are treated as paths, not options.
     return /^-[a-zA-Z]+$/.test(arg) && !arg.startsWith('-s') && /[Sp]/.test(arg)
 }
 

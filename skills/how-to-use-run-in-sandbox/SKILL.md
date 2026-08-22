@@ -60,3 +60,4 @@ Use instead:
 - Prefer deterministic commands with explicit paths
 - Keep command outputs focused by using filters such as `head`, `tail`, or `grep`
 - Treat sandbox execution as foreground-only and finite-duration
+- `git restore` (without `--staged`) is allowed and overwrites working-tree files. `git restore .` discards all uncommitted working-tree changes, so prefer restoring specific files

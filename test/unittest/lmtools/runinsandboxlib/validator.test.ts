@@ -184,6 +184,12 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('c-style for loop is allowed', async () => {
+        const cmd = 'for ((i=0; i<3; i++)); do echo $i; done'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
     test('GIT_PAGER env var prefix command is disallowed', async () => {
         const cmd = 'GIT_PAGER=less git log'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
