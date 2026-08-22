@@ -151,12 +151,16 @@ async function isAllowedSubCommand(
 // Returns true if the argument makes `git restore` unsafe in the sandbox:
 // --staged (or -S, possibly combined like -SW) updates .git/index,
 // -p/--patch enters an interactive patch mode, and -C after the subcommand
-// bypasses the cPath workspace check.
+// bypasses the cPath workspace check. git accepts unique abbreviations of
+// long options (for example --stage for --staged), so reject the whole
+// --st/--pa prefixes. For short options, -s takes the rest of the token as
+// its value (-sS is --source=S), so only combined flags containing -S or -p
+// are rejected.
 function isGitRestoreRejectedArg(arg: string): boolean {
-    return arg === '--staged' || arg.startsWith('--staged=')
-        || /^-[a-zA-Z]*S[a-zA-Z]*$/.test(arg)
-        || arg === '--patch' || arg === '-p'
-        || arg === '-C'
+    if (arg === '-C' || arg.startsWith('--st') || arg.startsWith('--pa')) {
+        return true
+    }
+    return /^-[a-zA-Z]+$/.test(arg) && !arg.startsWith('-s') && /[Sp]/.test(arg)
 }
 
 interface GitCommandInfo {

@@ -220,6 +220,24 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('git restore -ps HEAD~1 file.txt is disallowed (combined -p -s)', async () => {
+        const cmd = 'git restore -ps HEAD~1 file.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('git restore --stag src/main.ts is disallowed (abbreviated --staged)', async () => {
+        const cmd = 'git restore --stag src/main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('git restore --patc src/main.ts is disallowed (abbreviated --patch)', async () => {
+        const cmd = 'git restore --patc src/main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test('git restore --source=HEAD~1 file.txt is allowed', async () => {
         const cmd = 'git restore --source=HEAD~1 file.txt'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
@@ -234,6 +252,12 @@ suite('validator', () => {
 
     test('git restore -s HEAD~1 file.txt is allowed', async () => {
         const cmd = 'git restore -s HEAD~1 file.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('git restore -sS file.txt is allowed (source=S value attachment)', async () => {
+        const cmd = 'git restore -sS file.txt'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, true)
     })
@@ -262,8 +286,14 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
-    test('git restore -C /outside file.txt is disallowed', async () => {
+    test('git restore -C /Users/tamura/src/github/other file.txt is disallowed', async () => {
         const cmd = 'git restore -C /Users/tamura/src/github/other file.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('git restore -C <workspace path> file.txt is disallowed even inside workspace', async () => {
+        const cmd = 'git restore -C /Users/tamura/src/github/vscode-copilot-chat file.txt'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, false)
     })
@@ -275,7 +305,7 @@ suite('validator', () => {
     })
 
     test('env var prefix after cd is disallowed', async () => {
-        const cmd = 'cd /tmp\nGIT_PAGER=cat git log'
+        const cmd = 'cd /Users/tamura/src/github/vscode-copilot-chat\nGIT_PAGER=cat git log'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, false)
     })
