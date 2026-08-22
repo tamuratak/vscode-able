@@ -6,6 +6,24 @@
 // non-matching case so the agent stops normally.
 
 import fs from 'node:fs'
+import path from 'node:path'
+
+// Debug log destination. Every decision point is appended here so hook
+// execution can be verified without attaching a debugger. Logging must never
+// break the hook itself, so every write is wrapped in try/catch.
+const DEBUG_LOG_DIR = '/var/folders/_v/56nl9qfn1lv9ktdprckl0l5h0000gn/T/ableruninsandbox'
+const DEBUG_LOG_PATH = path.join(DEBUG_LOG_DIR, 'hooks.log')
+
+function debugLog(message) {
+    try {
+        fs.mkdirSync(DEBUG_LOG_DIR, { recursive: true })
+        const timestamp = new Date().toISOString()
+        fs.appendFileSync(DEBUG_LOG_PATH, `[${timestamp}] ${message}\n`)
+    } catch {
+        // Swallow logging failures: the hook must keep working even when the
+        // log directory is not writable.
+    }
+}
 
 // The marker is an HTML comment with a per-emission random hex suffix. The
 // whole content of the latest assistant message must match exactly; a literal
@@ -64,31 +82,40 @@ async function main() {
     let input
     try {
         input = JSON.parse(await readStdin())
-    } catch {
+    } catch (error) {
+        debugLog(`exit: failed to parse stdin JSON: ${error}`)
         process.exit(0)
     }
+    debugLog(`invoked: session_id=${input.session_id} cwd=${input.cwd ?? '(none)'}`)
 
     // Already continuing as a result of a previous stop-hook block: never
     // block a second time, so the model can legitimately stop after the
     // "continue" nudge.
     if (input.stop_hook_active === true) {
+        debugLog('exit: stop_hook_active is true, letting the agent stop')
         process.exit(0)
     }
 
     const transcriptPath = input.transcript_path
     if (typeof transcriptPath !== 'string' || transcriptPath.length === 0) {
+        debugLog(`exit: no transcript_path in input: ${JSON.stringify(input)}`)
         process.exit(0)
     }
+    debugLog(`transcript_path=${transcriptPath}`)
 
     const lastAssistantContent = findLastAssistantContent(transcriptPath)
     if (lastAssistantContent === undefined) {
+        debugLog('exit: transcript unreadable or last assistant content missing')
         process.exit(0)
     }
 
-    if (!STOP_MARKER_PATTERN.test(lastAssistantContent.trim())) {
+    const trimmed = lastAssistantContent.trim()
+    if (!STOP_MARKER_PATTERN.test(trimmed)) {
+        debugLog(`exit: last assistant content does not match the marker pattern (length=${trimmed.length}, head=${JSON.stringify(trimmed.slice(0, 120))})`)
         process.exit(0)
     }
 
+    debugLog(`match: empty-response marker detected (${trimmed}), blocking stop`)
     process.stdout.write(JSON.stringify({
         hookSpecificOutput: {
             hookEventName: 'Stop',
@@ -98,4 +125,7 @@ async function main() {
     }))
 }
 
-main().catch(() => process.exit(0))
+main().catch(error => {
+    debugLog(`exit: unexpected error: ${error}`)
+    process.exit(0)
+})
