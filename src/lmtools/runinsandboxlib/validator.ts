@@ -146,9 +146,11 @@ async function isAllowedSubCommand(
             // `--textconv` / `--ext-diff` on log/diff/show/blame run user- or
             // gitattributes-configured external programs (the same class of
             // arbitrary command execution as the GIT_EXTERNAL_DIFF env var
-            // already rejected above).
+            // already rejected above). git expands unambiguous long-option
+            // prefixes, so reject the shortest unique prefixes as well
+            // (`--textc` -> --textconv, `--ext-d` -> --ext-diff).
             if (['log', 'diff', 'show', 'blame'].includes(gitCmd.subCommand) &&
-                gitCmd.subCommandArgs.some(arg => arg === '--textconv' || arg === '--ext-diff')) {
+                gitCmd.subCommandArgs.some(arg => arg.startsWith('--textc') || arg.startsWith('--ext-d'))) {
                 return false
             }
             if (gitCmd.subCommand === 'apply' && !isAllowedGitApply(gitCmd, pipeSource, command)) {
@@ -245,6 +247,10 @@ export function parseGitCommand(command: CommandNode): GitCommandInfo | undefine
  * finds. `--no-index` is rejected as well - compared against /dev/null it
  * produces new-file patches whose reverse deletes the working tree file.
  *
+ * The apply command itself must also be a direct element of the pipeline:
+ * placed inside a group or subshell (`git diff HEAD | { cat; git apply -R; }`)
+ * it shares stdin with sibling commands instead of receiving the pipe alone.
+ *
  * Reverse-applying a diff touches only the working tree, never `.git`, so
  * this restores files without needing any seatbelt carve-out for `.git`.
  * Note that it does not update the index: staged changes stay staged even
@@ -259,6 +265,12 @@ function isAllowedGitApply(gitCmd: GitCommandInfo, pipeSource: CommandNode | und
     // supplied by the pipe, so `git diff ... | git apply -R < patch` would
     // feed arbitrary patch content to git apply. Reject it unconditionally.
     if (command.stdinRedirected) {
+        return false
+    }
+    // The apply command itself must be a direct element of the pipeline too:
+    // inside a group/subshell (`git diff HEAD | { cat; git apply -R; }`) it
+    // shares stdin with sibling commands instead of receiving the pipe alone.
+    if (command.directPipelineMember !== true) {
         return false
     }
     if (pipeSource === undefined) {
@@ -290,12 +302,16 @@ function isAllowedGitApply(gitCmd: GitCommandInfo, pipeSource: CommandNode | und
  * - `--filters` / `--textconv` / `--path=<path>` run user-configured smudge,
  *   clean, or textconv scripts (arbitrary command execution)
  * - `--batch-command` can create objects via its `create` subcommand (writes)
+ *
+ * Unambiguous long-option prefixes are rejected too because git expands them
+ * (`--fi` -> --filters, `--textc` -> --textconv, `--pa` -> --path,
+ * `--batch-co` -> --batch-command).
  */
 function isAllowedGitCatFile(gitCmd: GitCommandInfo): boolean {
     for (const arg of gitCmd.subCommandArgs) {
-        // startsWith also rejects `=`-suffixed forms (--filters=... / --textconv=...)
-        // defensively, even though git itself rejects them.
-        if (arg.startsWith('--filters') || arg.startsWith('--textconv') || arg.startsWith('--batch-command') || arg.startsWith('--path')) {
+        // `--batch-c` is ambiguous with `--batch-check` (git errors out), so
+        // `--batch-co` is the shortest unambiguous prefix of --batch-command.
+        if (arg.startsWith('--fi') || arg.startsWith('--textc') || arg.startsWith('--pa') || arg.startsWith('--batch-co')) {
             return false
         }
     }
@@ -313,22 +329,17 @@ function isAllowedGitCatFile(gitCmd: GitCommandInfo): boolean {
  * - `--no-index` turns the search into a raw file search over arbitrary
  *   paths outside the repository (e.g. `/etc/passwd`)
  *
+ * Unambiguous long-option prefixes are rejected too because git expands them
+ * (`--no-i` -> --no-index, `--textc` -> --textconv, `--out=...` -> --output=...,
+ * `--open-files-in-p=...` -> --open-files-in-pager=...).
+ *
  * `-O` is the only short option containing 'O', so clustering like
  * `-nO/path/to/pager` (which git parses as `-n -O /path/to/pager`) and
  * `-O/bin/sh` are rejected by scanning every single-dash token for 'O'.
  */
 function isAllowedGitGrep(gitCmd: GitCommandInfo): boolean {
     for (const arg of gitCmd.subCommandArgs) {
-        if (arg === '--no-index') {
-            return false
-        }
-        if (arg === '--textconv') {
-            return false
-        }
-        if (arg.startsWith('--output')) {
-            return false
-        }
-        if (arg === '--open-files-in-pager' || arg.startsWith('--open-files-in-pager=')) {
+        if (arg.startsWith('--no-i') || arg.startsWith('--textc') || arg.startsWith('--out') || arg.startsWith('--open-files-in-p')) {
             return false
         }
         if (arg.startsWith('-') && !arg.startsWith('--') && arg.slice(1).includes('O')) {

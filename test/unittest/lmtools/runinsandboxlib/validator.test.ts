@@ -388,6 +388,102 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('disallows git diff --textc (prefix expansion of --textconv)', async () => {
+        const cmd = 'git diff --textc HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git diff --ext-d (prefix expansion of --ext-diff)', async () => {
+        const cmd = 'git diff --ext-d HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git show --textc (prefix expansion of --textconv)', async () => {
+        const cmd = 'git show --textc HEAD:file.pdf'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git log --textc (prefix expansion of --textconv)', async () => {
+        const cmd = 'git log --textc HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git blame --textc (prefix expansion of --textconv)', async () => {
+        const cmd = 'git blame --textc file.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git grep --no-i (prefix expansion of --no-index)', async () => {
+        const cmd = 'git grep --no-i foo /etc/passwd'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git grep --out= (prefix expansion of --output=)', async () => {
+        const cmd = 'git grep --out=/tmp/out foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git grep --open-files-in-p= (prefix expansion of --open-files-in-pager)', async () => {
+        const cmd = 'git grep --open-files-in-p=/bin/sh foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('allows git grep --no-color (prefix does not match denied options)', async () => {
+        const cmd = 'git grep --no-color foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows git cat-file --fi (prefix expansion of --filters)', async () => {
+        const cmd = 'git cat-file --fi blob HEAD:file'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git cat-file --textc (prefix expansion of --textconv)', async () => {
+        const cmd = 'git cat-file --textc blob HEAD:file.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git cat-file --pa= (prefix expansion of --path)', async () => {
+        const cmd = 'git cat-file --pa=x blob HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git cat-file --batch-co (prefix expansion of --batch-command)', async () => {
+        const cmd = 'git cat-file --batch-co'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('allows git cat-file --batch (not expanded to --batch-command)', async () => {
+        const cmd = 'git cat-file --batch'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows git diff piped to git apply -R inside a group (shares stdin)', async () => {
+        const cmd = 'git diff HEAD -- main.ts | { git apply -R; }'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git diff piped to git apply -R inside a subshell', async () => {
+        const cmd = 'git diff HEAD -- main.ts | (git apply -R)'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test('allows git cat-file -p <hash>', async () => {
         const cmd = 'git cat-file -p 4c0e33c44aa'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
