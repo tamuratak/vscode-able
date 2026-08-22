@@ -98,12 +98,14 @@ export async function isAllowedCommand(command: string, workspaceRootPaths: stri
     return true
 }
 
+const validGitSubCommands = ['status', 'log', 'diff', 'show', 'blame', 'rev-parse', 'restore']
+const validGitSubCommandsRegex = new RegExp(`^(${validGitSubCommands.join('|')})$`)
+
 async function isAllowedSubCommand(
     command: CommandNode,
     normalizedWorkspaceRoots: string[]
 ): Promise<boolean> {
     if (command.command === 'git') {
-        const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse|restore)$/
         const gitCmd = parseGitCommand(command)
         if (gitCmd && gitCmd.subCommand && validGitSubCommandsRegex.test(gitCmd.subCommand)) {
             // `git restore` without --staged only writes to the working tree, so it
@@ -148,20 +150,29 @@ async function isAllowedSubCommand(
     return false
 }
 
-// Returns true if the argument makes `git restore` unsafe in the sandbox:
-// --staged (or -S, possibly combined like -SW) updates .git/index,
-// -p/--patch enters an interactive patch mode, and -C after the subcommand
-// bypasses the cPath workspace check. git accepts unique abbreviations of
-// long options (for example --stage for --staged), so reject the whole
-// --st/--pa prefixes. For short options, -s takes the rest of the token as
-// its value (-sS is --source=S), so only combined flags containing -S or -p
-// are rejected.
+// Returns true if the argument makes `git restore` unsafe in the sandbox.
+// -C (also attached forms like -C.) after the subcommand is version-dependent
+// and would bypass the cPath workspace check, so it is rejected defensively.
+// -m/--merge (and its unique abbreviation --m) can update the index when
+// resolving unmerged entries. git accepts unique abbreviations of long
+// options: --st matches only --staged, --patc matches only --patch.
+// --pa/--pat are ambiguous (--patch vs --pathspec-from-file), so git rejects
+// them and no blocking is needed there.
 function isGitRestoreRejectedArg(arg: string): boolean {
-    if (arg === '-C' || arg.startsWith('--st') || arg.startsWith('--pa')) {
+    if (arg === '-C' || (arg.length > 2 && arg.startsWith('-C'))) {
+        return true
+    }
+    if (arg === '-m' || arg.startsWith('--m')) {
+        return true
+    }
+    if (arg.startsWith('--st') || arg.startsWith('--patc')) {
         return true
     }
     // `--` itself does not match /^-[a-zA-Z]+$/ (its second character is `-`),
-    // so paths after `--` are treated as paths, not options.
+    // but tokens following it are still subject to the rules above
+    // (for example `git restore -- --staged` is rejected). For short options,
+    // -s takes the rest of the token as its value (-sS is --source=S), so only
+    // combined flags containing -S or -p are rejected.
     return /^-[a-zA-Z]+$/.test(arg) && !arg.startsWith('-s') && /[Sp]/.test(arg)
 }
 
@@ -179,7 +190,7 @@ export function parseGitCommand(command: CommandNode): GitCommandInfo | undefine
     const mainArgs: string[] = []
     let cPath: string | undefined = undefined
     for (let i = 0; i < command.args.length; i++) {
-        if (/^(status|log|diff|show|blame|rev-parse|restore)$/.exec(command.args[i])) {
+        if (validGitSubCommands.includes(command.args[i])) {
             return { subCommand: command.args[i], subCommandArgs: command.args.slice(i + 1), mainArgs, cPath }
         } else if (command.args[i] === '-C') {
             cPath = command.args[i + 1]

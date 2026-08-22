@@ -280,6 +280,54 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('git restore -- --staged is disallowed (rule applies after --)', async () => {
+        const cmd = 'git restore -- --staged'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('git restore --pathspec-from-file=paths f is allowed', async () => {
+        const cmd = 'git restore --pathspec-from-file=paths f'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('git restore --patc f is disallowed (abbreviated --patch)', async () => {
+        const cmd = 'git restore --patc f'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('git restore -m f is disallowed (merge can update index)', async () => {
+        const cmd = 'git restore -m f'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('git restore --merge f is disallowed', async () => {
+        const cmd = 'git restore --merge f'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('git restore -C. f is disallowed (attached -C)', async () => {
+        const cmd = 'git restore -C. f'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('env wrapper is disallowed', async () => {
+        const cmd = 'env FOO=1 git status'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('NODE_OPTIONS env prefix with node -e is disallowed', async () => {
+        const cmd = "NODE_OPTIONS=--require=evil node -e 'console.log(1)'"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test('git restore -p src/main.ts is disallowed (interactive patch)', async () => {
         const cmd = 'git restore -p src/main.ts'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
