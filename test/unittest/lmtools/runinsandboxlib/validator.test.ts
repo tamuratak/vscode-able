@@ -178,6 +178,66 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('git restore src/main.ts is allowed', async () => {
+        const cmd = 'git restore src/main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('git restore -W src/main.ts is allowed', async () => {
+        const cmd = 'git restore -W src/main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('git restore --staged src/main.ts is disallowed', async () => {
+        const cmd = 'git restore --staged src/main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('git restore -S src/main.ts is disallowed', async () => {
+        const cmd = 'git restore -S src/main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('git restore -SW src/main.ts is disallowed', async () => {
+        const cmd = 'git restore -SW src/main.ts'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('git restore --source=HEAD~1 file.txt is allowed', async () => {
+        const cmd = 'git restore --source=HEAD~1 file.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('git restore --source HEAD~1 file.txt is allowed', async () => {
+        const cmd = 'git restore --source HEAD~1 file.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('git restore -s HEAD~1 file.txt is allowed', async () => {
+        const cmd = 'git restore -s HEAD~1 file.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('git restore HEAD~1:file.txt is allowed', async () => {
+        const cmd = 'git restore HEAD~1:file.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('git restore --source=HEAD~1 --staged file.txt is disallowed', async () => {
+        const cmd = 'git restore --source=HEAD~1 --staged file.txt'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test('head command is allowed', async () => {
         const cmd = 'cat a.txt | head -n 10'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
@@ -807,6 +867,12 @@ suite('parseGitCommand', () => {
         const cmd: CommandNode = { command: 'git', args: ['rev-parse', 'HEAD'] }
         const result = parseGitCommand(cmd)
         assert.deepStrictEqual(result, { subCommand: 'rev-parse', subCommandArgs: ['HEAD'], mainArgs: [], cPath: undefined })
+    })
+
+    test('parses git restore', () => {
+        const cmd: CommandNode = { command: 'git', args: ['restore', 'src/main.ts'] }
+        const result = parseGitCommand(cmd)
+        assert.deepStrictEqual(result, { subCommand: 'restore', subCommandArgs: ['src/main.ts'], mainArgs: [], cPath: undefined })
     })
 
     test('returns undefined when -C has no following arg', () => {

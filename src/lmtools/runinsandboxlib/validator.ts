@@ -103,9 +103,15 @@ async function isAllowedSubCommand(
     normalizedWorkspaceRoots: string[]
 ): Promise<boolean> {
     if (command.command === 'git') {
-        const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse)$/
+        const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse|restore)$/
         const gitCmd = parseGitCommand(command)
         if (gitCmd && gitCmd.subCommand && validGitSubCommandsRegex.test(gitCmd.subCommand)) {
+            // `git restore` without --staged only writes to the working tree, so it
+            // has no side effects under .git/. --staged (or -S, possibly combined
+            // like -SW) updates .git/index, so it must not be allowed.
+            if (gitCmd.subCommand === 'restore' && gitCmd.subCommandArgs.some(isGitRestoreIndexArg)) {
+                return false
+            }
             const cpath = gitCmd.cPath
             if (cpath) {
                 if (path.isAbsolute(cpath) && normalizedWorkspaceRoots.some(r => isInside(cpath, r))) {
@@ -140,6 +146,11 @@ async function isAllowedSubCommand(
     return false
 }
 
+// Returns true if the argument makes `git restore` update .git/index.
+function isGitRestoreIndexArg(arg: string): boolean {
+    return arg === '--staged' || arg.startsWith('--staged=') || /^-[a-zA-Z]*S[a-zA-Z]*$/.test(arg)
+}
+
 interface GitCommandInfo {
     subCommand: string
     subCommandArgs: string[]
@@ -154,7 +165,7 @@ export function parseGitCommand(command: CommandNode): GitCommandInfo | undefine
     const mainArgs: string[] = []
     let cPath: string | undefined = undefined
     for (let i = 0; i < command.args.length; i++) {
-        if (/^(status|log|diff|show|blame|rev-parse)$/.exec(command.args[i])) {
+        if (/^(status|log|diff|show|blame|rev-parse|restore)$/.exec(command.args[i])) {
             return { subCommand: command.args[i], subCommandArgs: command.args.slice(i + 1), mainArgs, cPath }
         } else if (command.args[i] === '-C') {
             cPath = command.args[i + 1]
