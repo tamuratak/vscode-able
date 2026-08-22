@@ -209,6 +209,15 @@ suite('collectCommands', () => {
  		assert.strictEqual(cmds[0].stdinRedirected, true)
  	})
 
+	test('flags stdin redirect on pipeline source, not on the tail', async () => {
+ 		const cmds = await collectCommands('git diff HEAD < /dev/null | git apply -R')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds.length, 2)
+ 		assert.strictEqual(cmds[0].stdinRedirected, true)
+ 		assert.strictEqual(cmds[0].directPipelineMember, true)
+ 		assert.strictEqual(cmds[1].stdinRedirected, undefined)
+ 	})
+
 	test('flags stdin redirect on pipeline tail with file redirect', async () => {
  		const cmds = await collectCommands('git diff HEAD | git apply -R < patch.diff')
  		assert.ok(cmds)

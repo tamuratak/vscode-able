@@ -136,7 +136,9 @@ async function isAllowedSubCommand(
         const gitCmd = parseGitCommand(command)
         if (gitCmd && gitCmd.subCommand && validGitSubCommandsRegex.test(gitCmd.subCommand)) {
             // `git shortlog` without arguments reads from stdin instead of a
-            // revision range (it would hang waiting for input).
+            // revision range. Processes here run with stdin ignored
+            // (/dev/null), so it exits at EOF rather than hanging - the
+            // rejection stays as defense in depth against spawn changes.
             if (gitCmd.subCommand === 'shortlog' && gitCmd.subCommandArgs.length === 0) {
                 return false
             }
@@ -351,12 +353,15 @@ function isAllowedGitCatFile(gitCmd: GitCommandInfo): boolean {
  * - `--no-index` turns the search into a raw file search over arbitrary
  *   paths outside the repository (e.g. `/etc/passwd`)
  *
- * Unambiguous long-option prefixes are rejected too because git expands them
- * (`--no-i` -> --no-index, `--te` -> --textconv). The whole `--o` family is
- * rejected wholesale: git grep's only `--o*` options are `--output[=]`
- * (writes) and `--open-files-in-pager[=]` (runs a pager), and any
- * unambiguous shorter prefix of them (`--ou=` -> --output=, `--ope` ->
- * --open-files-in-pager) is expanded by git before we see the full name.
+ * Unambiguous long-option prefixes are rejected too because git expands
+ * them: bare `--te` is ambiguous with grep's own `--text` option (git errors
+ * out) while `--textc*` expands to `--textconv`. Among the `--o*` options
+ * (`--output=<file>`, `--open-files-in-pager`, plus the harmless
+ * `--only-matching` and the `--or` combinator; `--color`/`--column` start
+ * with `--c`) only the first two are dangerous, so their shortest
+ * unambiguous prefixes are rejected individually: `--ou` -> --output=,
+ * `--op` -> --open-files-in-pager. The harmless `--on` -> --only-matching
+ * stays rejected so a future `--on*` option cannot slip through.
  *
  * `-O` is the only short option containing 'O', so clustering like
  * `-nO/path/to/pager` (which git parses as `-n -O /path/to/pager`) and
@@ -364,7 +369,9 @@ function isAllowedGitCatFile(gitCmd: GitCommandInfo): boolean {
  */
 function isAllowedGitGrep(gitCmd: GitCommandInfo): boolean {
     for (const arg of gitCmd.subCommandArgs) {
-        if (arg.startsWith('--o') || arg.startsWith('--te') || arg.startsWith('--no-i')) {
+        // --ou -> --output=, --op -> --open-files-in-pager, --on -> --only-matching
+        if (arg.startsWith('--ou') || arg.startsWith('--op') || arg.startsWith('--on') ||
+            arg.startsWith('--te') || arg.startsWith('--no-i')) {
             return false
         }
         if (arg.startsWith('-') && !arg.startsWith('--') && arg.slice(1).includes('O')) {

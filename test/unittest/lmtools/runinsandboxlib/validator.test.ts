@@ -238,6 +238,16 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('allows stdin redirect on the pipe source (attaches to git diff, not to apply)', async () => {
+        // Grammar shape: the redirected source is wrapped in a
+        // redirected_statement, so stdinRedirected lands on `git diff` only
+        // while `git apply -R` keeps reading the pipe. git diff ignores its
+        // stdin, so the patch content still comes solely from git.
+        const cmd = 'git diff HEAD < /dev/null | git apply -R'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
     test('disallows git apply -R with pipe and heredoc (overrides pipe)', async () => {
         const cmd = "git diff HEAD -- main.ts | git apply -R <<'EOF'\npatch content\nEOF"
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
@@ -506,6 +516,30 @@ suite('validator', () => {
         const cmd = 'git grep --no-color foo'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, true)
+    })
+
+    test('allows git grep --color (--c prefix stays allowed)', async () => {
+        const cmd = 'git grep --color foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git grep --column (--c prefix stays allowed)', async () => {
+        const cmd = 'git grep --column foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('allows git grep --or combinator (not covered by denied --o prefixes)', async () => {
+        const cmd = 'git grep -e foo --or -e bar'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
+    test('disallows git grep --only-matching (--on kept rejected as future margin)', async () => {
+        const cmd = 'git grep --only-matching foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
     })
 
     test('disallows git cat-file --fi (prefix expansion of --filters)', async () => {
@@ -808,7 +842,7 @@ suite('validator', () => {
         assert.strictEqual(ok, true)
     })
 
-    test('disallows git shortlog without arguments (reads stdin and hangs)', async () => {
+    test('disallows git shortlog without arguments (reads stdin instead of a revision range)', async () => {
         const cmd = 'git shortlog'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, false)
