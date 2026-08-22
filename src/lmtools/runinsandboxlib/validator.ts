@@ -106,23 +106,23 @@ const validGitSubCommandsRegex = new RegExp(`^(?:${validGitSubCommandNames.join(
 
 /**
  * Returns the command that feeds stdin to `commands[index]` through a pipe.
- * Commands inside the same `pipeline` node share a `pipelineId`; commands
- * listed before index with the same id are pipe sources. Returns undefined
- * when the command is not in a pipeline or is its first command (stdin is
- * then the terminal, a file redirect, or a heredoc).
- * Note: a pipeline nested in a subshell/group (`{ a | b; } | c`) gets its
- * own `pipelineId`, so the outer command finds no pipe source here. That is
- * safe (it refuses the command) and only affects grouping syntax.
+ * Only the immediate predecessor is considered: a compound statement
+ * (`{ a | b; }`) placed between the source and the command aggregates the
+ * stdout of everything inside it into the pipeline segment, so a source
+ * further back is not what the command actually reads. Returns undefined
+ * when the command is not in a pipeline, is its first command, or its
+ * predecessor belongs to a nested pipeline (the compound case above) - in
+ * those cases stdin is the terminal, a file redirect, a heredoc, or
+ * aggregated compound output (all refused).
  */
 function getPipeSource(commands: CommandNode[], index: number): CommandNode | undefined {
     const cmd = commands[index]
     if (cmd.pipelineId === undefined) {
         return undefined
     }
-    for (let i = index - 1; i >= 0; i--) {
-        if (commands[i].pipelineId === cmd.pipelineId) {
-            return commands[i]
-        }
+    const prev = commands[index - 1]
+    if (prev && prev.pipelineId === cmd.pipelineId) {
+        return prev
     }
     return undefined
 }
@@ -135,6 +135,11 @@ async function isAllowedSubCommand(
     if (command.command === 'git') {
         const gitCmd = parseGitCommand(command)
         if (gitCmd && gitCmd.subCommand && validGitSubCommandsRegex.test(gitCmd.subCommand)) {
+            // `git shortlog` without arguments reads from stdin instead of a
+            // revision range (it would hang waiting for input).
+            if (gitCmd.subCommand === 'shortlog' && gitCmd.subCommandArgs.length === 0) {
+                return false
+            }
             // `--output[=<file>]` writes command output to an arbitrary path
             // (git diff/log/show support it), bypassing the sandbox write
             // restrictions. Reject it for every sub-command. The bare `--output`
@@ -347,8 +352,11 @@ function isAllowedGitCatFile(gitCmd: GitCommandInfo): boolean {
  *   paths outside the repository (e.g. `/etc/passwd`)
  *
  * Unambiguous long-option prefixes are rejected too because git expands them
- * (`--no-i` -> --no-index, `--text` -> --textconv, `--out=...` -> --output=...,
- * `--open-files-in-p=...` -> --open-files-in-pager=...).
+ * (`--no-i` -> --no-index, `--te` -> --textconv). The whole `--o` family is
+ * rejected wholesale: git grep's only `--o*` options are `--output[=]`
+ * (writes) and `--open-files-in-pager[=]` (runs a pager), and any
+ * unambiguous shorter prefix of them (`--ou=` -> --output=, `--ope` ->
+ * --open-files-in-pager) is expanded by git before we see the full name.
  *
  * `-O` is the only short option containing 'O', so clustering like
  * `-nO/path/to/pager` (which git parses as `-n -O /path/to/pager`) and
@@ -356,7 +364,7 @@ function isAllowedGitCatFile(gitCmd: GitCommandInfo): boolean {
  */
 function isAllowedGitGrep(gitCmd: GitCommandInfo): boolean {
     for (const arg of gitCmd.subCommandArgs) {
-        if (arg.startsWith('--no-i') || arg.startsWith('--text') || arg.startsWith('--out') || arg.startsWith('--open-files-in-p')) {
+        if (arg.startsWith('--o') || arg.startsWith('--te') || arg.startsWith('--no-i')) {
             return false
         }
         if (arg.startsWith('-') && !arg.startsWith('--') && arg.slice(1).includes('O')) {

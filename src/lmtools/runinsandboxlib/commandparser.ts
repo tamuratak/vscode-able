@@ -192,7 +192,8 @@ function isStdinFileRedirect(node: treeSitter.Node, source: string): boolean {
         return false
     }
     const fd = node.children.find(ch => ch?.type === 'file_descriptor')
-    if (fd && getNodeText(fd, source) !== '0') {
+    // bash accepts leading zeros in fd numbers (`00<&1`), so compare numerically.
+    if (fd && Number(getNodeText(fd, source)) !== 0) {
         return false
     }
     for (let i = 0; i < node.childCount; i++) {

@@ -240,6 +240,11 @@ suite('collectCommands', () => {
  		assert.strictEqual(cmds[0].stdinRedirected, true)
  	})
 
+	test('rejects 00<&1 leading-zero fd (grammar ERROR node)', async () => {
+ 		const cmds = await collectCommands('git apply -R 00<&1')
+ 		assert.strictEqual(cmds, undefined)
+ 	})
+
 	test('does not flag 2<&1 as stdin redirect', async () => {
  		const cmds = await collectCommands('git diff HEAD 2<&1')
  		assert.ok(cmds)

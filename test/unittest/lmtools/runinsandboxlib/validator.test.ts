@@ -310,6 +310,24 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('disallows git apply -R with leading-zero fd 00<&1 (stdin redirect)', async () => {
+        const cmd = 'git diff 4c0e33c44aa -- README.md | git apply -R 00<&1'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git diff piped through a group with a nested pipe to git apply -R (aggregated stdin)', async () => {
+        const cmd = "git diff HEAD -- main.ts | { echo 'attacker patch' | cat; } | git apply -R"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git diff piped through a group to git apply -R (predecessor is not a git source)', async () => {
+        const cmd = "git diff HEAD -- main.ts | { echo 'attacker patch'; cat; } | git apply -R"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test('disallows git apply -R with <> read-write redirect', async () => {
         const cmd = 'git apply -R <> patch'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
@@ -468,6 +486,18 @@ suite('validator', () => {
 
     test('disallows git grep --open-files-in-p= (prefix expansion of --open-files-in-pager)', async () => {
         const cmd = 'git grep --open-files-in-p=/bin/sh foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git grep --ou= (prefix expansion of --output=)', async () => {
+        const cmd = 'git grep --ou=/tmp/out foo'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows git grep --ope (prefix expansion of --open-files-in-pager)', async () => {
+        const cmd = 'git grep --ope foo'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, false)
     })
@@ -776,6 +806,12 @@ suite('validator', () => {
         const cmd = 'git shortlog -sn --all'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, true)
+    })
+
+    test('disallows git shortlog without arguments (reads stdin and hangs)', async () => {
+        const cmd = 'git shortlog'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
     })
 
     test('allows git count-objects -vH', async () => {
