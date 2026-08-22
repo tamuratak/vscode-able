@@ -178,6 +178,18 @@ suite('validator', () => {
         assert.strictEqual(ok, false)
     })
 
+    test('env var prefix command is disallowed', async () => {
+        const cmd = 'GIT_EXTERNAL_DIFF=/bin/evil git diff HEAD'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('GIT_PAGER env var prefix command is disallowed', async () => {
+        const cmd = 'GIT_PAGER=less git log'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test('git restore src/main.ts is allowed', async () => {
         const cmd = 'git restore src/main.ts'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])

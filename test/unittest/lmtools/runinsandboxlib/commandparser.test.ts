@@ -108,6 +108,16 @@ suite('collectCommands', () => {
  		assert.strictEqual(cmds[1].command, 'ls')
  		assert.deepStrictEqual(cmds[1].args, ['-la'])
  	})
+
+ 	test('rejects env var prefix on redirected command', async () => {
+ 		const cmds = await collectCommands('GIT_EXTERNAL_DIFF=/bin/evil git diff HEAD')
+ 		assert.strictEqual(cmds, undefined)
+ 	})
+
+ 	test('rejects env var prefix for GIT_PAGER', async () => {
+ 		const cmds = await collectCommands('GIT_PAGER=cat git log')
+ 		assert.strictEqual(cmds, undefined)
+ 	})
 })
 
 suite('findScripts', () => {
