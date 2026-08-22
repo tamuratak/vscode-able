@@ -1,0 +1,11 @@
+{
+    "hooks": {
+        "Stop": [
+            {
+                "type": "command",
+                "command": "node .github/hooks/scripts/able-empty-retry.mjs",
+                "timeout": 5
+            }
+        ]
+    }
+}

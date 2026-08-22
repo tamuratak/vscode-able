@@ -191,6 +191,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 		this._openThinkCloseTag = null
 		this._terminalEventEncountered = false
 		this._processedEventCount = 0
+		this._streamFailed = false
 		this.resetStreamState()
 		const modelId = this.modelId
 		logger.debug('responses.stream.start', { modelId })
@@ -300,6 +301,7 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				logger.debug('responses.stream.cancelled', { modelId: this.modelId })
 				return undefined
 			}
+			this._streamFailed = true
 			if (timedOut === 'inactivity') {
 				// The inactivity timer cancelled the pending read; surface the
 				// timeout instead of the raw cancellation error.
@@ -332,7 +334,12 @@ export class OpenaiResponsesApi extends CommonApi<ResponsesInputItem, Record<str
 				finalResponseLogger.info(CommonApi.FINAL_RESPONSE_PREFIX + this._unifiedText)
 			}
 			this.reportUsageData(progress)
-			this.emitFallbackResponseIfNeeded(progress)
+			// Never emit the empty-response marker (or any fallback) when the
+			// user cancelled the request: the turn must stay a clean stop so
+			// no "continue" nudge is injected after a manual cancellation.
+			if (!token.isCancellationRequested) {
+				this.emitFallbackResponseIfNeeded(progress)
+			}
 		}
 
 		if (!this._finishReason) {
