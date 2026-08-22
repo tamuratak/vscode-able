@@ -108,8 +108,10 @@ async function isAllowedSubCommand(
         if (gitCmd && gitCmd.subCommand && validGitSubCommandsRegex.test(gitCmd.subCommand)) {
             // `git restore` without --staged only writes to the working tree, so it
             // has no side effects under .git/. --staged (or -S, possibly combined
-            // like -SW) updates .git/index, so it must not be allowed.
-            if (gitCmd.subCommand === 'restore' && gitCmd.subCommandArgs.some(isGitRestoreIndexArg)) {
+            // like -SW) updates .git/index, so it must not be allowed. -p/--patch
+            // enters an interactive patch mode, and -C after the subcommand would
+            // bypass the cPath workspace check.
+            if (gitCmd.subCommand === 'restore' && gitCmd.subCommandArgs.some(isGitRestoreRejectedArg)) {
                 return false
             }
             const cpath = gitCmd.cPath
@@ -146,9 +148,15 @@ async function isAllowedSubCommand(
     return false
 }
 
-// Returns true if the argument makes `git restore` update .git/index.
-function isGitRestoreIndexArg(arg: string): boolean {
-    return arg === '--staged' || arg.startsWith('--staged=') || /^-[a-zA-Z]*S[a-zA-Z]*$/.test(arg)
+// Returns true if the argument makes `git restore` unsafe in the sandbox:
+// --staged (or -S, possibly combined like -SW) updates .git/index,
+// -p/--patch enters an interactive patch mode, and -C after the subcommand
+// bypasses the cPath workspace check.
+function isGitRestoreRejectedArg(arg: string): boolean {
+    return arg === '--staged' || arg.startsWith('--staged=')
+        || /^-[a-zA-Z]*S[a-zA-Z]*$/.test(arg)
+        || arg === '--patch' || arg === '-p'
+        || arg === '-C'
 }
 
 interface GitCommandInfo {
