@@ -268,6 +268,12 @@ suite('validator', () => {
         assert.strictEqual(ok, true)
     })
 
+    test('git restore -sm f is allowed (source=m value attachment)', async () => {
+        const cmd = 'git restore -sm f'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
     test('git restore HEAD~1:file.txt is allowed', async () => {
         const cmd = 'git restore HEAD~1:file.txt'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
@@ -294,6 +300,18 @@ suite('validator', () => {
 
     test('git restore -m f is disallowed (merge can update index)', async () => {
         const cmd = 'git restore -m f'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('git restore -mW f is disallowed (combined -m -W)', async () => {
+        const cmd = 'git restore -mW f'
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('git restore -ms HEAD~1 f is disallowed (combined -m -s)', async () => {
+        const cmd = 'git restore -ms HEAD~1 f'
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
         assert.strictEqual(ok, false)
     })
