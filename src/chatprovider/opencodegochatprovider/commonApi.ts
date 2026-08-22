@@ -92,6 +92,9 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     /** Track if we emitted the begin-tool-calls whitespace flush. */
     protected _emittedBeginToolCallsHint = false;
 
+    /** Set to true when the stream threw before completing, so fallback text is suppressed. */
+    protected _streamFailed = false;
+
     // Thinking content state management
     protected _currentThinkingId: string | null = null;
 
@@ -407,6 +410,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
         logger.debug(`${hooks.tag}.stream.start`, { modelId });
         this._usage = undefined;
         this._finishReason = undefined;
+        this._streamFailed = false;
 
         const reader = responseBody.getReader();
         const decoder = new TextDecoder();
@@ -474,6 +478,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
                 return undefined;
             }
             logger.error(`${hooks.tag}.stream.error`, { modelId, error: e instanceof Error ? e.message : String(e) });
+            this._streamFailed = true;
             throw e;
         } finally {
             cancelToken.dispose();
@@ -490,7 +495,12 @@ export abstract class CommonApi<TMessage, TRequestBody> {
                 finalResponseLogger.info(CommonApi.FINAL_RESPONSE_PREFIX + this._unifiedText);
             }
             this.reportUsageData(progress);
-            hooks.emitFallback(result, progress);
+            // Never emit the empty-response marker (or any fallback) when the
+            // user cancelled the request: the turn must stay a clean stop so
+            // no "continue" nudge is injected after a manual cancellation.
+            if (!token.isCancellationRequested) {
+                hooks.emitFallback(result, progress);
+            }
         }
     }
 
@@ -513,8 +523,13 @@ export abstract class CommonApi<TMessage, TRequestBody> {
      * @param progress Progress reporter for parts.
      */
     protected emitFallbackResponseIfNeeded(progress: Progress<LanguageModelResponsePart2>): void {
-        // Do not claim "stopped before emitting text" when tool calls were emitted.
-        if (this._finishReason === 'stop' && !this._hasEmittedAssistantText && this._completedToolCallIndices.size === 0) {
+        // Do not claim "stopped before emitting text" when tool calls were emitted,
+        // and do not emit anything when a reasoning loop already aborted the stream
+        // or the stream threw an error.
+        if (this._hasEmittedAssistantText || this._completedToolCallIndices.size > 0 || this._reasoningLoopDetected || this._streamFailed) {
+            return;
+        }
+        if (this._finishReason === 'stop') {
             progress.report(new vscode.LanguageModelTextPart2(
                 '\n[VS Code Able] The model stopped before emitting text. This may be due to the response format. Emitting thinking as a fallback.\n---\n\n',
                 [vscode.LanguageModelPartAudience.User]
@@ -525,6 +540,19 @@ export abstract class CommonApi<TMessage, TRequestBody> {
                     [vscode.LanguageModelPartAudience.User]
                 )
             );
+            return;
+        }
+        if (this._finishReason === undefined) {
+            // The stream ended without a finish reason, text, or tool calls. VS
+            // Code would report "no response was returned", so emit a marker to
+            // keep the turn classified as a success. The marker is an HTML
+            // comment: invisible in the chat view but preserved in the session
+            // transcript, where a Stop hook can detect it and nudge the model to
+            // continue. The random hex suffix makes every marker unique, so a
+            // similar literal in source code cannot be mistaken for it.
+            const marker = `<!-- ABLE_EMPTY_RESPONSE_${Math.random().toString(16).slice(2, 10)} -->`;
+            progress.report(new vscode.LanguageModelTextPart(marker));
+            logger.warn('[OpenCodeGo] Empty response detected (no finish reason, no text, no tool calls); emitted retry marker', { modelId: this.modelId });
         }
     }
 
