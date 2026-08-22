@@ -11,7 +11,7 @@ import path from 'node:path'
 // Debug log destination. Every decision point is appended here so hook
 // execution can be verified without attaching a debugger. Logging must never
 // break the hook itself, so every write is wrapped in try/catch.
-const DEBUG_LOG_DIR = '/var/folders/_v/56nl9qfn1lv9ktdprckl0l5h0000gn/T/ableruninsandbox'
+const DEBUG_LOG_DIR = '/Users/tamura/.copilot/logs'
 const DEBUG_LOG_PATH = path.join(DEBUG_LOG_DIR, 'hooks.log')
 
 function debugLog(message) {
@@ -92,7 +92,7 @@ async function main() {
     // block a second time, so the model can legitimately stop after the
     // "continue" nudge.
     if (input.stop_hook_active === true) {
-        debugLog('exit: stop_hook_active is true')
+//        debugLog('exit: stop_hook_active is true')
 //        process.exit(0)
     }
 
@@ -120,7 +120,7 @@ async function main() {
         hookSpecificOutput: {
             hookEventName: 'Stop',
             decision: 'block',
-            reason: "Please continue and answer the user's question.",
+            reason: "Please continue and complete the user's request.",
         },
     }))
 }
