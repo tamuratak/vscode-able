@@ -26,11 +26,17 @@ function debugLog(message) {
 }
 
 // The marker is an HTML comment with a per-emission random hex suffix. The
-// whole content of the latest assistant message must match exactly; a literal
-// that merely appears somewhere in source code quoted by the model can never
+// whole content of an assistant message must match exactly; a literal that
+// merely appears somewhere in source code quoted by the model can never
 // match, because the suffix is unique per emission and the content would
 // contain surrounding text.
 const STOP_MARKER_PATTERN = /<!--\s*ABLE_EMPTY_RESPONSE_[0-9a-f]{8}\s*-->$/
+
+// Retry budget: an empty response may be retried at most this many times
+// before the agent is allowed to stop. The count is derived from the
+// transcript itself (consecutive empty-response markers at the end), so no
+// state file is needed and parallel sessions never race.
+const MAX_RETRIES = 10
 
 function readStdin() {
     return new Promise((resolve, reject) => {
@@ -42,25 +48,28 @@ function readStdin() {
     })
 }
 
-// Returns the content of the most recent assistant.message entry in the
-// transcript JSONL, or undefined when the file is unreadable or too large.
-function findLastAssistantContent(transcriptPath) {
+// Counts how many consecutive empty-response markers appear at the end of
+// the transcript. User messages (the "Please continue" nudges and the like)
+// are skipped, so a chain of empty responses separated by nudges counts as
+// one streak; the first real assistant response breaks the streak, which
+// resets the budget automatically.
+function countConsecutiveEmptyMarkers(transcriptPath) {
     let stat
     try {
         stat = fs.statSync(transcriptPath)
     } catch {
-        return undefined
+        return 0
     }
     if (!stat.isFile() || stat.size > 64 * 1024 * 1024) {
-        return undefined
+        return 0
     }
     let text
     try {
         text = fs.readFileSync(transcriptPath, 'utf8')
     } catch {
-        return undefined
+        return 0
     }
-    let content
+    const entries = []
     for (const line of text.split('\n')) {
         if (!line.trim()) {
             continue
@@ -71,11 +80,24 @@ function findLastAssistantContent(transcriptPath) {
         } catch {
             continue
         }
-        if (entry && entry.type === 'assistant.message' && typeof entry.data?.content === 'string') {
-            content = entry.data.content
-        }
+        entries.push(entry)
     }
-    return content
+    let count = 0
+    for (let i = entries.length - 1; i >= 0; i--) {
+        const entry = entries[i]
+        if (entry.type === 'user.message') {
+            continue
+        }
+        if (entry.type !== 'assistant.message' || typeof entry.data?.content !== 'string') {
+            continue
+        }
+        if (STOP_MARKER_PATTERN.test(entry.data.content.trim())) {
+            count++
+            continue
+        }
+        break
+    }
+    return count
 }
 
 async function main() {
@@ -88,13 +110,10 @@ async function main() {
     }
     debugLog(`invoked: session_id=${input.session_id} cwd=${input.cwd ?? '(none)'}`)
 
-    // Already continuing as a result of a previous stop-hook block: never
-    // block a second time, so the model can legitimately stop after the
-    // "continue" nudge.
-    if (input.stop_hook_active === true) {
-//        debugLog('exit: stop_hook_active is true')
-//        process.exit(0)
-    }
+    // stop_hook_active is intentionally ignored: an empty-response streak
+    // often needs several consecutive retries, so a previous "continue" nudge
+    // must not suppress the next one. The transcript-derived retry budget
+    // (MAX_RETRIES) is what bounds the total.
 
     const transcriptPath = input.transcript_path
     if (typeof transcriptPath !== 'string' || transcriptPath.length === 0) {
@@ -103,19 +122,18 @@ async function main() {
     }
     debugLog(`transcript_path=${transcriptPath}`)
 
-    const lastAssistantContent = findLastAssistantContent(transcriptPath)
-    if (lastAssistantContent === undefined) {
-        debugLog('exit: transcript unreadable or last assistant content missing')
+    const markerCount = countConsecutiveEmptyMarkers(transcriptPath)
+    if (markerCount === 0) {
+        debugLog('exit: last assistant content is not an empty-response marker')
         process.exit(0)
     }
 
-    const trimmed = lastAssistantContent.trim()
-    if (!STOP_MARKER_PATTERN.test(trimmed)) {
-        debugLog(`exit: last assistant content does not match the marker pattern (length=${trimmed.length}, head=${JSON.stringify(trimmed.slice(0, 300))})`)
+    if (markerCount >= MAX_RETRIES) {
+        debugLog(`exit: retry limit reached (${markerCount}/MAX_RETRIES consecutive empty responses); letting the agent stop`)
         process.exit(0)
     }
 
-    debugLog(`match: empty-response marker detected (${trimmed}), blocking stop`)
+    debugLog(`match: empty-response marker detected (${markerCount} consecutive), blocking stop`)
     process.stdout.write(JSON.stringify({
         hookSpecificOutput: {
             hookEventName: 'Stop',
