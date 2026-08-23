@@ -13,8 +13,8 @@ import { openCodeGoAuthServiceId } from '../../auth/authproviders.js'
 import { renderMessages } from '../../utils/renderer.js'
 import { tweakSystemPrompt } from './systemprompt.js'
 import { pushToolCall, tweakTools } from './tools.js'
-import { createDedupProgress, extractLastToolCallSignatures, isToolCallLoopDetected } from './vscodeutils.js'
 import { isRetryableError, RETRYABLE_ERROR_MARKER_PREFIX } from './retry.js'
+import { createDedupProgress, extractLastToolCallSignatures, isToolCallLoopDetected } from './vscodeutils.js'
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {

@@ -5,13 +5,21 @@ import { ResponsesStreamError } from '../../../src/chatprovider/opencodegochatpr
 
 function makeToken(): vscode.CancellationToken {
     const cts = new vscode.CancellationTokenSource()
-    return cts.token
+    try {
+        return cts.token
+    } finally {
+        cts.dispose()
+    }
 }
 
 function makeCancelledToken(): vscode.CancellationToken {
     const cts = new vscode.CancellationTokenSource()
-    cts.cancel()
-    return cts.token
+    try {
+        cts.cancel()
+        return cts.token
+    } finally {
+        cts.dispose()
+    }
 }
 
 suite('isRetryableError', () => {
@@ -60,6 +68,11 @@ suite('isRetryableError', () => {
     test('classifies HTTP connect-phase timeouts as retryable', () => {
         strictEqual(isRetryableError(new Error('fetch failed'), true, makeToken()), true)
         strictEqual(isRetryableError(undefined, true, makeToken()), true)
+        // The HTTP timeout timer aborts the fetch, so the caught error is an
+        // AbortError; httpTimedOut must still classify it as retryable.
+        const abortError = new Error('The operation was aborted.')
+        abortError.name = 'AbortError'
+        strictEqual(isRetryableError(abortError, true, makeToken()), true)
     })
 
     test('classifies unknown errors as non-retryable', () => {
