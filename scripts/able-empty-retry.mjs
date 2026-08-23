@@ -105,10 +105,25 @@ function countConsecutiveRetryMarkers(transcriptPath) {
         if (entry.type === 'user.message') {
             continue
         }
-        if (entry.type !== 'assistant.message' || typeof entry.data?.content !== 'string') {
+        if (entry.type !== 'assistant.message' || entry.data?.content == null) {
             continue
         }
-        const content = entry.data.content.trim()
+        const raw = entry.data.content
+        let content
+        if (typeof raw === 'string') {
+            content = raw.trim()
+        } else if (Array.isArray(raw)) {
+            // Content may be an array of parts when the failed message also
+            // carried tool calls; join text parts before matching.
+            content = raw
+                .filter(p => p && p.type === 'text' && typeof p.text === 'string')
+                .map(p => p.text)
+                .join('')
+                .trim()
+        } else {
+            debugLog(`transcript: assistant.message content has unexpected shape (${typeof raw}); marker detection aborted`)
+            break
+        }
         if (EMPTY_RESPONSE_MARKER_PATTERN.test(content) || RETRYABLE_ERROR_MARKER_PATTERN.test(content)) {
             if (count === 0) {
                 lastIsRetryableError = RETRYABLE_ERROR_MARKER_PATTERN.test(content)

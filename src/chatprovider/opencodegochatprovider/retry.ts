@@ -57,12 +57,12 @@ export function isRetryableError(error: unknown, httpTimedOut: boolean, token: C
             return true
         }
         // HTTP error messages embed the status code as [NNN] (see
-        // CommonApi.postAndGetBody). 408/425/429/5xx may succeed on retry;
-        // other status codes are client errors that cannot.
+        // CommonApi.postAndGetBody). 408/425/429/5xx (500-599) may succeed on
+        // retry; other status codes are client errors that cannot.
         const statusMatch = message.match(/\[(\d{3})\]/)
         if (statusMatch) {
             const status = Number(statusMatch[1])
-            return status === 408 || status === 425 || status === 429 || status >= 500
+            return status === 408 || status === 425 || status === 429 || (status >= 500 && status < 600)
         }
     }
     return false

@@ -37,6 +37,14 @@ suite('isRetryableError', () => {
         }
     })
 
+    test('classifies out-of-range status codes as non-retryable', () => {
+        // 600+ is not a standard HTTP status; only 500-599 are retryable 5xx.
+        for (const status of [600, 999]) {
+            const error = new Error(`API error: [${status}] Unknown`)
+            strictEqual(isRetryableError(error, false, makeToken()), false, `status ${status} should not be retryable`)
+        }
+    })
+
     test('classifies transient stream termination messages as retryable', () => {
         for (const message of [
             'Stream ended with incomplete tool calls',
