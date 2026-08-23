@@ -18,7 +18,17 @@ const DEBUG_LOG_PATH = path.join(DEBUG_LOG_DIR, 'hooks.log')
 function debugLog(message) {
     try {
         fs.mkdirSync(DEBUG_LOG_DIR, { recursive: true })
-        const timestamp = new Date().toISOString()
+        // Log in Japan time (Asia/Tokyo) so entries are readable in the local timezone.
+        const timestamp = new Date().toLocaleString('ja-JP', {
+            timeZone: 'Asia/Tokyo',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            timeZoneName: 'short',
+        })
         fs.appendFileSync(DEBUG_LOG_PATH, `[${timestamp}] ${message}\n`)
     } catch {
         // Swallow logging failures: the hook must keep working even when the
