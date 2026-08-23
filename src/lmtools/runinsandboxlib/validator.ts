@@ -161,8 +161,9 @@ async function isAllowedSubCommand(
 // git version, so rejecting it is defensive: a future version that accepts it
 // would bypass the cPath workspace check.
 // -m/--merge (and its unique abbreviation --m, possibly combined like -mW)
-// can update the index, but only when unmerged entries are present (a
-// conflict state the agent normally cannot create). git accepts unique
+// reconstructs unmerged entries when restoring and may update the index in
+// that conflict state (which the agent normally cannot create), so it is
+// rejected defensively. git accepts unique
 // abbreviations of long options: --st matches only --staged, --patc matches
 // only --patch. --pa/--pat are ambiguous (--patch vs --pathspec-from-file),
 // so git rejects them and no blocking is needed there.

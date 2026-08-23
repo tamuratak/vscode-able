@@ -137,6 +137,18 @@ suite('collectCommands', () => {
  		assert.ok(cmds)
  		assert.strictEqual(cmds[0].command, 'git')
  	})
+
+ 	test('allows standalone assignment with command substitution', async () => {
+ 		const cmds = await collectCommands('x=$(echo hi)')
+ 		assert.ok(cmds)
+ 		assert.deepStrictEqual(cmds[0].args, ['hi'])
+ 	})
+
+ 	test('allows quoted name=value argument', async () => {
+ 		const cmds = await collectCommands('rg \'FOO=bar\' src')
+ 		assert.ok(cmds)
+ 		assert.deepStrictEqual(cmds[0].args, ['FOO=bar', 'src'])
+ 	})
 })
 
 suite('findScripts', () => {
