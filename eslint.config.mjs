@@ -110,6 +110,7 @@ export default tseslint.config(
             "lib/",
             "node_modules/",
             "out/",
+            "scripts/",
             "types/",
             "pyodide*/",
             "**/vscode.*.d.ts",
