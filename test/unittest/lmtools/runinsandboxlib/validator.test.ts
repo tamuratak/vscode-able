@@ -588,6 +588,21 @@ EOF`
         assert.strictEqual(ok, true)
     })
 
+    test('disallows node -e with require hidden by line continuation', async () => {
+        // Inside single quotes, the shell passes \ + newline literally to node,
+        // and JS string literals treat it as a line continuation => require("fs").
+        const cmd = "node -e 'require(\"f\\\ns\")'"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
+    test('disallows node -e with require hidden by CRLF line continuation', async () => {
+        // JS also treats backslash-CRLF as a line continuation => require("fs").
+        const cmd = "node -e 'require(\"f\\\r\ns\")'"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test('disallows node -e with require("fs")', async () => {
         const cmd = 'node -e \'require("fs")\''
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])

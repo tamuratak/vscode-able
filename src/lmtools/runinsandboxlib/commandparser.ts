@@ -114,10 +114,14 @@ export function normalizeToken(value: string): string {
             return unescapeQuotes(trimmed.slice(1, -1))
         }
         if (first === "'" && last === "'") {
-            // Inside single quotes bash keeps backslashes literal: only strip
-            // backslash-newline continuations (line wrap artifacts), so that
-            // scripts like node -e 'console.log("...\"...")' survive validation.
-            return trimmed.slice(1, -1).replace(/\\\n/g, '')
+            // Inside single quotes bash passes backslashes literally, so the
+            // token below is exactly what the child process receives. The one
+            // exception: backslash-newline (also backslash-CRLF, which JS
+            // treats the same way) is a line continuation in JS/Python string
+            // literals, so stripping it keeps validation identical to what the
+            // interpreter executes; otherwise require("f\<NL>s") would bypass
+            // the node -e module checks.
+            return trimmed.slice(1, -1).replace(/\\\r?\n/g, '')
         }
     }
     return unescapeQuotes(trimmed)
