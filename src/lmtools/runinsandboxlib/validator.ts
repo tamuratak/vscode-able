@@ -157,11 +157,12 @@ async function isAllowedSubCommand(
 }
 
 // Returns true if the argument makes `git restore` unsafe in the sandbox.
-// -C (also attached forms like -C.) after the subcommand is version-dependent:
-// most git versions reject it as an unknown option, but some accept it and it
-// would bypass the cPath workspace check, so it is rejected defensively.
-// -m/--merge (and its unique abbreviation --m, possibly combined like -mW) can
-// update the index when resolving unmerged entries. git accepts unique
+// -C (also attached forms like -C.) is not an option of restore in any known
+// git version, so rejecting it is defensive: a future version that accepts it
+// would bypass the cPath workspace check.
+// -m/--merge (and its unique abbreviation --m, possibly combined like -mW)
+// can update the index, but only when unmerged entries are present (a
+// conflict state the agent normally cannot create). git accepts unique
 // abbreviations of long options: --st matches only --staged, --patc matches
 // only --patch. --pa/--pat are ambiguous (--patch vs --pathspec-from-file),
 // so git rejects them and no blocking is needed there.
@@ -175,13 +176,13 @@ function isGitRestoreRejectedArg(arg: string): boolean {
     if (arg.startsWith('--st') || arg.startsWith('--patc')) {
         return true
     }
-    // `--` itself does not match /^-[a-zA-Z]+$/ (its second character is `-`),
-    // but tokens following it are still subject to the rules above
-    // (for example `git restore -- --staged` is rejected). For short options,
-    // -s takes the rest of the token as its value (-sS is --source=S), so only
-    // combined flags containing -S, -p, or -m (for example -SW, -ps, -mW) are
-    // rejected. Tokens starting with -s are the value of -s and stay allowed.
-    return /^-[a-zA-Z]+$/.test(arg) && !arg.startsWith('-s') && /[Spm]/.test(arg)
+    // `--` itself does not match /^-[a-zA-Z0-9]+$/ (its second character is
+    // `-`), but tokens following it are still subject to the rules above (for
+    // example `git restore -- --staged` is rejected). For short options, -s
+    // takes the rest of the token as its value (-sS is --source=S), so only
+    // combined flags containing -S, -p, or -m (for example -2S, -SW, -ps,
+    // -mW) are rejected. Digit options like -2/--ours alone stay allowed.
+    return /^-[a-zA-Z0-9]+$/.test(arg) && !arg.startsWith('-s') && /[Spm]/.test(arg)
 }
 
 interface GitCommandInfo {
