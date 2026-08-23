@@ -567,7 +567,13 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
         ])
         const result = await api.processStreamingResponse(stream, progress, cts.token)
         strictEqual(result, undefined)
-        strictEqual(reported.length, 0)
+        // A [DONE]-terminated stream with no text, tool calls, or finish
+        // reason is the empty-response case: the retry marker must be the
+        // only reported part and the rogue completed event must stay ignored.
+        strictEqual(reported.length, 1)
+        const markerParts = reported.filter((p): p is vscode.LanguageModelTextPart =>
+            p instanceof vscode.LanguageModelTextPart && p.value.includes('ABLE_EMPTY_RESPONSE_'))
+        strictEqual(markerParts.length, 1)
     })
 
     test('accepts a final [DONE] without a trailing newline', async () => {
@@ -586,7 +592,12 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
         })
         const result = await api.processStreamingResponse(stream, progress, cts.token)
         strictEqual(result, undefined)
-        strictEqual(reported.length, 0)
+        // The [DONE] end with no content is a normal end (no missing-terminal
+        // error); the retry marker is the only reported part.
+        strictEqual(reported.length, 1)
+        const markerParts = reported.filter((p): p is vscode.LanguageModelTextPart =>
+            p instanceof vscode.LanguageModelTextPart && p.value.includes('ABLE_EMPTY_RESPONSE_'))
+        strictEqual(markerParts.length, 1)
     })
 
     test('throws when [DONE] arrives with invalid tool call arguments', async () => {
