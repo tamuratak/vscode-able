@@ -582,6 +582,12 @@ EOF`
         assert.strictEqual(ok, true)
     })
 
+    test('allows node -e with escaped double quotes inside single quotes', async () => {
+        const cmd = "node -e 'console.log(\"FOO=1 bash -c \\\"evil\\\"\")'"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, true)
+    })
+
     test('disallows node -e with require("fs")', async () => {
         const cmd = 'node -e \'require("fs")\''
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])

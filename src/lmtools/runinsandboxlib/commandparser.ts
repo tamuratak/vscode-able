@@ -110,8 +110,14 @@ export function normalizeToken(value: string): string {
     if (trimmed.length >= 2) {
         const first = trimmed[0]
         const last = trimmed[trimmed.length - 1]
-        if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+        if (first === '"' && last === '"') {
             return unescapeQuotes(trimmed.slice(1, -1))
+        }
+        if (first === "'" && last === "'") {
+            // Inside single quotes bash keeps backslashes literal: only strip
+            // backslash-newline continuations (line wrap artifacts), so that
+            // scripts like node -e 'console.log("...\"...")' survive validation.
+            return trimmed.slice(1, -1).replace(/\\\n/g, '')
         }
     }
     return unescapeQuotes(trimmed)
