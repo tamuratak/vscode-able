@@ -26,11 +26,13 @@ function debugLog(message) {
     }
 }
 
-// Markers are HTML comments with a per-emission random hex suffix, ending an
-// assistant message that should be retried. A literal that merely appears
+// Markers are HTML comments with a per-emission random hex suffix that the
+// provider appends at the end of an assistant message that should be retried.
+// Matching anchors on the end of the message (the regex has no ^ anchor), so
+// a message ending with the marker matches even when the retryable-error
+// marker follows partially streamed text. A literal that merely appears
 // somewhere in source code quoted by the model can never match, because the
-// suffix is unique per emission and the content would contain surrounding
-// text.
+// suffix is unique per emission and the content would not end with it.
 const EMPTY_RESPONSE_MARKER_PATTERN = /<!--\s*ABLE_EMPTY_RESPONSE_[0-9a-f]{8}\s*-->$/
 const RETRYABLE_ERROR_MARKER_PATTERN = /<!--\s*ABLE_RETRYABLE_ERROR_[0-9a-f]{8}\s*-->$/
 
