@@ -118,9 +118,8 @@ export function normalizeToken(value: string): string {
             // token below is exactly what the child process receives. The one
             // exception: backslash-newline (also backslash-CRLF, which JS
             // treats the same way) is a line continuation in JS/Python string
-            // literals, so stripping it keeps validation identical to what the
-            // interpreter executes; otherwise require("f\<NL>s") would bypass
-            // the node -e module checks.
+            // literals. Stripping it keeps validation identical to execution:
+            // require("f\<NL>s") is validated as require("fs").
             return trimmed.slice(1, -1).replace(/\\\r?\n/g, '')
         }
     }
@@ -129,7 +128,10 @@ export function normalizeToken(value: string): string {
 
 function unescapeQuotes(value: string): string {
     return value
-        .replace(/\\\n/g, '')
+        // Bash removes backslash-newline (and backslash-CRLF) inside double
+        // quotes and outside quotes, matching the line-continuation handling
+        // of the single-quoted branch above.
+        .replace(/\\\r?\n/g, '')
         .replace(/\\\\/g, '\\')
         .replace(/\\ /g, ' ')
         .replace(/\\"/g, '"')
