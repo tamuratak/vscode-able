@@ -37,7 +37,10 @@ export function isRetryableError(error: unknown, httpTimedOut: boolean, token: C
     }
     if (error instanceof Error) {
         if (error.name === 'AbortError') {
-            // User cancellation aborts the same controller; never retry it.
+            // The connect-phase timeout also aborts the same controller but
+            // is already classified retryable above (httpTimedOut); any other
+            // AbortError comes from user cancellation or abortActiveRequests
+            // and must not be retried.
             return false
         }
         const message = error.message

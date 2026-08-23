@@ -36,10 +36,10 @@ function debugLog(message) {
 const EMPTY_RESPONSE_MARKER_PATTERN = /<!--\s*ABLE_EMPTY_RESPONSE_[0-9a-f]{8}\s*-->$/
 const RETRYABLE_ERROR_MARKER_PATTERN = /<!--\s*ABLE_RETRYABLE_ERROR_[0-9a-f]{8}\s*-->$/
 
-// Retry budget: a retried turn (empty response or retryable error) may be
-// retried at most this many times before the agent is allowed to stop. The
-// count is derived from the transcript itself (consecutive retry markers at
-// the end), so no state file is needed and parallel sessions never race.
+// Retry budget: the agent is allowed to stop once the streak of retry
+// markers reaches MAX_RETRIES (so at most MAX_RETRIES - 1 continuations).
+// The count is derived from the transcript itself (consecutive retry markers
+// at the end), so no state file is needed and parallel sessions never race.
 const MAX_RETRIES = 10
 
 function readStdin() {
