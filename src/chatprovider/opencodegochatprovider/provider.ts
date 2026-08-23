@@ -13,6 +13,7 @@ import { openCodeGoAuthServiceId } from '../../auth/authproviders.js'
 import { renderMessages } from '../../utils/renderer.js'
 import { tweakSystemPrompt } from './systemprompt.js'
 import { pushToolCall, tweakTools } from './tools.js'
+import { isRetryableError, RETRYABLE_ERROR_MARKER_PREFIX } from './retry.js'
 import { createDedupProgress, extractLastToolCallSignatures, isToolCallLoopDetected } from './vscodeutils.js'
 
 
@@ -222,6 +223,18 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 errorMessage: err instanceof Error ? err.message : String(err),
                 errorCode: err instanceof ResponsesStreamError ? err.code : httpTimedOut ? 'http_timeout' : undefined,
             });
+            if (isRetryableError(err, httpTimedOut, token)) {
+                // End the turn with a retry marker instead of an exception so
+                // the assistant message lands in the transcript; the Stop
+                // hook then blocks the stop and asks the model to continue.
+                const marker = RETRYABLE_ERROR_MARKER_PREFIX + `<!-- ABLE_RETRYABLE_ERROR_${Math.random().toString(16).slice(2, 10).padStart(8, '0')} -->`
+                dedupProgress.report(new vscode.LanguageModelTextPart(marker))
+                logger.warn('[OpenCodeGo] Retryable request error; emitted retry marker so the task continues', {
+                    modelId: model.id,
+                    errorName: err instanceof Error ? err.name : String(err),
+                })
+                return
+            }
             throw err;
         } finally {
             clearTimeout(httpTimeoutTimer)
