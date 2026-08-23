@@ -56,6 +56,46 @@ suite('normalizeToken', () => {
 		assert.strictEqual(result, 'hello')
 	})
 
+	test('keeps backslash-quote literal inside single quotes', () => {
+		const result = normalizeToken("'a\\\"b'")
+		assert.strictEqual(result, 'a\\"b')
+	})
+
+	test('keeps double backslash literal inside single quotes', () => {
+		const result = normalizeToken("'a\\\\b'")
+		assert.strictEqual(result, 'a\\\\b')
+	})
+
+	test('keeps backslash-space literal inside single quotes', () => {
+		const result = normalizeToken("'a\\ b'")
+		assert.strictEqual(result, 'a\\ b')
+	})
+
+	test('removes backslash-newline inside single quotes', () => {
+		const result = normalizeToken("'a\\\nb'")
+		assert.strictEqual(result, 'ab')
+	})
+
+	test('removes backslash-CRLF inside single quotes', () => {
+		const result = normalizeToken("'a\\\r\nb'")
+		assert.strictEqual(result, 'ab')
+	})
+
+	test('removes backslash-CR inside single quotes', () => {
+		const result = normalizeToken("'a\\\rb'")
+		assert.strictEqual(result, 'ab')
+	})
+
+	test('removes backslash-CRLF inside double quotes', () => {
+		const result = normalizeToken('"a\\\r\nb"')
+		assert.strictEqual(result, 'ab')
+	})
+
+	test('removes backslash-CR inside double quotes', () => {
+		const result = normalizeToken('"a\\\rb"')
+		assert.strictEqual(result, 'ab')
+	})
+
 	test('unescapes escaped double quote inside double quotes', () => {
 		const result = normalizeToken('"he\\"llo"')
 		assert.strictEqual(result, 'he"llo')

@@ -388,6 +388,10 @@ function isInDestructuringPattern(patternNode: treeSitter.Node, variableName: st
     return false
 }
 
+// TODO: decode JS string escape sequences (\xHH, \uHHHH, \u{...}, octal) when
+// extracting module names so that require("f\u0073") is validated as
+// require("fs"); currently such literals pass validation while executing as
+// their decoded equivalents. Separate task from the backslash-newline handling.
 function getStringLiteralValue(value: string): string | undefined {
     if (value.length < 2) {
         return undefined

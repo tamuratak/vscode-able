@@ -110,8 +110,17 @@ export function normalizeToken(value: string): string {
     if (trimmed.length >= 2) {
         const first = trimmed[0]
         const last = trimmed[trimmed.length - 1]
-        if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+        if (first === '"' && last === '"') {
             return unescapeQuotes(trimmed.slice(1, -1))
+        }
+        if (first === "'" && last === "'") {
+            // Inside single quotes bash passes backslashes literally, so the
+            // token below is exactly what the child process receives. The one
+            // exception: a backslash before a line terminator (LF, CRLF, or
+            // CR) is a line continuation in JS/Python string literals (V8
+            // strips it), so stripping it keeps validation identical to
+            // execution: require("f\<NL>s") is validated as require("fs").
+            return trimmed.slice(1, -1).replace(/\\(?:\r\n|\n|\r)/g, '')
         }
     }
     return unescapeQuotes(trimmed)
@@ -119,7 +128,13 @@ export function normalizeToken(value: string): string {
 
 function unescapeQuotes(value: string): string {
     return value
-        .replace(/\\\n/g, '')
+        // Bash removes a backslash followed by a newline inside double quotes
+        // and outside quotes. With CRLF input bash keeps the backslash and CR,
+        // but JS/Python string literals treat \ followed by LF, CRLF, or CR as
+        // a line continuation (V8 strips it), so those sequences are removed
+        // here to keep validation identical to execution, matching the
+        // single-quoted branch above.
+        .replace(/\\(?:\r\n|\n|\r)/g, '')
         .replace(/\\\\/g, '\\')
         .replace(/\\ /g, ' ')
         .replace(/\\"/g, '"')
