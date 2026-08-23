@@ -98,14 +98,30 @@ export async function isAllowedCommand(command: string, workspaceRootPaths: stri
     return true
 }
 
+const validGitSubCommands = ['status', 'log', 'diff', 'show', 'blame', 'rev-parse', 'restore'] as const
+type GitSubCommand = (typeof validGitSubCommands)[number]
+
+function isGitSubCommand(value: string): value is GitSubCommand {
+    return validGitSubCommands.some(c => c === value)
+}
+
 async function isAllowedSubCommand(
     command: CommandNode,
     normalizedWorkspaceRoots: string[]
 ): Promise<boolean> {
     if (command.command === 'git') {
-        const validGitSubCommandsRegex = /^(status|log|diff|show|blame|rev-parse)$/
         const gitCmd = parseGitCommand(command)
-        if (gitCmd && gitCmd.subCommand && validGitSubCommandsRegex.test(gitCmd.subCommand)) {
+        if (gitCmd) {
+            // `git restore` without --staged only writes to the working tree, so it
+            // has no side effects under .git/. --staged (or -S, possibly combined
+            // like -SW) updates .git/index, so it must not be allowed. -p/--patch
+            // enters an interactive patch mode, and -C after the subcommand is
+            // version-dependent (unknown in most git versions, but would bypass
+            // the cPath workspace check where supported), so it is rejected
+            // defensively.
+            if (gitCmd.subCommand === 'restore' && gitCmd.subCommandArgs.some(isGitRestoreRejectedArg)) {
+                return false
+            }
             const cpath = gitCmd.cPath
             if (cpath) {
                 if (path.isAbsolute(cpath) && normalizedWorkspaceRoots.some(r => isInside(cpath, r))) {
@@ -140,8 +156,38 @@ async function isAllowedSubCommand(
     return false
 }
 
+// Returns true if the argument makes `git restore` unsafe in the sandbox.
+// -C (also attached forms like -C.) is not an option of restore in any known
+// git version, so rejecting it is defensive: a future version that accepts it
+// would bypass the cPath workspace check.
+// -m/--merge (and its unique abbreviation --m, possibly combined like -mW)
+// reconstructs unmerged entries when restoring and may update the index in
+// that conflict state (which the agent normally cannot create), so it is
+// rejected defensively. git accepts unique
+// abbreviations of long options: --st matches only --staged, --patc matches
+// only --patch. --pa/--pat are ambiguous (--patch vs --pathspec-from-file),
+// so git rejects them and no blocking is needed there.
+function isGitRestoreRejectedArg(arg: string): boolean {
+    if (arg === '-C' || (arg.length > 2 && arg.startsWith('-C'))) {
+        return true
+    }
+    if (arg === '-m' || arg.startsWith('--m')) {
+        return true
+    }
+    if (arg.startsWith('--st') || arg.startsWith('--patc')) {
+        return true
+    }
+    // `--` itself does not match /^-[a-zA-Z0-9]+$/ (its second character is
+    // `-`), but tokens following it are still subject to the rules above (for
+    // example `git restore -- --staged` is rejected). For short options, -s
+    // takes the rest of the token as its value (-sS is --source=S), so only
+    // combined flags containing -S, -p, or -m (for example -2S, -SW, -ps,
+    // -mW) are rejected. Digit options like -2/--ours alone stay allowed.
+    return /^-[a-zA-Z0-9]+$/.test(arg) && !arg.startsWith('-s') && /[Spm]/.test(arg)
+}
+
 interface GitCommandInfo {
-    subCommand: string
+    subCommand: GitSubCommand
     subCommandArgs: string[]
     mainArgs: string[]
     cPath: string | undefined
@@ -154,13 +200,14 @@ export function parseGitCommand(command: CommandNode): GitCommandInfo | undefine
     const mainArgs: string[] = []
     let cPath: string | undefined = undefined
     for (let i = 0; i < command.args.length; i++) {
-        if (/^(status|log|diff|show|blame|rev-parse)$/.exec(command.args[i])) {
-            return { subCommand: command.args[i], subCommandArgs: command.args.slice(i + 1), mainArgs, cPath }
-        } else if (command.args[i] === '-C') {
+        const arg = command.args[i]
+        if (isGitSubCommand(arg)) {
+            return { subCommand: arg, subCommandArgs: command.args.slice(i + 1), mainArgs, cPath }
+        } else if (arg === '-C') {
             cPath = command.args[i + 1]
             i += 1
-        } else if (command.args[i] === '--no-pager') {
-            mainArgs.push(command.args[i])
+        } else if (arg === '--no-pager') {
+            mainArgs.push(arg)
         } else {
             return
         }

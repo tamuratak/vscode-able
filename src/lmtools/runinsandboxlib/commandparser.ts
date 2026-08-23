@@ -12,6 +12,7 @@ const commandQuerySource = `(command
 (command
     name: (command_name (word)) @cmd_name
 )
+(command (variable_assignment) @variable_assignment)
 `
 
 export let bashParser: treeSitter.Parser | undefined
@@ -56,6 +57,15 @@ export async function collectCommands(source: string): Promise<CommandNode[] | u
             const args: string[] = []
 
             for (const capture of match.captures) {
+                // Reject env var prefixes such as GIT_PAGER=cat git log. The env
+                // var assignment itself changes process behavior (for example it
+                // can point git hooks or pagers at arbitrary executables). The
+                // query anchors variable_assignment inside a command so that
+                // unrelated assignments (for example the initializer of a
+                // c-style for loop) are not rejected.
+                if (capture.name === 'variable_assignment') {
+                    return undefined
+                }
                 const text = normalizeToken(getNodeText(capture.node, source))
                 if (capture.name === 'cmd_name') {
                     commandName = text

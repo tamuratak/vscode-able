@@ -5,53 +5,38 @@ description: How to verify tree-sitter operations in this project
 
 ## Purpose
 
-Use `dev/debugtreesitter.mjs` to verify tree-sitter parsing behavior when you need to test grammar rules, node types, or query patterns.
+Use `node -e '...'` to verify tree-sitter parsing behavior when you need to test grammar rules, node types, or query patterns.
 
 ## Core Constraints
 
-- Never use `node -e '...'` to run tree-sitter code
-- `#vscode-tree-sitter-wasm` is a project-specific import that only resolves through the project's own `package.json` `imports` field
-- Running tree-sitter code outside of `dev/debugtreesitter.mjs` will fail because the module resolution chain is not available
+- Use `node -e '...'` for verification. `dev/debugtreesitter.mjs` is only a reference, for example to see how a query or grammar is loaded in this project.
+- `#vscode-tree-sitter-wasm` is a project-specific import that only resolves through the project's own `package.json` `imports` field. It cannot be used inside `node -e`.
+- Load `@vscode/tree-sitter-wasm` directly with `require()` instead. Run the command from the vscode-able directory so that `node_modules` resolves.
 
 ## Recommended Workflow
 
-1. Edit `dev/debugtreesitter.mjs` to contain the tree-sitter code you want to test
-2. Run the script with `node dev/debugtreesitter.mjs`
-3. Review the output and iterate on the code in `dev/debugtreesitter.mjs`
-4. After verification, you may restore the original content or leave your test code in place
+1. Write a one-liner that loads the tree-sitter WASM and the grammar with `require()`.
+2. Run it from the project root: `node -e '...'`.
+3. Review the printed parse tree or query matches and iterate on the source string and query.
 
 ## Example
 
-The following code is already present in `dev/debugtreesitter.mjs` and demonstrates how to load the tree-sitter module and parse bash code:
+The following one-liner loads the tree-sitter module and parses bash code:
 
-```js
-import { createRequire } from 'node:module'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-const __filename = fileURLToPath(import.meta.url)
-const nodeRequire = createRequire(__filename)
-
-const treeSitterPath = nodeRequire.resolve('#vscode-tree-sitter-wasm')
-const treeSitter = await import(treeSitterPath)
-const treeSitterDefault = treeSitter.default
-
-const wasmPath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter.wasm')
-await treeSitterDefault.Parser.init({ locateFile: () => wasmPath })
-const bashPath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter-bash.wasm')
-const bashLang = await treeSitterDefault.Language.load(bashPath)
-const parser = new treeSitterDefault.Parser()
-parser.setLanguage(bashLang)
-
-const src = 'echo hi > output.txt'
-const tree = parser.parse(src)
-const root = tree.rootNode
-console.log(root.toString())
-tree.delete()
+```sh
+cd /Users/tamura/src/github/vscode-able && node -e '
+const treeSitter = require("@vscode/tree-sitter-wasm")
+;(async () => {
+    const t = treeSitter.default ?? treeSitter
+    await t.Parser.init({ locateFile: () => require.resolve("@vscode/tree-sitter-wasm/wasm/tree-sitter.wasm") })
+    const lang = await t.Language.load(require.resolve("@vscode/tree-sitter-wasm/wasm/tree-sitter-bash.wasm"))
+    const parser = new t.Parser()
+    parser.setLanguage(lang)
+    const tree = parser.parse("echo hi > output.txt")
+    console.log(tree.rootNode.toString())
+    tree.delete()
+})()
+'
 ```
 
-To test a different grammar or input, modify the language loading and the `src` variable in `dev/debugtreesitter.mjs`, then run:
-
-```
-node dev/debugtreesitter.mjs
-```
+To test a different grammar or input, modify the language loading and the source string in the one-liner, then run it again with `node -e '...'`.

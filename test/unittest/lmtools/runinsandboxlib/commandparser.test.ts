@@ -108,6 +108,47 @@ suite('collectCommands', () => {
  		assert.strictEqual(cmds[1].command, 'ls')
  		assert.deepStrictEqual(cmds[1].args, ['-la'])
  	})
+
+	test('rejects env var prefix on git command', async () => {
+ 		const cmds = await collectCommands('GIT_EXTERNAL_DIFF=/bin/evil git diff HEAD')
+ 		assert.strictEqual(cmds, undefined)
+ 	})
+
+	test('rejects env var prefix for GIT_PAGER', async () => {
+ 		const cmds = await collectCommands('GIT_PAGER=cat git log')
+ 		assert.strictEqual(cmds, undefined)
+ 	})
+
+	test('allows c-style for loop with variable assignment initializer', async () => {
+ 		const cmds = await collectCommands('for ((i=0; i<3; i++)); do echo $i; done')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds.length, 1)
+ 		assert.strictEqual(cmds[0].command, 'echo')
+ 	})
+
+	test('allows name=value token after command name', async () => {
+ 		const cmds = await collectCommands('echo a=b')
+ 		assert.ok(cmds)
+ 		assert.deepStrictEqual(cmds[0].args, ['a=b'])
+ 	})
+
+	test('allows name=value option value after command name', async () => {
+ 		const cmds = await collectCommands('git -c x=y status')
+ 		assert.ok(cmds)
+ 		assert.strictEqual(cmds[0].command, 'git')
+ 	})
+
+ 	test('allows standalone assignment with command substitution', async () => {
+ 		const cmds = await collectCommands('x=$(echo hi)')
+ 		assert.ok(cmds)
+ 		assert.deepStrictEqual(cmds[0].args, ['hi'])
+ 	})
+
+ 	test('allows quoted name=value argument', async () => {
+ 		const cmds = await collectCommands('rg \'FOO=bar\' src')
+ 		assert.ok(cmds)
+ 		assert.deepStrictEqual(cmds[0].args, ['FOO=bar', 'src'])
+ 	})
 })
 
 suite('findScripts', () => {
