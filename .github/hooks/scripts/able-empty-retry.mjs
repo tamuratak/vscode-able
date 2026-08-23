@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Stop hook for VS Code Copilot Chat: detects the empty-response marker that
-// the able provider emits when a stream ends without text, tool calls, or a
-// finish reason, then asks the model to continue. Reads the hook input JSON
-// from stdin and writes the hook output JSON to stdout. Exits 0 in every
-// non-matching case so the agent stops normally.
+// Stop hook for VS Code Copilot Chat: detects the retry markers that the able
+// provider emits when a stream ends without text, tool calls, or a finish
+// reason (ABLE_EMPTY_RESPONSE_) or when a request fails with a retryable
+// error (ABLE_RETRYABLE_ERROR_), then asks the model to continue. Reads the
+// hook input JSON from stdin and writes the hook output JSON to stdout. Exits
+// 0 in every non-matching case so the agent stops normally.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -25,17 +26,18 @@ function debugLog(message) {
     }
 }
 
-// The marker is an HTML comment with a per-emission random hex suffix. The
-// whole content of an assistant message must match exactly; a literal that
-// merely appears somewhere in source code quoted by the model can never
-// match, because the suffix is unique per emission and the content would
-// contain surrounding text.
-const STOP_MARKER_PATTERN = /<!--\s*ABLE_EMPTY_RESPONSE_[0-9a-f]{8}\s*-->$/
+// Markers are HTML comments with a per-emission random hex suffix, ending an
+// assistant message that should be retried. A literal that merely appears
+// somewhere in source code quoted by the model can never match, because the
+// suffix is unique per emission and the content would contain surrounding
+// text.
+const EMPTY_RESPONSE_MARKER_PATTERN = /<!--\s*ABLE_EMPTY_RESPONSE_[0-9a-f]{8}\s*-->$/
+const RETRYABLE_ERROR_MARKER_PATTERN = /<!--\s*ABLE_RETRYABLE_ERROR_[0-9a-f]{8}\s*-->$/
 
-// Retry budget: an empty response may be retried at most this many times
-// before the agent is allowed to stop. The count is derived from the
-// transcript itself (consecutive empty-response markers at the end), so no
-// state file is needed and parallel sessions never race.
+// Retry budget: a retried turn (empty response or retryable error) may be
+// retried at most this many times before the agent is allowed to stop. The
+// count is derived from the transcript itself (consecutive retry markers at
+// the end), so no state file is needed and parallel sessions never race.
 const MAX_RETRIES = 10
 
 function readStdin() {
@@ -48,12 +50,12 @@ function readStdin() {
     })
 }
 
-// Counts how many consecutive empty-response markers appear at the end of
-// the transcript. User messages (the "Please continue" nudges and the like)
-// are skipped, so a chain of empty responses separated by nudges counts as
-// one streak; the first real assistant response breaks the streak, which
-// resets the budget automatically.
-function countConsecutiveEmptyMarkers(transcriptPath) {
+// Counts how many consecutive retry markers (empty response or retryable
+// error) appear at the end of the transcript. User messages (the "Please
+// continue" nudges and the like) are skipped, so a chain of retried turns
+// separated by nudges counts as one streak; the first real assistant response
+// breaks the streak, which resets the budget automatically.
+function countConsecutiveRetryMarkers(transcriptPath) {
     let stat
     try {
         stat = fs.statSync(transcriptPath)
@@ -91,7 +93,8 @@ function countConsecutiveEmptyMarkers(transcriptPath) {
         if (entry.type !== 'assistant.message' || typeof entry.data?.content !== 'string') {
             continue
         }
-        if (STOP_MARKER_PATTERN.test(entry.data.content.trim())) {
+        const content = entry.data.content.trim()
+        if (EMPTY_RESPONSE_MARKER_PATTERN.test(content) || RETRYABLE_ERROR_MARKER_PATTERN.test(content)) {
             count++
             continue
         }
@@ -122,18 +125,18 @@ async function main() {
     }
     debugLog(`transcript_path=${transcriptPath}`)
 
-    const markerCount = countConsecutiveEmptyMarkers(transcriptPath)
+    const markerCount = countConsecutiveRetryMarkers(transcriptPath)
     if (markerCount === 0) {
-        debugLog('exit: last assistant content is not an empty-response marker')
+        debugLog('exit: last assistant content is not a retry marker')
         process.exit(0)
     }
 
     if (markerCount >= MAX_RETRIES) {
-        debugLog(`exit: retry limit reached (${markerCount}/MAX_RETRIES consecutive empty responses); letting the agent stop`)
+        debugLog(`exit: retry limit reached (${markerCount}/MAX_RETRIES consecutive retry markers); letting the agent stop`)
         process.exit(0)
     }
 
-    debugLog(`match: empty-response marker detected (${markerCount} consecutive), blocking stop`)
+    debugLog(`match: retry marker detected (${markerCount} consecutive), blocking stop`)
     process.stdout.write(JSON.stringify({
         hookSpecificOutput: {
             hookEventName: 'Stop',
