@@ -699,6 +699,21 @@ suite('OpenaiResponsesApi.processStreamingResponse', () => {
         await rejects(api.processStreamingResponse(stream, progress, cts.token), /Responses API failed/)
     })
 
+    test('does not emit the empty marker when the stream threw', async () => {
+        const api = new OpenaiResponsesApi(makeModelInfo())
+        const { progress, reported } = createMockProgress()
+        const cts = new vscode.CancellationTokenSource()
+        // A mid-stream failure must not emit the empty-response marker;
+        // the provider classifies the failure and emits the retry marker.
+        const stream = makeSseStream([
+            { type: 'response.failed', response: { id: 'resp_1', error: { code: 'server_error' } } },
+        ])
+        await rejects(api.processStreamingResponse(stream, progress, cts.token), /Responses API failed/)
+        const markerParts = reported.filter((p): p is vscode.LanguageModelTextPart =>
+            p instanceof vscode.LanguageModelTextPart && p.value.includes('ABLE_EMPTY_RESPONSE_'))
+        strictEqual(markerParts.length, 0)
+    })
+
     test('throws on error event', async () => {
         const api = new OpenaiResponsesApi(makeModelInfo())
         const { progress } = createMockProgress()

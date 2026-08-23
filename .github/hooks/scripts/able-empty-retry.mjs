@@ -28,8 +28,8 @@ function debugLog(message) {
 
 // Markers are HTML comments with a per-emission random hex suffix that the
 // provider appends at the end of an assistant message that should be retried.
-// Matching anchors on the end of the message (the regex has no ^ anchor), so
-// a message ending with the marker matches even when the retryable-error
+// Matching is anchored at the end of the message (the $ anchor), so a message
+// ending with the marker matches even when the retryable-error
 // marker follows partially streamed text. A literal that merely appears
 // somewhere in source code quoted by the model can never match, because the
 // suffix is unique per emission and the content would not end with it.
@@ -56,22 +56,24 @@ function readStdin() {
 // error) appear at the end of the transcript. User messages (the "Please
 // continue" nudges and the like) are skipped, so a chain of retried turns
 // separated by nudges counts as one streak; the first real assistant response
-// breaks the streak, which resets the budget automatically.
+// breaks the streak, which resets the budget automatically. Also reports
+// whether the most recent marker is a retryable-error marker so the nudge
+// reason can suggest a short pause after transient API failures.
 function countConsecutiveRetryMarkers(transcriptPath) {
     let stat
     try {
         stat = fs.statSync(transcriptPath)
     } catch {
-        return 0
+        return { count: 0, lastIsRetryableError: false }
     }
     if (!stat.isFile() || stat.size > 64 * 1024 * 1024) {
-        return 0
+        return { count: 0, lastIsRetryableError: false }
     }
     let text
     try {
         text = fs.readFileSync(transcriptPath, 'utf8')
     } catch {
-        return 0
+        return { count: 0, lastIsRetryableError: false }
     }
     const entries = []
     for (const line of text.split('\n')) {
@@ -87,6 +89,7 @@ function countConsecutiveRetryMarkers(transcriptPath) {
         entries.push(entry)
     }
     let count = 0
+    let lastIsRetryableError = false
     for (let i = entries.length - 1; i >= 0; i--) {
         const entry = entries[i]
         if (entry.type === 'user.message') {
@@ -97,12 +100,15 @@ function countConsecutiveRetryMarkers(transcriptPath) {
         }
         const content = entry.data.content.trim()
         if (EMPTY_RESPONSE_MARKER_PATTERN.test(content) || RETRYABLE_ERROR_MARKER_PATTERN.test(content)) {
+            if (count === 0) {
+                lastIsRetryableError = RETRYABLE_ERROR_MARKER_PATTERN.test(content)
+            }
             count++
             continue
         }
         break
     }
-    return count
+    return { count, lastIsRetryableError }
 }
 
 async function main() {
@@ -127,7 +133,7 @@ async function main() {
     }
     debugLog(`transcript_path=${transcriptPath}`)
 
-    const markerCount = countConsecutiveRetryMarkers(transcriptPath)
+    const { count: markerCount, lastIsRetryableError } = countConsecutiveRetryMarkers(transcriptPath)
     if (markerCount === 0) {
         debugLog('exit: last assistant content is not a retry marker')
         process.exit(0)
@@ -138,12 +144,19 @@ async function main() {
         process.exit(0)
     }
 
+    // Suggest a short pause after transient API failures (e.g. 429 rate
+    // limits) so the retried request does not immediately hammer the API.
+    // The nudge reasoning is only guidance to the model; the hook itself
+    // cannot sleep, so this stays a hint rather than a real delay.
+    const reason = lastIsRetryableError
+        ? "Please continue and complete the user's request after a short pause."
+        : "Please continue and complete the user's request."
     debugLog(`match: retry marker detected (${markerCount} consecutive), blocking stop`)
     process.stdout.write(JSON.stringify({
         hookSpecificOutput: {
             hookEventName: 'Stop',
             decision: 'block',
-            reason: "Please continue and complete the user's request.",
+            reason,
         },
     }))
 }
