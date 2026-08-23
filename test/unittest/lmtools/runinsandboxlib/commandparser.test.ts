@@ -81,8 +81,18 @@ suite('normalizeToken', () => {
 		assert.strictEqual(result, 'ab')
 	})
 
+	test('removes backslash-CR inside single quotes', () => {
+		const result = normalizeToken("'a\\\rb'")
+		assert.strictEqual(result, 'ab')
+	})
+
 	test('removes backslash-CRLF inside double quotes', () => {
 		const result = normalizeToken('"a\\\r\nb"')
+		assert.strictEqual(result, 'ab')
+	})
+
+	test('removes backslash-CR inside double quotes', () => {
+		const result = normalizeToken('"a\\\rb"')
 		assert.strictEqual(result, 'ab')
 	})
 

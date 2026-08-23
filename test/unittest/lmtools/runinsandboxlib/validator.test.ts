@@ -603,6 +603,13 @@ EOF`
         assert.strictEqual(ok, false)
     })
 
+    test('disallows node -e with require hidden by CR line continuation', async () => {
+        // JS treats backslash-CR as a line continuation too => require("fs").
+        const cmd = "node -e 'require(\"f\\\rs\")'"
+        const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])
+        assert.strictEqual(ok, false)
+    })
+
     test('disallows node -e with require("fs")', async () => {
         const cmd = 'node -e \'require("fs")\''
         const ok = await isAllowedCommand(cmd, ['/Users/tamura/src/github/vscode-copilot-chat'])

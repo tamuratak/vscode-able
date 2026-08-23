@@ -116,11 +116,11 @@ export function normalizeToken(value: string): string {
         if (first === "'" && last === "'") {
             // Inside single quotes bash passes backslashes literally, so the
             // token below is exactly what the child process receives. The one
-            // exception: backslash-newline (also backslash-CRLF, which JS
-            // treats the same way) is a line continuation in JS/Python string
-            // literals. Stripping it keeps validation identical to execution:
-            // require("f\<NL>s") is validated as require("fs").
-            return trimmed.slice(1, -1).replace(/\\\r?\n/g, '')
+            // exception: a backslash before a line terminator (LF, CRLF, or
+            // CR) is a line continuation in JS/Python string literals (V8
+            // strips it), so stripping it keeps validation identical to
+            // execution: require("f\<NL>s") is validated as require("fs").
+            return trimmed.slice(1, -1).replace(/\\(?:\r\n|\n|\r)/g, '')
         }
     }
     return unescapeQuotes(trimmed)
@@ -128,10 +128,13 @@ export function normalizeToken(value: string): string {
 
 function unescapeQuotes(value: string): string {
     return value
-        // Bash removes backslash-newline (and backslash-CRLF) inside double
-        // quotes and outside quotes, matching the line-continuation handling
-        // of the single-quoted branch above.
-        .replace(/\\\r?\n/g, '')
+        // Bash removes a backslash followed by a newline inside double quotes
+        // and outside quotes. With CRLF input bash keeps the backslash and CR,
+        // but JS/Python string literals treat \ followed by LF, CRLF, or CR as
+        // a line continuation (V8 strips it), so those sequences are removed
+        // here to keep validation identical to execution, matching the
+        // single-quoted branch above.
+        .replace(/\\(?:\r\n|\n|\r)/g, '')
         .replace(/\\\\/g, '\\')
         .replace(/\\ /g, ' ')
         .replace(/\\"/g, '"')
