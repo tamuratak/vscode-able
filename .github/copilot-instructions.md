@@ -43,3 +43,7 @@ When verifying the operation of tree-sitter, you MUST read the instructions in `
 The provider itself must be stateless except for `_activeAbortControllers`. Multiple agents may invoke providers concurrently, and shared mutable state inside a provider creates race conditions.
 If state must be maintained while receiving an LLM stream, it belongs on the CommonApi instance, which is created per-request and therefore safe to hold mutable data.
 The only state that persists across requests is the messages array. Never store conversation-level or request-level state on the provider object.
+
+## Seatbelt 
+
+Apple does not provide an official manual for Seatbelt (sandbox profiles), but the profiles currently in effect on this machine live in `/System/Library/Sandbox/Profiles`. Use those files as a reference.
