@@ -9,6 +9,7 @@ import { renderElementJSON } from '@vscode/prompt-tsx'
 import { CommandResultPrompt } from './toolresult.js'
 import { createLanguageModelPromptTsxPart } from '../utils/prompttsxhelper.js'
 import { isAllowedCommand } from './runinsandboxlib/validator.js'
+import { nextRunInSandboxMode, resolveRunAction, RunInSandboxMode } from './runinsandboxlib/mode.js'
 import { wrapLongLines } from './runinsandboxlib/utils.js'
 import { findScripts } from './runinsandboxlib/findscripts.js'
 
@@ -21,29 +22,32 @@ export interface RunInSandboxInput {
 export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscode.Disposable {
     private readonly tmpDir = this.setupTmpDir()
     private readonly outputChannel = vscode.window.createOutputChannel('vscode-able: RunInSandbox', { log: true })
-    private skipMode = false
+    private mode: RunInSandboxMode = 'on'
     private readonly statusBarItem: vscode.StatusBarItem
     private readonly commandDisposable: vscode.Disposable
 
     constructor() {
         this.setupTmpDir()
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 105)
-        this.statusBarItem.command = 'able.toggleRunInSandboxSkip'
+        this.statusBarItem.command = 'able.toggleRunInSandboxMode'
         this.updateStatusBar()
         this.statusBarItem.show()
-        this.commandDisposable = vscode.commands.registerCommand('able.toggleRunInSandboxSkip', () => {
-            this.skipMode = !this.skipMode
+        this.commandDisposable = vscode.commands.registerCommand('able.toggleRunInSandboxMode', () => {
+            this.mode = nextRunInSandboxMode(this.mode)
             this.updateStatusBar()
         })
     }
 
     private updateStatusBar() {
-        if (this.skipMode) {
+        if (this.mode === 'skip') {
             this.statusBarItem.text = 'Sandbox: Skip'
-            this.statusBarItem.tooltip = 'RunInSandbox is in skip mode. Click to enable sandbox execution.'
+            this.statusBarItem.tooltip = 'RunInSandbox is in skip mode. Commands that are not pre-approved are skipped. Click to auto-approve all commands.'
+        } else if (this.mode === 'allow') {
+            this.statusBarItem.text = 'Sandbox: Allow'
+            this.statusBarItem.tooltip = 'RunInSandbox auto-approves all commands without confirmation. Commands still run inside the sandbox. Click to ask for confirmation again.'
         } else {
             this.statusBarItem.text = 'Sandbox: On'
-            this.statusBarItem.tooltip = 'RunInSandbox is enabled. Click to skip tool calls.'
+            this.statusBarItem.tooltip = 'RunInSandbox is enabled. Commands that are not pre-approved require confirmation. Click to skip tool calls.'
         }
     }
 
@@ -65,12 +69,18 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
     async prepareInvocation(options: vscode.LanguageModelToolInvocationPrepareOptions<RunInSandboxInput>) {
         const workspaceRootPaths = vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath)
         const isAllowed = await isAllowedCommand(options.input.command, workspaceRootPaths)
-        if (isAllowed) {
+        const action = resolveRunAction(this.mode, isAllowed)
+        if (action === 'sandbox') {
             return {
                 invocationMessage: 'Run command by using sandbox-exec'
             }
         }
-        if (this.skipMode) {
+        if (action === 'sandbox-auto') {
+            return {
+                invocationMessage: 'Run command by using sandbox-exec (auto-approved)'
+            }
+        }
+        if (action === 'skip') {
             return {
                 invocationMessage: 'Skipping sandbox execution'
             }
@@ -95,7 +105,8 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
     async invoke(options: LanguageModelToolInvocationOptions<RunInSandboxInput>, token: CancellationToken) {
         const workspaceRootPaths = vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath)
         const isAllowed = await isAllowedCommand(options.input.command, workspaceRootPaths)
-        if (this.skipMode && !isAllowed) {
+        const action = resolveRunAction(this.mode, isAllowed)
+        if (action === 'skip') {
             return new LanguageModelToolResult([new LanguageModelTextPart(
                 'The user chose to skip this tool call. This command will not be executed. ' +
                 'Proceed without the command output. If the command is essential, ask the user to run it manually.'
@@ -166,7 +177,7 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
     ) {
         const args = ['-p', policy, ...params, '--', '/bin/bash', '-c', command]
 
-        this.outputChannel.info(`[RunInSandbox]: invoking in sandbox: ${command}`)
+        this.outputChannel.info(`[RunInSandbox]: invoking in sandbox (mode: ${this.mode}): ${command}`)
 
         const stdoutChunks: string[] = []
         const stderrChunks: string[] = []
