@@ -16,6 +16,7 @@ import { pushToolCall, tweakTools } from './tools.js'
 import { isRetryableError, RETRYABLE_ERROR_MARKER_PREFIX } from './retry.js'
 import { createDedupProgress, extractLastToolCallSignatures, isToolCallLoopDetected } from './vscodeutils.js'
 import { OPENCODE_SESSION_ID_HEADER, deriveSessionId } from './sessionid.js'
+import { buildGoalCommandResponse, buildGoalSteeringText, deriveGoalState, extractGoalCommand, makeGoalMarker, type GoalMessage, type GoalMessageRole, type GoalState } from './goal.js'
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
@@ -68,6 +69,14 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         const options = tweakTools(optionsOrigin)
         channel.append('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
         channel.append(await renderMessages(messages))
+
+        const goalMessages = toGoalMessages(messages)
+        const goalState = deriveGoalState(goalMessages)
+        const goalCommand = extractGoalCommand(goalMessages)
+        const messagesWithGoal = applyGoalSteering(messages, goalState)
+        if (goalState.kind === 'active') {
+            logger.info('goal.steering.active', { turnsUsed: goalState.turnsUsed })
+        }
         const requestStartTime = Date.now();
         const abortController = new AbortController();
         this._activeAbortControllers.add(abortController)
@@ -81,6 +90,14 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         }, OpenCodeGoChatModelProvider.DEFAULT_HTTP_TIMEOUT_MS)
 
         try {
+            if (goalCommand) {
+                const response = buildGoalCommandResponse(goalCommand, goalState)
+                const text = response.marker === undefined ? response.text : `${response.text}\n\n${response.marker}`
+                dedupProgress.report(new vscode.LanguageModelTextPart(text))
+                logger.info('goal.command', { action: goalCommand.action })
+                return
+            }
+
             const loopInfo = isToolCallLoopDetected(messagesOrigin)
             if (loopInfo.detected) {
                 logger.error('[OpenCodeGo] Tool call loop detected, aborting request', {
@@ -165,7 +182,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             if (apiMode === 'messages') {
                 // Anthropic API mode
                 const anthropicApi = new AnthropicApi(model);
-                const anthropicMessages = anthropicApi.convertMessages(messages, modelConfig);
+                const anthropicMessages = anthropicApi.convertMessages(messagesWithGoal, modelConfig);
 
                 let requestBody: AnthropicRequestBody = {
                     model: um.id ?? model.id,
@@ -186,7 +203,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             } else if (apiMode === 'chat-completions') {
                 // OpenAI Chat Completions API mode
                 const openaiApi = new OpenaiApi(model);
-                const openaiMessages = openaiApi.convertMessages(messages, modelConfig);
+                const openaiMessages = openaiApi.convertMessages(messagesWithGoal, modelConfig);
 
                 // requestBody
                 let requestBody: Record<string, unknown> = {
@@ -210,7 +227,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             } else if (apiMode === 'responses') {
                 // OpenAI Responses API mode
                 const openaiResponsesApi = new OpenaiResponsesApi(model);
-                const responsesMessages = openaiResponsesApi.convertMessages(messages, modelConfig);
+                const responsesMessages = openaiResponsesApi.convertMessages(messagesWithGoal, modelConfig);
 
                 // requestBody
                 let requestBody: Record<string, unknown> = {
@@ -243,6 +260,13 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 errorMessage: err instanceof Error ? err.message : String(err),
                 errorCode: err instanceof ResponsesStreamError ? err.code : httpTimedOut ? 'http_timeout' : undefined,
             });
+            if (token.isCancellationRequested && goalState.kind === 'active') {
+                // Best effort: mark the goal as paused so the Stop hook does not
+                // resume it after the user intentionally stopped the turn.
+                dedupProgress.report(new vscode.LanguageModelTextPart('\n' + makeGoalMarker('paused')))
+                logger.warn('goal.paused.on.cancel', { modelId: model.id })
+                return
+            }
             if (isRetryableError(err, httpTimedOut, token)) {
                 // End the turn with a retry marker instead of an exception so
                 // the assistant message lands in the transcript; the Stop
@@ -278,4 +302,45 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         const message = '[VS Code Able] Detected a tool call loop. The response was aborted to prevent an infinite loop. The model may not have enough context to answer this question. Consider asking the user for more information or trying a different approach.'
         progress.report(new vscode.LanguageModelTextPart(message))
     }
+}
+
+function toGoalMessages(messages: readonly LanguageModelChatRequestMessage[]): GoalMessage[] {
+    const goalMessages: GoalMessage[] = []
+    for (const message of messages) {
+        let role: GoalMessageRole = 'system'
+        if (message.role === vscode.LanguageModelChatMessageRole.User) {
+            role = 'user'
+        } else if (message.role === vscode.LanguageModelChatMessageRole.Assistant) {
+            role = 'assistant'
+        }
+        let text = ''
+        for (const part of message.content) {
+            if (part instanceof vscode.LanguageModelTextPart) {
+                text += `${part.value}\n`
+            }
+        }
+        goalMessages.push({ role, text })
+    }
+    return goalMessages
+}
+
+function applyGoalSteering(messages: readonly LanguageModelChatRequestMessage[], state: GoalState): readonly LanguageModelChatRequestMessage[] {
+    if (state.kind !== 'active' || messages.length === 0) {
+        return messages
+    }
+    const systemMessage = messages[0]
+    if (systemMessage.role !== vscode.LanguageModelChatMessageRole.System) {
+        return messages
+    }
+    const steering = buildGoalSteeringText(state)
+    const content = [...systemMessage.content]
+    for (let index = content.length - 1; index >= 0; index--) {
+        const part = content[index]
+        if (part instanceof vscode.LanguageModelTextPart) {
+            content[index] = new vscode.LanguageModelTextPart(`${part.value}\n\n${steering}`)
+            return [{ ...systemMessage, content }, ...messages.slice(1)]
+        }
+    }
+    content.push(new vscode.LanguageModelTextPart(steering))
+    return [{ ...systemMessage, content }, ...messages.slice(1)]
 }
