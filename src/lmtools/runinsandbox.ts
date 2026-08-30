@@ -42,12 +42,15 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
         if (this.mode === 'skip') {
             this.statusBarItem.text = 'Sandbox: Skip'
             this.statusBarItem.tooltip = 'RunInSandbox is in skip mode. Commands that are not pre-approved are skipped. Click to auto-approve all commands.'
+            this.statusBarItem.backgroundColor = undefined
         } else if (this.mode === 'allow') {
             this.statusBarItem.text = 'Sandbox: Allow'
             this.statusBarItem.tooltip = 'RunInSandbox auto-approves all commands without confirmation. Commands still run inside the sandbox. Click to ask for confirmation again.'
+            this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground')
         } else {
             this.statusBarItem.text = 'Sandbox: On'
             this.statusBarItem.tooltip = 'RunInSandbox is enabled. Commands that are not pre-approved require confirmation. Click to skip tool calls.'
+            this.statusBarItem.backgroundColor = undefined
         }
     }
 
