@@ -10,7 +10,9 @@ export function tweakTools(options: ProvideLanguageModelChatResponseOptions) {
     const { tools } = options
 
     // https://github.com/microsoft/vscode/blob/4b04bed81a929b4603b508ce4a21993ae5fee2af/extensions/copilot/package.json#L1234
-    const toolsToRemove = ['session_store_sql']
+    // run_in_terminal: https://github.com/microsoft/vscode/blob/main/src/vs/workbench/contrib/chat/common/tools/terminalToolIds.ts (TerminalToolId.RunInTerminal).
+    // Removed so the model always uses VS Code Able's able_runInSandbox tool instead.
+    const toolsToRemove = ['session_store_sql', 'run_in_terminal']
     const newTools = tools?.filter(tool => !toolsToRemove.includes(tool.name)) ?? []
 
     return { ...options, tools: newTools }
