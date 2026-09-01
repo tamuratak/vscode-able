@@ -317,7 +317,7 @@ export abstract class CommonApi<TMessage, TRequestBody> {
     ): Record<string, string> {
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
-            'User-Agent': 'vscode-able/10.5.4 (+https://github.com/tamuratak/vscode-able) Electron/42.8.1 Node.js/24.18.1',
+            'User-Agent': 'vscode-able/10.6.0 (+https://github.com/tamuratak/vscode-able) Electron/42.8.1 Node.js/24.18.1',
             'Accept': '*/*',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
         };
