@@ -77,16 +77,16 @@ export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscod
             return {
                 invocationMessage: 'Run command by using sandbox-exec'
             }
-        }
-        if (action === 'sandbox-auto') {
+        } else if (action === 'sandbox-auto') {
             return {
                 invocationMessage: 'Run command by using sandbox-exec (auto-approved)'
             }
-        }
-        if (action === 'skip') {
+        } else if (action === 'skip') {
             return {
                 invocationMessage: 'Skipping sandbox execution'
             }
+        } else {
+            action satisfies 'sandbox-confirm'
         }
         debugObj('RunInSandbox prepareInvocation args: ', options.input, this.outputChannel)
         const foundCodes = await findScripts(options.input.command)
