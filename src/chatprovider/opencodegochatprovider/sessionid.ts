@@ -48,6 +48,9 @@ export function extractSessionId(messages: readonly LanguageModelChatRequestMess
  * Generate a new session id and persist it in the transcript by reporting a
  * standalone assistant text part. The part survives in the chat messages and
  * is recovered by extractSessionId on the next request.
+ * Note: concurrent requests to the same conversation may each emit their own
+ * marker; the transcript converges on the most recent id, so the gateway may
+ * temporarily see two ids for one conversation during the overlap.
  * @param progress Progress reporter for response parts.
  * @returns The generated session id.
  */

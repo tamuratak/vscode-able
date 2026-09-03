@@ -76,8 +76,10 @@ suite('emitSessionIdPart', () => {
         const sessionId = emitSessionIdPart(progress)
         strictEqual(reported.length, 1)
         const part = reported[0]
-        strictEqual(part instanceof vscode.LanguageModelTextPart2, true)
-        deepStrictEqual((part as vscode.LanguageModelTextPart2).audience, [vscode.LanguageModelPartAudience.Assistant])
+        if (!(part instanceof vscode.LanguageModelTextPart2)) {
+            throw new Error('expected a LanguageModelTextPart2')
+        }
+        deepStrictEqual(part.audience, [vscode.LanguageModelPartAudience.Assistant])
         strictEqual(extractSessionId([makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [part])]), sessionId)
     })
 })
