@@ -24,6 +24,9 @@ export const OPENCODE_SESSION_ID_HEADER = 'x-opencode-session'
  */
 export function extractSessionId(messages: readonly LanguageModelChatRequestMessage[]): string | undefined {
     for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role !== vscode.LanguageModelChatMessageRole.Assistant) {
+            continue
+        }
         const content = messages[i].content
         for (let j = content.length - 1; j >= 0; j--) {
             const part = content[j]
@@ -64,6 +67,13 @@ export function emitSessionIdPart(progress: Progress<LanguageModelResponsePart2>
 export function stripSessionIdParts(messages: readonly LanguageModelChatRequestMessage[]): LanguageModelChatRequestMessage[] {
     const stripped: LanguageModelChatRequestMessage[] = []
     for (const message of messages) {
+        // The marker is only ever emitted into assistant messages; skipping
+        // user messages keeps user content intact if it coincidentally
+        // contains the marker text.
+        if (message.role !== vscode.LanguageModelChatMessageRole.Assistant) {
+            stripped.push(message)
+            continue
+        }
         const content = message.content.filter(
             part => !(part instanceof vscode.LanguageModelTextPart && SESSION_ID_TAG_PATTERN.test(part.value))
         )
