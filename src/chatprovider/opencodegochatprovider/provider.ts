@@ -15,6 +15,7 @@ import { tweakSystemPrompt } from './systemprompt.js'
 import { pushToolCall, tweakTools } from './tools.js'
 import { isRetryableError, RETRYABLE_ERROR_MARKER_PREFIX } from './retry.js'
 import { createDedupProgress, extractLastToolCallSignatures, isToolCallLoopDetected } from './vscodeutils.js'
+import { OPENCODE_SESSION_ID_HEADER, emitSessionIdPart, extractSessionId, stripSessionIdParts } from './sessionid.js'
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
@@ -67,6 +68,12 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         const options = tweakTools(optionsOrigin)
         channel.append('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
         channel.append(await renderMessages(messages))
+        // Persist a stable per-conversation id in the transcript as a
+        // standalone assistant part; it is stripped from the model payload
+        // and sent as the x-opencode-session header instead, keeping the
+        // provider stateless.
+        const sessionId = extractSessionId(messages) ?? emitSessionIdPart(dedupProgress)
+        const outboundMessages = stripSessionIdParts(messages)
         const requestStartTime = Date.now();
         const abortController = new AbortController();
         this._activeAbortControllers.add(abortController)
@@ -136,6 +143,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 throw new Error('No authentication session found for ' + openCodeGoAuthServiceId)
             }
             const requestHeaders = CommonApi.prepareHeaders(modelApiKey, apiMode, um.headers);
+            requestHeaders[OPENCODE_SESSION_ID_HEADER] = sessionId;
             logger.debug('request.headers', {
                 headers: logger.sanitizeHeaders(requestHeaders),
             });
@@ -145,7 +153,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             if (apiMode === 'messages') {
                 // Anthropic API mode
                 const anthropicApi = new AnthropicApi(model);
-                const anthropicMessages = anthropicApi.convertMessages(messages, modelConfig);
+                const anthropicMessages = anthropicApi.convertMessages(outboundMessages, modelConfig);
 
                 let requestBody: AnthropicRequestBody = {
                     model: um.id ?? model.id,
@@ -166,7 +174,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             } else if (apiMode === 'chat-completions') {
                 // OpenAI Chat Completions API mode
                 const openaiApi = new OpenaiApi(model);
-                const openaiMessages = openaiApi.convertMessages(messages, modelConfig);
+                const openaiMessages = openaiApi.convertMessages(outboundMessages, modelConfig);
 
                 // requestBody
                 let requestBody: Record<string, unknown> = {
@@ -190,7 +198,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             } else if (apiMode === 'responses') {
                 // OpenAI Responses API mode
                 const openaiResponsesApi = new OpenaiResponsesApi(model);
-                const responsesMessages = openaiResponsesApi.convertMessages(messages, modelConfig);
+                const responsesMessages = openaiResponsesApi.convertMessages(outboundMessages, modelConfig);
 
                 // requestBody
                 let requestBody: Record<string, unknown> = {
@@ -214,7 +222,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 // Exhaustiveness guard: fail loudly when a new API mode is added.
                 throw new Error(`Unsupported API mode: ${String(apiMode)}`)
             }
-            pushToolCall(model, messages, options, dedupProgress, token, responseResult)
+            pushToolCall(model, outboundMessages, options, dedupProgress, token, responseResult)
         } catch (err) {
             logger.error('request.error', {
                 modelId: model.id,
