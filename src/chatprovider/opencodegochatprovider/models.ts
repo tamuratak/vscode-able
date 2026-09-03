@@ -69,7 +69,7 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'grok-4.5', displayName: 'Grok-4.5', apiType: 'responses', inputModalities: ['image', 'video'], defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'medium', 'high'], maxInputTokens: 200000, maxOutputTokens: 32768, pricing: { inputCost: 4, outputCost: 12, cacheCost: 1 } },
 
     // https://docs.z.ai/api-reference/llm/chat-completion
-    { baseId: 'glm-5.3-flash', displayName: 'GLM-5.3 Flash', inputModalities: ['image'], defaultReasoningEffort: 'max', supportsReasoningEffort: ['low', 'high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.075, outputCost: 0.25, cacheCost: 0.015 } },
+    { baseId: 'glm-5.3-flash', displayName: 'GLM-5.3 Flash', inputModalities: ['image'], defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.075, outputCost: 0.25, cacheCost: 0.015 } },
     { baseId: 'glm-5.3', displayName: 'GLM-5.3', defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 62768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
     { baseId: 'glm-5.2', displayName: 'GLM-5.2', defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 62768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
 
