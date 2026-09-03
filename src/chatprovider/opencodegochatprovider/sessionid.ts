@@ -14,6 +14,9 @@ import type { LanguageModelChatRequestMessage, LanguageModelResponsePart2, Progr
 /** Marker embedded in a text part; the HTML comment is stripped from the chat view. */
 const SESSION_ID_TAG_PATTERN = /<!--\s*ABLE_OPENCODE_SESSION_ID:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s*-->/
 
+/** Global variant for removing every marker occurrence from a part value. */
+const SESSION_ID_TAG_GLOBAL_PATTERN = new RegExp(SESSION_ID_TAG_PATTERN.source, 'g')
+
 export const OPENCODE_SESSION_ID_HEADER = 'x-opencode-session'
 
 /**
@@ -51,18 +54,21 @@ export function extractSessionId(messages: readonly LanguageModelChatRequestMess
 export function emitSessionIdPart(progress: Progress<LanguageModelResponsePart2>): string {
     const sessionId = crypto.randomUUID()
     progress.report(new vscode.LanguageModelTextPart2(
-        `\n<!-- ABLE_OPENCODE_SESSION_ID: ${sessionId} -->\n`,
+        `<!-- ABLE_OPENCODE_SESSION_ID: ${sessionId} -->`,
         [vscode.LanguageModelPartAudience.Assistant]
     ))
     return sessionId
 }
 
 /**
- * Remove the session id parts from the messages so they are never sent to
- * the model; the id travels in the x-opencode-session header instead.
- * Messages whose content becomes empty after stripping are dropped.
+ * Remove the session id marker text from the messages so it is never sent to
+ * the model; the id travels in the x-opencode-session header instead. The
+ * marker may share a text part with the response body (VS Code merges
+ * adjacent text parts), so only the marker string is removed and the
+ * remaining text is kept. A message is dropped entirely only when all of its
+ * parts consisted solely of markers.
  * @param messages The VS Code chat messages of the request.
- * @returns Messages without session id parts.
+ * @returns Messages without session id markers.
  */
 export function stripSessionIdParts(messages: readonly LanguageModelChatRequestMessage[]): LanguageModelChatRequestMessage[] {
     const stripped: LanguageModelChatRequestMessage[] = []
@@ -74,10 +80,24 @@ export function stripSessionIdParts(messages: readonly LanguageModelChatRequestM
             stripped.push(message)
             continue
         }
-        const content = message.content.filter(
-            part => !(part instanceof vscode.LanguageModelTextPart && SESSION_ID_TAG_PATTERN.test(part.value))
-        )
-        if (content.length === message.content.length) {
+        const content: unknown[] = []
+        let changed = false
+        for (const part of message.content) {
+            if (part instanceof vscode.LanguageModelTextPart) {
+                const value = part.value.replace(SESSION_ID_TAG_GLOBAL_PATTERN, '')
+                if (value !== part.value) {
+                    changed = true
+                    if (value.length > 0) {
+                        // The audience tag is irrelevant for the outbound
+                        // payload; the value is all that reaches the model.
+                        content.push(new vscode.LanguageModelTextPart(value))
+                    }
+                    continue
+                }
+            }
+            content.push(part)
+        }
+        if (!changed) {
             stripped.push(message)
         } else if (content.length > 0) {
             stripped.push({ role: message.role, content, name: message.name })

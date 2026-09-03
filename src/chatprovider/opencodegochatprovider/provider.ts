@@ -130,6 +130,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 messageCount: messages.length,
                 apiMode,
                 BASE_URL,
+                sessionId,
             })
 
             // Prepare model configuration
