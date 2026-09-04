@@ -1,12 +1,8 @@
-import { strictEqual, deepStrictEqual } from 'node:assert'
+import { strictEqual, notStrictEqual } from 'node:assert'
 import * as vscode from 'vscode'
-import { extractSessionId, emitSessionIdPart, stripSessionIdParts } from '../../../src/chatprovider/opencodegochatprovider/sessionid.js'
+import { deriveSessionId } from '../../../src/chatprovider/opencodegochatprovider/sessionid.js'
 
-const SESSION_ID = '123e4567-e89b-12d3-a456-426614174000'
-
-function markerText(): string {
-    return `\n<!-- ABLE_OPENCODE_SESSION_ID: ${SESSION_ID} -->\n`
-}
+const SESSION_ID_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 function makeMessage(
     role: vscode.LanguageModelChatMessageRole,
@@ -15,137 +11,75 @@ function makeMessage(
     return { role, content, name: undefined }
 }
 
-function textOf(message: vscode.LanguageModelChatRequestMessage): string[] {
-    return message.content
-        .filter((part): part is vscode.LanguageModelTextPart => part instanceof vscode.LanguageModelTextPart)
-        .map(part => part.value)
-}
-
-suite('extractSessionId', () => {
-    test('returns undefined for empty messages', () => {
-        strictEqual(extractSessionId([]), undefined)
-    })
-
-    test('extracts the id from a standalone marker part', () => {
+suite('deriveSessionId', () => {
+    test('is deterministic for identical input', async () => {
         const messages = [
             makeMessage(vscode.LanguageModelChatMessageRole.User, [new vscode.LanguageModelTextPart('hello')]),
-            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [new vscode.LanguageModelTextPart(markerText())]),
         ]
-        strictEqual(extractSessionId(messages), SESSION_ID)
+        strictEqual(await deriveSessionId('model-a', messages), await deriveSessionId('model-a', messages))
     })
 
-    test('extracts the id from a marker concatenated with the response body', () => {
+    test('yields a UUID-shaped id', async () => {
         const messages = [
-            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [
-                new vscode.LanguageModelTextPart(markerText() + 'Here is the answer.'),
-            ]),
+            makeMessage(vscode.LanguageModelChatMessageRole.User, [new vscode.LanguageModelTextPart('hello')]),
         ]
-        strictEqual(extractSessionId(messages), SESSION_ID)
+        strictEqual(SESSION_ID_UUID_PATTERN.test(await deriveSessionId('model-a', messages)), true)
     })
 
-    test('returns undefined when no marker exists', () => {
+    test('changes when the model changes', async () => {
         const messages = [
-            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [new vscode.LanguageModelTextPart('no marker here')]),
+            makeMessage(vscode.LanguageModelChatMessageRole.User, [new vscode.LanguageModelTextPart('hello')]),
         ]
-        strictEqual(extractSessionId(messages), undefined)
+        notStrictEqual(await deriveSessionId('model-a', messages), await deriveSessionId('model-b', messages))
     })
 
-    test('prefers the most recent marker', () => {
-        const older = '00000000-0000-0000-0000-000000000000'
-        const messages = [
-            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [
-                new vscode.LanguageModelTextPart(`<!-- ABLE_OPENCODE_SESSION_ID: ${older} -->`),
-            ]),
-            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [new vscode.LanguageModelTextPart(markerText())]),
+    test('changes when the leading messages change', async () => {
+        const messagesA = [
+            makeMessage(vscode.LanguageModelChatMessageRole.User, [new vscode.LanguageModelTextPart('hello')]),
         ]
-        strictEqual(extractSessionId(messages), SESSION_ID)
-    })
-
-    test('ignores markers inside user messages', () => {
-        const messages = [
-            makeMessage(vscode.LanguageModelChatMessageRole.User, [new vscode.LanguageModelTextPart(markerText())]),
+        const messagesB = [
+            makeMessage(vscode.LanguageModelChatMessageRole.User, [new vscode.LanguageModelTextPart('world')]),
         ]
-        strictEqual(extractSessionId(messages), undefined)
+        notStrictEqual(await deriveSessionId('model-a', messagesA), await deriveSessionId('model-a', messagesB))
     })
-})
 
-suite('emitSessionIdPart', () => {
-    test('reports a marker part tagged for the assistant audience', () => {
-        const reported: vscode.LanguageModelResponsePart2[] = []
-        const progress: vscode.Progress<vscode.LanguageModelResponsePart2> = { report: part => reported.push(part) }
-        emitSessionIdPart(SESSION_ID, progress)
-        strictEqual(reported.length, 1)
-        const part = reported[0]
-        if (!(part instanceof vscode.LanguageModelTextPart2)) {
-            throw new Error('expected a LanguageModelTextPart2')
-        }
-        deepStrictEqual(part.audience, [vscode.LanguageModelPartAudience.Assistant])
-        strictEqual(extractSessionId([makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [part])]), SESSION_ID)
-    })
-})
-
-suite('stripSessionIdParts', () => {
-    test('keeps the response body when the marker shares a text part with it', () => {
-        const messages = [
-            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [
-                new vscode.LanguageModelTextPart(markerText() + 'Here is the answer.'),
-            ]),
+    test('is unaffected by messages beyond the first three', async () => {
+        const firstThree = [
+            makeMessage(vscode.LanguageModelChatMessageRole.User, [new vscode.LanguageModelTextPart('hello')]),
+            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [new vscode.LanguageModelTextPart('hi')]),
+            makeMessage(vscode.LanguageModelChatMessageRole.User, [new vscode.LanguageModelTextPart('more')]),
         ]
-        const stripped = stripSessionIdParts(messages)
-        deepStrictEqual(textOf(stripped[0]), ['\nHere is the answer.'])
+        const withExtra = [...firstThree, makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [new vscode.LanguageModelTextPart('changed answer')])]
+        strictEqual(await deriveSessionId('model-a', firstThree), await deriveSessionId('model-a', withExtra))
     })
 
-    test('removes a marker-only part and drops the message when nothing remains', () => {
+    test('works with fewer than three messages', async () => {
         const messages = [
-            makeMessage(vscode.LanguageModelChatMessageRole.User, [new vscode.LanguageModelTextPart('question')]),
-            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [new vscode.LanguageModelTextPart(markerText())]),
+            makeMessage(vscode.LanguageModelChatMessageRole.User, [new vscode.LanguageModelTextPart('hello')]),
         ]
-        const stripped = stripSessionIdParts(messages)
-        strictEqual(stripped.length, 1)
-        strictEqual(stripped[0].role, vscode.LanguageModelChatMessageRole.User)
-        deepStrictEqual(textOf(stripped[0]), ['question'])
+        strictEqual(SESSION_ID_UUID_PATTERN.test(await deriveSessionId('model-a', messages)), true)
     })
 
-    test('leaves messages without markers untouched', () => {
-        const messages = [
-            makeMessage(vscode.LanguageModelChatMessageRole.User, [new vscode.LanguageModelTextPart('question')]),
+    test('ignores non-text parts', async () => {
+        const toolCallMessages = [
+            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [new vscode.LanguageModelToolCallPart('c1', 'read_file', { filePath: '/a.ts' })]),
+        ]
+        const emptyMessages = [
+            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, []),
+        ]
+        strictEqual(await deriveSessionId('model-a', toolCallMessages), await deriveSessionId('model-a', emptyMessages))
+    })
+
+    test('hashes text parts only', async () => {
+        const withText = [
             makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [new vscode.LanguageModelTextPart('answer')]),
         ]
-        const stripped = stripSessionIdParts(messages)
-        deepStrictEqual(stripped, messages)
-    })
-
-    test('keeps marker text inside user messages intact', () => {
-        const messages = [
-            makeMessage(vscode.LanguageModelChatMessageRole.User, [new vscode.LanguageModelTextPart(markerText() + 'please help')]),
-        ]
-        const stripped = stripSessionIdParts(messages)
-        deepStrictEqual(textOf(stripped[0]), [markerText() + 'please help'])
-    })
-
-    test('removes every marker occurrence and empty parts within one message', () => {
-        const messages = [
+        const withTextAndToolCall = [
             makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [
-                new vscode.LanguageModelTextPart(markerText()),
-                new vscode.LanguageModelTextPart(markerText() + 'answer body'),
+                new vscode.LanguageModelTextPart('answer'),
+                new vscode.LanguageModelToolCallPart('c1', 'read_file', { filePath: '/a.ts' }),
             ]),
         ]
-        const stripped = stripSessionIdParts(messages)
-        strictEqual(stripped.length, 1)
-        deepStrictEqual(textOf(stripped[0]), ['answer body'])
-    })
-
-    test('preserves non-text parts of modified messages', () => {
-        const toolCall = new vscode.LanguageModelToolCallPart('c1', 'read_file', { filePath: '/a.ts' })
-        const messages = [
-            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [
-                new vscode.LanguageModelTextPart(markerText()),
-                toolCall,
-            ]),
-        ]
-        const stripped = stripSessionIdParts(messages)
-        strictEqual(stripped.length, 1)
-        strictEqual(stripped[0].content.length, 1)
-        strictEqual(stripped[0].content[0], toolCall)
+        strictEqual(await deriveSessionId('model-a', withText), await deriveSessionId('model-a', withTextAndToolCall))
     })
 })
