@@ -15,7 +15,7 @@ import { tweakSystemPrompt } from './systemprompt.js'
 import { pushToolCall, tweakTools } from './tools.js'
 import { isRetryableError, RETRYABLE_ERROR_MARKER_PREFIX } from './retry.js'
 import { createDedupProgress, extractLastToolCallSignatures, isToolCallLoopDetected } from './vscodeutils.js'
-import { OPENCODE_SESSION_ID_HEADER, emitSessionIdPart, extractSessionId, stripSessionIdParts } from './sessionid.js'
+import { OPENCODE_SESSION_ID_HEADER, deriveSessionId } from './sessionid.js'
 
 
 export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
@@ -68,26 +68,14 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         const options = tweakTools(optionsOrigin)
         channel.append('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
         channel.append(await renderMessages(messages))
-        // Persist a stable per-conversation id in the transcript as a
-        // standalone assistant part; it is stripped from the model payload
-        // and sent as the x-opencode-session header instead, keeping the
-        // provider stateless. Tools-less requests are usually small utility
-        // calls (e.g. title generation): reuse an existing session id when
-        // one is already in the transcript so conversation continuity is
-        // kept, otherwise send a fresh uuid in the header without ever
-        // persisting it in the transcript. Utility calls are not isolated
-        // from the conversation; the goal is only to avoid transcript
-        // pollution.
-        const existingSessionId = extractSessionId(messages)
-        const isUtilityCall = !options.tools || options.tools.length === 0
-        const sessionId = existingSessionId ?? crypto.randomUUID()
-        if (!existingSessionId && !isUtilityCall) {
-            // Persist the id in the transcript for a regular request; a
-            // utility call sends it in the header only, without polluting
-            // the transcript.
-            emitSessionIdPart(sessionId, dedupProgress)
-        }
-        const outboundMessages = stripSessionIdParts(messages)
+        // The opencode go gateway requires a stable per-conversation id on
+        // every outbound inference request via the x-opencode-session header.
+        // The id is derived deterministically from the model id and the
+        // leading messages of the request, so the provider stays stateless
+        // and nothing needs to be persisted in the transcript. Utility calls
+        // (e.g. title generation) derive the same id as the conversation
+        // whenever they share the same leading messages.
+        const sessionId = await deriveSessionId(model.id, messages)
         const requestStartTime = Date.now();
         const abortController = new AbortController();
         this._activeAbortControllers.add(abortController)
@@ -158,8 +146,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 throw new Error('No authentication session found for ' + openCodeGoAuthServiceId)
             }
             const requestHeaders = CommonApi.prepareHeaders(modelApiKey, apiMode, um.headers);
-            // sessionId is always set: it is either recovered from the
-            // transcript or freshly generated above.
+            // sessionId is always set from the deterministic derivation above.
             requestHeaders[OPENCODE_SESSION_ID_HEADER] = sessionId;
             logger.debug('request.headers', {
                 headers: logger.sanitizeHeaders(requestHeaders),
@@ -170,7 +157,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             if (apiMode === 'messages') {
                 // Anthropic API mode
                 const anthropicApi = new AnthropicApi(model);
-                const anthropicMessages = anthropicApi.convertMessages(outboundMessages, modelConfig);
+                const anthropicMessages = anthropicApi.convertMessages(messages, modelConfig);
 
                 let requestBody: AnthropicRequestBody = {
                     model: um.id ?? model.id,
@@ -191,7 +178,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             } else if (apiMode === 'chat-completions') {
                 // OpenAI Chat Completions API mode
                 const openaiApi = new OpenaiApi(model);
-                const openaiMessages = openaiApi.convertMessages(outboundMessages, modelConfig);
+                const openaiMessages = openaiApi.convertMessages(messages, modelConfig);
 
                 // requestBody
                 let requestBody: Record<string, unknown> = {
@@ -215,7 +202,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             } else if (apiMode === 'responses') {
                 // OpenAI Responses API mode
                 const openaiResponsesApi = new OpenaiResponsesApi(model);
-                const responsesMessages = openaiResponsesApi.convertMessages(outboundMessages, modelConfig);
+                const responsesMessages = openaiResponsesApi.convertMessages(messages, modelConfig);
 
                 // requestBody
                 let requestBody: Record<string, unknown> = {
@@ -239,7 +226,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 // Exhaustiveness guard: fail loudly when a new API mode is added.
                 throw new Error(`Unsupported API mode: ${String(apiMode)}`)
             }
-            pushToolCall(model, outboundMessages, options, dedupProgress, token, responseResult)
+            pushToolCall(model, messages, options, dedupProgress, token, responseResult)
         } catch (err) {
             logger.error('request.error', {
                 modelId: model.id,
