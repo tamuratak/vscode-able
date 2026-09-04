@@ -60,13 +60,26 @@ suite('deriveSessionId', () => {
         strictEqual(SESSION_ID_UUID_PATTERN.test(await deriveSessionId('model-a', messages)), true)
     })
 
-    test('distinguishes tool call parts from text', async () => {
-        const textMessages = [
-            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [new vscode.LanguageModelTextPart('answer')]),
-        ]
+    test('ignores non-text parts', async () => {
         const toolCallMessages = [
             makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [new vscode.LanguageModelToolCallPart('c1', 'read_file', { filePath: '/a.ts' })]),
         ]
-        notStrictEqual(await deriveSessionId('model-a', textMessages), await deriveSessionId('model-a', toolCallMessages))
+        const emptyMessages = [
+            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, []),
+        ]
+        strictEqual(await deriveSessionId('model-a', toolCallMessages), await deriveSessionId('model-a', emptyMessages))
+    })
+
+    test('hashes text parts only', async () => {
+        const withText = [
+            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [new vscode.LanguageModelTextPart('answer')]),
+        ]
+        const withTextAndToolCall = [
+            makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [
+                new vscode.LanguageModelTextPart('answer'),
+                new vscode.LanguageModelToolCallPart('c1', 'read_file', { filePath: '/a.ts' }),
+            ]),
+        ]
+        strictEqual(await deriveSessionId('model-a', withText), await deriveSessionId('model-a', withTextAndToolCall))
     })
 })

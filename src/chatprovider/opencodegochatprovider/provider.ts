@@ -81,19 +81,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         }, OpenCodeGoChatModelProvider.DEFAULT_HTTP_TIMEOUT_MS)
 
         try {
-            // The opencode go gateway requires a stable per-conversation id on
-            // every outbound inference request via the x-opencode-session header.
-            // The id is derived deterministically from the model id and the
-            // leading messages of the request, so the provider stays stateless
-            // and nothing needs to be persisted in the transcript. The leading
-            // messages usually are the system prompt, the user context, and the
-            // user request (or the system prompt and the user request), which is
-            // enough to identify the conversation; an id collision is harmless
-            // because the gateway only uses the id for cache hits (e.g. sticky
-            // provider selection). Utility calls (e.g. title generation) derive
-            // the same id as the conversation whenever they share the same
-            // leading messages.
-            const sessionId = await deriveSessionId(model.id, messages)
             const loopInfo = isToolCallLoopDetected(messagesOrigin)
             if (loopInfo.detected) {
                 logger.error('[OpenCodeGo] Tool call loop detected, aborting request', {
@@ -104,6 +91,22 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 this.emitToolCallLoopMessage(trackingProgress)
                 return
             }
+            // The opencode go gateway requires a stable per-conversation id on
+            // every outbound inference request via the x-opencode-session header.
+            // The id is derived deterministically from the model id and the
+            // leading messages of the request, so the provider stays stateless
+            // and nothing needs to be persisted in the transcript. The leading
+            // messages usually are the system prompt, the user context, and the
+            // user request (or the system prompt and the user request), which is
+            // enough to identify the conversation; an id collision is harmless
+            // because the gateway only uses the id for cache hits (e.g. sticky
+            // provider selection). The pre-tweak messages are hashed so that
+            // tool-dependent system prompt edits do not change the id; utility
+            // calls (e.g. title generation) derive the same id as the
+            // conversation whenever they share the same leading messages. The
+            // hash runs after the loop abort path so it never delays loop
+            // protection.
+            const sessionId = await deriveSessionId(model.id, messagesOrigin)
 
             const umOrig: OpenCodeGoModelItem | undefined = getBuiltInModelConfig(model.id);
             if (!umOrig) {

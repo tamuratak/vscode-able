@@ -22,9 +22,10 @@ export const OPENCODE_SESSION_ID_HEADER = 'x-opencode-session'
 
 /**
  * Derive a stable session id from the model id and the leading messages of
- * the request.
+ * the request. Pass the messages before any tool-dependent rewriting so the
+ * id does not change with the tool set.
  * @param modelId The id of the model serving the conversation.
- * @param messages The outbound messages of the request.
+ * @param messages The leading messages of the request.
  * @returns A UUID-shaped session id derived from a SHA-256 fingerprint.
  */
 export async function deriveSessionId(modelId: string, messages: readonly LanguageModelChatRequestMessage[]): Promise<string> {
@@ -42,26 +43,17 @@ function serializeMessage(message: LanguageModelChatRequestMessage): unknown {
     return {
         role: message.role,
         name: message.name,
-        content: message.content.map(serializePart),
+        content: message.content.map(serializePart).filter(part => part !== undefined),
     }
 }
 
 function serializePart(part: unknown): unknown {
-    // Parts are tagged by type so that different part kinds never hash to
-    // the same fingerprint.
+    // Only text parts are hashed; tool calls, tool results, and data parts
+    // (e.g. attachments) are dropped because their representation in the
+    // transcript is not stable when a conversation is resumed (e.g. file
+    // attachments attached to the initial request).
     if (part instanceof vscode.LanguageModelTextPart) {
         return ['text', part.value]
     }
-    if (part instanceof vscode.LanguageModelToolCallPart) {
-        return ['toolCall', part.callId, part.name, part.input]
-    }
-    if (part instanceof vscode.LanguageModelToolResultPart) {
-        return ['toolResult', part.callId, part.content.map(p => serializePart(p))]
-    }
-    if (part instanceof vscode.LanguageModelDataPart) {
-        return ['data', part.mimeType]
-    }
-    // Unknown part types (e.g. prompt-tsx parts) are tagged only; their
-    // payloads are not stable enough to hash.
-    return ['unknown']
+    return undefined
 }
