@@ -6,8 +6,13 @@ import type { LanguageModelChatRequestMessage } from 'vscode'
  * outbound inference request via the x-opencode-session header. The id is
  * derived deterministically from the model id and the leading messages of
  * the request, so the provider stays stateless and nothing is persisted in
- * the chat transcript. The id is formatted like a UUID (8-4-4-4-12) purely
- * for readability.
+ * the chat transcript. The leading messages are typically the system
+ * prompt, the user context, and the user request (or the system prompt and
+ * the user request alone), which is enough to identify a conversation for
+ * this purpose. An id collision is harmless because the gateway only uses
+ * the id as a cache key (e.g. sticky provider selection), never to address
+ * a specific conversation. The id is formatted like a UUID (8-4-4-4-12)
+ * purely for readability.
  */
 
 /** Number of leading messages hashed into the session id; later messages do not influence it. */

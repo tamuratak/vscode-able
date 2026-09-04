@@ -85,9 +85,14 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
             // every outbound inference request via the x-opencode-session header.
             // The id is derived deterministically from the model id and the
             // leading messages of the request, so the provider stays stateless
-            // and nothing needs to be persisted in the transcript. Utility calls
-            // (e.g. title generation) derive the same id as the conversation
-            // whenever they share the same leading messages.
+            // and nothing needs to be persisted in the transcript. The leading
+            // messages usually are the system prompt, the user context, and the
+            // user request (or the system prompt and the user request), which is
+            // enough to identify the conversation; an id collision is harmless
+            // because the gateway only uses the id for cache hits (e.g. sticky
+            // provider selection). Utility calls (e.g. title generation) derive
+            // the same id as the conversation whenever they share the same
+            // leading messages.
             const sessionId = await deriveSessionId(model.id, messages)
             const loopInfo = isToolCallLoopDetected(messagesOrigin)
             if (loopInfo.detected) {
