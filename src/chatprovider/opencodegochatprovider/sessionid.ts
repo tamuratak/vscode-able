@@ -45,22 +45,21 @@ export function extractSessionId(messages: readonly LanguageModelChatRequestMess
 }
 
 /**
- * Generate a new session id and persist it in the transcript by reporting a
- * standalone assistant text part. The part survives in the chat messages and
- * is recovered by extractSessionId on the next request.
- * Note: concurrent requests to the same conversation may each emit their own
- * marker; the transcript converges on the most recent id, so the gateway may
- * temporarily see two ids for one conversation during the overlap.
+ * Persist a session id in the transcript by reporting a standalone
+ * assistant text part. The part survives in the chat messages and is
+ * recovered by extractSessionId on the next request.
+ * Note: concurrent requests to the same conversation may each emit their
+ * own marker; the transcript converges on the most recent id, so the
+ * gateway may temporarily see two ids for one conversation during the
+ * overlap.
+ * @param sessionId The session id to persist in the transcript.
  * @param progress Progress reporter for response parts.
- * @returns The generated session id.
  */
-export function emitSessionIdPart(progress: Progress<LanguageModelResponsePart2>): string {
-    const sessionId = crypto.randomUUID()
+export function emitSessionIdPart(sessionId: string, progress: Progress<LanguageModelResponsePart2>): void {
     progress.report(new vscode.LanguageModelTextPart2(
         `<!-- ABLE_OPENCODE_SESSION_ID: ${sessionId} -->`,
         [vscode.LanguageModelPartAudience.Assistant]
     ))
-    return sessionId
 }
 
 /**
