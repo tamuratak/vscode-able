@@ -68,14 +68,6 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         const options = tweakTools(optionsOrigin)
         channel.append('\n\n\n\n\n\n                ======================= New Request =======================              \n\n\n\n\n\n')
         channel.append(await renderMessages(messages))
-        // The opencode go gateway requires a stable per-conversation id on
-        // every outbound inference request via the x-opencode-session header.
-        // The id is derived deterministically from the model id and the
-        // leading messages of the request, so the provider stays stateless
-        // and nothing needs to be persisted in the transcript. Utility calls
-        // (e.g. title generation) derive the same id as the conversation
-        // whenever they share the same leading messages.
-        const sessionId = await deriveSessionId(model.id, messages)
         const requestStartTime = Date.now();
         const abortController = new AbortController();
         this._activeAbortControllers.add(abortController)
@@ -89,6 +81,14 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         }, OpenCodeGoChatModelProvider.DEFAULT_HTTP_TIMEOUT_MS)
 
         try {
+            // The opencode go gateway requires a stable per-conversation id on
+            // every outbound inference request via the x-opencode-session header.
+            // The id is derived deterministically from the model id and the
+            // leading messages of the request, so the provider stays stateless
+            // and nothing needs to be persisted in the transcript. Utility calls
+            // (e.g. title generation) derive the same id as the conversation
+            // whenever they share the same leading messages.
+            const sessionId = await deriveSessionId(model.id, messages)
             const loopInfo = isToolCallLoopDetected(messagesOrigin)
             if (loopInfo.detected) {
                 logger.error('[OpenCodeGo] Tool call loop detected, aborting request', {
