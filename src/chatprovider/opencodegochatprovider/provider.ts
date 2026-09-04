@@ -71,8 +71,12 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         // Persist a stable per-conversation id in the transcript as a
         // standalone assistant part; it is stripped from the model payload
         // and sent as the x-opencode-session header instead, keeping the
-        // provider stateless.
-        const sessionId = extractSessionId(messages) ?? emitSessionIdPart(dedupProgress)
+        // provider stateless. Requests without tools are assumed to be small
+        // utility calls (e.g. title generation), which get no session id.
+        const isUtilityCall = !options.tools || options.tools.length === 0
+        const sessionId = isUtilityCall
+            ? undefined
+            : extractSessionId(messages) ?? emitSessionIdPart(dedupProgress)
         const outboundMessages = stripSessionIdParts(messages)
         const requestStartTime = Date.now();
         const abortController = new AbortController();
@@ -144,7 +148,9 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 throw new Error('No authentication session found for ' + openCodeGoAuthServiceId)
             }
             const requestHeaders = CommonApi.prepareHeaders(modelApiKey, apiMode, um.headers);
-            requestHeaders[OPENCODE_SESSION_ID_HEADER] = sessionId;
+            if (sessionId) {
+                requestHeaders[OPENCODE_SESSION_ID_HEADER] = sessionId;
+            }
             logger.debug('request.headers', {
                 headers: logger.sanitizeHeaders(requestHeaders),
             });
