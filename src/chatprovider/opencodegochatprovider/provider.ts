@@ -71,8 +71,22 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
         // Persist a stable per-conversation id in the transcript as a
         // standalone assistant part; it is stripped from the model payload
         // and sent as the x-opencode-session header instead, keeping the
-        // provider stateless.
-        const sessionId = extractSessionId(messages) ?? emitSessionIdPart(dedupProgress)
+        // provider stateless. Tools-less requests are usually small utility
+        // calls (e.g. title generation): reuse an existing session id when
+        // one is already in the transcript so conversation continuity is
+        // kept, otherwise send a fresh uuid in the header without ever
+        // persisting it in the transcript. Utility calls are not isolated
+        // from the conversation; the goal is only to avoid transcript
+        // pollution.
+        const existingSessionId = extractSessionId(messages)
+        const isUtilityCall = !options.tools || options.tools.length === 0
+        const sessionId = existingSessionId ?? crypto.randomUUID()
+        if (!existingSessionId && !isUtilityCall) {
+            // Persist the id in the transcript for a regular request; a
+            // utility call sends it in the header only, without polluting
+            // the transcript.
+            emitSessionIdPart(sessionId, dedupProgress)
+        }
         const outboundMessages = stripSessionIdParts(messages)
         const requestStartTime = Date.now();
         const abortController = new AbortController();
@@ -144,6 +158,8 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 throw new Error('No authentication session found for ' + openCodeGoAuthServiceId)
             }
             const requestHeaders = CommonApi.prepareHeaders(modelApiKey, apiMode, um.headers);
+            // sessionId is always set: it is either recovered from the
+            // transcript or freshly generated above.
             requestHeaders[OPENCODE_SESSION_ID_HEADER] = sessionId;
             logger.debug('request.headers', {
                 headers: logger.sanitizeHeaders(requestHeaders),

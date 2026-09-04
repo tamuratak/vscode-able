@@ -73,14 +73,14 @@ suite('emitSessionIdPart', () => {
     test('reports a marker part tagged for the assistant audience', () => {
         const reported: vscode.LanguageModelResponsePart2[] = []
         const progress: vscode.Progress<vscode.LanguageModelResponsePart2> = { report: part => reported.push(part) }
-        const sessionId = emitSessionIdPart(progress)
+        emitSessionIdPart(SESSION_ID, progress)
         strictEqual(reported.length, 1)
         const part = reported[0]
         if (!(part instanceof vscode.LanguageModelTextPart2)) {
             throw new Error('expected a LanguageModelTextPart2')
         }
         deepStrictEqual(part.audience, [vscode.LanguageModelPartAudience.Assistant])
-        strictEqual(extractSessionId([makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [part])]), sessionId)
+        strictEqual(extractSessionId([makeMessage(vscode.LanguageModelChatMessageRole.Assistant, [part])]), SESSION_ID)
     })
 })
 
