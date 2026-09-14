@@ -79,9 +79,10 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'kimi-k2.7-code', displayName: 'Kimi K2.7 Code', inputModalities: ['image', 'video'], maxInputTokens: 262144, maxOutputTokens: 32768, pricing: { inputCost: 0.95, outputCost: 4, cacheCost: 0.19 } },
 
     // https://api-docs.deepseek.com/api/create-chat-completion
+    { baseId: 'deepseek-v4.1-flash', displayName: 'DeepSeek V4.1 Flash', inputModalities: ['image'], defaultReasoningEffort: 'max', supportsReasoningEffort: ['low', 'high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.15, outputCost: 0.6, cacheCost: 0.003 } },
     { baseId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', defaultReasoningEffort: 'max', supportsReasoningEffort: ['low', 'high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.66, outputCost: 1.98, cacheCost: 0.022 } },
-    { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', defaultReasoningEffort: 'max', supportsReasoningEffort: ['low', 'high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.22, outputCost: 0.66, cacheCost: 0.007 } },
-    { baseId: 'deepseek-v4-flash-vision-exp', displayName: 'DeepSeek V4 Flash Vision Exp', inputModalities: ['image'], defaultReasoningEffort: 'max', supportsReasoningEffort: ['low', 'high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.22, outputCost: 0.66, cacheCost: 0.007 } },
+    { baseId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', defaultReasoningEffort: 'max', supportsReasoningEffort: ['low', 'high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.15, outputCost: 0.6, cacheCost: 0.003 } },
+    { baseId: 'deepseek-v4-flash-vision-exp', displayName: 'DeepSeek V4 Flash Vision Exp', inputModalities: ['image'], defaultReasoningEffort: 'max', supportsReasoningEffort: ['low', 'high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.15, outputCost: 0.6, cacheCost: 0.003 } },
 
     // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
     { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', maxInputTokens: 1000000, maxOutputTokens: 65536, extra: { frequency_penalty: 0.01 }, pricing: { inputCost: 1.74, outputCost: 3.48, cacheCost: 0.0145 } },
