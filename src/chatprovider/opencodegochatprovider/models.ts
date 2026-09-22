@@ -85,6 +85,8 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'deepseek-v4-flash-vision-exp', displayName: 'DeepSeek V4 Flash Vision Exp', inputModalities: ['image'], defaultReasoningEffort: 'max', supportsReasoningEffort: ['low', 'high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.15, outputCost: 0.6, cacheCost: 0.003 } },
 
     // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
+    { baseId: 'mimo-v2.6-pro', displayName: 'MiMo-V2.6-Pro', maxInputTokens: 1000000, maxOutputTokens: 65536, extra: { frequency_penalty: 0.01 }, pricing: { inputCost: 0.435, outputCost: 0.87, cacheCost: 0.003625 } },
+    { baseId: 'mimo-v2.6-flash', displayName: 'MiMo-V2.6-Flash', maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 }, pricing: { inputCost: 0.14, outputCost: 0.28, cacheCost: 0.0028 } },
     { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', maxInputTokens: 1000000, maxOutputTokens: 65536, extra: { frequency_penalty: 0.01 }, pricing: { inputCost: 1.74, outputCost: 3.48, cacheCost: 0.0145 } },
     { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', inputModalities: ['image', 'audio', 'video'], maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 }, pricing: { inputCost: 0.14, outputCost: 0.28, cacheCost: 0.0028 } },
 
