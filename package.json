@@ -1,7 +1,7 @@
 {
   "name": "able",
   "displayName": "Able",
-  "version": "10.8.0",
+  "version": "10.8.1",
   "publisher": "tamuratak",
   "license": "MIT",
   "description": "An extension able to do things",
@@ -415,7 +415,7 @@
     "@vscode/tree-sitter-wasm": "0.3.1",
     "mathjax-full": "3.2.2",
     "playwright": "1.60.0",
-    "vm2": "3.11.6",
+    "vm2": "3.12.2",
     "vscode-uri": "3.1.0",
     "workerpool": "10.0.2"
   },
@@ -426,7 +426,7 @@
     "@types/vscode": "1.125.0",
     "@vscode/dts": "0.4.1",
     "@vscode/test-electron": "3.1.0",
-    "@vscode/vsce": "3.9.2",
+    "@vscode/vsce": "4.0.0",
     "eslint": "10.0.0",
     "glob": "13.0.6",
     "mocha": "11.7.6",
