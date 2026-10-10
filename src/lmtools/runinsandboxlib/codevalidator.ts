@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import treeSitter from '#vscode-tree-sitter-wasm'
-import { treeSitterParserInit } from '../treesitterinit.js'
+import { treeSitterParserInit } from '../../treesitterinit.js'
 
 const nodeRequire = createRequire(__filename)
 const javascriptLanguagePath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter-javascript.wasm')

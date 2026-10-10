@@ -2,7 +2,7 @@ import { createRequire } from 'node:module'
 import treeSitter from '#vscode-tree-sitter-wasm'
 import { treeSitterParserInit } from '../../treesitterinit.js'
 import { getNodeText } from './commandparser.js'
-import type { CodeValidationResult } from '../../playwright_exec/codevalidator.js'
+import type { CodeValidationResult } from './codevalidator.js'
 
 const nodeRequire = createRequire(__filename)
 const javascriptLanguagePath = nodeRequire.resolve('@vscode/tree-sitter-wasm/wasm/tree-sitter-javascript.wasm')

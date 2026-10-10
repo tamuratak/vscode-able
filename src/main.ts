@@ -8,19 +8,16 @@ import { OpenCodeGoChatModelProvider } from './chatprovider/chatprovider.js'
 import { RunInSandbox } from './lmtools/runinsandbox.js'
 import { FetchWebPageTool, FetchWebPageToolAutoApprove } from './lmtools/fetchwebpage.js'
 import { AskChatHandleManager } from './chat/ask.js'
-import { PlaywrightExecResetTool, PlaywrightExecTool } from './playwright_exec/playwrightexectool.js'
 import { Lean4Extension } from './lean4.js'
 import { MathRenderer } from './mathjax/mathrenderer.js'
 
 
 export function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('vscode-able', { log: true })
-    const extensionUri = context.extensionUri
     const chatHandleManager = new ChatHandleManager({ outputChannel })
     const askChatHandleManager = new AskChatHandleManager({ outputChannel })
     const ableTaskProvider = new MochaJsonTaskProvider({ outputChannel })
     const taskWatcher = new TaskWatcher()
-    const playwrightExecTool = new PlaywrightExecTool({ outputChannel, extensionUri })
     const lean4Extension = new Lean4Extension({ outputChannel })
     const mathRenderer = new MathRenderer({ outputChannel })
 
@@ -39,7 +36,6 @@ export function activate(context: vscode.ExtensionContext) {
         lean4Extension,
         mathRenderer,
         outputChannel,
-        playwrightExecTool,
         runInSandbox,
         vscode.authentication.registerAuthenticationProvider(openCodeGoAuthProvider.serviceId, openCodeGoAuthProvider.label, openCodeGoAuthProvider),
         vscode.commands.registerCommand('able.loginOpenCodeGo', () => {
@@ -56,8 +52,6 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.lm.registerTool('able_fetch_webpage', new FetchWebPageTool({ outputChannel })),
         vscode.lm.registerTool('able_fetch_webpage_autoapprove', new FetchWebPageToolAutoApprove({ outputChannel })),
         vscode.lm.registerTool('able_runInSandbox', runInSandbox),
-        vscode.lm.registerTool('able_playwrightExec', playwrightExecTool),
-        vscode.lm.registerTool('able_playwrightExecReset', new PlaywrightExecResetTool(playwrightExecTool)),
         vscode.tasks.registerTaskProvider(MochaJsonTaskProvider.AbleTaskType, ableTaskProvider),
         vscode.languages.registerHoverProvider({ scheme: 'file', language: 'lean4' }, mathRenderer),
         ...registerCommands()

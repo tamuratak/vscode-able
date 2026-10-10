@@ -1,6 +1,6 @@
 import * as assert from 'node:assert'
 import { suite, test } from 'mocha'
-import { validatePlaywrightExecCode } from '../../../src/playwright_exec/codevalidator.js'
+import { validatePlaywrightExecCode } from '../../../../src/lmtools/runinsandboxlib/codevalidator.js'
 
 suite('playwright exec code validator', () => {
     test('accepts simple async code', async () => {
