@@ -106,7 +106,7 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     { baseId: 'muse-spark-1.3-contributor', displayName: 'Muse Spark 1.3 Contributor', inputModalities: ['image', 'video', 'pdf', 'audio'], apiType: 'responses', defaultReasoningEffort: 'xhigh', supportsReasoningEffort: ['minimal', 'low', 'medium', 'high', 'xhigh'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.1, outputCost: 0.2, cacheCost: 0.02 } },
     { baseId: 'muse-spark-1.2-contributor', displayName: 'Muse Spark 1.2 Contributor', inputModalities: ['image', 'video', 'pdf'], apiType: 'responses', defaultReasoningEffort: 'xhigh', supportsReasoningEffort: ['minimal', 'low', 'medium', 'high', 'xhigh'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.1, outputCost: 0.2, cacheCost: 0.02 } },
 
-    { baseId: 'space-bunny', displayName: 'Space Bunny', inputModalities: ['image', 'video'], apiType: 'responses', defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'medium', 'high'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.1, outputCost: 0.2, cacheCost: 0.02 } },
+    { baseId: 'space-bunny', displayName: 'Space Bunny', inputModalities: ['image', 'video'], defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'medium', 'high'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.1, outputCost: 0.2, cacheCost: 0.02 } },
 
 ]
 
