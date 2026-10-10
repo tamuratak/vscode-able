@@ -21,7 +21,7 @@ export interface RunInSandboxInput {
 export class RunInSandbox implements LanguageModelTool<RunInSandboxInput>, vscode.Disposable {
     private readonly tmpDir = this.setupTmpDir()
     private readonly outputChannel = vscode.window.createOutputChannel('vscode-able: RunInSandbox', { log: true })
-    private skipMode = false
+    private skipMode = true
     private readonly statusBarItem: vscode.StatusBarItem
     private readonly commandDisposable: vscode.Disposable
 
