@@ -70,8 +70,6 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
 
     // https://docs.z.ai/api-reference/llm/chat-completion
     { baseId: 'glm-5.3-flash', displayName: 'GLM-5.3 Flash', inputModalities: ['image'], defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.075, outputCost: 0.25, cacheCost: 0.015 } },
-    { baseId: 'glm-5.3', displayName: 'GLM-5.3', defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 62768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
-    { baseId: 'glm-5.2', displayName: 'GLM-5.2', defaultReasoningEffort: 'max', supportsReasoningEffort: ['high', 'max'], maxInputTokens: 1000000, maxOutputTokens: 62768, pricing: { inputCost: 1.4, outputCost: 4.4, cacheCost: 0.26 } },
 
     // https://platform.kimi.ai/docs/api/chat#content-field-description
     // https://docs.fireworks.ai/api-reference/post-chatcompletions
@@ -87,7 +85,6 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
     // https://platform.xiaomimimo.com/docs/en-US/api/chat/openai-api
     { baseId: 'mimo-v2.6-pro', displayName: 'MiMo-V2.6-Pro', maxInputTokens: 1000000, maxOutputTokens: 65536, extra: { frequency_penalty: 0.01 }, pricing: { inputCost: 0.435, outputCost: 0.87, cacheCost: 0.003625 } },
     { baseId: 'mimo-v2.6-flash', displayName: 'MiMo-V2.6-Flash', maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 }, pricing: { inputCost: 0.14, outputCost: 0.28, cacheCost: 0.0028 } },
-    { baseId: 'mimo-v2.5-pro', displayName: 'MiMo-V2.5-Pro', maxInputTokens: 1000000, maxOutputTokens: 65536, extra: { frequency_penalty: 0.01 }, pricing: { inputCost: 1.74, outputCost: 3.48, cacheCost: 0.0145 } },
     { baseId: 'mimo-v2.5', displayName: 'MiMo-V2.5', inputModalities: ['image', 'audio', 'video'], maxInputTokens: 1000000, maxOutputTokens: 32768, extra: { frequency_penalty: 0.01 }, pricing: { inputCost: 0.14, outputCost: 0.28, cacheCost: 0.0028 } },
 
     // https://platform.minimax.io/docs/api-reference/text-anthropic-api
@@ -95,16 +92,11 @@ const BUILT_IN_MODELS: BuiltInModelDef[] = [
 
     // https://docs.qwencloud.com/api-reference/chat/anthropic
     // https://www.qwencloud.com/models/qwen3.8-flash
-    // https://www.qwencloud.com/models/qwen3.7-max
-    // https://www.qwencloud.com/models/qwen3.7-plus
     { baseId: 'qwen3.8-flash', displayName: 'Qwen3.8 Flash', inputModalities: ['image', 'video'], maxInputTokens: 1000000, maxOutputTokens: 16384, extra: { thinking: { type: 'enabled', budget_tokens: 32768 } }, pricing: { inputCost: 0.15, outputCost: 0.47, cacheCost: 0.016, cacheWriteCost: 0.2 } },
-    { baseId: 'qwen3.7-max', displayName: 'Qwen3.7 Max', apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 16384, extra: { thinking: { type: 'enabled', budget_tokens: 32768 } }, pricing: { inputCost: 2.5, outputCost: 7.5, cacheCost: 0.5 } },
-    { baseId: 'qwen3.7-plus', displayName: 'Qwen3.7 Plus', inputModalities: ['image', 'video'], apiType: 'messages', maxInputTokens: 1000000, maxOutputTokens: 16384, extra: { thinking: { type: 'enabled', budget_tokens: 32768 } }, pricing: { inputCost: 0.4, outputCost: 1.6, cacheCost: 0.04, longContextInputCost: 1.2, longContextOutputCost: 4.8, longContextCacheCost: 0.12 } },
 
     // https://dev.meta.ai/docs/models
     // https://dev.meta.ai/docs/protocols/responses
     { baseId: 'muse-spark-1.3-contributor', displayName: 'Muse Spark 1.3 Contributor', inputModalities: ['image', 'video', 'pdf', 'audio'], apiType: 'responses', defaultReasoningEffort: 'xhigh', supportsReasoningEffort: ['minimal', 'low', 'medium', 'high', 'xhigh'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.1, outputCost: 0.2, cacheCost: 0.02 } },
-    { baseId: 'muse-spark-1.2-contributor', displayName: 'Muse Spark 1.2 Contributor', inputModalities: ['image', 'video', 'pdf'], apiType: 'responses', defaultReasoningEffort: 'xhigh', supportsReasoningEffort: ['minimal', 'low', 'medium', 'high', 'xhigh'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.1, outputCost: 0.2, cacheCost: 0.02 } },
 
     { baseId: 'space-bunny', displayName: 'Space Bunny', inputModalities: ['image', 'video'], defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'medium', 'high'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.1, outputCost: 0.2, cacheCost: 0.02 } },
 
