@@ -144,8 +144,10 @@ export class OpenaiApi extends CommonApi<OpenAIChatMessage, Record<string, unkno
 
         // Thinking mode (OpenAI-compatible format: {"thinking": {"type": "enabled"}})
         if (um.enable_thinking) {
-            // For GLM-5.2, thinking and reasoning_effort are exclusive.
-            if (this._modelInfo.id !== 'glm-5.2') {
+            // For GLM models, thinking and reasoning_effort are exclusive.
+            if (this._modelInfo.id.startsWith('glm-')) {
+                void 0;
+            } else {
                 rb['thinking'] = { type: 'enabled' }
             }
         } else {
