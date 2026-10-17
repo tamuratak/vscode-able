@@ -61,6 +61,11 @@ export type EndpointApiType = 'chat-completions' | 'responses' | 'messages';
  * ? https://models.dev/api.json
  */
 const BUILT_IN_MODELS: BuiltInModelDef[] = [
+    // https://platform.claude.com/docs/en/api/typescript/messages/create
+    // https://platform.claude.com/docs/en/models/haiku-5-5/overview
+
+    { baseId: 'claude-haiku-5-5', displayName: 'Haiku 5.5', apiType: 'messages', inputModalities: ['image'], defaultReasoningEffort: 'high', supportsReasoningEffort: ['low', 'medium', 'high', 'xhigh', 'max'], maxInputTokens: 1000000, maxOutputTokens: 32768, pricing: { inputCost: 0.1, outputCost: 0.5, cacheCost: 0.01, longContextInputCost: 0.5, longContextOutputCost: 2.5, longContextCacheCost: 0.05 } },
+
     // https://developers.openai.com/api/docs/models/gpt-6-luna
     // https://developers.openai.com/api/reference/resources/responses/methods/create
     { baseId: 'gpt-6-luna', displayName: 'GPT 6 Luna', apiType: 'responses', inputModalities: ['image'], defaultReasoningEffort: 'max', supportsReasoningEffort: ['none', 'low', 'medium', 'high', 'xhigh', 'max'], maxInputTokens: 1000000, maxOutputTokens: 100000, editTools: ['apply-patch'], pricing: { inputCost: 0.2, outputCost: 1.2, cacheCost: 0.02, cacheWriteCost: 0.25, longContextInputCost: 0.4, longContextOutputCost: 1.8, longContextCacheCost: 0.04, longContextCacheWriteCost: 0.50 } },
