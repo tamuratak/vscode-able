@@ -133,13 +133,11 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
 
             // Determine API mode from model config (default: openai)
             const apiMode = um.apiType
-            const BASE_URL = 'https://opencode.ai/zen/go/v1'
 
             logger.info('request.start', {
                 modelId: model.id,
                 messageCount: messages.length,
                 apiMode,
-                BASE_URL,
                 sessionId,
             })
 
@@ -174,7 +172,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 };
                 requestBody = anthropicApi.prepareRequestBody(requestBody, um, options);
 
-                const url = `${BASE_URL}/messages`
+                const url = 'https://opencode.ai/inference/go/anthropic/v1/messages';
                 logger.trace('request.body', { url, requestBody })
                 const body = await anthropicApi.postAndGetBody(url, requestBody, requestHeaders, abortController.signal, 'Anthropic API');
                 // The connect phase is over once headers arrive; the streaming
@@ -198,7 +196,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 requestBody = openaiApi.prepareRequestBody(requestBody, um, options);
 
                 // Send chat request
-                const url = `${BASE_URL}/chat/completions`;
+                const url = 'https://opencode.ai/inference/go/openai/v1/chat/completions';
                 logger.trace('request.body', { url, requestBody });
                 const body = await openaiApi.postAndGetBody(url, requestBody, requestHeaders, abortController.signal, 'API');
                 // The connect phase is over once headers arrive; the streaming
@@ -221,7 +219,7 @@ export class OpenCodeGoChatModelProvider implements LanguageModelChatProvider {
                 requestBody = openaiResponsesApi.prepareRequestBody(requestBody, um, options);
 
                 // Send responses request
-                const url = `${BASE_URL}/responses`;
+                const url = 'https://opencode.ai/inference/go/openai/v1/responses';
                 logger.trace('request.body', { url, requestBody });
                 const body = await openaiResponsesApi.postAndGetBody(url, requestBody, requestHeaders, abortController.signal, 'Responses API');
                 // The connect phase is over once headers arrive; the streaming
