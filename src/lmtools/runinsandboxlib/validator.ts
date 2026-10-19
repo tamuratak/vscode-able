@@ -2,13 +2,11 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import { collectCommands, CommandNode, hasNoWriteRedirection } from './commandparser.js'
 import { validateNodeScript } from './nodevalidate.js'
-import { isAllowedPlanAppendCommand } from './validatorlib/redirect.js'
 
 
 export async function isAllowedCommand(command: string, workspaceRootPaths: string[] | undefined): Promise<boolean> {
     // File redirection
-    const allowPlanAppend = await isAllowedPlanAppendCommand(command, workspaceRootPaths)
-    if (!allowPlanAppend && !await hasNoWriteRedirection(command)) {
+    if (!await hasNoWriteRedirection(command)) {
         return false
     }
 
